@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-09T18:13:34.704Z",
+  "generatedAt": "2026-08-09T18:33:07.527Z",
   "totalFunctions": 150,
   "files": [
     {
@@ -710,7 +710,7 @@
     },
     {
       "file": "hda/scripts/build_hda.py",
-      "lineCount": 165,
+      "lineCount": 172,
       "functions": [
         {
           "name": "_parm_group",
@@ -721,7 +721,7 @@
         },
         {
           "name": "build",
-          "line": 96,
+          "line": 103,
           "kind": "def",
           "exported": false,
           "calls": 2

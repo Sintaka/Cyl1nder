@@ -10,7 +10,7 @@
 - **JS/TS 改动标注**：在 devlog 对应专题文件记录与既有代码的差别。
 - **版本号（2026-08-10 起，参考 Anime Hair Studio）**：`x.xxx.xxxxx`（主版本.次版本.每日构建5位），如 `0.1.00001`；**每次 commit 时 dailybuild++**；主/次版本升级时 dailybuild 清零。写入 `bridge/bridge/protocol.py` 的 `VERSION`、`web/src/app/app-config.ts` 的 `APP_VERSION`、devlog「最近版本」。用 `node scripts/bump-version.mjs [build|minor|major]` 递增（默认 build）。
 - **Codex 子智能体**：适当时候可以直接使用子智能体（并行调研 / 独立小改动）。
-- **许可证**：本项目计划 MIT；引入第三方代码时确保许可兼容；Animehairstudio 代码一律不复制（source-available 许可）。
+- **许可证**：本项目采用 **Cyl1nder Source-Available Non-Commercial License**（见根 LICENSE）：源码可用、**禁止商用**、个人学习/非商业不限、允许修改（宽松，衍生作品同约束并保留声明署名）、**最终使用者负全责、与作者无关**。引入第三方代码时确保许可兼容；Animehairstudio / Zeno(MPL-2.0) 代码只借鉴不复制。
 
 ## 调试规范 / Debugging standards（2026-08-10 起累积，按条目追加）
 - **Houdini 端与 Codex 一律使用官方 fxhoudinimcp**（pip 包 v2.10.0，github healkeiser/fxhoudinimcp，`python -m fxhoudinimcp`）；默认端口 **8100**，被其他 Houdini 实例占用时自动 8101+（官方 find_servers 探测 8100..8115）。**禁止自己写 MCP 桥；不用 oculairmedia fork / run_houdini_mcp.py / rpyc 18811 那套**。Codex 配置见 `[mcp_servers.fxhoudinimcp]`（config.toml）。

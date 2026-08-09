@@ -66,22 +66,29 @@ def _parm_group() -> hou.ParmTemplateGroup:
     )
     group.append(
         StringParmTemplate(
-            "web_url", "Web UI URL", 1, default_value=("http://127.0.0.1:5173",)
+            "web_url", "Web UI URL", 1, default_value=("http://127.0.0.1:8376",)
         )
     )
-    group.append(ToggleParmTemplate("auto_push", "Auto Push Inputs", True))
-    group.append(ToggleParmTemplate("auto_pull", "Auto Pull Outputs", True))
+    auto_push = ToggleParmTemplate("auto_push", "Auto Push", True)
+    auto_pull = ToggleParmTemplate("auto_pull", "Auto Pull", True)
+    bridge_autostart = ToggleParmTemplate("bridge_autostart", "Bridge Autostart", True)
+    auto_push.setJoinWithNext(True)
+    auto_pull.setJoinWithNext(True)
+    group.append(auto_push)
+    group.append(auto_pull)
+    group.append(bridge_autostart)
     group.append(IntParmTemplate("sync_fps", "Sync FPS", 1, default_value=(30,), min=1, max=60))
-    group.append(ToggleParmTemplate("bridge_autostart", "Bridge Autostart", True))
 
     force_cook = ButtonParmTemplate("force_cook", "Force Cook")
     force_cook.setScriptCallback(FORCE_COOK_CALLBACK)
     force_cook.setScriptCallbackLanguage(hou.scriptLanguage.Python)
+    force_cook.setJoinWithNext(True)
     group.append(force_cook)
 
     open_web = ButtonParmTemplate("open_web", "Open in Browser")
     open_web.setScriptCallback(OPEN_WEB_CALLBACK)
     open_web.setScriptCallbackLanguage(hou.scriptLanguage.Python)
+    open_web.setJoinWithNext(True)
     group.append(open_web)
 
     regen = ButtonParmTemplate("cyl1nder_regenerate", "Regenerate Serial")

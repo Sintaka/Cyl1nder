@@ -15,7 +15,7 @@
 - **Open in Browser 按钮**：`open_web` 参数回调 `webbrowser.open(bridge_url + '/?serial=' + cyl1nder_serial)`，默认浏览器打开对应工作区。
 - 热重载：`hou.hda.reloadFile(path)` 可直接替换活动会话中的定义，实例保留 serial 等参数值。
 ## v0.1.0-cyl1nder.3（2026-08-10）
-- **web_url 参数**：Open in Browser 按钮改开前端地址（默认 `http://127.0.0.1:5173`，参数 `web_url`），不再误开数据桥 8375。
+- **web_url 参数**：Open in Browser 按钮改开前端地址（默认 `http://127.0.0.1:8376`，参数 `web_url`），不再误开数据桥 8375。
 - **Shelf 工具架**：`hda/shelf/Cyl1nder.shelf`（Reload HDA / Reload Bridge，python 图标），装入 `Documents\houdini22.0\toolbar\`，Houdini 下次启动出现（或右键工具架手动加）。
 ## v0.1.00002（2026-08-10）
 - **Force Cook**：`pull_now` 改名 `force_cook`（label "Force Cook"），回调对内部 python SOP `cook(force=True)`。
@@ -30,3 +30,6 @@
 ## v0.1.00004（2026-08-10）
 - **HDA 自动拉起桥**：`bridge_autostart`（默认开）——cook 时若桥不可达，HDA 用 subprocess 拉起 bridge（5s 内最多一次）；已有在线桥则直接复用。
 - **脏几何根治（内容对比）**：`_same_as_buffer` 每次 cook 对比当前输出几何与桥最新 buffer，不同才重建；不再用 last_rev/存储哈希做重建决策 → 任何脏写入下次 cook 自动纠正（实测 266 脏几何被 [100,100,100] 覆盖）。
+## v0.1.00005（2026-08-10）
+- **UI 端口 8376**：`web_url` 默认 `http://127.0.0.1:8376`（与桥 8375 相邻）；Open in Browser 自动开新端口。
+- **参数布局同行**：`auto_push|auto_pull|bridge_autostart` 一行（setJoinWithNext）；`force_cook|open_web|cyl1nder_regenerate` 一行。

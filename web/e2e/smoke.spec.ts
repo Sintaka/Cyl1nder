@@ -13,7 +13,7 @@ test("Cyl1nder page loads and connects to a live serial", async ({ page }) => {
   const serial = process.env.CYL1NDER_E2E_SERIAL || serials[serials.length - 1] || "";
   test.skip(!serial, "no serial registered in bridge");
 
-  await page.goto(`http://127.0.0.1:5173/?serial=${serial}`);
+  await page.goto(`http://127.0.0.1:8376/?serial=${serial}`);
   await expect(page.locator(".cyl-graph svg")).toBeVisible({ timeout: 15000 });
   await expect(page.locator(".cyl-viewport canvas")).toBeVisible();
   await expect(page.locator(".cyl-status")).toHaveClass(/ok/, { timeout: 15000 });

@@ -162,12 +162,12 @@
 | `broadcast` | 32 | def |  | 2 |
 | `ws_endpoint` | 53 | def |  | 1 |
 
-## hda/scripts/build_hda.py（165 行）
+## hda/scripts/build_hda.py（172 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `_parm_group` | 44 | def |  | 3 |
-| `build` | 96 | def |  | 2 |
+| `build` | 103 | def |  | 2 |
 
 ## hda/scripts/hython_smoke.py（111 行）
 

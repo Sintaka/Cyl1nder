@@ -12,12 +12,12 @@ import time
 
 from pydantic import BaseModel, Field
 
-VERSION = "0.1.00004"
+VERSION = "0.1.00005"
 HOST = "127.0.0.1"
 PORT = 8375
 BASE_URL = f"http://{HOST}:{PORT}"
 # Web frontend (Vite dev server) - NOT the bridge. The bridge is data-only (REST/WS).
-WEB_UI_URL = "http://127.0.0.1:5173"
+WEB_UI_URL = "http://127.0.0.1:8376"
 
 # serial: C1-<base36(ms) 8+ chars>-<4 base36 random>
 _SERIAL_RE = re.compile(r"^C1-[0-9a-z]{8,}-[0-9a-z]{4}$")

@@ -147,7 +147,7 @@ D:\code\dev\Cyl1nder\
 │  └─ shelf\Cyl1nder.shelf        # 工具架（Reload HDA / Reload Bridge）
 ├─ web\                           # ★ Vite + TS（strict），无 UI 框架
 │  ├─ package.json                # dev/build/typecheck/test/e2e 脚本；three + @antv/x6
-│  ├─ vite.config.ts              # 127.0.0.1:5173 strictPort；vitest node 环境
+│  ├─ vite.config.ts              # 127.0.0.1:8376 strictPort；vitest node 环境
 │  ├─ playwright.config.ts        # e2e（连真实桥）
 │  ├─ src\
 │  │  ├─ main.ts                  # 编排层（接线，不写业务）
@@ -181,7 +181,7 @@ D:\code\dev\Cyl1nder\
 
 1. **修 `scripts/gen-index.mjs` 的 TS 导出名 bug（高收益、零风险）**：非 Python 分支 `const name = m[1] || m[2]` 会把所有 `export function/class` 记成名字 `"export "`（FUNCTION_INDEX.md 里 web 侧全部是 `export ` 即此 bug），web 侧索引失效。改为 `const name = m[2]`，重跑索引即可。这是目前"函数引导目录"对 web 端最痛的缺口。
 2. **新增 `scripts/verify-all.ps1`**：一条命令依次跑 `bridge pytest → web tsc+vitest → hython 冒烟`（三端铁律脚本化，对应 AHS REFACTOR_PLAN「验证策略」），可在失败处停下并打印哪端挂了。避免 agent 只跑一端。
-3. **QUICKSTART 补两节**：`Keep list（关键机制）`（协议单源三处同步、serial 创建即不可变、单桥 8375、官方 fxhoudinimcp、30fps 双向同步 + 回显去重 + 桥重启自愈、compute 注册表扩展点）与 `常见坑`（python SOP 缓存→`cook(force=True)`；X6 `Node.define` 不自动注册→`Graph.registerNode`；three r180 `TransformControls extends Controls`→`getHelper()`；auto-run 首帧 inputs 视为回放不触发网络；bridge 重启 rev 回退→`since > rev` 返回全部；CORS 5173→8375）。
+3. **QUICKSTART 补两节**：`Keep list（关键机制）`（协议单源三处同步、serial 创建即不可变、单桥 8375、官方 fxhoudinimcp、30fps 双向同步 + 回显去重 + 桥重启自愈、compute 注册表扩展点）与 `常见坑`（python SOP 缓存→`cook(force=True)`；X6 `Node.define` 不自动注册→`Graph.registerNode`；three r180 `TransformControls extends Controls`→`getHelper()`；auto-run 首帧 inputs 视为回放不触发网络；bridge 重启 rev 回退→`since > rev` 返回全部；CORS 8376→8375）。
 4. **devlog/README 或新页加「子系统关键词→专题文件」索引表**（对标 AHS js-change-annotations.md）：例如 `serial → registry.py / decisions.md`、`回显/反馈回路 → annotations-hda.md`、`rev/pending/30fps → annotations-bridge.md + protocol.md`、`auto-run/回放 → annotations-web.md`。让 agent 按关键词跳读，不顺序读。
 5. **新增 `devlog/web-state.md`（一页）**：记录 web 唯一状态入口（`stores/workspace.ts`）的字段语义（serial/inputs/outputs/inputRev/outputRev/status/logs/selectedInputIndex）与"回放 vs auto-run"触发条件——对标 AHS STATE_MANAGEMENT.md 的轻量版，防止未来在 main.ts 加裸全局。
 6. **新增 `devlog/ROADMAP.md`（一页，可选）**：对标 AHS REFACTOR_PLAN.md——列出 compute/ 执行器扩展、节点图 DAG 执行、glTF/二进制几何、发布期打包（Vite build + 可选 Tauri）等候选批次 + 每批的验证方式；小项目不需要阶段表，一个"候选批次 + 依赖边界"列表即可。
@@ -198,7 +198,7 @@ cd D:\code\dev\Cyl1nder\bridge
 .venv\Scripts\python -m bridge.mcp_server         # 启动 MCP（stdio）
 .venv\Scripts\python -m pytest tests              # 桥单测
 
-# 前端（Vite HMR，127.0.0.1:5173）
+# 前端（Vite HMR，127.0.0.1:8376）
 cd D:\code\dev\Cyl1nder\web
 npm run dev                                       # dev server
 npm run typecheck                                 # tsc --noEmit（TS 即文档）

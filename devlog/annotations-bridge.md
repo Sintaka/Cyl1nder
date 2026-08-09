@@ -11,9 +11,11 @@
 - `mcp_server.py`：7 个 `cyl1nder_*` 工具（含 `index_query` 读 devlog 索引）。
 - 测试：pytest 14 通过（registry / workspace / routes / mcp）。
 ## v0.1.0-cyl1nder.3（2026-08-10）
-- **GET / 根路由**：带 `?serial=` 时 307 跳转到 Web UI（`WEB_UI_URL`，默认 127.0.0.1:5173），无 serial 时返回服务说明 JSON —— 旧链接/误开 8375 不再撞 404。
+- **GET / 根路由**：带 `?serial=` 时 307 跳转到 Web UI（`WEB_UI_URL`，默认 127.0.0.1:8376），无 serial 时返回服务说明 JSON —— 旧链接/误开 8375 不再撞 404。
 ## v0.1.00002（2026-08-10）
 - **GET /api/hda/{serial}/pending?since=N**：轻量脏检查（`{pending, rev}`），供 HDA 30fps 同步轮询，避免轮询时传几何。
 ## v0.1.00003（2026-08-10）
 - **put_outputs 回显去重**：内容与已存一致的输出不 bump rev、不广播（打断 30fps 同步反馈回路）。
 - **/pending 增加 reset 标志**；`get_outputs_since` 在 `since > rev`（桥重启/rev 回退）时返回全部——HDA 同步自愈。
+## v0.1.00005（2026-08-10）
+- **WEB_UI_URL → 8376**：`GET /?serial=` 307 重定向到新 UI 端口。

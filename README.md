@@ -6,6 +6,8 @@ Houdini 里的 Cyl1nder HDA（4 输入/4 输出）把几何推到本地桥（127
 
 版本：`0.1.0-cyl1nder.<dailybuild>`（规范见 devlog/development-standards.md）
 
+**许可证**：Cyl1nder Source-Available Non-Commercial License（禁止商用，个人学习/非商业可用；最终使用者负全责，与作者无关；详见根 LICENSE）。
+
 ## 快速开始
 
 ### 1) 桥（Python 3.12，端口 8375）

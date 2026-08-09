@@ -9,5 +9,5 @@
 - Cyl1nder HDA 实例：`/obj/geo1/Cyl1nder1`，serial `C1-msm006pg-8fz7`
 - 输入：null1-4 → HDA 4 输入（点数随场景变化）
 - bridge：`http://127.0.0.1:8375`（REST/WS，数据桥，不是网页）
-- Web UI：`http://127.0.0.1:5173/?serial=<serial>`
+- Web UI：`http://127.0.0.1:8376/?serial=<serial>`
 - fxhoudinimcp：`http://127.0.0.1:8100`（Houdini 内 HTTP MCP，被占自动 8101+）
