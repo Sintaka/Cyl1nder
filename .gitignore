@@ -14,11 +14,12 @@ dist/
 bridge/data/
 bridge/*.log
 
+# hda build artifacts + backups
+hda/build/
+hda/otls/backup/
+
 # editor / os
 .vscode/
 .idea/
 Thumbs.db
 .DS_Store
-
-# hda build artifacts
-hda/build/

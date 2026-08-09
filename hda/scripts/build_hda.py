@@ -128,7 +128,7 @@ def build(output_path: str = OUT) -> hou.Node:
     opts = hou.HDAOptions()
     opts.setLockContents(False)  # Pull Now toggles internal refresh_tick parms
     d.setOptions(opts)
-    d.save(output_path)
+    d.save(output_path, create_backup=False)
 
     print("HDA written:", output_path)
     print("type:", hda_node.type().name(), "| inputs:", d.minNumInputs(), "to", d.maxNumInputs())
