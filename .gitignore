@@ -1,4 +1,4 @@
-﻿# python
+# python
 __pycache__/
 *.pyc
 .venv/
@@ -10,8 +10,9 @@ node_modules/
 dist/
 *.tsbuildinfo
 
-# bridge runtime data (not committed)
+# bridge runtime data + logs
 bridge/data/
+bridge/*.log
 
 # editor / os
 .vscode/
