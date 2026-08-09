@@ -29,7 +29,7 @@ PULL_NOW_CALLBACK = (
 OPEN_WEB_CALLBACK = (
     "import webbrowser\n"
     "node = hou.pwd()\n"
-    "base = node.parm('bridge_url').eval().rstrip('/')\n"
+    "base = node.parm('web_url').eval().rstrip('/')\n"
     "serial = node.parm('cyl1nder_serial').eval()\n"
     "webbrowser.open(base + '/?serial=' + serial)\n"
 )
@@ -61,6 +61,11 @@ def _parm_group() -> hou.ParmTemplateGroup:
     group.append(
         StringParmTemplate(
             "bridge_url", "Bridge URL", 1, default_value=("http://127.0.0.1:8375",)
+        )
+    )
+    group.append(
+        StringParmTemplate(
+            "web_url", "Web UI URL", 1, default_value=("http://127.0.0.1:5173",)
         )
     )
     group.append(ToggleParmTemplate("auto_push", "Auto Push Inputs", True))
@@ -130,6 +135,7 @@ def build(output_path: str = OUT) -> hou.Node:
     want = {
         "cyl1nder_serial",
         "bridge_url",
+        "web_url",
         "auto_push",
         "auto_pull",
         "pull_now",

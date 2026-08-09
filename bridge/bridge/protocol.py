@@ -16,6 +16,8 @@ VERSION = "0.1.0-cyl1nder.1"
 HOST = "127.0.0.1"
 PORT = 8375
 BASE_URL = f"http://{HOST}:{PORT}"
+# Web frontend (Vite dev server) - NOT the bridge. The bridge is data-only (REST/WS).
+WEB_UI_URL = "http://127.0.0.1:5173"
 
 # serial: C1-<base36(ms) 8+ chars>-<4 base36 random>
 _SERIAL_RE = re.compile(r"^C1-[0-9a-z]{8,}-[0-9a-z]{4}$")

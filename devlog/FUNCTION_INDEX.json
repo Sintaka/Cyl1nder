@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-09T16:49:02.056Z",
-  "totalFunctions": 128,
+  "generatedAt": "2026-08-09T16:57:10.658Z",
+  "totalFunctions": 129,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -275,67 +275,67 @@
     },
     {
       "file": "bridge/bridge/protocol.py",
-      "lineCount": 92,
+      "lineCount": 94,
       "functions": [
         {
           "name": "_b36",
-          "line": 24,
+          "line": 26,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "generate_serial",
-          "line": 35,
+          "line": 37,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "is_valid_serial",
-          "line": 46,
+          "line": 48,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "AttributeData",
-          "line": 50,
+          "line": 52,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "CurveData",
-          "line": 56,
+          "line": 58,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "InputPayload",
-          "line": 61,
+          "line": 63,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "OutputBuffer",
-          "line": 71,
+          "line": 73,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "InputsPut",
-          "line": 81,
+          "line": 83,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "OutputsPut",
-          "line": 89,
+          "line": 91,
           "kind": "class",
           "exported": false,
           "calls": 1
@@ -441,67 +441,74 @@
     },
     {
       "file": "bridge/bridge/routes.py",
-      "lineCount": 96,
+      "lineCount": 105,
       "functions": [
         {
+          "name": "root",
+          "line": 15,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
           "name": "_check_serial",
-          "line": 13,
+          "line": 22,
           "kind": "def",
           "exported": false,
           "calls": 6
         },
         {
           "name": "health",
-          "line": 19,
+          "line": 28,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "list_serials",
-          "line": 25,
+          "line": 34,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "status",
-          "line": 30,
+          "line": 39,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "put_inputs",
-          "line": 42,
+          "line": 51,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get_outputs",
-          "line": 58,
+          "line": 67,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_outputs",
-          "line": 67,
+          "line": 76,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "serial_logs",
-          "line": 81,
+          "line": 90,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "global_logs",
-          "line": 91,
+          "line": 100,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -689,7 +696,7 @@
     },
     {
       "file": "hda/scripts/build_hda.py",
-      "lineCount": 154,
+      "lineCount": 160,
       "functions": [
         {
           "name": "_parm_group",
@@ -700,7 +707,7 @@
         },
         {
           "name": "build",
-          "line": 88,
+          "line": 93,
           "kind": "def",
           "exported": false,
           "calls": 2

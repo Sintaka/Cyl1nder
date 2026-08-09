@@ -14,3 +14,6 @@
 - **maintainstate=0**：4 个内部 Python SOP 每次 HDA recook 都重跑 → Houdini 一更新（改参数/输入/手动 cook）就推输入给桥，不再受 python SOP 缓存影响。
 - **Open in Browser 按钮**：`open_web` 参数回调 `webbrowser.open(bridge_url + '/?serial=' + cyl1nder_serial)`，默认浏览器打开对应工作区。
 - 热重载：`hou.hda.reloadFile(path)` 可直接替换活动会话中的定义，实例保留 serial 等参数值。
+## v0.1.0-cyl1nder.3（2026-08-10）
+- **web_url 参数**：Open in Browser 按钮改开前端地址（默认 `http://127.0.0.1:5173`，参数 `web_url`），不再误开数据桥 8375。
+- **Shelf 工具架**：`hda/shelf/Cyl1nder.shelf`（Reload HDA / Reload Bridge，python 图标），装入 `Documents\houdini22.0\toolbar\`，Houdini 下次启动出现（或右键工具架手动加）。

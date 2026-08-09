@@ -2,12 +2,21 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import RedirectResponse
 
-from .protocol import InputsPut, OutputsPut, VERSION, is_valid_serial
+from .protocol import InputsPut, OutputsPut, VERSION, WEB_UI_URL, is_valid_serial
 from .state import get_state
 from .ws import manager
 
 router = APIRouter()
+
+
+@router.get("/")
+async def root(serial: str | None = None) -> object:
+    """Landing helper: with ?serial= redirect to the web UI, else describe the service."""
+    if serial:
+        return RedirectResponse(f"{WEB_UI_URL}/?serial={serial}", status_code=307)
+    return {"service": "cyl1nder-bridge", "ui": WEB_UI_URL, "hint": "open the web UI: " + WEB_UI_URL + "/?serial=<hda serial>"}
 
 
 def _check_serial(serial: str) -> None:

@@ -80,3 +80,19 @@ def test_logs_endpoints(tmp_path: Path) -> None:
     assert c.get("/api/logs").status_code == 200
     logs = c.get(f"/api/hda/{serial}/logs").json()["logs"]
     assert any(log["serial"] == serial for log in logs)
+
+
+def test_root_redirects_to_ui_with_serial(tmp_path) -> None:
+    c = _client(tmp_path)
+    r = c.get("/", params={"serial": "C1-msm006pg-8fz7"}, follow_redirects=False)
+    assert r.status_code == 307
+    assert r.headers["location"] == "http://127.0.0.1:5173/?serial=C1-msm006pg-8fz7"
+
+
+def test_root_info_without_serial(tmp_path) -> None:
+    c = _client(tmp_path)
+    r = c.get("/")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["service"] == "cyl1nder-bridge"
+    assert "ui" in body

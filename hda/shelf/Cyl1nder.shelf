@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<shelfDocument>
+  <!-- Cyl1nder shelf: hot-reload tools for the Houdini <-> WebGL bridge.
+       Install: copy this file to %USERPROFILE%\Documents\houdini22.0\toolbar\
+       (takes effect on next Houdini start; or add manually via shelf right-click -> New Tool). -->
+  <toolshelf name="Cyl1nder" label="Cyl1nder">
+    <memberTool name="cyl1nder::reload_hda"/>
+    <memberTool name="cyl1nder::reload_bridge"/>
+  </toolshelf>
+
+  <tool name="cyl1nder::reload_hda" label="Reload HDA" icon="MISC_python">
+    <helpText><![CDATA[Hot-reload Cyl1nder: reload hda/src modules + force recook all instances. No Houdini restart.
+For definition-level reload (network/parms/buttons) use reload_cyl1nder(definition=True) in the Python Shell.]]></helpText>
+    <script scriptType="python"><![CDATA[
+import hou
+exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/reload_hda.py").read())
+reload_cyl1nder()
+hou.ui.displayMessage("Cyl1nder HDA reloaded", title="Cyl1nder")
+]]></script>
+  </tool>
+
+  <tool name="cyl1nder::reload_bridge" label="Reload Bridge" icon="MISC_python">
+    <helpText><![CDATA[Restart the Cyl1nder bridge process (127.0.0.1:8375). No Houdini restart.
+HDA keeps working offline; next recook re-pushes inputs.]]></helpText>
+    <script scriptType="python"><![CDATA[
+import subprocess
+ps = (
+    "$conn = Get-NetTCPConnection -State Listen -LocalPort 8375 -ErrorAction SilentlyContinue\n"
+    "if ($conn) { Stop-Process -Id ($conn.OwningProcess | Select-Object -First 1) -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 800 }\n"
+    "Start-Process -FilePath 'D:\\code\\dev\\Cyl1nder\\bridge\\.venv\\Scripts\\python.exe' -ArgumentList '-m','bridge' -WorkingDirectory 'D:\\code\\dev\\Cyl1nder\\bridge' -WindowStyle Hidden\n"
+)
+subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps], timeout=30)
+import hou
+hou.ui.displayMessage("Cyl1nder bridge restarted on 8375", title="Cyl1nder")
+]]></script>
+  </tool>
+</shelfDocument>

@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-09），由 `node scripts/gen-index.mjs` 产出。共 **128** 个函数/类。
+> 机器生成（2026-08-09），由 `node scripts/gen-index.mjs` 产出。共 **129** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -75,19 +75,19 @@
 | `cyl1nder_index_query` | 79 | def |  | 1 |
 | `run_stdio` | 102 | def |  | 2 |
 
-## bridge/bridge/protocol.py（92 行）
+## bridge/bridge/protocol.py（94 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_b36` | 24 | def |  | 3 |
-| `generate_serial` | 35 | def |  | 1 |
-| `is_valid_serial` | 46 | def |  | 1 |
-| `AttributeData` | 50 | class |  | 1 |
-| `CurveData` | 56 | class |  | 1 |
-| `InputPayload` | 61 | class |  | 1 |
-| `OutputBuffer` | 71 | class |  | 1 |
-| `InputsPut` | 81 | class |  | 1 |
-| `OutputsPut` | 89 | class |  | 1 |
+| `_b36` | 26 | def |  | 3 |
+| `generate_serial` | 37 | def |  | 1 |
+| `is_valid_serial` | 48 | def |  | 1 |
+| `AttributeData` | 52 | class |  | 1 |
+| `CurveData` | 58 | class |  | 1 |
+| `InputPayload` | 63 | class |  | 1 |
+| `OutputBuffer` | 73 | class |  | 1 |
+| `InputsPut` | 83 | class |  | 1 |
+| `OutputsPut` | 91 | class |  | 1 |
 
 ## bridge/bridge/registry.py（138 行）
 
@@ -107,19 +107,20 @@
 | `_save` | 120 | def |  | 2 |
 | `_load` | 129 | def |  | 2 |
 
-## bridge/bridge/routes.py（96 行）
+## bridge/bridge/routes.py（105 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_check_serial` | 13 | def |  | 6 |
-| `health` | 19 | def |  | 1 |
-| `list_serials` | 25 | def |  | 1 |
-| `status` | 30 | def |  | 2 |
-| `put_inputs` | 42 | def |  | 1 |
-| `get_outputs` | 58 | def |  | 1 |
-| `put_outputs` | 67 | def |  | 2 |
-| `serial_logs` | 81 | def |  | 1 |
-| `global_logs` | 91 | def |  | 1 |
+| `root` | 15 | def |  | 1 |
+| `_check_serial` | 22 | def |  | 6 |
+| `health` | 28 | def |  | 1 |
+| `list_serials` | 34 | def |  | 1 |
+| `status` | 39 | def |  | 2 |
+| `put_inputs` | 51 | def |  | 1 |
+| `get_outputs` | 67 | def |  | 1 |
+| `put_outputs` | 76 | def |  | 2 |
+| `serial_logs` | 90 | def |  | 1 |
+| `global_logs` | 100 | def |  | 1 |
 
 ## bridge/bridge/state.py（42 行）
 
@@ -159,12 +160,12 @@
 | `broadcast` | 32 | def |  | 2 |
 | `ws_endpoint` | 53 | def |  | 1 |
 
-## hda/scripts/build_hda.py（154 行）
+## hda/scripts/build_hda.py（160 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `_parm_group` | 44 | def |  | 3 |
-| `build` | 88 | def |  | 2 |
+| `build` | 93 | def |  | 2 |
 
 ## hda/scripts/hython_smoke.py（111 行）
 
