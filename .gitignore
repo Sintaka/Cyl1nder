@@ -10,6 +10,14 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# playwright
+web/test-results/
+web/playwright-report/
+
+# vite logs / scratch
+web/*.log
+web/_chk*.mjs
+
 # bridge runtime data + logs
 bridge/data/
 bridge/*.log
