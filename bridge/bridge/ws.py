@@ -66,6 +66,18 @@ async def ws_endpoint(websocket: WebSocket) -> None:
             "outputRev": ws_summary["outputRev"],
         }
     )
+    # replay current state so late-joining tabs see existing inputs/outputs
+    ws_cur = st.workspaces.get(serial)
+    if ws_cur is not None:
+        if ws_cur.inputs:
+            await websocket.send_json(
+                {"type": "inputs", "inputs": [i.model_dump() for i in ws_cur.inputs], "rev": ws_cur.input_rev}
+            )
+        outs = ws_cur.get_outputs_since(0)
+        if outs:
+            await websocket.send_json(
+                {"type": "outputs", "outputs": [o.model_dump() for o in outs], "rev": ws_cur.output_rev()}
+            )
     try:
         while True:
             msg = await websocket.receive_json()
