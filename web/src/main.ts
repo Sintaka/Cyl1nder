@@ -2,16 +2,22 @@ import "./styles.css";
 import { buildLayout } from "./app/layout";
 import { store } from "./stores/workspace";
 import { BridgeClient, connectWs } from "./bridge/client";
-import { createGraph, registerNode, upsertHdaNode } from "./nodes/cyl1nderNode";
+import { createGraph, registerNodes, upsertFlowGraph } from "./nodes/cyl1nderNode";
 import { Viewport } from "./viewport/renderer";
 import { APP_VERSION } from "./app/app-config";
 import type { OutputBuffer } from "./protocol/types";
 
 const layout = buildLayout(document.getElementById("app")!);
-registerNode();
+registerNodes();
 const graph = createGraph(layout.graphContainer);
 const client = new BridgeClient();
 let wsDisconnect: (() => void) | null = null;
+let autoRun = layout.autoRunCheck.checked;
+
+layout.autoRunCheck.addEventListener("change", () => {
+  autoRun = layout.autoRunCheck.checked;
+  store.pushLog(`auto-run ${autoRun ? "on" : "off"}`);
+});
 
 const viewport = new Viewport(layout.viewportContainer, (out: OutputBuffer) => {
   if (!store.serial) return;
@@ -21,12 +27,17 @@ const viewport = new Viewport(layout.viewportContainer, (out: OutputBuffer) => {
     .catch((e) => store.pushLog(`edit failed: ${String(e)}`));
 });
 
-function statsText(): string {
+function inputStatsText(): string {
   const lines: string[] = [];
   for (let i = 0; i < 4; i++) {
     const inp = store.inputs.find((x) => x.index === i);
     lines.push(`in${i}: ${inp ? `${inp.pointCount}pt ${inp.curves.length}crv` : "—"}`);
   }
+  return lines.join("\n");
+}
+
+function outputStatsText(): string {
+  const lines: string[] = [];
   for (let i = 0; i < 4; i++) {
     const out = store.outputs.find((x) => x.index === i);
     lines.push(`out${i}: ${out ? `${out.pointCount}pt r${out.rev}` : "—"}`);
@@ -52,12 +63,39 @@ function renderInspector(): void {
 }
 
 store.subscribe(() => {
-  upsertHdaNode(graph, store.serial || "pending", statsText());
+  upsertFlowGraph(graph, store.serial || "—", inputStatsText(), outputStatsText());
   renderInspector();
   layout.logEl.textContent = store.logs.slice(-10).join("\n");
   layout.statusDot.className = `cyl-status ${store.status}`;
   viewport.refresh();
+  const showHint = !store.serial || store.status === "offline";
+  layout.hintEl.classList.toggle("hidden", !showHint);
+  layout.hintEl.textContent = !store.serial
+    ? "未连接：在 Houdini 的 Cyl1nder 节点上点 Open in Browser，或在上方输入序列号后 Connect。"
+    : store.status === "offline"
+      ? "桥离线（127.0.0.1:8375）——请启动 bridge。"
+      : "";
 });
+
+/** v1 network: passthrough - output_i = input_i geometry, pushed back to the bridge. */
+async function runNetwork(): Promise<void> {
+  if (!store.serial || store.inputs.length === 0) return;
+  const outputs: OutputBuffer[] = store.inputs.map((inp) => ({
+    index: inp.index,
+    rev: 0,
+    pointCount: inp.pointCount,
+    primCount: inp.primCount,
+    points: inp.points,
+    curves: inp.curves,
+    attributes: inp.attributes,
+  }));
+  try {
+    const r = await client.pushOutputs(store.serial, outputs);
+    store.pushLog(`network ran: ${outputs.length} outputs → rev=${r.rev}`);
+  } catch (e) {
+    store.pushLog(`network run failed: ${String(e)}`);
+  }
+}
 
 function connect(serialRaw: string): void {
   const serial = serialRaw.trim();
@@ -75,6 +113,7 @@ function connect(serialRaw: string): void {
       } else if (msg.type === "inputs") {
         store.setInputs(msg.inputs, msg.rev);
         store.pushLog(`inputs rev=${msg.rev} (${msg.inputs.length})`);
+        if (autoRun) void runNetwork();
       } else if (msg.type === "outputs") {
         store.upsertOutputs(msg.outputs, msg.rev);
         store.pushLog(`outputs rev=${msg.rev} (${msg.outputs.length})`);

@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-09），由 `node scripts/gen-index.mjs` 产出。共 **115** 个函数/类。
+> 机器生成（2026-08-09），由 `node scripts/gen-index.mjs` 产出。共 **127** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -55,11 +55,11 @@
 | `query` | 48 | def |  | 2 |
 | `errors` | 58 | def |  | 1 |
 
-## bridge/bridge/main.py（22 行）
+## bridge/bridge/main.py（31 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `create_app` | 13 | def |  | 2 |
+| `create_app` | 14 | def |  | 2 |
 
 ## bridge/bridge/mcp_server.py（108 行）
 
@@ -148,7 +148,7 @@
 | `serials` | 92 | def |  | 1 |
 | `status` | 96 | def |  | 1 |
 
-## bridge/bridge/ws.py（90 行）
+## bridge/bridge/ws.py（102 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -189,16 +189,36 @@
 | `_norm_value` | 12 | def |  | 2 |
 | `serialize_input` | 20 | def |  | 1 |
 
+## mcp/fxhoudinimcp_bridge.py（127 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `_rpc` | 31 | def |  | 6 |
+| `_discover_port` | 45 | def |  | 5 |
+| `_execute` | 60 | def |  | 3 |
+| `houdini_health` | 74 | def |  | 1 |
+| `houdini_commands` | 83 | def |  | 1 |
+| `houdini_execute` | 92 | def |  | 1 |
+| `_tool_name` | 97 | def |  | 3 |
+| `_register_commands` | 101 | def |  | 2 |
+| `make_handler` | 110 | def |  | 2 |
+| `handler` | 111 | def |  | 1 |
+
+## mcp/run_houdini_mcp.py（23 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+
 ## web/src/app/app-config.ts（5 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/layout.ts（48 行）
+## web/src/app/layout.ts（56 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `export ` | 13 | function | export | 0 |
+| `export ` | 15 | function | export | 0 |
 
 ## web/src/app/log.ts（4 行）
 
@@ -212,19 +232,21 @@
 |---|---|---|---|---|
 | `export ` | 23 | class | export | 0 |
 
-## web/src/main.ts（108 行）
+## web/src/main.ts（147 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `statsText` | 24 | function |  | 2 |
-| `renderInspector` | 37 | function |  | 2 |
-| `connect` | 62 | function |  | 4 |
+| `inputStatsText` | 30 | function |  | 2 |
+| `outputStatsText` | 39 | function |  | 2 |
+| `renderInspector` | 48 | function |  | 2 |
+| `runNetwork` | 81 | function |  | 2 |
+| `connect` | 100 | function |  | 4 |
 
-## web/src/nodes/cyl1nderNode.ts（103 行）
+## web/src/nodes/cyl1nderNode.ts（120 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `export ` | 8 | function | export | 0 |
+| `export ` | 9 | function | export | 0 |
 
 ## web/src/protocol/types.ts（88 行）
 

@@ -26,6 +26,14 @@ PULL_NOW_CALLBACK = (
     "        n.cook(force=True)\n"
 )
 
+OPEN_WEB_CALLBACK = (
+    "import webbrowser\n"
+    "node = hou.pwd()\n"
+    "base = node.parm('bridge_url').eval().rstrip('/')\n"
+    "serial = node.parm('cyl1nder_serial').eval()\n"
+    "webbrowser.open(base + '/?serial=' + serial)\n"
+)
+
 REGEN_CALLBACK = (
     "node = hou.pwd()\n"
     "import cyl1nder_bridge as cb\n"
@@ -63,6 +71,11 @@ def _parm_group() -> hou.ParmTemplateGroup:
     pull_now.setScriptCallbackLanguage(hou.scriptLanguage.Python)
     group.append(pull_now)
 
+    open_web = ButtonParmTemplate("open_web", "Open in Browser")
+    open_web.setScriptCallback(OPEN_WEB_CALLBACK)
+    open_web.setScriptCallbackLanguage(hou.scriptLanguage.Python)
+    group.append(open_web)
+
     regen = ButtonParmTemplate("cyl1nder_regenerate", "Regenerate Serial")
     regen.setScriptCallback(REGEN_CALLBACK)
     regen.setScriptCallbackLanguage(hou.scriptLanguage.Python)
@@ -86,6 +99,7 @@ def build(output_path: str = OUT) -> hou.Node:
     for i in range(INPUT_COUNT):
         p = sub.createNode("python", f"cyl1nder_py{i}")
         p.parm("python").set(PY_CODE.format(role=i))
+        p.parm("maintainstate").set(0)  # re-run every HDA recook -> push/pull on update
         for j in range(INPUT_COUNT):
             p.setInput(j, ins[j], 0)
         pys.append(p)
@@ -102,7 +116,7 @@ def build(output_path: str = OUT) -> hou.Node:
         name="Cyl1nder",
         hda_file_name=output_path,
         description="Cyl1nder - Houdini <-> WebGL middle station (4 in / 4 out)",
-        min_num_inputs=INPUT_COUNT,
+        min_num_inputs=0,  # inputs may be left empty (Not enough sources fix)
         max_num_inputs=INPUT_COUNT,
         compress_contents=True,
     )
@@ -119,6 +133,7 @@ def build(output_path: str = OUT) -> hou.Node:
         "auto_push",
         "auto_pull",
         "pull_now",
+        "open_web",
         "cyl1nder_regenerate",
         "status",
     }

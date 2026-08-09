@@ -9,3 +9,8 @@
 - 构建：`hython hda/scripts/build_hda.py` → `hda/otls/Cyl1nder_1.0.hda`（create_backup=False）。
 - 关键坑（已解决）：python SOP 默认缓存（`cook()` 不重跑）→ `cook(force=True)`；H22 Button parm 用 `pressButton()`/回调；压缩内容默认锁定内部参数（已 setLockContents False）。
 - 冒烟：`hython hda/scripts/hython_smoke.py` 全绿（serial 不可变、4 输入推送、编辑→pull→out0 几何）。
+## v0.1.0-cyl1nder.2（2026-08-10）
+- **空输入修复**：`min_num_inputs=0`（原 4 会让空输入报 `Not enough sources specified.`）。
+- **maintainstate=0**：4 个内部 Python SOP 每次 HDA recook 都重跑 → Houdini 一更新（改参数/输入/手动 cook）就推输入给桥，不再受 python SOP 缓存影响。
+- **Open in Browser 按钮**：`open_web` 参数回调 `webbrowser.open(bridge_url + '/?serial=' + cyl1nder_serial)`，默认浏览器打开对应工作区。
+- 热重载：`hou.hda.reloadFile(path)` 可直接替换活动会话中的定义，实例保留 serial 等参数值。
