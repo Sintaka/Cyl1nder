@@ -1,0 +1,982 @@
+{
+  "generatedAt": "2026-08-09T15:19:55.446Z",
+  "totalFunctions": 115,
+  "files": [
+    {
+      "file": "bridge/bridge/__init__.py",
+      "lineCount": 5,
+      "functions": []
+    },
+    {
+      "file": "bridge/bridge/__main__.py",
+      "lineCount": 13,
+      "functions": [
+        {
+          "name": "main",
+          "line": 7,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        }
+      ]
+    },
+    {
+      "file": "bridge/bridge/compute/__init__.py",
+      "lineCount": 49,
+      "functions": [
+        {
+          "name": "ComputeContext",
+          "line": 14,
+          "kind": "class",
+          "exported": false,
+          "calls": 0
+        },
+        {
+          "name": "__init__",
+          "line": 17,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "ComputeExecutor",
+          "line": 23,
+          "kind": "class",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "run",
+          "line": 26,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "register_executor",
+          "line": 32,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "list_executors",
+          "line": 36,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "run_node",
+          "line": 40,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "bridge/bridge/compute/ctypes_stub.py",
+      "lineCount": 61,
+      "functions": [
+        {
+          "name": "_passthrough",
+          "line": 21,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "NativeStubExecutor",
+          "line": 38,
+          "kind": "class",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "run",
+          "line": 41,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        }
+      ]
+    },
+    {
+      "file": "bridge/bridge/compute/passthrough.py",
+      "lineCount": 29,
+      "functions": [
+        {
+          "name": "PassthroughExecutor",
+          "line": 8,
+          "kind": "class",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "run",
+          "line": 11,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "bridge/bridge/logs.py",
+      "lineCount": 60,
+      "functions": [
+        {
+          "name": "LogEntry",
+          "line": 12,
+          "kind": "class",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "__init__",
+          "line": 15,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "to_dict",
+          "line": 22,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "LogRing",
+          "line": 32,
+          "kind": "class",
+          "exported": false,
+          "calls": 0
+        },
+        {
+          "name": "add",
+          "line": 37,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "info",
+          "line": 42,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "error",
+          "line": 45,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "query",
+          "line": 48,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "errors",
+          "line": 58,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "bridge/bridge/main.py",
+      "lineCount": 22,
+      "functions": [
+        {
+          "name": "create_app",
+          "line": 13,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        }
+      ]
+    },
+    {
+      "file": "bridge/bridge/mcp_server.py",
+      "lineCount": 108,
+      "functions": [
+        {
+          "name": "_index_files",
+          "line": 24,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "cyl1nder_ping",
+          "line": 32,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "cyl1nder_list_serials",
+          "line": 39,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "cyl1nder_get_status",
+          "line": 45,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "cyl1nder_read_logs",
+          "line": 57,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "cyl1nder_get_errors",
+          "line": 63,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "cyl1nder_get_geometry_summary",
+          "line": 69,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "cyl1nder_index_query",
+          "line": 79,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "run_stdio",
+          "line": 102,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        }
+      ]
+    },
+    {
+      "file": "bridge/bridge/protocol.py",
+      "lineCount": 92,
+      "functions": [
+        {
+          "name": "_b36",
+          "line": 24,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "generate_serial",
+          "line": 35,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "is_valid_serial",
+          "line": 46,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "AttributeData",
+          "line": 50,
+          "kind": "class",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "CurveData",
+          "line": 56,
+          "kind": "class",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "InputPayload",
+          "line": 61,
+          "kind": "class",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "OutputBuffer",
+          "line": 71,
+          "kind": "class",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "InputsPut",
+          "line": 81,
+          "kind": "class",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "OutputsPut",
+          "line": 89,
+          "kind": "class",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "bridge/bridge/registry.py",
+      "lineCount": 138,
+      "functions": [
+        {
+          "name": "RegistryError",
+          "line": 21,
+          "kind": "class",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "RegistryRecord",
+          "line": 25,
+          "kind": "class",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "__init__",
+          "line": 28,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "to_dict",
+          "line": 45,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "from_dict",
+          "line": 56,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "SerialRegistry",
+          "line": 67,
+          "kind": "class",
+          "exported": false,
+          "calls": 0
+        },
+        {
+          "name": "register",
+          "line": 75,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "get",
+          "line": 102,
+          "kind": "def",
+          "exported": false,
+          "calls": 9
+        },
+        {
+          "name": "touch",
+          "line": 106,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "list",
+          "line": 112,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "serials",
+          "line": 116,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "_save",
+          "line": 120,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_load",
+          "line": 129,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        }
+      ]
+    },
+    {
+      "file": "bridge/bridge/routes.py",
+      "lineCount": 96,
+      "functions": [
+        {
+          "name": "_check_serial",
+          "line": 13,
+          "kind": "def",
+          "exported": false,
+          "calls": 6
+        },
+        {
+          "name": "health",
+          "line": 19,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "list_serials",
+          "line": 25,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "status",
+          "line": 30,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "put_inputs",
+          "line": 42,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "get_outputs",
+          "line": 58,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "put_outputs",
+          "line": 67,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "serial_logs",
+          "line": 81,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "global_logs",
+          "line": 91,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "bridge/bridge/state.py",
+      "lineCount": 42,
+      "functions": [
+        {
+          "name": "BridgeState",
+          "line": 12,
+          "kind": "class",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "__init__",
+          "line": 13,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "default_data_dir",
+          "line": 23,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "get_state",
+          "line": 30,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "reset_state",
+          "line": 37,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "bridge/bridge/workspace.py",
+      "lineCount": 99,
+      "functions": [
+        {
+          "name": "Workspace",
+          "line": 10,
+          "kind": "class",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "__init__",
+          "line": 11,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "set_inputs",
+          "line": 19,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "put_outputs",
+          "line": 24,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "get_outputs_since",
+          "line": 37,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "output_rev",
+          "line": 42,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "to_summary",
+          "line": 46,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "WorkspaceStore",
+          "line": 75,
+          "kind": "class",
+          "exported": false,
+          "calls": 0
+        },
+        {
+          "name": "get_or_create",
+          "line": 80,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "get",
+          "line": 88,
+          "kind": "def",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "serials",
+          "line": 92,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "status",
+          "line": 96,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "bridge/bridge/ws.py",
+      "lineCount": 90,
+      "functions": [
+        {
+          "name": "ConnectionManager",
+          "line": 14,
+          "kind": "class",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "__init__",
+          "line": 15,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "connect",
+          "line": 19,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "disconnect",
+          "line": 24,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "broadcast",
+          "line": 32,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "ws_endpoint",
+          "line": 53,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "hda/src/cyl1nder_bridge.py",
+      "lineCount": 96,
+      "functions": [
+        {
+          "name": "_b36",
+          "line": 17,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "generate_serial",
+          "line": 28,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "BridgeClient",
+          "line": 35,
+          "kind": "class",
+          "exported": false,
+          "calls": 0
+        },
+        {
+          "name": "__init__",
+          "line": 36,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "push_inputs",
+          "line": 52,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "_pump",
+          "line": 59,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "pull_outputs",
+          "line": 87,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "hda/src/cyl1nder_hda.py",
+      "lineCount": 130,
+      "functions": [
+        {
+          "name": "_root",
+          "line": 18,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "_ensure_serial",
+          "line": 22,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_parm",
+          "line": 35,
+          "kind": "def",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "_set_status",
+          "line": 45,
+          "kind": "def",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "_build_detail",
+          "line": 54,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "cook",
+          "line": 78,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        }
+      ]
+    },
+    {
+      "file": "hda/src/cyl1nder_serializer.py",
+      "lineCount": 57,
+      "functions": [
+        {
+          "name": "_norm_value",
+          "line": 12,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "serialize_input",
+          "line": 20,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/app/app-config.ts",
+      "lineCount": 5,
+      "functions": []
+    },
+    {
+      "file": "web/src/app/layout.ts",
+      "lineCount": 48,
+      "functions": [
+        {
+          "name": "export ",
+          "line": 13,
+          "kind": "function",
+          "exported": true,
+          "calls": 0
+        }
+      ]
+    },
+    {
+      "file": "web/src/app/log.ts",
+      "lineCount": 4,
+      "functions": [
+        {
+          "name": "export ",
+          "line": 2,
+          "kind": "function",
+          "exported": true,
+          "calls": 0
+        }
+      ]
+    },
+    {
+      "file": "web/src/bridge/client.ts",
+      "lineCount": 90,
+      "functions": [
+        {
+          "name": "export ",
+          "line": 23,
+          "kind": "class",
+          "exported": true,
+          "calls": 0
+        }
+      ]
+    },
+    {
+      "file": "web/src/main.ts",
+      "lineCount": 108,
+      "functions": [
+        {
+          "name": "statsText",
+          "line": 24,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "renderInspector",
+          "line": 37,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "connect",
+          "line": 62,
+          "kind": "function",
+          "exported": false,
+          "calls": 4
+        }
+      ]
+    },
+    {
+      "file": "web/src/nodes/cyl1nderNode.ts",
+      "lineCount": 103,
+      "functions": [
+        {
+          "name": "export ",
+          "line": 8,
+          "kind": "function",
+          "exported": true,
+          "calls": 0
+        }
+      ]
+    },
+    {
+      "file": "web/src/protocol/types.ts",
+      "lineCount": 88,
+      "functions": []
+    },
+    {
+      "file": "web/src/stores/workspace.ts",
+      "lineCount": 77,
+      "functions": [
+        {
+          "name": "export ",
+          "line": 6,
+          "kind": "class",
+          "exported": true,
+          "calls": 0
+        }
+      ]
+    },
+    {
+      "file": "web/src/tools/transform.ts",
+      "lineCount": 41,
+      "functions": [
+        {
+          "name": "export ",
+          "line": 5,
+          "kind": "function",
+          "exported": true,
+          "calls": 0
+        }
+      ]
+    },
+    {
+      "file": "web/src/viewport/controls.ts",
+      "lineCount": 31,
+      "functions": [
+        {
+          "name": "export ",
+          "line": 8,
+          "kind": "class",
+          "exported": true,
+          "calls": 0
+        },
+        {
+          "name": "release",
+          "line": 21,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 0
+        }
+      ]
+    },
+    {
+      "file": "web/src/viewport/geometry.ts",
+      "lineCount": 51,
+      "functions": [
+        {
+          "name": "toVec",
+          "line": 7,
+          "kind": "function",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "export ",
+          "line": 12,
+          "kind": "function",
+          "exported": true,
+          "calls": 0
+        }
+      ]
+    },
+    {
+      "file": "web/src/viewport/renderer.ts",
+      "lineCount": 150,
+      "functions": [
+        {
+          "name": "export ",
+          "line": 13,
+          "kind": "class",
+          "exported": true,
+          "calls": 0
+        }
+      ]
+    }
+  ]
+}
