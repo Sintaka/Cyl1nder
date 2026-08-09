@@ -29,9 +29,21 @@ def _sync_loop(serial: str, node_path: str, interval: float, bridge_url: str) ->
         if state is None or state["stop"].is_set():
             return
         time.sleep(interval)
-        pending, rev = client.pending_outputs(last_seen)
+        pending, rev, reset = client.pending_outputs(last_seen)
+        if reset:
+            # bridge restarted: rev went backwards - re-pull everything from 0
+            last_seen = 0
+            state = _SYNC.get(serial)
+            if state is not None and not state["scheduled"]:
+                state["scheduled"] = True
+                _schedule_recook(node_path)
+            continue
         if pending and rev > last_seen:
+            state = _SYNC.get(serial)
+            if state is None or state["scheduled"]:
+                continue
             last_seen = rev
+            state["scheduled"] = True
             _schedule_recook(node_path)
 
 
@@ -48,6 +60,10 @@ def _force_cook_node(node_path: str) -> None:
         n = hou.node(node_path)
         if n is None:
             return
+        _serial_parm = n.parm("cyl1nder_serial")
+        _state = _SYNC.get(_serial_parm.eval() if _serial_parm else "")
+        if _state is not None:
+            _state["scheduled"] = False
         sp = n.parm("status")
         if sp is not None and sp.eval() != "dirty":
             try:
@@ -85,7 +101,7 @@ def ensure_sync(root: hou.Node, serial: str) -> None:
         daemon=True,
     )
     thread.start()
-    _SYNC[serial] = {"thread": thread, "stop": stop, "node_path": root.path()}
+    _SYNC[serial] = {"thread": thread, "stop": stop, "node_path": root.path(), "scheduled": False}
 
 
 def _root(node: hou.Node) -> hou.Node:
@@ -156,7 +172,8 @@ def cook(role: int) -> None:
     auto_push = bool(_parm(root, "auto_push", 1))
     auto_pull = bool(_parm(root, "auto_pull", 1))
     geo = node.geometry()
-    geo.clear()
+    # NOTE: do NOT clear upfront - only rebuild when a new buffer arrives for this role,
+    # otherwise Force Cook / stale recooks would wipe existing outputs.
 
     client = BridgeClient(serial, bridge_url=bridge_url, node_path=root.path(), label="Cyl1nder")
 
@@ -189,9 +206,10 @@ def cook(role: int) -> None:
         since = int(node.userData("cyl1nder_last_rev") or 0)
         outputs, new_rev = client.pull_outputs(since)
         if outputs is not None:
-            for buf in outputs:
-                if int(buf.get("index", -1)) == role:
-                    _build_detail(geo, buf)
+            matched = [b for b in outputs if int(b.get("index", -1)) == role]
+            if matched:
+                geo.clear()
+                _build_detail(geo, matched[0])  # latest buffer for this role
             if new_rev:
                 node.setUserData("cyl1nder_last_rev", str(new_rev))
             _set_status(root, "ok" if not client.last_error else "offline")
@@ -199,6 +217,7 @@ def cook(role: int) -> None:
             _set_status(root, "offline")
     else:
         # passthrough fallback: output index = input index (HDA still useful w/o bridge)
+        geo.clear()
         srcs = node.inputs()
         if role < len(srcs) and srcs[role] is not None:
             geo.merge(srcs[role].geometry())

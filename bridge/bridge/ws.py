@@ -57,6 +57,7 @@ async def ws_endpoint(websocket: WebSocket) -> None:
         return
     await manager.connect(serial, websocket)
     st = get_state()
+    st.logs.info("ws", "client connected", serial)
     ws_summary = st.workspaces.status(serial)
     await websocket.send_json(
         {
@@ -88,13 +89,15 @@ async def ws_endpoint(websocket: WebSocket) -> None:
                 raw = msg.get("outputs")
                 if isinstance(raw, list):
                     parsed = [OutputBuffer.model_validate(o) for o in raw]
-                    rev = st.workspaces.get_or_create(serial).put_outputs(parsed)
-                    st.logs.info("ws", f"edit pushed ({len(parsed)}), rev={rev}", serial)
-                    await manager.broadcast(
-                        serial,
-                        {"type": "outputs", "outputs": [o.model_dump() for o in parsed], "rev": rev},
-                    )
+                    rev, accepted = st.workspaces.get_or_create(serial).put_outputs(parsed)
+                    st.logs.info("ws", f"edit pushed ({len(parsed)}, accepted {len(accepted)}), rev={rev}", serial)
+                    if accepted:
+                        await manager.broadcast(
+                            serial,
+                            {"type": "outputs", "outputs": [o.model_dump() for o in accepted], "rev": rev},
+                        )
     except WebSocketDisconnect:
+        st.logs.info("ws", "client disconnected", serial)
         await manager.disconnect(serial, websocket)
     except Exception as exc:  # noqa: BLE001 - keep channel alive on protocol errors
         st.logs.error("ws", f"ws error: {exc}", serial)

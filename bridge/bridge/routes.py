@@ -77,12 +77,13 @@ async def put_outputs(serial: str, payload: OutputsPut) -> dict:
     _check_serial(serial)
     st = get_state()
     ws = st.workspaces.get_or_create(serial)
-    rev = ws.put_outputs(payload.outputs)
-    st.logs.info("routes", f"outputs pushed ({len(payload.outputs)}), rev={rev}", serial)
-    await manager.broadcast(
-        serial,
-        {"type": "outputs", "outputs": [o.model_dump() for o in payload.outputs], "rev": rev},
-    )
+    rev, accepted = ws.put_outputs(payload.outputs)
+    st.logs.info("routes", f"outputs pushed ({len(payload.outputs)}, accepted {len(accepted)}), rev={rev}", serial)
+    if accepted:
+        await manager.broadcast(
+            serial,
+            {"type": "outputs", "outputs": [o.model_dump() for o in accepted], "rev": rev},
+        )
     return {"ok": True, "serial": serial, "rev": rev}
 
 
@@ -91,7 +92,7 @@ async def pending(serial: str, since: int = Query(0, ge=0)) -> dict:
     """Lightweight dirty check used by the HDA 30fps sync poller."""
     _check_serial(serial)
     rev = get_state().workspaces.get_or_create(serial).output_rev()
-    return {"pending": rev > since, "rev": rev}
+    return {"pending": rev > since, "rev": rev, "reset": since > rev}
 
 
 @router.get("/api/hda/{serial}/logs")

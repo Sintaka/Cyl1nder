@@ -106,3 +106,13 @@ def test_pending_dirty_check(tmp_path) -> None:
     r = c.get(f"/api/hda/{serial}/pending", params={"since": 0}).json()
     assert r["pending"] is True and r["rev"] >= 1
     assert c.get(f"/api/hda/{serial}/pending", params={"since": r["rev"]}).json()["pending"] is False
+
+
+def test_outputs_echo_dedupe(tmp_path) -> None:
+    c = _client(tmp_path)
+    serial = generate_serial()
+    out = {"outputs": [{"index": 0, "rev": 0, "pointCount": 2, "points": [[0, 0, 0], [1, 0, 0]], "curves": [{"pointIndices": [0, 1]}]}]}
+    r1 = c.put(f"/api/hda/{serial}/outputs", json=out).json()
+    r2 = c.put(f"/api/hda/{serial}/outputs", json=out).json()
+    assert r2["rev"] == r1["rev"]  # identical echo -> no rev bump
+    assert c.get(f"/api/hda/{serial}/outputs", params={"since": r1["rev"]}).json()["outputs"] == []

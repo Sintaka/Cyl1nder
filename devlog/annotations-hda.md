@@ -21,3 +21,9 @@
 - **Force Cook**：`pull_now` 改名 `force_cook`（label "Force Cook"），回调对内部 python SOP `cook(force=True)`。
 - **双向同步（30fps 上限）**：新增 `sync_fps` 参数（默认 30，1-60）。role0 cook 时启动守护轮询线程，按 1/sync_fps 间隔调 `GET /api/hda/{serial}/pending?since=`；检测到待拉输出（web 在 Cyl1nder 里改过）→ `hdefereval.executeDeferred` 主线程安全地把 HDA `status` 标记为 `dirty` 并强制重跑 python SOP → 拉回结果 → status 回 `ok`。headless hython 无 hdefereval 时退化为手动 Force Cook。
 - 实测：web 推编辑 → ~0.6s 内 Houdini 自动拉回 out0（P=[0,0,0]/[1.5,1.5,0]/[3,3,0]）。
+## v0.1.00003（2026-08-10）
+- **修复 Force Cook 触发疯狂刷新（反馈回路）**：HDA 重算→推输入→web auto-run 把输入原样回推成输出→桥 outputRev++→30fps 同步又检测到 pending→再重算→…死循环。
+  - 桥侧：`put_outputs` 内容去重（相同 points/curves/attrs 不 bump rev、不广播）——从数据层打断回显循环。
+  - web 侧：auto-run 仅在**输入内容变化**时跑（`inputsEqual`）；连接时首次 inputs 视为**回放**不触发网络（防重连把用户编辑覆盖成 passthrough）。
+  - HDA 侧：仅当拉到本 role 的新 buffer 才 clear+重建，否则**保留现有几何**（Force Cook 不再清空输出）；同步轮询加 `scheduled` 标志避免重复排队。
+- **桥重启自愈**：`get_outputs_since` 检测 `since > rev` 视为重置并返回全部；`/pending` 返回 `reset` 标志，轮询线程检测到重置后重拉全部（否则桥重启后 HDA 因 last_rev 大于新 rev 永远不同步）。

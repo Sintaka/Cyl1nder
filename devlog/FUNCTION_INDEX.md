@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-09），由 `node scripts/gen-index.mjs` 产出。共 **135** 个函数/类。
+> 机器生成（2026-08-09），由 `node scripts/gen-index.mjs` 产出。共 **138** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -107,7 +107,7 @@
 | `_save` | 120 | def |  | 2 |
 | `_load` | 129 | def |  | 2 |
 
-## bridge/bridge/routes.py（113 行）
+## bridge/bridge/routes.py（114 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -119,9 +119,9 @@
 | `put_inputs` | 51 | def |  | 1 |
 | `get_outputs` | 67 | def |  | 1 |
 | `put_outputs` | 76 | def |  | 2 |
-| `pending` | 90 | def |  | 1 |
-| `serial_logs` | 98 | def |  | 1 |
-| `global_logs` | 108 | def |  | 1 |
+| `pending` | 91 | def |  | 1 |
+| `serial_logs` | 99 | def |  | 1 |
+| `global_logs` | 109 | def |  | 1 |
 
 ## bridge/bridge/state.py（42 行）
 
@@ -133,7 +133,7 @@
 | `get_state` | 30 | def |  | 1 |
 | `reset_state` | 37 | def |  | 1 |
 
-## bridge/bridge/workspace.py（99 行）
+## bridge/bridge/workspace.py（120 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -141,16 +141,17 @@
 | `__init__` | 11 | def |  | 2 |
 | `set_inputs` | 19 | def |  | 1 |
 | `put_outputs` | 24 | def |  | 1 |
-| `get_outputs_since` | 37 | def |  | 1 |
-| `output_rev` | 42 | def |  | 1 |
-| `to_summary` | 46 | def |  | 2 |
-| `WorkspaceStore` | 75 | class |  | 0 |
-| `get_or_create` | 80 | def |  | 2 |
-| `get` | 88 | def |  | 4 |
-| `serials` | 92 | def |  | 1 |
-| `status` | 96 | def |  | 1 |
+| `get_outputs_since` | 46 | def |  | 1 |
+| `output_rev` | 53 | def |  | 1 |
+| `to_summary` | 57 | def |  | 2 |
+| `_same_content` | 86 | def |  | 2 |
+| `WorkspaceStore` | 96 | class |  | 0 |
+| `get_or_create` | 101 | def |  | 2 |
+| `get` | 109 | def |  | 4 |
+| `serials` | 113 | def |  | 1 |
+| `status` | 117 | def |  | 1 |
 
-## bridge/bridge/ws.py（102 行）
+## bridge/bridge/ws.py（105 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -187,7 +188,7 @@
 | `_reload_definition` | 68 | def |  | 2 |
 | `reload_cyl1nder` | 75 | def |  | 3 |
 
-## hda/src/cyl1nder_bridge.py（106 行）
+## hda/src/cyl1nder_bridge.py（111 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -198,22 +199,22 @@
 | `push_inputs` | 52 | def |  | 1 |
 | `_pump` | 59 | def |  | 1 |
 | `pending_outputs` | 87 | def |  | 1 |
-| `pull_outputs` | 97 | def |  | 1 |
+| `pull_outputs` | 102 | def |  | 1 |
 
-## hda/src/cyl1nder_hda.py（204 行）
+## hda/src/cyl1nder_hda.py（223 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `_sync_loop` | 24 | def |  | 1 |
-| `_schedule_recook` | 38 | def |  | 2 |
-| `_force_cook_node` | 46 | def |  | 1 |
-| `ensure_sync` | 67 | def |  | 2 |
-| `_root` | 91 | def |  | 3 |
-| `_ensure_serial` | 95 | def |  | 2 |
-| `_parm` | 108 | def |  | 6 |
-| `_set_status` | 118 | def |  | 4 |
-| `_build_detail` | 127 | def |  | 2 |
-| `cook` | 151 | def |  | 3 |
+| `_schedule_recook` | 50 | def |  | 3 |
+| `_force_cook_node` | 58 | def |  | 1 |
+| `ensure_sync` | 83 | def |  | 2 |
+| `_root` | 107 | def |  | 3 |
+| `_ensure_serial` | 111 | def |  | 2 |
+| `_parm` | 124 | def |  | 6 |
+| `_set_status` | 134 | def |  | 4 |
+| `_build_detail` | 143 | def |  | 2 |
+| `cook` | 167 | def |  | 3 |
 
 ## hda/src/cyl1nder_serializer.py（57 行）
 
@@ -245,21 +246,28 @@
 |---|---|---|---|---|
 | `export ` | 23 | class | export | 0 |
 
-## web/src/main.ts（147 行）
+## web/src/main.ts（157 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `inputStatsText` | 30 | function |  | 2 |
-| `outputStatsText` | 39 | function |  | 2 |
-| `renderInspector` | 48 | function |  | 2 |
-| `runNetwork` | 81 | function |  | 2 |
-| `connect` | 100 | function |  | 4 |
+| `inputStatsText` | 32 | function |  | 2 |
+| `outputStatsText` | 41 | function |  | 2 |
+| `renderInspector` | 50 | function |  | 2 |
+| `runNetwork` | 83 | function |  | 2 |
+| `connect` | 102 | function |  | 4 |
 
 ## web/src/nodes/cyl1nderNode.ts（120 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `export ` | 9 | function | export | 0 |
+
+## web/src/protocol/compare.ts（22 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `payloadEqual` | 3 | function |  | 2 |
+| `export ` | 14 | function | export | 0 |
 
 ## web/src/protocol/types.ts（88 行）
 

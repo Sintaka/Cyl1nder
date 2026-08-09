@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-09T17:26:39.853Z",
-  "totalFunctions": 135,
+  "generatedAt": "2026-08-09T17:55:46.973Z",
+  "totalFunctions": 138,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -441,7 +441,7 @@
     },
     {
       "file": "bridge/bridge/routes.py",
-      "lineCount": 113,
+      "lineCount": 114,
       "functions": [
         {
           "name": "root",
@@ -501,21 +501,21 @@
         },
         {
           "name": "pending",
-          "line": 90,
+          "line": 91,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "serial_logs",
-          "line": 98,
+          "line": 99,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "global_logs",
-          "line": 108,
+          "line": 109,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -565,7 +565,7 @@
     },
     {
       "file": "bridge/bridge/workspace.py",
-      "lineCount": 99,
+      "lineCount": 120,
       "functions": [
         {
           "name": "Workspace",
@@ -597,56 +597,63 @@
         },
         {
           "name": "get_outputs_since",
-          "line": 37,
+          "line": 46,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "output_rev",
-          "line": 42,
+          "line": 53,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "to_summary",
-          "line": 46,
+          "line": 57,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_same_content",
+          "line": 86,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "WorkspaceStore",
-          "line": 75,
+          "line": 96,
           "kind": "class",
           "exported": false,
           "calls": 0
         },
         {
           "name": "get_or_create",
-          "line": 80,
+          "line": 101,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "get",
-          "line": 88,
+          "line": 109,
           "kind": "def",
           "exported": false,
           "calls": 4
         },
         {
           "name": "serials",
-          "line": 92,
+          "line": 113,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "status",
-          "line": 96,
+          "line": 117,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -655,7 +662,7 @@
     },
     {
       "file": "bridge/bridge/ws.py",
-      "lineCount": 102,
+      "lineCount": 105,
       "functions": [
         {
           "name": "ConnectionManager",
@@ -798,7 +805,7 @@
     },
     {
       "file": "hda/src/cyl1nder_bridge.py",
-      "lineCount": 106,
+      "lineCount": 111,
       "functions": [
         {
           "name": "_b36",
@@ -851,7 +858,7 @@
         },
         {
           "name": "pull_outputs",
-          "line": 97,
+          "line": 102,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -860,7 +867,7 @@
     },
     {
       "file": "hda/src/cyl1nder_hda.py",
-      "lineCount": 204,
+      "lineCount": 223,
       "functions": [
         {
           "name": "_sync_loop",
@@ -871,63 +878,63 @@
         },
         {
           "name": "_schedule_recook",
-          "line": 38,
+          "line": 50,
           "kind": "def",
           "exported": false,
-          "calls": 2
+          "calls": 3
         },
         {
           "name": "_force_cook_node",
-          "line": 46,
+          "line": 58,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "ensure_sync",
-          "line": 67,
+          "line": 83,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_root",
-          "line": 91,
+          "line": 107,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_ensure_serial",
-          "line": 95,
+          "line": 111,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_parm",
-          "line": 108,
+          "line": 124,
           "kind": "def",
           "exported": false,
           "calls": 6
         },
         {
           "name": "_set_status",
-          "line": 118,
+          "line": 134,
           "kind": "def",
           "exported": false,
           "calls": 4
         },
         {
           "name": "_build_detail",
-          "line": 127,
+          "line": 143,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "cook",
-          "line": 151,
+          "line": 167,
           "kind": "def",
           "exported": false,
           "calls": 3
@@ -1000,39 +1007,39 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 147,
+      "lineCount": 157,
       "functions": [
         {
           "name": "inputStatsText",
-          "line": 30,
+          "line": 32,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "outputStatsText",
-          "line": 39,
+          "line": 41,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderInspector",
-          "line": 48,
+          "line": 50,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "runNetwork",
-          "line": 81,
+          "line": 83,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "connect",
-          "line": 100,
+          "line": 102,
           "kind": "function",
           "exported": false,
           "calls": 4
@@ -1046,6 +1053,26 @@
         {
           "name": "export ",
           "line": 9,
+          "kind": "function",
+          "exported": true,
+          "calls": 0
+        }
+      ]
+    },
+    {
+      "file": "web/src/protocol/compare.ts",
+      "lineCount": 22,
+      "functions": [
+        {
+          "name": "payloadEqual",
+          "line": 3,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "export ",
+          "line": 14,
           "kind": "function",
           "exported": true,
           "calls": 0

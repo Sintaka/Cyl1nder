@@ -5,6 +5,7 @@ import { BridgeClient, connectWs } from "./bridge/client";
 import { createGraph, registerNodes, upsertFlowGraph } from "./nodes/cyl1nderNode";
 import { Viewport } from "./viewport/renderer";
 import { APP_VERSION } from "./app/app-config";
+import { inputsEqual } from "./protocol/compare";
 import type { OutputBuffer } from "./protocol/types";
 
 const layout = buildLayout(document.getElementById("app")!);
@@ -13,6 +14,7 @@ const graph = createGraph(layout.graphContainer);
 const client = new BridgeClient();
 let wsDisconnect: (() => void) | null = null;
 let autoRun = layout.autoRunCheck.checked;
+let replayPending = false;  // first inputs after connect = replay, do NOT auto-run (avoids clobbering outputs/edits)
 
 layout.autoRunCheck.addEventListener("change", () => {
   autoRun = layout.autoRunCheck.checked;
@@ -101,6 +103,7 @@ function connect(serialRaw: string): void {
   const serial = serialRaw.trim();
   if (!serial) return;
   wsDisconnect?.();
+  replayPending = true;
   store.setSerial(serial);
   store.pushLog(`connect ${serial}`);
   store.setStatus("connecting");
@@ -111,9 +114,16 @@ function connect(serialRaw: string): void {
         store.setStatus("ok");
         store.pushLog(`hello inputRev=${msg.inputRev} outputRev=${msg.outputRev}`);
       } else if (msg.type === "inputs") {
+        const changed = !inputsEqual(store.inputs, msg.inputs);
         store.setInputs(msg.inputs, msg.rev);
-        store.pushLog(`inputs rev=${msg.rev} (${msg.inputs.length})`);
-        if (autoRun) void runNetwork();
+        store.pushLog(`inputs rev=${msg.rev} (${msg.inputs.length})${changed ? "" : " [unchanged]"}`);
+        if (replayPending) {
+          replayPending = false;  // replay of current state on connect - not an update
+          store.pushLog("inputs replay - network not run");
+          return;
+        }
+        // gate auto-run on real content change: breaks the Force Cook <-> echo feedback loop
+        if (autoRun && changed) void runNetwork();
       } else if (msg.type === "outputs") {
         store.upsertOutputs(msg.outputs, msg.rev);
         store.pushLog(`outputs rev=${msg.rev} (${msg.outputs.length})`);
