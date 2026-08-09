@@ -111,6 +111,7 @@ function connect(serialRaw: string): void {
     serial,
     (msg) => {
       if (msg.type === "hello") {
+        replayPending = true;  // a replay follows on every (re)connect - never auto-run on it
         store.setStatus("ok");
         store.pushLog(`hello inputRev=${msg.inputRev} outputRev=${msg.outputRev}`);
       } else if (msg.type === "inputs") {

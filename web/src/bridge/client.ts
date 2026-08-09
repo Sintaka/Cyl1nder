@@ -73,18 +73,41 @@ export class BridgeClient {
 
 export type WsHandler = (msg: any) => void;
 
-/** Live channel: ws://127.0.0.1:8375/ws?serial=... */
+/** Live channel: ws://127.0.0.1:8375/ws?serial=... with automatic reconnect (exponential backoff). */
 export function connectWs(serial: string, onMessage: WsHandler, onStatus: (open: boolean) => void): () => void {
-  const ws = new WebSocket(`ws://${new URL(BRIDGE_URL).host}/ws?serial=${encodeURIComponent(serial)}`);
-  ws.onopen = () => onStatus(true);
-  ws.onclose = () => onStatus(false);
-  ws.onerror = () => onStatus(false);
-  ws.onmessage = (ev) => {
-    try {
-      onMessage(JSON.parse(ev.data as string));
-    } catch {
-      /* ignore malformed */
-    }
+  let closed = false;
+  let retries = 0;
+  let ws: WebSocket | null = null;
+
+  const connect = () => {
+    if (closed) return;
+    ws = new WebSocket(`ws://${new URL(BRIDGE_URL).host}/ws?serial=${encodeURIComponent(serial)}`);
+    ws.onopen = () => {
+      retries = 0;
+      onStatus(true);
+    };
+    ws.onclose = () => {
+      onStatus(false);
+      if (closed) return;
+      const delay = Math.min(500 * 2 ** retries, 5000);
+      retries += 1;
+      setTimeout(connect, delay);
+    };
+    ws.onerror = () => {
+      /* onclose follows and schedules the reconnect */
+    };
+    ws.onmessage = (ev) => {
+      try {
+        onMessage(JSON.parse(ev.data as string));
+      } catch {
+        /* ignore malformed */
+      }
+    };
   };
-  return () => ws.close();
+
+  connect();
+  return () => {
+    closed = true;
+    if (ws) ws.close();
+  };
 }

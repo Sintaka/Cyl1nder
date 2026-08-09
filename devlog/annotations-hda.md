@@ -27,3 +27,6 @@
   - web 侧：auto-run 仅在**输入内容变化**时跑（`inputsEqual`）；连接时首次 inputs 视为**回放**不触发网络（防重连把用户编辑覆盖成 passthrough）。
   - HDA 侧：仅当拉到本 role 的新 buffer 才 clear+重建，否则**保留现有几何**（Force Cook 不再清空输出）；同步轮询加 `scheduled` 标志避免重复排队。
 - **桥重启自愈**：`get_outputs_since` 检测 `since > rev` 视为重置并返回全部；`/pending` 返回 `reset` 标志，轮询线程检测到重置后重拉全部（否则桥重启后 HDA 因 last_rev 大于新 rev 永远不同步）。
+## v0.1.00004（2026-08-10）
+- **HDA 自动拉起桥**：`bridge_autostart`（默认开）——cook 时若桥不可达，HDA 用 subprocess 拉起 bridge（5s 内最多一次）；已有在线桥则直接复用。
+- **脏几何根治（内容对比）**：`_same_as_buffer` 每次 cook 对比当前输出几何与桥最新 buffer，不同才重建；不再用 last_rev/存储哈希做重建决策 → 任何脏写入下次 cook 自动纠正（实测 266 脏几何被 [100,100,100] 覆盖）。

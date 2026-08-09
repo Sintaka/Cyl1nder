@@ -6,8 +6,10 @@ is hot-reload friendly - no HDA rebuild needed (Houdini reloads the module).
 """
 from __future__ import annotations
 
+import subprocess
 import threading
 import time
+import urllib.request
 
 import hou
 
@@ -19,6 +21,59 @@ INPUT_COUNT = 4
 
 # bidirectional sync: web edits -> bridge pending -> 30fps poller -> dirty -> recook
 _SYNC: dict[str, dict] = {}
+
+# HDA owns bridge startup: if unreachable, spawn it (one attempt / 5s)
+BRIDGE_PY = r"D:\code\dev\Cyl1nder\bridge\.venv\Scripts\python.exe"
+BRIDGE_CWD = r"D:\code\dev\Cyl1nder\bridge"
+_BRIDGE_LAST_SPAWN = 0.0
+
+
+def _bridge_healthy(bridge_url: str) -> bool:
+    try:
+        with urllib.request.urlopen(bridge_url.rstrip("/") + "/api/health", timeout=0.3):
+            return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _ensure_bridge(root: hou.Node) -> None:
+    """If the bridge is unreachable, start it (one attempt per 5s)."""
+    global _BRIDGE_LAST_SPAWN
+    if not bool(_parm(root, "bridge_autostart", 1)):
+        return
+    bridge_url = _parm(root, "bridge_url", "http://127.0.0.1:8375")
+    if _bridge_healthy(bridge_url):
+        return
+    if time.time() - _BRIDGE_LAST_SPAWN < 5.0:
+        return
+    _BRIDGE_LAST_SPAWN = time.time()
+    try:
+        subprocess.Popen(
+            [BRIDGE_PY, "-m", "bridge"],
+            cwd=BRIDGE_CWD,
+            creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW,
+        )
+        _set_status(root, "starting bridge...")
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _same_as_buffer(geo: hou.Geometry, buf: dict) -> bool:
+    """Compare CURRENT output geometry content vs the bridge buffer.
+
+    Content-based, self-healing: even if some other path wrote stale geometry
+    (e.g. passthrough fallback), the next cook detects the mismatch and rebuilds.
+    No stored hash/bookkeeping to desync with.
+    """
+    pts = [
+        [round(p.position().x(), 6), round(p.position().y(), 6), round(p.position().z(), 6)]
+        for p in geo.points()
+    ]
+    if pts != (buf.get("points") or []):
+        return False
+    curves = [[p.number() for p in prim.points()] for prim in geo.prims()]
+    buf_curves = [c.get("pointIndices") for c in (buf.get("curves") or [])]
+    return curves == buf_curves
 
 
 def _sync_loop(serial: str, node_path: str, interval: float, bridge_url: str) -> None:
@@ -176,6 +231,7 @@ def cook(role: int) -> None:
     # otherwise Force Cook / stale recooks would wipe existing outputs.
 
     client = BridgeClient(serial, bridge_url=bridge_url, node_path=root.path(), label="Cyl1nder")
+    _ensure_bridge(root)
 
     if role == ROLE_PUSH and auto_push:
         srcs = node.inputs()
@@ -203,13 +259,15 @@ def cook(role: int) -> None:
 
     if auto_pull:
         ensure_sync(root, serial)  # bidirectional: web edit -> dirty -> recook (<= sync_fps)
-        since = int(node.userData("cyl1nder_last_rev") or 0)
-        outputs, new_rev = client.pull_outputs(since)
+        # Always pull the latest buffers; rebuild only when CONTENT changed (hash compare).
+        # Content-based = self-healing: immune to bridge-restart rev resets and stale
+        # "consumed rev with wrong geometry" state that plagued the earlier design.
+        outputs, new_rev = client.pull_outputs(0)
         if outputs is not None:
-            matched = [b for b in outputs if int(b.get("index", -1)) == role]
-            if matched:
+            buf = next((b for b in outputs if int(b.get("index", -1)) == role), None)
+            if buf is not None and not _same_as_buffer(geo, buf):
                 geo.clear()
-                _build_detail(geo, matched[0])  # latest buffer for this role
+                _build_detail(geo, buf)
             if new_rev:
                 node.setUserData("cyl1nder_last_rev", str(new_rev))
             _set_status(root, "ok" if not client.last_error else "offline")

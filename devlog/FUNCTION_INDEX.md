@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-09），由 `node scripts/gen-index.mjs` 产出。共 **138** 个函数/类。
+> 机器生成（2026-08-09），由 `node scripts/gen-index.mjs` 产出。共 **150** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -162,12 +162,12 @@
 | `broadcast` | 32 | def |  | 2 |
 | `ws_endpoint` | 53 | def |  | 1 |
 
-## hda/scripts/build_hda.py（163 行）
+## hda/scripts/build_hda.py（165 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `_parm_group` | 44 | def |  | 3 |
-| `build` | 95 | def |  | 2 |
+| `build` | 96 | def |  | 2 |
 
 ## hda/scripts/hython_smoke.py（111 行）
 
@@ -201,20 +201,23 @@
 | `pending_outputs` | 87 | def |  | 1 |
 | `pull_outputs` | 102 | def |  | 1 |
 
-## hda/src/cyl1nder_hda.py（223 行）
+## hda/src/cyl1nder_hda.py（281 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_sync_loop` | 24 | def |  | 1 |
-| `_schedule_recook` | 50 | def |  | 3 |
-| `_force_cook_node` | 58 | def |  | 1 |
-| `ensure_sync` | 83 | def |  | 2 |
-| `_root` | 107 | def |  | 3 |
-| `_ensure_serial` | 111 | def |  | 2 |
-| `_parm` | 124 | def |  | 6 |
-| `_set_status` | 134 | def |  | 4 |
-| `_build_detail` | 143 | def |  | 2 |
-| `cook` | 167 | def |  | 3 |
+| `_bridge_healthy` | 31 | def |  | 2 |
+| `_ensure_bridge` | 39 | def |  | 2 |
+| `_same_as_buffer` | 61 | def |  | 2 |
+| `_sync_loop` | 79 | def |  | 1 |
+| `_schedule_recook` | 105 | def |  | 3 |
+| `_force_cook_node` | 113 | def |  | 1 |
+| `ensure_sync` | 138 | def |  | 2 |
+| `_root` | 162 | def |  | 3 |
+| `_ensure_serial` | 166 | def |  | 2 |
+| `_parm` | 179 | def |  | 8 |
+| `_set_status` | 189 | def |  | 5 |
+| `_build_detail` | 198 | def |  | 2 |
+| `cook` | 222 | def |  | 3 |
 
 ## hda/src/cyl1nder_serializer.py（57 行）
 
@@ -232,21 +235,23 @@
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `export ` | 15 | function | export | 0 |
+| `buildLayout` | 15 | function | export | 1 |
 
 ## web/src/app/log.ts（4 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `export ` | 2 | function | export | 0 |
+| `formatLog` | 2 | function | export | 1 |
 
-## web/src/bridge/client.ts（90 行）
+## web/src/bridge/client.ts（113 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `export ` | 23 | class | export | 0 |
+| `BridgeClient` | 23 | class | export | 0 |
+| `connectWs` | 77 | function | export | 1 |
+| `connect` | 82 | arrow |  | 1 |
 
-## web/src/main.ts（157 行）
+## web/src/main.ts（158 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -260,14 +265,16 @@
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `export ` | 9 | function | export | 0 |
+| `registerNodes` | 9 | function | export | 1 |
+| `createGraph` | 61 | function | export | 1 |
+| `upsertFlowGraph` | 73 | function | export | 1 |
 
 ## web/src/protocol/compare.ts（22 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `payloadEqual` | 3 | function |  | 2 |
-| `export ` | 14 | function | export | 0 |
+| `inputsEqual` | 14 | function | export | 1 |
 
 ## web/src/protocol/types.ts（88 行）
 
@@ -278,19 +285,22 @@
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `export ` | 6 | class | export | 0 |
+| `WorkspaceStore` | 6 | class | export | 1 |
 
 ## web/src/tools/transform.ts（41 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `export ` | 5 | function | export | 0 |
+| `translatePoint` | 5 | function | export | 3 |
+| `translatePoints` | 9 | function | export | 1 |
+| `applyTranslateToCurve` | 14 | function | export | 1 |
+| `inputToOutput` | 31 | function | export | 1 |
 
 ## web/src/viewport/controls.ts（31 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `export ` | 8 | class | export | 0 |
+| `HoudiniControls` | 8 | class | export | 0 |
 | `release` | 21 | arrow |  | 0 |
 
 ## web/src/viewport/geometry.ts（51 行）
@@ -298,10 +308,12 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `toVec` | 7 | function |  | 1 |
-| `export ` | 12 | function | export | 0 |
+| `buildCurves` | 12 | function | export | 3 |
+| `buildInputs` | 33 | function | export | 1 |
+| `buildOutputs` | 43 | function | export | 1 |
 
 ## web/src/viewport/renderer.ts（150 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `export ` | 13 | class | export | 0 |
+| `Viewport` | 13 | class | export | 0 |

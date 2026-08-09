@@ -14,3 +14,6 @@
 - **视口漂移修复**：左面板 X6 图把 flex 列撑爆（canvas 每 1.5s 变窄右移）；`.cyl-left/.cyl-graph` 加 `min-width:0; overflow:hidden`。
 - **CORS**：bridge 加 CORSMiddleware（浏览器 REST 从 5173→8375 不再被拦）。
 - **空态引导**：未连接/桥离线时视口中央显示提示。
+## v0.1.00004（2026-08-10）
+- **WS 自动重连**：指数退避（0.5s→5s 封顶），桥重启后旧标签页自动恢复，不再"一直显示桥离线"。
+- **回放跳过加固**：每次收到 `hello`（含重连）都重置 replayPending——重连回放的 inputs 永不触发 auto-run（防覆盖用户编辑）。

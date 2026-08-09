@@ -72,6 +72,7 @@ def _parm_group() -> hou.ParmTemplateGroup:
     group.append(ToggleParmTemplate("auto_push", "Auto Push Inputs", True))
     group.append(ToggleParmTemplate("auto_pull", "Auto Pull Outputs", True))
     group.append(IntParmTemplate("sync_fps", "Sync FPS", 1, default_value=(30,), min=1, max=60))
+    group.append(ToggleParmTemplate("bridge_autostart", "Bridge Autostart", True))
 
     force_cook = ButtonParmTemplate("force_cook", "Force Cook")
     force_cook.setScriptCallback(FORCE_COOK_CALLBACK)
@@ -141,6 +142,7 @@ def build(output_path: str = OUT) -> hou.Node:
         "auto_push",
         "auto_pull",
         "sync_fps",
+        "bridge_autostart",
         "force_cook",
         "open_web",
         "cyl1nder_regenerate",

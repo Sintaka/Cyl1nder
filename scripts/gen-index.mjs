@@ -22,11 +22,12 @@ function scanFile(filePath) {
   const funcs = [];
   const seen = new Set();
   lines.forEach((line, i) => {
-    let m, kind = null, exported = false;
+    let m, kind = null, exported = false, name = "";
     if (filePath.endsWith(".py")) {
       if ((m = pyDefRe.exec(line))) kind = "def";
       else if ((m = pyClassRe.exec(line))) kind = "class";
       if (!m) return;
+      name = m[1];
     } else {
       if ((m = fnRe.exec(line))) kind = "function";
       else if ((m = constArrowRe.exec(line))) kind = "arrow";
@@ -34,8 +35,8 @@ function scanFile(filePath) {
       else if ((m = classRe.exec(line))) kind = "class";
       if (!m) return;
       exported = !!m[1];
+      name = m[2];
     }
-    const name = m[1] || m[2];
     if (seen.has(name)) return;
     seen.add(name);
     const esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

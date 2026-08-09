@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-09T17:55:46.973Z",
-  "totalFunctions": 138,
+  "generatedAt": "2026-08-09T18:13:34.704Z",
+  "totalFunctions": 150,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -710,7 +710,7 @@
     },
     {
       "file": "hda/scripts/build_hda.py",
-      "lineCount": 163,
+      "lineCount": 165,
       "functions": [
         {
           "name": "_parm_group",
@@ -721,7 +721,7 @@
         },
         {
           "name": "build",
-          "line": 95,
+          "line": 96,
           "kind": "def",
           "exported": false,
           "calls": 2
@@ -867,74 +867,95 @@
     },
     {
       "file": "hda/src/cyl1nder_hda.py",
-      "lineCount": 223,
+      "lineCount": 281,
       "functions": [
         {
+          "name": "_bridge_healthy",
+          "line": 31,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_ensure_bridge",
+          "line": 39,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_same_as_buffer",
+          "line": 61,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "_sync_loop",
-          "line": 24,
+          "line": 79,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_schedule_recook",
-          "line": 50,
+          "line": 105,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_force_cook_node",
-          "line": 58,
+          "line": 113,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "ensure_sync",
-          "line": 83,
+          "line": 138,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_root",
-          "line": 107,
+          "line": 162,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_ensure_serial",
-          "line": 111,
+          "line": 166,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_parm",
-          "line": 124,
+          "line": 179,
           "kind": "def",
           "exported": false,
-          "calls": 6
+          "calls": 8
         },
         {
           "name": "_set_status",
-          "line": 134,
+          "line": 189,
           "kind": "def",
           "exported": false,
-          "calls": 4
+          "calls": 5
         },
         {
           "name": "_build_detail",
-          "line": 143,
+          "line": 198,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "cook",
-          "line": 167,
+          "line": 222,
           "kind": "def",
           "exported": false,
           "calls": 3
@@ -971,11 +992,11 @@
       "lineCount": 56,
       "functions": [
         {
-          "name": "export ",
+          "name": "buildLayout",
           "line": 15,
           "kind": "function",
           "exported": true,
-          "calls": 0
+          "calls": 1
         }
       ]
     },
@@ -984,30 +1005,44 @@
       "lineCount": 4,
       "functions": [
         {
-          "name": "export ",
+          "name": "formatLog",
           "line": 2,
           "kind": "function",
           "exported": true,
-          "calls": 0
+          "calls": 1
         }
       ]
     },
     {
       "file": "web/src/bridge/client.ts",
-      "lineCount": 90,
+      "lineCount": 113,
       "functions": [
         {
-          "name": "export ",
+          "name": "BridgeClient",
           "line": 23,
           "kind": "class",
           "exported": true,
           "calls": 0
+        },
+        {
+          "name": "connectWs",
+          "line": 77,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "connect",
+          "line": 82,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 1
         }
       ]
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 157,
+      "lineCount": 158,
       "functions": [
         {
           "name": "inputStatsText",
@@ -1051,11 +1086,25 @@
       "lineCount": 120,
       "functions": [
         {
-          "name": "export ",
+          "name": "registerNodes",
           "line": 9,
           "kind": "function",
           "exported": true,
-          "calls": 0
+          "calls": 1
+        },
+        {
+          "name": "createGraph",
+          "line": 61,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "upsertFlowGraph",
+          "line": 73,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
         }
       ]
     },
@@ -1071,11 +1120,11 @@
           "calls": 2
         },
         {
-          "name": "export ",
+          "name": "inputsEqual",
           "line": 14,
           "kind": "function",
           "exported": true,
-          "calls": 0
+          "calls": 1
         }
       ]
     },
@@ -1089,11 +1138,11 @@
       "lineCount": 77,
       "functions": [
         {
-          "name": "export ",
+          "name": "WorkspaceStore",
           "line": 6,
           "kind": "class",
           "exported": true,
-          "calls": 0
+          "calls": 1
         }
       ]
     },
@@ -1102,11 +1151,32 @@
       "lineCount": 41,
       "functions": [
         {
-          "name": "export ",
+          "name": "translatePoint",
           "line": 5,
           "kind": "function",
           "exported": true,
-          "calls": 0
+          "calls": 3
+        },
+        {
+          "name": "translatePoints",
+          "line": 9,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "applyTranslateToCurve",
+          "line": 14,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "inputToOutput",
+          "line": 31,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
         }
       ]
     },
@@ -1115,7 +1185,7 @@
       "lineCount": 31,
       "functions": [
         {
-          "name": "export ",
+          "name": "HoudiniControls",
           "line": 8,
           "kind": "class",
           "exported": true,
@@ -1142,11 +1212,25 @@
           "calls": 1
         },
         {
-          "name": "export ",
+          "name": "buildCurves",
           "line": 12,
           "kind": "function",
           "exported": true,
-          "calls": 0
+          "calls": 3
+        },
+        {
+          "name": "buildInputs",
+          "line": 33,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "buildOutputs",
+          "line": 43,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
         }
       ]
     },
@@ -1155,7 +1239,7 @@
       "lineCount": 150,
       "functions": [
         {
-          "name": "export ",
+          "name": "Viewport",
           "line": 13,
           "kind": "class",
           "exported": true,
