@@ -1,4 +1,4 @@
-﻿# 开发规范 / Development guidelines
+# 开发规范 / Development guidelines
 
 - **所有代码最简化**：能简单就不复杂，避免过度设计。
 - **仅必要注释**：只写必要注释，不堆砌说明文字。
@@ -11,3 +11,11 @@
 - **版本号**：`0.1.0-cyl1nder.<dailybuild>`；dailybuild 可递增到 5 位；写入 `web/src/app/app-config.ts` 与 devlog「最近版本」。
 - **Codex 子智能体**：适当时候可以直接使用子智能体（并行调研 / 独立小改动）。
 - **许可证**：本项目计划 MIT；引入第三方代码时确保许可兼容；Animehairstudio 代码一律不复制（source-available 许可）。
+
+## 调试规范 / Debugging standards（2026-08-10 起累积，按条目追加）
+- **Houdini 端与 Codex 一律使用官方 fxhoudinimcp**（pip 包 v2.10.0，github healkeiser/fxhoudinimcp，`python -m fxhoudinimcp`）；默认端口 **8100**，被其他 Houdini 实例占用时自动 8101+（官方 find_servers 探测 8100..8115）。**禁止自己写 MCP 桥；不用 oculairmedia fork / run_houdini_mcp.py / rpyc 18811 那套**。Codex 配置见 `[mcp_servers.fxhoudinimcp]`（config.toml）。
+- **Houdini 免重启热重载**（详见 devlog/hda-hot-reload.md）：
+  - 改 `hda/src/*.py`：Houdini Python Shell 执行 `exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/reload_hda.py").read()); reload_cyl1nder()`
+  - 改 HDA 定义（内部网络/参数/按钮）：`reload_cyl1nder(definition=True)`（重建 + `hou.hda.reloadFile`）
+  - 改 bridge 进程：重启 bridge（`cd bridge; .venv\Scripts\python -m bridge`），与 Houdini 无关
+- 关键机制：python SOP 用 `cook(force=True)` 强制重跑（普通 cook() 命中缓存）；实例 `maintainstate=0` 使每次 HDA recook 自动重跑新代码。

@@ -67,6 +67,7 @@ collect(path.join(ROOT, "web", "src"), [".ts"], files);
 collect(path.join(ROOT, "bridge", "bridge"), [".py"], files);
 collect(path.join(ROOT, "mcp"), [".py"], files);
 collect(path.join(ROOT, "hda", "src"), [".py"], files);
+collect(path.join(ROOT, "hda", "scripts"), [".py"], files);
 files.sort((a, b) => a.localeCompare(b));
 const scanned = files.map(scanFile);
 

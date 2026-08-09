@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-09T16:38:48.673Z",
-  "totalFunctions": 127,
+  "generatedAt": "2026-08-09T16:49:02.056Z",
+  "totalFunctions": 128,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -688,6 +688,101 @@
       ]
     },
     {
+      "file": "hda/scripts/build_hda.py",
+      "lineCount": 154,
+      "functions": [
+        {
+          "name": "_parm_group",
+          "line": 44,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "build",
+          "line": 88,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        }
+      ]
+    },
+    {
+      "file": "hda/scripts/hython_smoke.py",
+      "lineCount": 111,
+      "functions": [
+        {
+          "name": "_req",
+          "line": 24,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "_make_curve_input",
+          "line": 33,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "main",
+          "line": 51,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        }
+      ]
+    },
+    {
+      "file": "hda/scripts/reload_hda.py",
+      "lineCount": 87,
+      "functions": [
+        {
+          "name": "_reload_modules",
+          "line": 30,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_instances",
+          "line": 43,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_force_recook_all",
+          "line": 48,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "_rebuild_hda",
+          "line": 62,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_reload_definition",
+          "line": 68,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "reload_cyl1nder",
+          "line": 75,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        }
+      ]
+    },
+    {
       "file": "hda/src/cyl1nder_bridge.py",
       "lineCount": 96,
       "functions": [
@@ -809,87 +904,6 @@
           "calls": 1
         }
       ]
-    },
-    {
-      "file": "mcp/fxhoudinimcp_bridge.py",
-      "lineCount": 127,
-      "functions": [
-        {
-          "name": "_rpc",
-          "line": 31,
-          "kind": "def",
-          "exported": false,
-          "calls": 6
-        },
-        {
-          "name": "_discover_port",
-          "line": 45,
-          "kind": "def",
-          "exported": false,
-          "calls": 5
-        },
-        {
-          "name": "_execute",
-          "line": 60,
-          "kind": "def",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "houdini_health",
-          "line": 74,
-          "kind": "def",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "houdini_commands",
-          "line": 83,
-          "kind": "def",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "houdini_execute",
-          "line": 92,
-          "kind": "def",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "_tool_name",
-          "line": 97,
-          "kind": "def",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "_register_commands",
-          "line": 101,
-          "kind": "def",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "make_handler",
-          "line": 110,
-          "kind": "def",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "handler",
-          "line": 111,
-          "kind": "def",
-          "exported": false,
-          "calls": 1
-        }
-      ]
-    },
-    {
-      "file": "mcp/run_houdini_mcp.py",
-      "lineCount": 23,
-      "functions": []
     },
     {
       "file": "web/src/app/app-config.ts",

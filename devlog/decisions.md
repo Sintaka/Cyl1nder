@@ -9,5 +9,7 @@
 | v1 实现语言 | Houdini 侧用 Python SOP（免重启热重载）；C++ 只在热路径需要时上 | 避开 C++ DLL 锁定 / 重启；桥是 I/O 型不是计算型 |
 | 数据流 | HDA cook → 推 4 输入 JSON（防抖线程）→ 桥存 rev buffers → 前端编辑 → 桥 → HDA pull | 解耦生命周期；Houdini 重启不影响桥状态 |
 | 几何格式 | v1 紧凑 JSON（points/曲线/width/P）；二进制/glTF 后置 | 简单、可调试、够原型 |
-| MCP | 复用 oculairmedia/houdini-mcp fork 补全链路；新增 Cyl1nder 桥 MCP | Codex 能看到 Houdini 场景 + 桥状态/日志/索引 |
+| Houdini MCP | 直接用官方 fxhoudinimcp（pip 包 `python -m fxhoudinimcp`，默认端口 8100/8101+ 自动探测）；不用自己写的桥、不用 oculairmedia fork / rpyc 18811 | 官方维护、工具齐全（约 188 个）；自写桥重复造轮子且易过时 |
 | 前端地基 | Vite + TypeScript，无 UI 框架；X6 节点图；Three 视口 | 类型即文档省 token；X6 可自定义 Houdini 竖排样式 |
+
+| Houdini MCP | 直接用官方 fxhoudinimcp（pip 包，`python -m fxhoudinimcp`，默认端口 8100/8101+）；不用自己写的桥、不用 oculairmedia fork / rpyc 18811 | 官方维护、工具齐全（约 188 个）、自动探测端口；自写桥重复造轮子且易过时 |

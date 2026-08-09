@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-09），由 `node scripts/gen-index.mjs` 产出。共 **127** 个函数/类。
+> 机器生成（2026-08-09），由 `node scripts/gen-index.mjs` 产出。共 **128** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -159,6 +159,32 @@
 | `broadcast` | 32 | def |  | 2 |
 | `ws_endpoint` | 53 | def |  | 1 |
 
+## hda/scripts/build_hda.py（154 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `_parm_group` | 44 | def |  | 3 |
+| `build` | 88 | def |  | 2 |
+
+## hda/scripts/hython_smoke.py（111 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `_req` | 24 | def |  | 3 |
+| `_make_curve_input` | 33 | def |  | 2 |
+| `main` | 51 | def |  | 2 |
+
+## hda/scripts/reload_hda.py（87 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `_reload_modules` | 30 | def |  | 2 |
+| `_instances` | 43 | def |  | 2 |
+| `_force_recook_all` | 48 | def |  | 3 |
+| `_rebuild_hda` | 62 | def |  | 2 |
+| `_reload_definition` | 68 | def |  | 2 |
+| `reload_cyl1nder` | 75 | def |  | 3 |
+
 ## hda/src/cyl1nder_bridge.py（96 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
@@ -188,26 +214,6 @@
 |---|---|---|---|---|
 | `_norm_value` | 12 | def |  | 2 |
 | `serialize_input` | 20 | def |  | 1 |
-
-## mcp/fxhoudinimcp_bridge.py（127 行）
-
-| 函数 | 行号 | 类型 | 导出 | calls |
-|---|---|---|---|---|
-| `_rpc` | 31 | def |  | 6 |
-| `_discover_port` | 45 | def |  | 5 |
-| `_execute` | 60 | def |  | 3 |
-| `houdini_health` | 74 | def |  | 1 |
-| `houdini_commands` | 83 | def |  | 1 |
-| `houdini_execute` | 92 | def |  | 1 |
-| `_tool_name` | 97 | def |  | 3 |
-| `_register_commands` | 101 | def |  | 2 |
-| `make_handler` | 110 | def |  | 2 |
-| `handler` | 111 | def |  | 1 |
-
-## mcp/run_houdini_mcp.py（23 行）
-
-| 函数 | 行号 | 类型 | 导出 | calls |
-|---|---|---|---|---|
 
 ## web/src/app/app-config.ts（5 行）
 

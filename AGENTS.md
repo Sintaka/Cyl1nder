@@ -1,4 +1,4 @@
-﻿# AGENTS.md — Cyl1nder 协作规范（给 Codex / 人类 agent 看）
+# AGENTS.md — Cyl1nder 协作规范（给 Codex / 人类 agent 看）
 
 Cyl1nder 是"中间站"项目：Houdini ⇄ 本地桥 ⇄ WebGL 前端 的轻量数据通道。
 目标不是做成 DCC，而是最大限度复用现成库、保持轻量、用良好结构降低 token 消耗。
@@ -22,3 +22,7 @@ Cyl1nder 是"中间站"项目：Houdini ⇄ 本地桥 ⇄ WebGL 前端 的轻量
 
 ## 常用命令
 见 devlog/AGENT_QUICKSTART.md。
+
+## Houdini 集成（铁律）
+- Houdini 端与 Codex 一律用**官方 fxhoudinimcp**（pip 包 `fxhoudinimcp`，命令 `python -m fxhoudinimcp`），默认端口 **8100**、被占自动 8101+。**禁止自己写 MCP 桥、禁止用 oculairmedia fork / run_houdini_mcp.py / rpyc 18811**。
+- Houdini 免重启热重载：改 `hda/src/*.py` 用 `hda/scripts/reload_hda.py`（`reload_cyl1nder()` / `reload_cyl1nder(definition=True)`）；细节见 `devlog/hda-hot-reload.md`。

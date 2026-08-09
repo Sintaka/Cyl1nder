@@ -2,26 +2,25 @@
 
 两个 MCP 服务器：
 
-## 1) Houdini MCP（fxhoudinimcp 桥，Codex 看 Houdini 场景/节点/参数/报错）
-fxhoudinimcp 是跑在 Houdini 内的 HTTP MCP（hwebserver，默认端口 **8100**，被另一实例占用则 8101）。
-外部桥 `mcp/fxhoudinimcp_bridge.py`（FastMCP stdio）把 Codex 的 MCP 调用代理到
-`POST http://127.0.0.1:{8100|8101}/api`（`mcp.execute` / `mcp.health` / `mcp.list_commands`），
-启动时**动态注册全部 fxhoudinimcp 命令**为 MCP 工具（约 190 个，前缀 `houdini_`，如
-`houdini_code_execute_python`、`houdini_nodes_get_node_info`、`houdini_parameters_get_parameter_schema`、
-`houdini_context_get_node_errors_detailed`），另含 `houdini_health / houdini_commands / houdini_execute` 三个 meta 工具。
-
-config.toml（已配置）：
+## 1) Houdini MCP = 官方 fxhoudinimcp（直接复用，不自己写）
+官方 pip 包：`fxhoudinimcp` v2.10.0（github healkeiser/fxhoudinimcp）。
+- Houdini 内插件（hwebserver HTTP MCP）：默认端口 **8100**，被其他 Houdini 实例占用时自动 8101+。
+- 外部 MCP server：`python -m fxhoudinimcp`（stdio，约 188 工具，如 `execute_python`、`get_node_info`、`get_parameter_schema`、`get_node_errors_detailed`）。
+- Codex config.toml（已配置，改名 `fxhoudinimcp` 避免与其它实现混淆）：
 ```toml
-[mcp_servers.houdini]
+[mcp_servers.fxhoudinimcp]
+# 官方 fxhoudinimcp——Houdini 端与 Codex 一律用它，不自己写 MCP 桥
 type = "stdio"
 command = 'C:\Users\Administrator\AppData\Local\Programs\Python\Python312\python.exe'
-args = ['D:\code\dev\Cyl1nder\mcp\fxhoudinimcp_bridge.py']
+args = ['-m', 'fxhoudinimcp']
 startup_timeout_sec = 30
-```
 
-依赖（外部 Python312）：`fastmcp`（`py -3.12 -m pip install fastmcp`）。
-> 改完 config.toml 后需**重启 Codex** 让 MCP 生效。
-> Houdini 侧：shelf **FXHoudini → MCP Server** 启动；若 8100 被占则设 `FXHOUDINIMCP_PORT=8101` 再启动。
+[mcp_servers.fxhoudinimcp.env]
+HOUDINI_HOST = "127.0.0.1"
+```
+- 依赖（外部 Python312）：`py -3.12 -m pip install fxhoudinimcp`。
+- Houdini 侧：shelf **FXHoudini → MCP Server** 启动（或 `FXHOUDINIMCP_PORT=8100` 环境）。
+- ⚠️ 改 config.toml 后需**重启 Codex** 生效；当前会话若没重启，请直接用官方桥 HTTP（`POST http://127.0.0.1:8100/api`，mcp.execute）或 `houdini_health` 等同位功能。
 
 ## 2) Cyl1nder 桥 MCP（Codex 看桥状态/日志/索引/几何摘要）
 ```toml
