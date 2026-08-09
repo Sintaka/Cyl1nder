@@ -96,3 +96,13 @@ def test_root_info_without_serial(tmp_path) -> None:
     body = r.json()
     assert body["service"] == "cyl1nder-bridge"
     assert "ui" in body
+
+
+def test_pending_dirty_check(tmp_path) -> None:
+    c = _client(tmp_path)
+    serial = generate_serial()
+    assert c.get(f"/api/hda/{serial}/pending", params={"since": 0}).json()["pending"] is False
+    c.put(f"/api/hda/{serial}/outputs", json={"outputs": [{"index": 0, "rev": 0, "points": [[0, 0, 0]]}]})
+    r = c.get(f"/api/hda/{serial}/pending", params={"since": 0}).json()
+    assert r["pending"] is True and r["rev"] >= 1
+    assert c.get(f"/api/hda/{serial}/pending", params={"since": r["rev"]}).json()["pending"] is False

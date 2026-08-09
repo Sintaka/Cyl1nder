@@ -12,3 +12,5 @@
 - 测试：pytest 14 通过（registry / workspace / routes / mcp）。
 ## v0.1.0-cyl1nder.3（2026-08-10）
 - **GET / 根路由**：带 `?serial=` 时 307 跳转到 Web UI（`WEB_UI_URL`，默认 127.0.0.1:5173），无 serial 时返回服务说明 JSON —— 旧链接/误开 8375 不再撞 404。
+## v0.1.00002（2026-08-10）
+- **GET /api/hda/{serial}/pending?since=N**：轻量脏检查（`{pending, rev}`），供 HDA 30fps 同步轮询，避免轮询时传几何。

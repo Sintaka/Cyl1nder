@@ -19,7 +19,7 @@ OUT = os.environ.get(
 INPUT_COUNT = 4
 PY_CODE = "import cyl1nder_hda\ncyl1nder_hda.cook(role={role})\n"
 
-PULL_NOW_CALLBACK = (
+FORCE_COOK_CALLBACK = (
     "node = hou.pwd()\n"
     "for n in node.children():\n"
     '    if n.type().name() == "python":\n'
@@ -44,6 +44,7 @@ REGEN_CALLBACK = (
 def _parm_group() -> hou.ParmTemplateGroup:
     from hou import (
         ButtonParmTemplate,
+        IntParmTemplate,
         ParmTemplateGroup,
         StringParmTemplate,
         ToggleParmTemplate,
@@ -70,11 +71,12 @@ def _parm_group() -> hou.ParmTemplateGroup:
     )
     group.append(ToggleParmTemplate("auto_push", "Auto Push Inputs", True))
     group.append(ToggleParmTemplate("auto_pull", "Auto Pull Outputs", True))
+    group.append(IntParmTemplate("sync_fps", "Sync FPS", 1, default_value=(30,), min=1, max=60))
 
-    pull_now = ButtonParmTemplate("pull_now", "Pull Now")
-    pull_now.setScriptCallback(PULL_NOW_CALLBACK)
-    pull_now.setScriptCallbackLanguage(hou.scriptLanguage.Python)
-    group.append(pull_now)
+    force_cook = ButtonParmTemplate("force_cook", "Force Cook")
+    force_cook.setScriptCallback(FORCE_COOK_CALLBACK)
+    force_cook.setScriptCallbackLanguage(hou.scriptLanguage.Python)
+    group.append(force_cook)
 
     open_web = ButtonParmTemplate("open_web", "Open in Browser")
     open_web.setScriptCallback(OPEN_WEB_CALLBACK)
@@ -138,7 +140,8 @@ def build(output_path: str = OUT) -> hou.Node:
         "web_url",
         "auto_push",
         "auto_pull",
-        "pull_now",
+        "sync_fps",
+        "force_cook",
         "open_web",
         "cyl1nder_regenerate",
         "status",

@@ -8,7 +8,7 @@
 - **序列号**：`C1-<base36毫秒>-<4位随机>`，创建时生成写入隐藏参数 `cyl1nder_serial`，不可变；复制节点生成新号。
 - **端口**：桥独占 8375，按 serial 路由；绝不为每个 HDA 开新端口。
 - **JS/TS 改动标注**：在 devlog 对应专题文件记录与既有代码的差别。
-- **版本号**：`0.1.0-cyl1nder.<dailybuild>`；dailybuild 可递增到 5 位；写入 `web/src/app/app-config.ts` 与 devlog「最近版本」。
+- **版本号（2026-08-10 起，参考 Anime Hair Studio）**：`x.xxx.xxxxx`（主版本.次版本.每日构建5位），如 `0.1.00001`；**每次 commit 时 dailybuild++**；主/次版本升级时 dailybuild 清零。写入 `bridge/bridge/protocol.py` 的 `VERSION`、`web/src/app/app-config.ts` 的 `APP_VERSION`、devlog「最近版本」。用 `node scripts/bump-version.mjs [build|minor|major]` 递增（默认 build）。
 - **Codex 子智能体**：适当时候可以直接使用子智能体（并行调研 / 独立小改动）。
 - **许可证**：本项目计划 MIT；引入第三方代码时确保许可兼容；Animehairstudio 代码一律不复制（source-available 许可）。
 

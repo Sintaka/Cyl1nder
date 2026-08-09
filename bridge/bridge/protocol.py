@@ -1,4 +1,4 @@
-﻿"""Cyl1nder wire protocol - single source of truth.
+"""Cyl1nder wire protocol - single source of truth.
 
 Keep in sync with:
 - web/src/protocol/types.ts (TS mirror)
@@ -12,7 +12,7 @@ import time
 
 from pydantic import BaseModel, Field
 
-VERSION = "0.1.0-cyl1nder.1"
+VERSION = "0.1.00002"
 HOST = "127.0.0.1"
 PORT = 8375
 BASE_URL = f"http://{HOST}:{PORT}"

@@ -91,7 +91,7 @@ def main() -> int:
         ]
     }
     _req("PUT", f"{BRIDGE}/api/hda/{serial}/outputs", edit)
-    node.parm("pull_now").pressButton()  # fires callback -> cook -> pull
+    node.parm("force_cook").pressButton()  # fires callback -> cook -> pull
     time.sleep(0.6)
 
     out0 = node.node("out0")

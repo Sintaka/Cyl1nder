@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-09），由 `node scripts/gen-index.mjs` 产出。共 **129** 个函数/类。
+> 机器生成（2026-08-09），由 `node scripts/gen-index.mjs` 产出。共 **135** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -107,20 +107,21 @@
 | `_save` | 120 | def |  | 2 |
 | `_load` | 129 | def |  | 2 |
 
-## bridge/bridge/routes.py（105 行）
+## bridge/bridge/routes.py（113 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `root` | 15 | def |  | 1 |
-| `_check_serial` | 22 | def |  | 6 |
+| `_check_serial` | 22 | def |  | 7 |
 | `health` | 28 | def |  | 1 |
 | `list_serials` | 34 | def |  | 1 |
 | `status` | 39 | def |  | 2 |
 | `put_inputs` | 51 | def |  | 1 |
 | `get_outputs` | 67 | def |  | 1 |
 | `put_outputs` | 76 | def |  | 2 |
-| `serial_logs` | 90 | def |  | 1 |
-| `global_logs` | 100 | def |  | 1 |
+| `pending` | 90 | def |  | 1 |
+| `serial_logs` | 98 | def |  | 1 |
+| `global_logs` | 108 | def |  | 1 |
 
 ## bridge/bridge/state.py（42 行）
 
@@ -160,12 +161,12 @@
 | `broadcast` | 32 | def |  | 2 |
 | `ws_endpoint` | 53 | def |  | 1 |
 
-## hda/scripts/build_hda.py（160 行）
+## hda/scripts/build_hda.py（163 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `_parm_group` | 44 | def |  | 3 |
-| `build` | 93 | def |  | 2 |
+| `build` | 95 | def |  | 2 |
 
 ## hda/scripts/hython_smoke.py（111 行）
 
@@ -186,7 +187,7 @@
 | `_reload_definition` | 68 | def |  | 2 |
 | `reload_cyl1nder` | 75 | def |  | 3 |
 
-## hda/src/cyl1nder_bridge.py（96 行）
+## hda/src/cyl1nder_bridge.py（106 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -196,18 +197,23 @@
 | `__init__` | 36 | def |  | 1 |
 | `push_inputs` | 52 | def |  | 1 |
 | `_pump` | 59 | def |  | 1 |
-| `pull_outputs` | 87 | def |  | 1 |
+| `pending_outputs` | 87 | def |  | 1 |
+| `pull_outputs` | 97 | def |  | 1 |
 
-## hda/src/cyl1nder_hda.py（130 行）
+## hda/src/cyl1nder_hda.py（204 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_root` | 18 | def |  | 3 |
-| `_ensure_serial` | 22 | def |  | 2 |
-| `_parm` | 35 | def |  | 4 |
-| `_set_status` | 45 | def |  | 4 |
-| `_build_detail` | 54 | def |  | 2 |
-| `cook` | 78 | def |  | 2 |
+| `_sync_loop` | 24 | def |  | 1 |
+| `_schedule_recook` | 38 | def |  | 2 |
+| `_force_cook_node` | 46 | def |  | 1 |
+| `ensure_sync` | 67 | def |  | 2 |
+| `_root` | 91 | def |  | 3 |
+| `_ensure_serial` | 95 | def |  | 2 |
+| `_parm` | 108 | def |  | 6 |
+| `_set_status` | 118 | def |  | 4 |
+| `_build_detail` | 127 | def |  | 2 |
+| `cook` | 151 | def |  | 3 |
 
 ## hda/src/cyl1nder_serializer.py（57 行）
 

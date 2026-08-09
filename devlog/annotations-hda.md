@@ -17,3 +17,7 @@
 ## v0.1.0-cyl1nder.3（2026-08-10）
 - **web_url 参数**：Open in Browser 按钮改开前端地址（默认 `http://127.0.0.1:5173`，参数 `web_url`），不再误开数据桥 8375。
 - **Shelf 工具架**：`hda/shelf/Cyl1nder.shelf`（Reload HDA / Reload Bridge，python 图标），装入 `Documents\houdini22.0\toolbar\`，Houdini 下次启动出现（或右键工具架手动加）。
+## v0.1.00002（2026-08-10）
+- **Force Cook**：`pull_now` 改名 `force_cook`（label "Force Cook"），回调对内部 python SOP `cook(force=True)`。
+- **双向同步（30fps 上限）**：新增 `sync_fps` 参数（默认 30，1-60）。role0 cook 时启动守护轮询线程，按 1/sync_fps 间隔调 `GET /api/hda/{serial}/pending?since=`；检测到待拉输出（web 在 Cyl1nder 里改过）→ `hdefereval.executeDeferred` 主线程安全地把 HDA `status` 标记为 `dirty` 并强制重跑 python SOP → 拉回结果 → status 回 `ok`。headless hython 无 hdefereval 时退化为手动 Force Cook。
+- 实测：web 推编辑 → ~0.6s 内 Houdini 自动拉回 out0（P=[0,0,0]/[1.5,1.5,0]/[3,3,0]）。

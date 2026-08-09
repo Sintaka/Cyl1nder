@@ -86,6 +86,14 @@ async def put_outputs(serial: str, payload: OutputsPut) -> dict:
     return {"ok": True, "serial": serial, "rev": rev}
 
 
+@router.get("/api/hda/{serial}/pending")
+async def pending(serial: str, since: int = Query(0, ge=0)) -> dict:
+    """Lightweight dirty check used by the HDA 30fps sync poller."""
+    _check_serial(serial)
+    rev = get_state().workspaces.get_or_create(serial).output_rev()
+    return {"pending": rev > since, "rev": rev}
+
+
 @router.get("/api/hda/{serial}/logs")
 async def serial_logs(
     serial: str,

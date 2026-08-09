@@ -6,6 +6,9 @@ is hot-reload friendly - no HDA rebuild needed (Houdini reloads the module).
 """
 from __future__ import annotations
 
+import threading
+import time
+
 import hou
 
 from cyl1nder_bridge import BridgeClient, generate_serial
@@ -13,6 +16,76 @@ from cyl1nder_serializer import serialize_input
 
 ROLE_PUSH = 0
 INPUT_COUNT = 4
+
+# bidirectional sync: web edits -> bridge pending -> 30fps poller -> dirty -> recook
+_SYNC: dict[str, dict] = {}
+
+
+def _sync_loop(serial: str, node_path: str, interval: float, bridge_url: str) -> None:
+    client = BridgeClient(serial, bridge_url=bridge_url)
+    last_seen = 0
+    while True:
+        state = _SYNC.get(serial)
+        if state is None or state["stop"].is_set():
+            return
+        time.sleep(interval)
+        pending, rev = client.pending_outputs(last_seen)
+        if pending and rev > last_seen:
+            last_seen = rev
+            _schedule_recook(node_path)
+
+
+def _schedule_recook(node_path: str) -> None:
+    try:
+        import hdefereval  # graphical Houdini only
+        hdefereval.executeDeferred(_force_cook_node, node_path)
+    except Exception:  # noqa: BLE001 - headless hython: user presses Force Cook
+        pass
+
+
+def _force_cook_node(node_path: str) -> None:
+    try:
+        n = hou.node(node_path)
+        if n is None:
+            return
+        sp = n.parm("status")
+        if sp is not None and sp.eval() != "dirty":
+            try:
+                sp.set("dirty")
+            except Exception:  # noqa: BLE001
+                pass
+        for c in n.children():
+            if c.type().name() == "python":
+                try:
+                    c.cook(force=True)
+                except Exception:  # noqa: BLE001
+                    pass
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def ensure_sync(root: hou.Node, serial: str) -> None:
+    """Start the 30fps-capped sync poller (sync_fps parm, default 30)."""
+    if not serial:
+        return
+    state = _SYNC.get(serial)
+    if state is not None and state["thread"].is_alive():
+        return
+    fps = float(_parm(root, "sync_fps", 30) or 30)
+    interval = 1.0 / max(1.0, fps)
+    stop = threading.Event()
+    thread = threading.Thread(
+        target=_sync_loop,
+        args=(
+            serial,
+            root.path(),
+            interval,
+            _parm(root, "bridge_url", "http://127.0.0.1:8375"),
+        ),
+        daemon=True,
+    )
+    thread.start()
+    _SYNC[serial] = {"thread": thread, "stop": stop, "node_path": root.path()}
 
 
 def _root(node: hou.Node) -> hou.Node:
@@ -112,6 +185,7 @@ def cook(role: int) -> None:
         _set_status(root, "ok" if not client.last_error else "offline")
 
     if auto_pull:
+        ensure_sync(root, serial)  # bidirectional: web edit -> dirty -> recook (<= sync_fps)
         since = int(node.userData("cyl1nder_last_rev") or 0)
         outputs, new_rev = client.pull_outputs(since)
         if outputs is not None:
