@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-09T18:33:07.527Z",
-  "totalFunctions": 150,
+  "generatedAt": "2026-08-09T19:02:44.389Z",
+  "totalFunctions": 180,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -984,12 +984,12 @@
     },
     {
       "file": "web/src/app/app-config.ts",
-      "lineCount": 5,
+      "lineCount": 7,
       "functions": []
     },
     {
       "file": "web/src/app/layout.ts",
-      "lineCount": 56,
+      "lineCount": 108,
       "functions": [
         {
           "name": "buildLayout",
@@ -997,6 +997,34 @@
           "kind": "function",
           "exported": true,
           "calls": 1
+        },
+        {
+          "name": "attachSplitters",
+          "line": 63,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "onDown",
+          "line": 69,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 0
+        },
+        {
+          "name": "onMove",
+          "line": 81,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 0
+        },
+        {
+          "name": "onUp",
+          "line": 94,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 0
         }
       ]
     },
@@ -1042,39 +1070,46 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 158,
+      "lineCount": 230,
       "functions": [
         {
+          "name": "refreshNodeFlags",
+          "line": 67,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
           "name": "inputStatsText",
-          "line": 32,
+          "line": 100,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "outputStatsText",
-          "line": 41,
+          "line": 109,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderInspector",
-          "line": 50,
+          "line": 118,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "runNetwork",
-          "line": 83,
+          "line": 152,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "connect",
-          "line": 102,
+          "line": 171,
           "kind": "function",
           "exported": false,
           "calls": 4
@@ -1082,26 +1117,218 @@
       ]
     },
     {
-      "file": "web/src/nodes/cyl1nderNode.ts",
-      "lineCount": 120,
+      "file": "web/src/nodes/contextMenu.ts",
+      "lineCount": 83,
       "functions": [
         {
+          "name": "attachContextMenu",
+          "line": 7,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "close",
+          "line": 19,
+          "kind": "function",
+          "exported": false,
+          "calls": 5
+        },
+        {
+          "name": "show",
+          "line": 26,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "onDown",
+          "line": 58,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 0
+        },
+        {
+          "name": "onKey",
+          "line": 61,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 0
+        }
+      ]
+    },
+    {
+      "file": "web/src/nodes/cutMode.ts",
+      "lineCount": 55,
+      "functions": [
+        {
+          "name": "attachCutMode",
+          "line": 6,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "isTyping",
+          "line": 12,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "down",
+          "line": 18,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 0
+        },
+        {
+          "name": "up",
+          "line": 24,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 0
+        },
+        {
+          "name": "onEdgeClick",
+          "line": 30,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 0
+        },
+        {
+          "name": "onNodeClick",
+          "line": 35,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 0
+        }
+      ]
+    },
+    {
+      "file": "web/src/nodes/cyl1nderNode.ts",
+      "lineCount": 232,
+      "functions": [
+        {
+          "name": "portItems",
+          "line": 27,
+          "kind": "function",
+          "exported": false,
+          "calls": 5
+        },
+        {
+          "name": "applyFlags",
+          "line": 32,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "titleText",
+          "line": 49,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "getFlags",
+          "line": 54,
+          "kind": "function",
+          "exported": true,
+          "calls": 4
+        },
+        {
+          "name": "setFlags",
+          "line": 59,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "toggleFlag",
+          "line": 66,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "makeMarkup",
+          "line": 71,
+          "kind": "function",
+          "exported": false,
+          "calls": 4
+        },
+        {
           "name": "registerNodes",
-          "line": 9,
+          "line": 89,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "createGraph",
-          "line": 61,
+          "line": 134,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "upsertFlowGraph",
-          "line": 73,
+          "line": 172,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "getOrAdd",
+          "line": 198,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "addNullNode",
+          "line": 220,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/nodes/flags.ts",
+      "lineCount": 28,
+      "functions": [
+        {
+          "name": "isFrozen",
+          "line": 24,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/nodes/palette.ts",
+      "lineCount": 137,
+      "functions": [
+        {
+          "name": "searchPalette",
+          "line": 20,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "NodePalette",
+          "line": 35,
+          "kind": "class",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "attachPalette",
+          "line": 126,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -1181,19 +1408,32 @@
       ]
     },
     {
-      "file": "web/src/viewport/controls.ts",
+      "file": "web/src/viewport/backend.ts",
       "lineCount": 31,
       "functions": [
         {
+          "name": "createRenderer",
+          "line": 18,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/viewport/controls.ts",
+      "lineCount": 41,
+      "functions": [
+        {
           "name": "HoudiniControls",
-          "line": 8,
+          "line": 11,
           "kind": "class",
           "exported": true,
           "calls": 0
         },
         {
           "name": "release",
-          "line": 21,
+          "line": 30,
           "kind": "arrow",
           "exported": false,
           "calls": 0
@@ -1236,14 +1476,14 @@
     },
     {
       "file": "web/src/viewport/renderer.ts",
-      "lineCount": 150,
+      "lineCount": 225,
       "functions": [
         {
           "name": "Viewport",
-          "line": 13,
+          "line": 20,
           "kind": "class",
           "exported": true,
-          "calls": 0
+          "calls": 1
         }
       ]
     }

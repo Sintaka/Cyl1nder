@@ -3,6 +3,7 @@
 > 机器生成（2026-08-09），由 `node scripts/gen-graph.mjs` 产出。
 
 - `app/app-config.ts`
+  - three/webgpu
 - `app/layout.ts`
 - `app/log.ts`
 - `bridge/client.ts`
@@ -11,18 +12,40 @@
   - app/app-config
   - app/layout
   - bridge/client
+  - nodes/contextMenu
+  - nodes/cutMode
   - nodes/cyl1nderNode
+  - nodes/palette
+  - protocol/compare
   - protocol/types
   - stores/workspace
   - styles.css
   - viewport/renderer
+- `nodes/contextMenu.ts`
+  - @antv/x6
+  - nodes/cyl1nderNode
+  - nodes/flags
+- `nodes/cutMode.ts`
+  - @antv/x6
+  - nodes/cyl1nderNode
 - `nodes/cyl1nderNode.ts`
   - @antv/x6
+  - nodes/flags
+- `nodes/flags.ts`
+- `nodes/palette.ts`
+  - @antv/x6
+  - fuse.js
+  - nodes/cyl1nderNode
+- `protocol/compare.ts`
+  - protocol/types
 - `protocol/types.ts`
 - `stores/workspace.ts`
   - protocol/types
 - `tools/transform.ts`
   - protocol/types
+- `viewport/backend.ts`
+  - app/app-config
+  - three
 - `viewport/controls.ts`
   - three
   - three/addons/controls/OrbitControls.js
@@ -35,5 +58,6 @@
   - three
   - three/addons/controls/TransformControls.js
   - tools/transform
+  - viewport/backend
   - viewport/controls
   - viewport/geometry

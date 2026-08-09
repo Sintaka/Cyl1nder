@@ -1,17 +1,36 @@
 import "./styles.css";
-import { buildLayout } from "./app/layout";
+import { attachSplitters, buildLayout } from "./app/layout";
 import { store } from "./stores/workspace";
 import { BridgeClient, connectWs } from "./bridge/client";
-import { createGraph, registerNodes, upsertFlowGraph } from "./nodes/cyl1nderNode";
-import { Viewport } from "./viewport/renderer";
+import {
+  createGraph,
+  registerNodes,
+  upsertFlowGraph,
+  INPUT_NODE,
+  OUTPUT_NODE,
+  getFlags,
+  type GraphHandlers,
+} from "./nodes/cyl1nderNode";
+import { attachPalette } from "./nodes/palette";
+import { attachCutMode } from "./nodes/cutMode";
+import { attachContextMenu } from "./nodes/contextMenu";
+import { Viewport, type ReferenceItem } from "./viewport/renderer";
 import { APP_VERSION } from "./app/app-config";
 import { inputsEqual } from "./protocol/compare";
 import type { OutputBuffer } from "./protocol/types";
 
 const layout = buildLayout(document.getElementById("app")!);
+attachSplitters(layout.root);
 registerNodes();
-const graph = createGraph(layout.graphContainer);
 const client = new BridgeClient();
+
+const handlers: GraphHandlers = {
+  onNodePick: (kind, index, _nodeId) => viewport.pickByNode(kind, index),
+  onEdgeCut: (edgeId) => store.pushLog(`cut edge ${edgeId}`),
+  onNodeRemoved: (nodeId) => store.pushLog(`removed node ${nodeId}`),
+};
+const graph = createGraph(layout.graphContainer, handlers);
+
 let wsDisconnect: (() => void) | null = null;
 let autoRun = layout.autoRunCheck.checked;
 let replayPending = false;  // first inputs after connect = replay, do NOT auto-run (avoids clobbering outputs/edits)
@@ -21,13 +40,62 @@ layout.autoRunCheck.addEventListener("change", () => {
   store.pushLog(`auto-run ${autoRun ? "on" : "off"}`);
 });
 
-const viewport = new Viewport(layout.viewportContainer, (out: OutputBuffer) => {
+const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuffer) => {
   if (!store.serial) return;
   client
     .pushOutputs(store.serial, [out])
     .then((r) => store.pushLog(`edit out${out.index} pushed rev=${r.rev}`))
     .catch((e) => store.pushLog(`edit failed: ${String(e)}`));
 });
+
+// Tab search palette + Y cut mode + right-click flag menu.
+const palette = attachPalette(graph, layout.graphContainer);
+const detachCut = attachCutMode(graph, layout.graphContainer, (what, id) => {
+  store.pushLog(`cut ${what} ${id}`);
+});
+const closeMenu = attachContextMenu(
+  graph,
+  layout.graphContainer,
+  (nodeId, _flags) => {
+    store.pushLog(`node ${nodeId} flags changed`);
+    refreshNodeFlags();
+  },
+  (nodeId) => handlers.onNodeRemoved?.(nodeId),
+);
+
+/** Node flags -> viewport: display visibility + wireframe reference overlays. */
+function refreshNodeFlags(): void {
+  const inputNode = graph.getCellById(INPUT_NODE) as Parameters<typeof getFlags>[0] | undefined;
+  const outputNode = graph.getCellById(OUTPUT_NODE) as Parameters<typeof getFlags>[0] | undefined;
+  const showInputs = inputNode ? getFlags(inputNode).display : true;
+  const showOutputs = outputNode ? getFlags(outputNode).display : true;
+  viewport.setVisibility("inputs", showInputs);
+  viewport.setVisibility("outputs", showOutputs);
+
+  const refs: ReferenceItem[] = [];
+  if (inputNode && getFlags(inputNode).wireframe) {
+    for (const inp of store.inputs) {
+      if (inp.curves.length > 0) refs.push({ points: inp.points, curves: inp.curves, color: 0x4fc3f7 });
+    }
+  }
+  if (outputNode) {
+    const outRefs = store.outputs.flatMap((o) =>
+      o.curves.length > 0 ? [{ points: o.points, curves: o.curves, color: 0xff5252 }] : [],
+    );
+    if (getFlags(outputNode).wireframe && outRefs.length > 0) refs.push(...outRefs);
+  }
+  // Null nodes: reference = passthrough inputs (same as source).
+  const nullNodes = graph.getNodes().filter((n) => n.shape !== INPUT_NODE && n.shape !== OUTPUT_NODE);
+  for (const n of nullNodes) {
+    const f = getFlags(n);
+    if (!f.wireframe) continue;
+    for (const inp of store.inputs) {
+      if (inp.curves.length > 0) refs.push({ points: inp.points, curves: inp.curves, color: 0xffd166 });
+    }
+    break; // one reference set is enough for the passthrough view
+  }
+  viewport.setReference(refs.length > 0 ? refs : null);
+}
 
 function inputStatsText(): string {
   const lines: string[] = [];
@@ -60,7 +128,7 @@ function renderInspector(): void {
   for (const out of store.outputs) {
     rows.push(`<div class="insp-row out"><b>out${out.index}</b> ${out.pointCount}pt / ${out.curves.length}crv r${out.rev}</div>`);
   }
-  rows.push(`<div class="insp-row hint">Alt+拖拽 = Houdini 导航 · 点选曲线拖拽 = 编辑→out</div>`);
+  rows.push(`<div class="insp-row hint">Alt+拖拽 = Houdini 导航 · 点选曲线拖拽 = 编辑→out · Tab 搜索节点 · 按住 Y 剪切 · 右键节点=flags</div>`);
   layout.inspectorEl.innerHTML = rows.join("");
 }
 
@@ -70,6 +138,7 @@ store.subscribe(() => {
   layout.logEl.textContent = store.logs.slice(-10).join("\n");
   layout.statusDot.className = `cyl-status ${store.status}`;
   viewport.refresh();
+  refreshNodeFlags();
   const showHint = !store.serial || store.status === "offline";
   layout.hintEl.classList.toggle("hidden", !showHint);
   layout.hintEl.textContent = !store.serial
@@ -155,4 +224,6 @@ if (qs) {
     .catch((e) => store.pushLog(`bridge unreachable: ${String(e)}`));
 }
 
-store.pushLog(`Cyl1nder web v${APP_VERSION}`);
+store.pushLog(`Cyl1nder web v${APP_VERSION} · Tab=搜索 Y=剪切 右键=flags`);
+// Keep palette/cut/menu refs alive (no unused-var warnings in strict builds).
+void palette; void detachCut; void closeMenu;

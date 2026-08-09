@@ -1,4 +1,4 @@
-export interface Layout {
+﻿export interface Layout {
   root: HTMLElement;
   serialInput: HTMLInputElement;
   connectBtn: HTMLButtonElement;
@@ -29,15 +29,18 @@ export function buildLayout(app: HTMLElement): Layout {
           <div class="cyl-panel-title">Node Graph</div>
           <div id="cyl-graph" class="cyl-graph"></div>
         </aside>
+        <div class="cyl-splitter splitter-v" data-splitter="left" title="拖动调整宽度"></div>
         <main class="cyl-center">
           <div id="cyl-viewport" class="cyl-viewport"></div>
           <div id="cyl-hint" class="cyl-hint hidden"></div>
         </main>
+        <div class="cyl-splitter splitter-v" data-splitter="right" title="拖动调整宽度"></div>
         <aside class="cyl-right">
           <div class="cyl-panel-title">Inspector</div>
           <div id="cyl-inspector" class="cyl-inspector"></div>
         </aside>
       </div>
+      <div class="cyl-splitter splitter-h" data-splitter="log" title="拖动调整高度"></div>
       <footer id="cyl-log" class="cyl-log"></footer>
     </div>`;
   const $ = <T extends HTMLElement>(sel: string): T => app.querySelector(sel) as T;
@@ -53,4 +56,52 @@ export function buildLayout(app: HTMLElement): Layout {
     inspectorEl: $("#cyl-inspector"),
     logEl: $("#cyl-log"),
   };
+}
+
+/** Drag splitters to resize the left/right panels and the bottom log.
+ *  Minimal, dependency-free docking-ready sizing (floating windows deferred to v0.2). */
+export function attachSplitters(root: HTMLElement): () => void {
+  const handles = Array.from(root.querySelectorAll<HTMLElement>(".cyl-splitter"));
+  const offs: (() => void)[] = [];
+
+  for (const handle of handles) {
+    const key = handle.dataset.splitter ?? "";
+    const onDown = (e: PointerEvent) => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const body = root.querySelector<HTMLElement>(".cyl-body")!;
+      const log = root.querySelector<HTMLElement>(".cyl-log")!;
+      const left = root.querySelector<HTMLElement>(".cyl-left")!;
+      const right = root.querySelector<HTMLElement>(".cyl-right")!;
+      const startLeft = left.getBoundingClientRect().width;
+      const startRight = right.getBoundingClientRect().width;
+      const startLog = log.getBoundingClientRect().height;
+
+      const onMove = (ev: PointerEvent) => {
+        if (key === "left") {
+          const w = Math.min(560, Math.max(140, startLeft + (ev.clientX - startX)));
+          left.style.flex = `0 0 ${w}px`;
+        } else if (key === "right") {
+          const w = Math.min(480, Math.max(160, startRight - (ev.clientX - startX)));
+          right.style.flex = `0 0 ${w}px`;
+        } else if (key === "log") {
+          const h = Math.min(360, Math.max(48, startLog - (ev.clientY - startY)));
+          log.style.height = `${h}px`;
+        }
+        body.style.userSelect = "none";
+      };
+      const onUp = () => {
+        body.style.userSelect = "";
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    };
+    handle.addEventListener("pointerdown", onDown);
+    offs.push(() => handle.removeEventListener("pointerdown", onDown));
+  }
+
+  return () => offs.forEach((off) => off());
 }

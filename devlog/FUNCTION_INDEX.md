@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-09），由 `node scripts/gen-index.mjs` 产出。共 **150** 个函数/类。
+> 机器生成（2026-08-09），由 `node scripts/gen-index.mjs` 产出。共 **180** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -226,16 +226,20 @@
 | `_norm_value` | 12 | def |  | 2 |
 | `serialize_input` | 20 | def |  | 1 |
 
-## web/src/app/app-config.ts（5 行）
+## web/src/app/app-config.ts（7 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/layout.ts（56 行）
+## web/src/app/layout.ts（108 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `buildLayout` | 15 | function | export | 1 |
+| `attachSplitters` | 63 | function | export | 1 |
+| `onDown` | 69 | arrow |  | 0 |
+| `onMove` | 81 | arrow |  | 0 |
+| `onUp` | 94 | arrow |  | 0 |
 
 ## web/src/app/log.ts（4 行）
 
@@ -251,23 +255,68 @@
 | `connectWs` | 77 | function | export | 1 |
 | `connect` | 82 | arrow |  | 1 |
 
-## web/src/main.ts（158 行）
+## web/src/main.ts（230 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `inputStatsText` | 32 | function |  | 2 |
-| `outputStatsText` | 41 | function |  | 2 |
-| `renderInspector` | 50 | function |  | 2 |
-| `runNetwork` | 83 | function |  | 2 |
-| `connect` | 102 | function |  | 4 |
+| `refreshNodeFlags` | 67 | function |  | 3 |
+| `inputStatsText` | 100 | function |  | 2 |
+| `outputStatsText` | 109 | function |  | 2 |
+| `renderInspector` | 118 | function |  | 2 |
+| `runNetwork` | 152 | function |  | 2 |
+| `connect` | 171 | function |  | 4 |
 
-## web/src/nodes/cyl1nderNode.ts（120 行）
+## web/src/nodes/contextMenu.ts（83 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `registerNodes` | 9 | function | export | 1 |
-| `createGraph` | 61 | function | export | 1 |
-| `upsertFlowGraph` | 73 | function | export | 1 |
+| `attachContextMenu` | 7 | function | export | 1 |
+| `close` | 19 | function |  | 5 |
+| `show` | 26 | function |  | 3 |
+| `onDown` | 58 | arrow |  | 0 |
+| `onKey` | 61 | arrow |  | 0 |
+
+## web/src/nodes/cutMode.ts（55 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `attachCutMode` | 6 | function | export | 1 |
+| `isTyping` | 12 | arrow |  | 1 |
+| `down` | 18 | arrow |  | 0 |
+| `up` | 24 | arrow |  | 0 |
+| `onEdgeClick` | 30 | arrow |  | 0 |
+| `onNodeClick` | 35 | arrow |  | 0 |
+
+## web/src/nodes/cyl1nderNode.ts（232 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `portItems` | 27 | function |  | 5 |
+| `applyFlags` | 32 | function | export | 2 |
+| `titleText` | 49 | function |  | 2 |
+| `getFlags` | 54 | function | export | 4 |
+| `setFlags` | 59 | function | export | 2 |
+| `toggleFlag` | 66 | function | export | 1 |
+| `makeMarkup` | 71 | function |  | 4 |
+| `registerNodes` | 89 | function | export | 1 |
+| `createGraph` | 134 | function | export | 1 |
+| `upsertFlowGraph` | 172 | function | export | 1 |
+| `getOrAdd` | 198 | function |  | 3 |
+| `addNullNode` | 220 | function | export | 1 |
+
+## web/src/nodes/flags.ts（28 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `isFrozen` | 24 | function | export | 1 |
+
+## web/src/nodes/palette.ts（137 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `searchPalette` | 20 | function | export | 2 |
+| `NodePalette` | 35 | class | export | 1 |
+| `attachPalette` | 126 | function | export | 1 |
 
 ## web/src/protocol/compare.ts（22 行）
 
@@ -296,12 +345,18 @@
 | `applyTranslateToCurve` | 14 | function | export | 1 |
 | `inputToOutput` | 31 | function | export | 1 |
 
-## web/src/viewport/controls.ts（31 行）
+## web/src/viewport/backend.ts（31 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `HoudiniControls` | 8 | class | export | 0 |
-| `release` | 21 | arrow |  | 0 |
+| `createRenderer` | 18 | function | export | 1 |
+
+## web/src/viewport/controls.ts（41 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `HoudiniControls` | 11 | class | export | 0 |
+| `release` | 30 | arrow |  | 0 |
 
 ## web/src/viewport/geometry.ts（51 行）
 
@@ -312,8 +367,8 @@
 | `buildInputs` | 33 | function | export | 1 |
 | `buildOutputs` | 43 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（150 行）
+## web/src/viewport/renderer.ts（225 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `Viewport` | 13 | class | export | 0 |
+| `Viewport` | 20 | class | export | 1 |

@@ -1,17 +1,24 @@
 import * as THREE from "three";
 import { TransformControls } from "three/addons/controls/TransformControls.js";
+import { createRenderer, type RendererLike } from "./backend";
 import { HoudiniControls } from "./controls";
-import { buildInputs, buildOutputs } from "./geometry";
+import { buildCurves, buildInputs, buildOutputs } from "./geometry";
 import { store } from "../stores/workspace";
 import { applyTranslateToCurve, inputToOutput } from "../tools/transform";
 import type { CurveData, OutputBuffer } from "../protocol/types";
+
+export interface ReferenceItem {
+  points: number[][];
+  curves: CurveData[];
+  color: number;
+}
 
 /**
  * Three.js viewport (WebGLRenderer default; WebGPU swap reserved via RENDER_MODE).
  * Data/render separation: store -> refresh() -> rebuild curve groups.
  */
 export class Viewport {
-  private renderer: THREE.WebGLRenderer;
+  private renderer: RendererLike;
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
   private controls: HoudiniControls;
@@ -20,19 +27,31 @@ export class Viewport {
   private pointer = new THREE.Vector2();
   private inputGroup = new THREE.Group();
   private outputGroup = new THREE.Group();
+  private referenceGroup = new THREE.Group();
   private lastInputRev = -1;
   private lastOutputRev = -1;
   private selectedLine: THREE.Line | null = null;
   private animId = 0;
 
-  constructor(
+  private constructor(
     private container: HTMLElement,
     private onEdit: (out: OutputBuffer) => void,
+    renderer: RendererLike,
   ) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer = renderer;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(this.renderer.domElement);
+
+    // The canvas is an <img>-like surface in Chrome: without this, right-click
+    // opens the browser "Save image as" menu and drag can start an image drag.
+    const canvas = this.renderer.domElement;
+    canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+    canvas.addEventListener("dragover", (e) => e.preventDefault());
+    canvas.addEventListener("drop", (e) => e.preventDefault());
+    canvas.addEventListener("dragstart", (e) => e.preventDefault());
+    canvas.style.touchAction = "none";
+    canvas.style.userSelect = "none";
 
     this.scene.background = new THREE.Color(0x1a1a1a);
     this.scene.add(new THREE.GridHelper(10, 20, 0x3a3a3a, 0x262626));
@@ -60,9 +79,16 @@ export class Viewport {
     this.renderer.domElement.addEventListener("pointerdown", (e) => this.onPointerDown(e));
     this.scene.add(this.inputGroup);
     this.scene.add(this.outputGroup);
+    this.scene.add(this.referenceGroup);
 
     new ResizeObserver(() => this.resize()).observe(container);
     this.animate();
+  }
+
+  /** Async factory: picks WebGL (default) or WebGPU via RENDER_MODE. */
+  static async create(container: HTMLElement, onEdit: (out: OutputBuffer) => void): Promise<Viewport> {
+    const renderer = await createRenderer();
+    return new Viewport(container, onEdit, renderer);
   }
 
   refresh(): void {
@@ -78,7 +104,55 @@ export class Viewport {
     }
   }
 
+  /** Node display flags drive whether input/output groups are visible. */
+  setVisibility(kind: "inputs" | "outputs", visible: boolean): void {
+    this.inputGroup.visible = kind === "inputs" ? visible : this.inputGroup.visible;
+    this.outputGroup.visible = kind === "outputs" ? visible : this.outputGroup.visible;
+  }
+
+  /** Wireframe reference overlays driven by node "wireframe" flags. */
+  setReference(items: ReferenceItem[] | null): void {
+    this.referenceGroup.clear();
+    if (items) {
+      for (const it of items) {
+        const sub = buildCurves(it.points, it.curves, it.color, null);
+        sub.traverse((o) => {
+          if (o instanceof THREE.Line) {
+            const m = o.material as THREE.LineBasicMaterial;
+            m.transparent = true;
+            m.opacity = 0.55;
+          }
+        });
+        this.referenceGroup.add(sub);
+      }
+    }
+  }
+
+  /** Node-graph -> viewport linkage: picking a node/port selects its curve. */
+  pickByNode(kind: "input" | "output" | "null", index: number | null): void {
+    if (kind === "input" && index !== null) {
+      const inp = store.inputs.find((i) => i.index === index);
+      if (!inp || inp.curves.length === 0) {
+        store.pushLog(`input_${index}: no curve to select`);
+        return;
+      }
+      const sub = this.inputGroup.getObjectByName(`input${index}`) as THREE.Group | undefined;
+      const line = sub?.children[0] as THREE.Line | undefined;
+      if (line) {
+        this.select(line);
+        store.pushLog(`node link: selected input${index} (${inp.curves[0].pointIndices.length} pts)`);
+      }
+      return;
+    }
+    if (kind === "output") {
+      store.pushLog("output_ node picked - outputs are read-only in v1 (edit happens on inputs)");
+      return;
+    }
+    store.pushLog("null node picked - passthrough (no edit target in v1)");
+  }
+
   private onPointerDown(e: PointerEvent): void {
+    // Only plain left-click selects; Alt is handed to HoudiniControls navigation.
     if (e.altKey || e.button !== 0 || this.transform.dragging) return;
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.pointer.x = ((e.clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1;

@@ -1,4 +1,4 @@
-* { box-sizing: border-box; }
+﻿* { box-sizing: border-box; }
 html, body, #app { height: 100%; margin: 0; }
 .cyl-app { display: flex; flex-direction: column; height: 100%; background: #141518; color: #cfd2d6; font: 12px/1.4 system-ui, sans-serif; }
 .cyl-header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #1c1e22; border-bottom: 1px solid #2a2d33; }
@@ -24,6 +24,13 @@ html, body, #app { height: 100%; margin: 0; }
 .insp-row.out b { color: #ff9e9e; }
 .insp-row.hint { color: #6b7280; font-style: italic; border: none; margin-top: 8px; }
 .cyl-log { height: 90px; overflow: auto; background: #0c0d0f; border-top: 1px solid #2a2d33; padding: 4px 10px; font: 10px/1.5 ui-monospace, monospace; color: #8f959e; white-space: pre-wrap; }
+
+/* ---- resizable splitters (docking-ready sizing) ---- */
+.cyl-splitter { background: #1c1e22; }
+.cyl-splitter:hover { background: #2b6cb0; }
+.splitter-v { width: 5px; cursor: col-resize; }
+.splitter-h { height: 5px; cursor: row-resize; flex: 0 0 auto; }
+
 /* hint overlay */
 .cyl-hint {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
@@ -33,3 +40,49 @@ html, body, #app { height: 100%; margin: 0; }
 }
 .cyl-hint.hidden { display: none; }
 .cyl-autorun { color: #8f959e; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
+
+/* ---- X6 node graph: Houdini SOP look ---- */
+.cyl-graph .x6-node { cursor: pointer; }
+.cyl-graph .x6-node rect { filter: none; }
+.cyl-graph .x6-node .x6-port-body { cursor: crosshair; }
+
+/* cut mode: scissors cursor on the whole graph surface */
+.cyl-graph.cut-mode .x6-graph { cursor: crosshair; }
+.cyl-graph.cut-mode .x6-node { cursor: crosshair; }
+
+/* ---- Tab search palette ---- */
+.cyl-palette {
+  position: absolute; top: 8px; left: 8px; width: 300px; z-index: 30;
+  background: #1b1e24; border: 1px solid #3a3f4a; border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5); overflow: hidden;
+}
+.cyl-palette.hidden { display: none; }
+.cyl-palette-input {
+  width: 100%; background: #0f1012; color: #e6e9ef; border: none; outline: none;
+  padding: 8px 10px; font-size: 12px; border-bottom: 1px solid #2a2d33;
+}
+.cyl-palette-list { max-height: 260px; overflow: auto; }
+.cyl-palette-row {
+  display: flex; gap: 8px; padding: 6px 10px; cursor: pointer; align-items: baseline;
+  border-bottom: 1px solid #1f2228;
+}
+.cyl-palette-row .p-label { color: #7ce3a8; font-weight: 700; min-width: 64px; }
+.cyl-palette-row .p-desc { color: #9aa1ab; flex: 1; font-size: 11px; }
+.cyl-palette-row .p-group { color: #5a6478; font-size: 10px; text-transform: uppercase; }
+.cyl-palette-row.active { background: #232a33; }
+.cyl-palette-row.active .p-label { color: #a5f3c3; }
+
+/* ---- node context menu (flags) ---- */
+.cyl-node-menu {
+  position: absolute; z-index: 40; min-width: 150px;
+  background: #1b1e24; border: 1px solid #3a3f4a; border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5); padding: 4px;
+}
+.cyl-node-menu.hidden { display: none; }
+.cyl-node-menu-row {
+  display: flex; gap: 8px; align-items: center; padding: 5px 8px; cursor: pointer;
+  color: #cfd2d6; border-radius: 4px;
+}
+.cyl-node-menu-row:hover { background: #232a33; }
+.cyl-node-menu-row.danger { color: #ff6b6b; }
+.cyl-node-menu-row input { pointer-events: none; }
