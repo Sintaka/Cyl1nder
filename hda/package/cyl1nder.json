@@ -1,0 +1,13 @@
+{
+  "enable": "python",
+  "env": [
+    {
+      "HOUDINI_PATH": [
+        { "value": "D:/code/dev/Cyl1nder/hda", "method": "prepend" }
+      ],
+      "PYTHONPATH": [
+        { "value": "D:/code/dev/Cyl1nder/hda/src", "method": "prepend" }
+      ]
+    }
+  ]
+}

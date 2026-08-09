@@ -1,0 +1,139 @@
+"""Build the Cyl1nder HDA (subnet, 4 in / 4 out, 4 python SOPs).
+
+Run (Windows):  "C:\Program Files\Side Effects Software\Houdini 22.0.368\bin\hython.exe" hda/scripts/build_hda.py
+Output:        hda/otls/Cyl1nder_1.0.hda
+"""
+from __future__ import annotations
+
+import os
+
+import hou
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+OUT = os.environ.get(
+    "CYL1NDER_HDA_OUT",
+    os.path.join(ROOT, "otls", "Cyl1nder_1.0.hda"),
+)
+
+INPUT_COUNT = 4
+PY_CODE = "import cyl1nder_hda\ncyl1nder_hda.cook(role={role})\n"
+
+PULL_NOW_CALLBACK = (
+    "node = hou.pwd()\n"
+    "for n in node.children():\n"
+    '    if n.type().name() == "python":\n'
+    "        n.cook(force=True)\n"
+)
+
+REGEN_CALLBACK = (
+    "node = hou.pwd()\n"
+    "import cyl1nder_bridge as cb\n"
+    'node.parm("cyl1nder_serial").set(cb.generate_serial())\n'
+)
+
+
+def _parm_group() -> hou.ParmTemplateGroup:
+    from hou import (
+        ButtonParmTemplate,
+        ParmTemplateGroup,
+        StringParmTemplate,
+        ToggleParmTemplate,
+    )
+
+    group = ParmTemplateGroup()
+
+    serial = StringParmTemplate("cyl1nder_serial", "Serial", 1, default_value=("",))
+    try:
+        serial.setTag("sidefx::hidden", "1")
+    except Exception:  # noqa: BLE001
+        pass
+    group.append(serial)
+
+    group.append(
+        StringParmTemplate(
+            "bridge_url", "Bridge URL", 1, default_value=("http://127.0.0.1:8375",)
+        )
+    )
+    group.append(ToggleParmTemplate("auto_push", "Auto Push Inputs", True))
+    group.append(ToggleParmTemplate("auto_pull", "Auto Pull Outputs", True))
+
+    pull_now = ButtonParmTemplate("pull_now", "Pull Now")
+    pull_now.setScriptCallback(PULL_NOW_CALLBACK)
+    pull_now.setScriptCallbackLanguage(hou.scriptLanguage.Python)
+    group.append(pull_now)
+
+    regen = ButtonParmTemplate("cyl1nder_regenerate", "Regenerate Serial")
+    regen.setScriptCallback(REGEN_CALLBACK)
+    regen.setScriptCallbackLanguage(hou.scriptLanguage.Python)
+    group.append(regen)
+
+    group.append(StringParmTemplate("status", "Status", 1, default_value=("",)))
+    return group
+
+
+def build(output_path: str = OUT) -> hou.Node:
+    hou.hipFile.clear(suppress_save_prompt=True)
+    geo = hou.node("/obj").createNode("geo", "__cyl1nder_build")
+    sub = geo.createNode("subnet", "cyl1nder")
+
+    inds = sub.indirectInputs()
+    ins = [sub.createNode("null", f"in{i}") for i in range(INPUT_COUNT)]
+    for i in range(INPUT_COUNT):
+        ins[i].setInput(0, inds[i])
+
+    pys = []
+    for i in range(INPUT_COUNT):
+        p = sub.createNode("python", f"cyl1nder_py{i}")
+        p.parm("python").set(PY_CODE.format(role=i))
+        for j in range(INPUT_COUNT):
+            p.setInput(j, ins[j], 0)
+        pys.append(p)
+
+    for i in range(INPUT_COUNT):
+        o = sub.createNode("output", f"out{i}")
+        o.parm("outputidx").set(i)
+        o.setInput(0, pys[i], 0)
+
+    sub.setParmTemplateGroup(_parm_group())
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    hda_node = sub.createDigitalAsset(
+        name="Cyl1nder",
+        hda_file_name=output_path,
+        description="Cyl1nder - Houdini <-> WebGL middle station (4 in / 4 out)",
+        min_num_inputs=INPUT_COUNT,
+        max_num_inputs=INPUT_COUNT,
+        compress_contents=True,
+    )
+    d = hda_node.type().definition()
+    d.setVersion("1.0")
+    d.setComment(
+        "Cyl1nder bridge HDA. Internal python SOPs import cyl1nder_hda via PYTHONPATH "
+        "(hda/package/cyl1nder.json). See devlog/decisions.md."
+    )
+
+    want = {
+        "cyl1nder_serial",
+        "bridge_url",
+        "auto_push",
+        "auto_pull",
+        "pull_now",
+        "cyl1nder_regenerate",
+        "status",
+    }
+    existing = {t.name() for t in d.parmTemplateGroup().entries()}
+    if not want.issubset(existing):
+        d.setParmTemplateGroup(_parm_group())
+    opts = hou.HDAOptions()
+    opts.setLockContents(False)  # Pull Now toggles internal refresh_tick parms
+    d.setOptions(opts)
+    d.save(output_path)
+
+    print("HDA written:", output_path)
+    print("type:", hda_node.type().name(), "| inputs:", d.minNumInputs(), "to", d.maxNumInputs())
+    return hda_node
+
+
+if __name__ == "__main__":
+    build()
