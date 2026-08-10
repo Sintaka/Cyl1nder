@@ -20,7 +20,7 @@ HOUDINI_HOST = "127.0.0.1"
 ```
 - 依赖（外部 Python312）：`py -3.12 -m pip install fxhoudinimcp`。
 - Houdini 侧：shelf **FXHoudini → MCP Server** 启动（或 `FXHOUDINIMCP_PORT=8100` 环境）。
-- ⚠️ 改 config.toml 后需**重启 Codex** 生效；当前会话若没重启，请直接用官方桥 HTTP（`POST http://127.0.0.1:8100/api`，mcp.execute）或 `houdini_health` 等同位功能。
+- ⚠️ config.toml 已实际改名 `[mcp_servers.fxhoudinimcp]`（2026-08-10 v0.1.00013 落实，替换旧 `houdini`/run_houdini_mcp.py）；**重启 Codex 后生效**。重启前可直接用官方桥 HTTP（`POST http://127.0.0.1:8100/api`，`json=["mcp.health",[],{}]`，`Content-Type: application/x-www-form-urlencoded`）或 `from fxhoudinimcp.bridge import HoudiniBridge`。
 
 ## 2) Cyl1nder 桥 MCP（Codex 看桥状态/日志/索引/几何摘要）
 ```toml

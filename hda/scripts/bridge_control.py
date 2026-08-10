@@ -65,7 +65,7 @@ def _get(url, timeout=0.5):
 def _port_up(port: int) -> bool:
     """Instant check: is anything LISTENING on the port (netstat, no HTTP wait)."""
     try:
-        out = subprocess.run(["netstat", "-ano"], capture_output=True, text=True, timeout=5).stdout
+        out = subprocess.run(["netstat", "-ano"], capture_output=True, text=True, timeout=5, creationflags=subprocess.CREATE_NO_WINDOW).stdout
     except Exception:
         return False
     needle = ":%d" % port
@@ -103,7 +103,7 @@ def houdini_probe(url: str = HOUDINI_URL, timeout: float = 0.4):
 
 def find_pids(port: int):
     try:
-        out = subprocess.run(["netstat", "-ano"], capture_output=True, text=True, timeout=10).stdout
+        out = subprocess.run(["netstat", "-ano"], capture_output=True, text=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW).stdout
     except Exception:
         return []
     pids = []
@@ -132,7 +132,7 @@ def _kill_port(port: int) -> int:
     killed = 0
     for pid in find_pids(port):
         try:
-            subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True, timeout=10)
+            subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW)
             killed += 1
         except Exception:
             pass

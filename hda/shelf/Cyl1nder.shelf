@@ -34,6 +34,7 @@ exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/bridge_control.py", encoding="utf-8
 
 def _run():
     msg = restart_bridge()
+    print(msg)
     log_result("[shelf:reload] " + msg)
     try:
         import hdefereval
@@ -64,6 +65,7 @@ exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/bridge_control.py", encoding="utf-8
 
 def _run():
     msg = toggle_bridge()
+    print(msg)
     log_result("[shelf:toggle] " + msg)
     try:
         import hdefereval
@@ -94,6 +96,7 @@ exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/bridge_control.py", encoding="utf-8
 
 def _run():
     msg = status_bridge()
+    print(msg)
     log_result("[shelf:status] " + msg)
     try:
         import hdefereval
