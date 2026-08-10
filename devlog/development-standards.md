@@ -27,3 +27,8 @@
 - **禁止用会弹 Windows 消息框/错误框的方式调试**（如 `cmd /c start` 引号错误会弹 "Windows cannot find ..."）。调试信息一律写文件/日志（如 `bridge_control.log`、`spawn_out.txt`）或经 fxhoudinimcp 读回，不要用窗口。启动外部进程统一 `subprocess.CREATE_NEW_CONSOLE`（可见但非弹窗）。
 - **从 Houdini 拉外部 Python 必须剥离 PYTHONHOME/PYTHONPATH**：Houdini 把 `PYTHONHOME` 指向自己的 3.11 stdlib，子进程（如 bridge venv 3.12）继承后启动即崩（SRE module mismatch）。spawn 时 `env={k:v for k,v in os.environ.items() if not k.upper().startswith("PYTHON")}`。详见 annotations-hda v0.1.00010。
 - **Houdini 可能随时重启，Codex 不会收到任何消息**：fxhoudinimcp（8100）连不上时按序排查——① 先尝试重连（重试当前 MCP 调用 / 新会话）；② 仍连不上 → 查找是否有 `Houdini.exe` 进程（`tasklist | findstr Houdini` 或 `Get-Process houdini*`）：有进程 = Houdini 在跑，只是 MCP 服务未起/端口变化（看 8100~8115 或让用户确认），无进程 = Houdini 没开，需提示用户启动。不要一上来就假设是 MCP 配置坏了。
+- **浏览器实例注意事项（2026-08-10）**：
+  - **命令行/无头开的浏览器与用户手操作的浏览器是不同实例**（不同 profile），`localStorage` / cookie / session **互不互通**。
+  - 判断"用户实际看到什么"时，**以用户的浏览器为准**：用户改动的 UI 状态（如 dockview 布局）只存在于用户浏览器，agent 的 headless 浏览器默认看不到。
+  - **多关注用户的浏览器**：需要读用户 UI 状态时走**共享通道**——本项目已把 dockview 布局经 `PUT /api/ui/layout` 存到 bridge 文件（`bridge/data/ui-layout.json`），agent 读该文件即拿到用户布局；布局变化也会在 Log 面板输出 `[layout]` 边界摘要。
+  - **测试时再自己开**：验证/回归用自己的 Playwright headless 实例（独立 profile），不要假设它等于用户环境；测试中写 localStorage/文件的副作用要清理（如布局测试前备份 `ui-layout.json`，测完恢复）。

@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **218** 个函数/类。
+> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **226** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -107,7 +107,7 @@
 | `_save` | 120 | def |  | 2 |
 | `_load` | 129 | def |  | 2 |
 
-## bridge/bridge/routes.py（158 行）
+## bridge/bridge/routes.py（173 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -123,7 +123,9 @@
 | `pending` | 118 | def |  | 1 |
 | `serial_logs` | 132 | def |  | 1 |
 | `get_snapshot` | 142 | def |  | 1 |
-| `global_logs` | 153 | def |  | 1 |
+| `get_ui_layout` | 153 | def |  | 1 |
+| `put_ui_layout` | 160 | def |  | 1 |
+| `global_logs` | 168 | def |  | 1 |
 
 ## bridge/bridge/snapshot.py（98 行）
 
@@ -135,15 +137,24 @@
 | `write_snapshot` | 53 | def |  | 1 |
 | `build_meta` | 87 | def |  | 1 |
 
-## bridge/bridge/state.py（42 行）
+## bridge/bridge/state.py（44 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `BridgeState` | 12 | class |  | 2 |
+| `BridgeState` | 13 | class |  | 2 |
+| `__init__` | 14 | def |  | 1 |
+| `default_data_dir` | 25 | def |  | 2 |
+| `get_state` | 32 | def |  | 1 |
+| `reset_state` | 39 | def |  | 1 |
+
+## bridge/bridge/ui_layout.py（33 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `UiLayoutStore` | 12 | class |  | 0 |
 | `__init__` | 13 | def |  | 1 |
-| `default_data_dir` | 23 | def |  | 2 |
-| `get_state` | 30 | def |  | 1 |
-| `reset_state` | 37 | def |  | 1 |
+| `read` | 16 | def |  | 1 |
+| `write` | 24 | def |  | 1 |
 
 ## bridge/bridge/workspace.py（124 行）
 
@@ -275,11 +286,13 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/dock.ts（77 行）
+## web/src/app/dock.ts（118 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `setupDock` | 15 | function | export | 1 |
+| `layoutDebug` | 28 | function |  | 2 |
+| `setupDock` | 38 | function | export | 1 |
+| `apply` | 95 | arrow |  | 3 |
 
 ## web/src/app/layout.ts（123 行）
 
@@ -288,19 +301,24 @@
 | `buildLayout` | 17 | function | export | 1 |
 | `buildLayoutLegacy` | 73 | function | export | 1 |
 
+## web/src/app/layouts.ts（101 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+
 ## web/src/app/log.ts（4 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `formatLog` | 2 | function | export | 1 |
 
-## web/src/bridge/client.ts（120 行）
+## web/src/bridge/client.ts（133 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `BridgeClient` | 23 | class | export | 0 |
-| `connectWs` | 84 | function | export | 1 |
-| `connect` | 89 | arrow |  | 1 |
+| `connectWs` | 97 | function | export | 1 |
+| `connect` | 102 | arrow |  | 1 |
 
 ## web/src/main.ts（264 行）
 

@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-10T11:35:41.340Z",
-  "totalFunctions": 218,
+  "generatedAt": "2026-08-10T12:00:00.841Z",
+  "totalFunctions": 226,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -441,7 +441,7 @@
     },
     {
       "file": "bridge/bridge/routes.py",
-      "lineCount": 158,
+      "lineCount": 173,
       "functions": [
         {
           "name": "_maybe_snapshot",
@@ -528,8 +528,22 @@
           "calls": 1
         },
         {
-          "name": "global_logs",
+          "name": "get_ui_layout",
           "line": 153,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "put_ui_layout",
+          "line": 160,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "global_logs",
+          "line": 168,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -579,14 +593,55 @@
     },
     {
       "file": "bridge/bridge/state.py",
-      "lineCount": 42,
+      "lineCount": 44,
       "functions": [
         {
           "name": "BridgeState",
-          "line": 12,
+          "line": 13,
           "kind": "class",
           "exported": false,
           "calls": 2
+        },
+        {
+          "name": "__init__",
+          "line": 14,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "default_data_dir",
+          "line": 25,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "get_state",
+          "line": 32,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "reset_state",
+          "line": 39,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "bridge/bridge/ui_layout.py",
+      "lineCount": 33,
+      "functions": [
+        {
+          "name": "UiLayoutStore",
+          "line": 12,
+          "kind": "class",
+          "exported": false,
+          "calls": 0
         },
         {
           "name": "__init__",
@@ -596,22 +651,15 @@
           "calls": 1
         },
         {
-          "name": "default_data_dir",
-          "line": 23,
-          "kind": "def",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "get_state",
-          "line": 30,
+          "name": "read",
+          "line": 16,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
-          "name": "reset_state",
-          "line": 37,
+          "name": "write",
+          "line": 24,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -1239,14 +1287,28 @@
     },
     {
       "file": "web/src/app/dock.ts",
-      "lineCount": 77,
+      "lineCount": 118,
       "functions": [
         {
+          "name": "layoutDebug",
+          "line": 28,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "setupDock",
-          "line": 15,
+          "line": 38,
           "kind": "function",
           "exported": true,
           "calls": 1
+        },
+        {
+          "name": "apply",
+          "line": 95,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 3
         }
       ]
     },
@@ -1271,6 +1333,11 @@
       ]
     },
     {
+      "file": "web/src/app/layouts.ts",
+      "lineCount": 101,
+      "functions": []
+    },
+    {
       "file": "web/src/app/log.ts",
       "lineCount": 4,
       "functions": [
@@ -1285,7 +1352,7 @@
     },
     {
       "file": "web/src/bridge/client.ts",
-      "lineCount": 120,
+      "lineCount": 133,
       "functions": [
         {
           "name": "BridgeClient",
@@ -1296,14 +1363,14 @@
         },
         {
           "name": "connectWs",
-          "line": 84,
+          "line": 97,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "connect",
-          "line": 89,
+          "line": 102,
           "kind": "arrow",
           "exported": false,
           "calls": 1

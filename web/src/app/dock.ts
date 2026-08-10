@@ -12,6 +12,7 @@ import { DockviewComponent } from "dockview";
 import "dockview/dist/styles/dockview.css";
 import { store } from "../stores/workspace";
 import { BridgeClient } from "../bridge/client";
+import { DESK1_LAYOUT } from "./layouts";
 
 export interface DockContent {
   graph: HTMLElement;
@@ -90,7 +91,7 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
     }, 600);
   });
 
-  // Restore: bridge file (cross-browser) -> localStorage -> default.
+  // Restore priority: bridge file (user's latest custom layout) -> DESK1 (built-in default).
   const apply = (json: unknown) => {
     if (!json) return false;
     try {
@@ -103,18 +104,14 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
   void client
     .getUiLayout()
     .then((fileLayout) => {
-      const used = apply(fileLayout);
-      if (used) store.pushLog("[layout] restored from bridge file");
-      return used;
-    })
-    .catch(() => false)
-    .then((used) => {
-      if (!used) {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved && apply(JSON.parse(saved))) {
-          store.pushLog("[layout] restored from localStorage");
-        }
+      if (apply(fileLayout)) {
+        store.pushLog("[layout] restored user layout from bridge file");
+      } else if (apply(DESK1_LAYOUT)) {
+        store.pushLog("[layout] restored default layout Desk1");
       }
+    })
+    .catch(() => {
+      if (apply(DESK1_LAYOUT)) store.pushLog("[layout] restored default layout Desk1");
     });
 
   return dv;
