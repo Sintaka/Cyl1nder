@@ -132,12 +132,42 @@ async function runNetwork(): Promise<void> {
   }
 }
 
+/** HDA heartbeat watchdog: registry.lastSeen goes stale when Houdini crashes. */
+let hdaWatch: number | undefined;
+let hdaWasStale = false;
+function startHdaWatch(serial: string): void {
+  stopHdaWatch();
+  const check = async () => {
+    try {
+      const st = await client.getStatus(serial);
+      const lastSeen = (st.registry as { lastSeen?: number } | undefined)?.lastSeen ?? 0;
+      const stale = Date.now() / 1000 - lastSeen > 15;
+      layout.hdaOffline.classList.toggle("hidden", !stale);
+      if (stale !== hdaWasStale) {
+        hdaWasStale = stale;
+        store.pushLog(`HDA ${stale ? "OFFLINE (Houdini not cooking)" : "online"}`);
+      }
+    } catch {
+      layout.hdaOffline.classList.remove("hidden");
+    }
+  };
+  void check();
+  hdaWatch = window.setInterval(check, 5000);
+}
+function stopHdaWatch(): void {
+  if (hdaWatch !== undefined) window.clearInterval(hdaWatch);
+  hdaWatch = undefined;
+  hdaWasStale = false;
+  layout.hdaOffline.classList.add("hidden");
+}
+
 function connect(serialRaw: string): void {
   const serial = serialRaw.trim();
   if (!serial) return;
   wsDisconnect?.();
   replayPending = true;
   store.setSerial(serial);
+  startHdaWatch(serial);
   store.pushLog(`connect ${serial}`);
   store.setStatus("connecting");
   wsDisconnect = connectWs(

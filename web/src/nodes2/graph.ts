@@ -15,6 +15,8 @@ import { DataflowEngine, type DataflowEngineScheme } from "rete-engine";
 import { Presets, ReactPlugin, useRete } from "rete-react-plugin";
 import type { ClassicScheme, ReactArea2D } from "rete-react-plugin";
 import { createRoot } from "react-dom/client";
+import React from "react";
+import { NodeView, notifyNodeChanged, setDisplayHandler } from "./NodeView";
 import Fuse from "fuse.js";
 import { store } from "../stores/workspace";
 
@@ -30,7 +32,7 @@ export interface NodeFlags {
   wireframe: boolean;
 }
 
-export const DEFAULT_FLAGS: NodeFlags = { display: true, bypass: false, freeze: false, wireframe: false };
+export const DEFAULT_FLAGS: NodeFlags = { display: false, bypass: false, freeze: false, wireframe: false };
 
 export interface ReteGraphHandlers {
   onNodePick?: (kind: NodeKind, port: number | null, nodeId: string) => void;
@@ -72,6 +74,22 @@ function nodeFromTarget(
     }
   }
   return null;
+}
+
+/** Re-render one node: emit render WITH its element (ElementsHolder needs it as WeakMap key). */
+function renderNode(
+  editor: NodeEditor<Schemes>,
+  area: AreaPlugin<Schemes, AreaExtra>,
+  nodeId: string,
+): void {
+  const view = area.nodeViews.get(nodeId);
+  const node = editor.getNode(nodeId);
+  if (view && node) {
+    (editor as unknown as { emit(s: unknown): void }).emit({
+      type: "render",
+      data: { type: "node", payload: node, element: view.element },
+    });
+  }
 }
 
 function portIndexFromTarget(target: Element | null): number | null {
@@ -143,7 +161,13 @@ async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
   const react = new ReactPlugin<Schemes, AreaExtra>({ createRoot });
 
   connection.addPreset(ConnectionPresets.classic.setup());
-  react.addPreset(Presets.classic.setup());
+  react.addPreset(
+    Presets.classic.setup({
+      customize: {
+        node: (d) => (props) => React.createElement(NodeView, { data: d.payload, emit: props.emit }),
+      },
+    }),
+  );
   AreaExtensions.simpleNodesOrder(area);
   AreaExtensions.selectableNodes(area, AreaExtensions.selector(), { accumulating: AreaExtensions.accumulateOnCtrl() });
 
@@ -155,6 +179,7 @@ async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
 
   const input = makeInputNode();
   const output = makeOutputNode();
+  input.flags.display = true; // default Houdini display = input_ (shows source curves)
   await editor.addNode(input);
   await editor.addNode(output);
   await area.translate(input.id, { x: 24, y: 40 });
@@ -194,6 +219,27 @@ export async function createReteGraph(
   attachTabSearch(g.editor, g.area, container);
   attachCutMode(g.editor, g.area, container);
   attachFlagMenu(g.editor, g.area, container, (n) => handlers.onFlagsChanged?.(n.kind, { ...n.flags }));
+  attachMMBPan(g.area, container);
+  attachDotGrid(g.area, container);
+
+  // Houdini display semantics: only ONE node per network may be displayed.
+  // Clicking a node's display chip clears all others and lights this one.
+  setDisplayHandler((nodeId) => {
+    let changed: CylNode[] = [];
+    for (const n of g.editor.getNodes() as CylNode[]) {
+      const want = n.id === nodeId;
+      if (n.flags.display !== want) {
+        n.flags.display = want;
+        changed.push(n);
+      }
+    }
+    if (changed.length > 0) {
+      notifyNodeChanged(); // React-state re-render (rete render signal is unreliable here)
+      const lit = g.editor.getNodes().find((x) => (x as CylNode).flags.display) as CylNode | undefined;
+      log(`display -> ${lit ? lit.kind : "none"}`);
+      handlers.onFlagsChanged?.(lit?.kind ?? "null", lit ? { ...lit.flags } : { ...DEFAULT_FLAGS });
+    }
+  });
 
   return {
     editor: g.editor,
@@ -204,9 +250,7 @@ export async function createReteGraph(
       const n = nodeByKind(g.editor, kind);
       if (!n) return;
       n.stats = stats;
-      // NOTE: rete2 render signal needs an `element` (ElementsHolder WeakMap key); a bare
-      // emit crashes. Stats are stored on the node; visual refresh deferred to a custom
-      // React node component (next step). Flags still drive the 3D viewport via getFlags.
+      notifyNodeChanged();
     },
     getFlags: (kind) => {
       const n = nodeByKind(g.editor, kind);
@@ -216,6 +260,7 @@ export async function createReteGraph(
       const n = nodeByKind(g.editor, kind);
       if (!n) return undefined;
       n.flags = { ...n.flags, [key]: value };
+      notifyNodeChanged();
       return { ...n.flags };
     },
   };
@@ -413,6 +458,7 @@ function attachFlagMenu(
         node.flags = { ...node.flags, [key]: !node.flags[key] };
         log(`node ${node.kind} ${key}=${node.flags[key]}`);
         onChanged?.(node);
+        notifyNodeChanged();
         show(x, y, node);
       });
       menu.appendChild(row);
@@ -442,4 +488,63 @@ function attachFlagMenu(
     }
   });
   container.addEventListener("pointerdown", () => close());
+}
+
+// ---------------------------------------------------------------------------
+// Houdini-style navigation: MMB drag pans the canvas (wheel zoom is built-in)
+// ---------------------------------------------------------------------------
+
+function attachMMBPan(area: AreaPlugin<Schemes, AreaExtra>, container: HTMLElement): void {
+  container.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (e.button !== 1) return; // middle mouse
+      e.preventDefault();
+      const start = { x: e.clientX, y: e.clientY };
+      const t0 = { ...area.area.transform };
+      const onMove = (ev: PointerEvent) => {
+        void area.area.translate(t0.x + (ev.clientX - start.x), t0.y + (ev.clientY - start.y));
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onUp);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
+    },
+    true,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Dot-grid background with zoom LOD (Houdini-ish position reference).
+// Screen-space fixed dots; fade out as you zoom out, brighten when zoomed in.
+// ---------------------------------------------------------------------------
+
+function attachDotGrid(area: AreaPlugin<Schemes, AreaExtra>, container: HTMLElement): void {
+  const grid = document.createElement("div");
+  grid.className = "cyl-dotgrid";
+  container.appendChild(grid);
+
+  const update = () => {
+    const k = area.area.transform.k;
+    const t = area.area.transform;
+    // LOD: bright when zoomed in, dim and finally hidden when zoomed far out
+    let opacity = 0;
+    if (k >= 0.9) opacity = 0.85;
+    else if (k >= 0.55) opacity = 0.5;
+    else if (k >= 0.3) opacity = 0.22;
+    grid.style.opacity = String(opacity);
+    // dots scroll with pan (screen-space grid follows the content a little)
+    const size = 22;
+    grid.style.backgroundPosition = `${-(t.x % size)}px ${-(t.y % size)}px`;
+  };
+
+  area.addPipe((ctx) => {
+    if (ctx.type === "zoomed" || ctx.type === "translated") update();
+    return ctx;
+  });
+  requestAnimationFrame(update);
 }

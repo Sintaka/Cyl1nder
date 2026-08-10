@@ -89,8 +89,14 @@ async def put_outputs(serial: str, payload: OutputsPut) -> dict:
 
 @router.get("/api/hda/{serial}/pending")
 async def pending(serial: str, since: int = Query(0, ge=0)) -> dict:
-    """Lightweight dirty check used by the HDA 30fps sync poller."""
+    """Lightweight dirty check used by the HDA 30fps sync poller.
+
+    Doubles as a heartbeat: the poller calls this every ~33ms while Houdini is
+    alive, so registry.lastSeen stays fresh. When Houdini crashes, the poller
+    stops and lastSeen goes stale -> the web UI flags the HDA as offline.
+    """
     _check_serial(serial)
+    get_state().registry.touch(serial)
     rev = get_state().workspaces.get_or_create(serial).output_rev()
     return {"pending": rev > since, "rev": rev, "reset": since > rev}
 

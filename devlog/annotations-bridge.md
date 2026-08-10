@@ -19,3 +19,6 @@
 - **/pending 增加 reset 标志**；`get_outputs_since` 在 `since > rev`（桥重启/rev 回退）时返回全部——HDA 同步自愈。
 ## v0.1.00005（2026-08-10）
 - **WEB_UI_URL → 8376**：`GET /?serial=` 307 重定向到新 UI 端口。
+
+## v0.1.00017（2026-08-10）
+- **/pending 兼作心跳**：`GET /api/hda/{serial}/pending` 现在调用 `registry.touch(serial)`（内存更新 lastSeen，不写盘）。HDA 的 30fps sync poller 每 ~33ms 请求 → Houdini 活着时 lastSeen 持续新鲜；Houdini 崩溃后 poller 停 → lastSeen 过期 → web 前端 watchdog 判定 HDA 离线并显示红叹号。

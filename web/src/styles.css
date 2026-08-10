@@ -113,5 +113,66 @@ html, body, #app { height: 100%; margin: 0; }
 .cyl-graph .title { color: #7ce3a8; font-size: 12px; font-weight: 700; padding: 2px 6px; }
 .cyl-graph .output-title { color: #ff9e9e; font-size: 9px; }
 .cyl-graph .input-title { color: #8f959e; font-size: 9px; }
-.cyl-graph .input-socket, .cyl-graph .output-socket { border-color: #4fc3f7; background: #0b2430; }
+.cyl-graph .input-socket, .cyl-graph .output-socket { background: transparent; border: none; }
 .cyl-graph [data-testid="connection"] path { stroke: #4fc3f7; }
+
+/* ---- custom rete node view (NodeView.tsx) ---- */
+.cyl-graph .cyl-rp-node {
+  position: relative;
+  background: #1b1e24;
+  border: 1px solid #3a3f4a;
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.45);
+  font-family: system-ui, sans-serif;
+  color: #cfd2d6;
+  min-width: 132px;
+  padding: 4px 6px 6px;
+}
+.cyl-graph .cyl-rp-node.displayed { border-color: #2f7d54; box-shadow: 0 0 0 1px #2f7d54, 0 4px 14px rgba(0,0,0,.45); }
+.cyl-graph .cyl-rp-node.bypass { border-style: dashed; opacity: .75; }
+.cyl-graph .cyl-rp-node.freeze { opacity: .6; }
+.cyl-graph .cyl-rp-head { display: flex; align-items: center; gap: 4px; }
+.cyl-graph .cyl-rp-title { font-size: 12px; font-weight: 700; color: #7ce3a8; flex: 1; white-space: nowrap; }
+.cyl-graph .cyl-rp-badges { font-size: 9px; color: #ffd166; }
+.cyl-graph .cyl-rp-stats { font-size: 8px; color: #8f959e; white-space: pre; margin: 2px 0 4px; }
+.cyl-graph .cyl-rp-ports { display: flex; justify-content: space-between; gap: 8px; }
+.cyl-graph .cyl-rp-col { display: flex; flex-direction: column; gap: 2px; }
+.cyl-graph .cyl-rp-port { display: flex; align-items: center; gap: 4px; font-size: 9px; color: #8f959e; min-height: 14px; }
+.cyl-graph .cyl-rp-port.output { flex-direction: row-reverse; }
+.cyl-graph .cyl-rp-port .output > span, .cyl-graph .cyl-rp-port .input > span {
+  display: inline-flex; align-items: center; justify-content: center; height: 100%;
+}
+.cyl-graph .cyl-rp-port .output div[title], .cyl-graph .cyl-rp-port .input div[title] {
+  width: 10px; height: 10px; border-radius: 50%; background: #0b2430; border: 1.5px solid #4fc3f7;
+  box-sizing: border-box;
+}
+/* display chip: blue rounded rect hugging the node's top-right edge */
+.cyl-graph .cyl-rp-display {
+  position: absolute; top: -7px; right: -7px;
+  width: 16px; height: 16px; border-radius: 5px;
+  background: #1e3a8a; border: 1px solid #3b82f6; color: #bfdbfe;
+  font-size: 10px; font-weight: 800; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; padding: 0;
+}
+.cyl-graph .cyl-rp-display.on { background: #3b82f6; color: #fff; border-color: #60a5fa; box-shadow: 0 0 6px rgba(59,130,246,.8); }
+
+/* dot-grid background (screen-space, zoom LOD handled by JS opacity) */
+.cyl-graph { position: relative; }
+.cyl-dotgrid {
+  position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background-image: radial-gradient(circle, #3a3f4a 1px, transparent 1.5px);
+  background-size: 22px 22px;
+  transition: opacity 120ms ease;
+}
+.cyl-graph .x6-graph, .cyl-graph .rete-area, .cyl-graph .cyl-rp-node { position: relative; z-index: 1; }
+
+/* HDA offline badge (top-left of the 3D viewport) */
+.cyl-hda-offline {
+  position: absolute; top: 8px; left: 8px; z-index: 20;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(127, 29, 29, 0.92); border: 1px solid #ef4444; border-radius: 6px;
+  padding: 4px 10px; color: #fecaca; font-size: 12px; pointer-events: none;
+  box-shadow: 0 2px 10px rgba(0,0,0,.4);
+}
+.cyl-hda-offline .off-icon { color: #f87171; font-size: 14px; }
+.cyl-hda-offline.hidden { display: none; }

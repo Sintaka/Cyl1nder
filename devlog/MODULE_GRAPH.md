@@ -20,6 +20,8 @@
   - viewport/renderer
 - `nodes2/graph.ts`
   - fuse.js
+  - nodes2/NodeView
+  - react
   - react-dom/client
   - rete
   - rete-area-plugin
@@ -27,21 +29,6 @@
   - rete-engine
   - rete-react-plugin
   - stores/workspace
-- `nodes/contextMenu.ts`
-  - @antv/x6
-  - nodes/cyl1nderNode
-  - nodes/flags
-- `nodes/cutMode.ts`
-  - @antv/x6
-  - nodes/cyl1nderNode
-- `nodes/cyl1nderNode.ts`
-  - @antv/x6
-  - nodes/flags
-- `nodes/flags.ts`
-- `nodes/palette.ts`
-  - @antv/x6
-  - fuse.js
-  - nodes/cyl1nderNode
 - `proto/main.ts`
   - proto/rete
   - styles.css

@@ -6,6 +6,7 @@
   autoRunCheck: HTMLInputElement;
   graphContainer: HTMLElement;
   viewportContainer: HTMLElement;
+  hdaOffline: HTMLElement;
   hintEl: HTMLElement;
   inspectorEl: HTMLElement;
   logEl: HTMLElement;
@@ -31,7 +32,11 @@ export function buildLayout(app: HTMLElement): Layout {
         </aside>
         <div class="cyl-splitter splitter-v" data-splitter="left" title="拖动调整宽度"></div>
         <main class="cyl-center">
-          <div id="cyl-viewport" class="cyl-viewport"></div>
+          <div id="cyl-viewport" class="cyl-viewport">
+            <div id="cyl-hda-offline" class="cyl-hda-offline hidden" title="Houdini 未在运行或该 HDA 已停止 cook">
+              <span class="off-icon">⚠</span><span class="off-text">HDA 离线</span>
+            </div>
+          </div>
           <div id="cyl-hint" class="cyl-hint hidden"></div>
         </main>
         <div class="cyl-splitter splitter-v" data-splitter="right" title="拖动调整宽度"></div>
@@ -52,6 +57,7 @@ export function buildLayout(app: HTMLElement): Layout {
     autoRunCheck: $("#cyl-autorun"),
     graphContainer: $("#cyl-graph"),
     viewportContainer: $("#cyl-viewport"),
+    hdaOffline: $("#cyl-hda-offline"),
     hintEl: $("#cyl-hint"),
     inspectorEl: $("#cyl-inspector"),
     logEl: $("#cyl-log"),
