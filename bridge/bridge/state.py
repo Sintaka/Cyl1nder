@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .logs import LogRing
 from .registry import SerialRegistry
+from .ui_layout import UiLayoutStore
 from .workspace import WorkspaceStore
 
 
@@ -15,6 +16,7 @@ class BridgeState:
         self.registry = SerialRegistry(data_dir / "registry.json")
         self.workspaces = WorkspaceStore()
         self.logs = LogRing()
+        self.ui_layout = UiLayoutStore(data_dir / "ui-layout.json")
 
 
 _state: BridgeState | None = None

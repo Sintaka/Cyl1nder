@@ -63,6 +63,19 @@ export class BridgeClient {
     return json(await fetch(`${this.base}/api/hda/${serial}/outputs?since=${since}`));
   }
 
+  /** Global dockview layout (persisted by bridge to a file - cross-browser). */
+  async getUiLayout(): Promise<unknown> {
+    return json<{ layout: unknown }>(await fetch(`${this.base}/api/ui/layout`)).then((r) => r.layout);
+  }
+
+  async putUiLayout(layout: unknown): Promise<void> {
+    await fetch(`${this.base}/api/ui/layout`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ layout }),
+    });
+  }
+
   /** Unified path system: read the disk snapshot (cyl://<serial>/snapshot). */
   async getSnapshot(
     serial: string,

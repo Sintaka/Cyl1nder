@@ -1,7 +1,17 @@
 /** Docking layout (dockview): Node Graph / Viewport / Inspector / Log as
- *  draggable, floatable, resizable panels. Replaces the old flex+splitters body. */
+ *  draggable, floatable, resizable panels.
+ *
+ * Layout persistence (so ANY browser/session - including the agent's headless
+ * browser - sees the same layout):
+ *   save: debounced -> localStorage + PUT /api/ui/layout (bridge writes a file)
+ *   load: GET /api/ui/layout (file, cross-browser) -> localStorage -> default
+ * Every layout change also prints a debug summary (panel relative position +
+ * bounds + full JSON) into the Log panel so it can be inspected remotely.
+ */
 import { DockviewComponent } from "dockview";
 import "dockview/dist/styles/dockview.css";
+import { store } from "../stores/workspace";
+import { BridgeClient } from "../bridge/client";
 
 export interface DockContent {
   graph: HTMLElement;
@@ -11,6 +21,18 @@ export interface DockContent {
 }
 
 const STORAGE_KEY = "cyl1nder.dock.layout.v1";
+const client = new BridgeClient();
+
+/** Panel bounds relative to the dock container - what a human/agent can eyeball. */
+function layoutDebug(container: HTMLElement, byId: Record<string, HTMLElement>): string {
+  const cr = container.getBoundingClientRect();
+  const parts: string[] = [];
+  for (const [id, el] of Object.entries(byId)) {
+    const r = el.getBoundingClientRect();
+    parts.push(`${id}:x=${Math.round(r.x - cr.x)},y=${Math.round(r.y - cr.y)},w=${Math.round(r.width)},h=${Math.round(r.height)}`);
+  }
+  return `[layout] ${parts.join(" | ")}`;
+}
 
 export function setupDock(container: HTMLElement, content: DockContent): DockviewComponent {
   const byId: Record<string, HTMLElement> = {
@@ -51,27 +73,49 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
     position: { referencePanel: "inspector", direction: "below" },
   });
 
-  // Persist the current layout as the default: any drag/float/resize saves a
-  // debounced toJSON to localStorage; the next launch restores it.
+  // Save layout (debounced) + print debug summary on every layout change.
   let saveTimer: number | undefined;
   dv.api.onDidLayoutChange(() => {
     if (saveTimer !== undefined) window.clearTimeout(saveTimer);
     saveTimer = window.setTimeout(() => {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(dv.toJSON()));
+        const json = dv.toJSON();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(json));
+        void client.putUiLayout(json).catch(() => undefined);
+        store.pushLog(layoutDebug(container, byId));
+        store.pushLog(`[layout-json] ${JSON.stringify(json)}`);
       } catch {
-        /* storage unavailable - skip */
+        /* ignore */
       }
-    }, 400);
+    }, 600);
   });
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved) {
+
+  // Restore: bridge file (cross-browser) -> localStorage -> default.
+  const apply = (json: unknown) => {
+    if (!json) return false;
     try {
-      dv.fromJSON(JSON.parse(saved) as Parameters<DockviewComponent["fromJSON"]>[0]);
+      dv.fromJSON(json as Parameters<DockviewComponent["fromJSON"]>[0]);
+      return true;
     } catch {
-      /* corrupt layout - fall back to the default 4-panel arrangement */
+      return false;
     }
-  }
+  };
+  void client
+    .getUiLayout()
+    .then((fileLayout) => {
+      const used = apply(fileLayout);
+      if (used) store.pushLog("[layout] restored from bridge file");
+      return used;
+    })
+    .catch(() => false)
+    .then((used) => {
+      if (!used) {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved && apply(JSON.parse(saved))) {
+          store.pushLog("[layout] restored from localStorage");
+        }
+      }
+    });
 
   return dv;
 }

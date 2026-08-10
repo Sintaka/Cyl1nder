@@ -149,6 +149,21 @@ async def get_snapshot(serial: str) -> dict:
     return {"serial": serial, "snapshot": snap}
 
 
+@router.get("/api/ui/layout")
+async def get_ui_layout() -> dict:
+    """Global dockview layout persisted by the web UI (cross-browser, debug-friendly)."""
+    st = get_state()
+    return {"layout": st.ui_layout.read()}
+
+
+@router.put("/api/ui/layout")
+async def put_ui_layout(payload: dict) -> dict:
+    """Persist the web UI dockview layout (single writer = web; bridge stores the file)."""
+    st = get_state()
+    st.ui_layout.write(payload.get("layout"))
+    return {"ok": True}
+
+
 @router.get("/api/logs")
 async def global_logs(
     level: str | None = None,

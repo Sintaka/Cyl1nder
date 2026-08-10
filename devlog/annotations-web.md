@@ -59,3 +59,9 @@
 - **dockview 布局持久化（默认布局）**：任何拖拽/浮动/缩放后防抖 400ms 把 `dockview.toJSON()` 存 localStorage，下次启动 `fromJSON` 恢复——用户调整后的布局即成为默认。
 - **修复 dock 与 3D viewport 打架**：`.cyl-viewport { position:absolute; inset:0 }` 是旧 flex 布局遗留，dockview 里会溢出覆盖 tab 标题（松手后标题被 canvas 盖住）。改为 `position:relative; width/height:100%` + `.dv-view { overflow:hidden }`；实测 canvas 顶(71) 低于 tab 底(67)，不再覆盖。
 - **视口显示走统一路径系统**：连接 serial 时 `GET /api/hda/<serial>/snapshot`，若 WS workspace 无几何体（Houdini 未 cook / 桥重启）且磁盘快照有数据 → `store.setInputs/upsertOutputs` 填充 → 视口显示历史几何（实测 `[path] restored inputs`）。
+
+## v0.1.00021（2026-08-10）
+- **布局持久化升级为文件级（跨浏览器 debug）**：dockview 布局变化时防抖 600ms → `localStorage` + `PUT /api/ui/layout`（bridge 写 `bridge/data/ui-layout.json`）；启动恢复顺序 = **bridge 文件 → localStorage → 默认**。这样 agent 的 headless 浏览器与用户浏览器读同一个布局文件。
+- **布局 debug 输出**：每次布局变化在 Log 面板输出 `[layout] <panel>:x=,y=,w=,h=`（相对 dock 容器）+ `[layout-json] <toJSON>`，agent/用户都可读当前面板的相对位置与边界。
+- **实测**：检测到用户手动布局 = `graph:x=0,y=35,w=650,h=649 | viewport:x=650,y=35,w=630,h=193 | inspector:x=650,y=263,w=630,h=193 | log:x=650,y=491,w=630,h=193`（左列 Node Graph 全高 + 右列 Viewport/Inspector/Log 垂直堆叠）。
+- bridge 新增 `GET/PUT /api/ui/layout` + `ui_layout.py`（单文件原子写）。
