@@ -110,3 +110,9 @@
   4. **setDisplayFocus 只遍历顶层**（buildInputs 包的 Group）→ 全隐藏 → 改 `traverse` 匹配 inputN/outputN 层。
   - 实测：sphere 灰面 grey=5196 像素 + display 仅 input0 可见。
 - **ui-layout.json 损坏防御**：发现 branch data 被写成字符串 `" "`（损坏布局 → 四方均分）；已重置为 Desk1，并在 dock 保存时校验（branch 非数组不落盘）。
+
+## v0.1.00028（2026-08-10）
+- **three.js 三方源码入库**：`web/vendor/three-src`（npm three r180 src，712 文件）+ README 指引字典（官方文档/示例链接）。排查渲染问题时直接查源码。
+- **Geometry Spreadsheet 系统**：新 dockview 面板（Desk1 布局加入，graph 下方）——按 **Point / Vertex / Prim / Detail 四层级** 展示当前几何（每输入端口一个 section）：points 表（坐标 + 属性）、vertices 表（从 curves/faces 推导 vertex）、prims 表（polyline/polygon + 顶点引用）、detail 表（统计 + 属性名）。数据来自桥 payload（points/curves/faces/attributes），vertex/detail 推导。
+- **调试 hook**：`buildMeshFaces` 输出 `[mesh] points/faces/triangles/sample-face`（浏览器 console），直接看到 three 接受到的面数据。
+- **poly 面确认**：带 normal 的 sphere（normal SOP）→ HDA convert → 视口灰面正常（grey≈2188）；用户"只有点"应为旧快照/缓存（无 faces），重新 cook 推新 inputs 或从新快照恢复即可。

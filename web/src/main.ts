@@ -1,6 +1,7 @@
 import "./styles.css";
 import { buildLayout } from "./app/layout";
 import { setupDock } from "./app/dock";
+import { renderSpreadsheet } from "./app/spreadsheet";
 import { store } from "./stores/workspace";
 import { BridgeClient, connectWs } from "./bridge/client";
 import { createReteGraph, type ReteGraphHandlers } from "./nodes2/graph";
@@ -10,11 +11,15 @@ import { inputsEqual } from "./protocol/compare";
 import type { OutputBuffer } from "./protocol/types";
 
 const layout = buildLayout(document.getElementById("app")!);
+const spreadsheetEl = document.createElement("div");
+spreadsheetEl.id = "cyl-spreadsheet";
+spreadsheetEl.className = "cyl-spreadsheet";
 setupDock(layout.dockContainer, {
   graph: layout.graphContainer,
   viewport: layout.viewportContainer,
   inspector: layout.inspectorEl,
   log: layout.logEl,
+  spreadsheet: spreadsheetEl,
 });
 const client = new BridgeClient();
 
@@ -116,6 +121,7 @@ store.subscribe(() => {
   layout.statusDot.className = `cyl-status ${store.status}`;
   viewport.refresh();
   refreshNodeFlags();
+  renderSpreadsheet(spreadsheetEl, store.inputs, "inputs");
   const showHint = !store.serial || store.status === "offline";
   layout.hintEl.classList.toggle("hidden", !showHint);
   layout.hintEl.textContent = !store.serial

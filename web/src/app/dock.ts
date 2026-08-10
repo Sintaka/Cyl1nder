@@ -19,6 +19,7 @@ export interface DockContent {
   viewport: HTMLElement;
   inspector: HTMLElement;
   log: HTMLElement;
+  spreadsheet: HTMLElement;
 }
 
 const STORAGE_KEY = "cyl1nder.dock.layout.v1";
@@ -41,6 +42,7 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
     viewport: content.viewport,
     inspector: content.inspector,
     log: content.log,
+    spreadsheet: content.spreadsheet,
   };
 
   const dv = new DockviewComponent(container, {
@@ -72,6 +74,12 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
     component: "log",
     title: "Log",
     position: { referencePanel: "inspector", direction: "below" },
+  });
+  dv.addPanel({
+    id: "spreadsheet",
+    component: "spreadsheet",
+    title: "Spreadsheet",
+    position: { referencePanel: "graph", direction: "below" },
   });
 
   // Save layout (debounced) + print debug summary on every layout change.

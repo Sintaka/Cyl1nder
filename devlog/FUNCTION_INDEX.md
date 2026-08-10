@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **235** 个函数/类。
+> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **240** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -286,15 +286,15 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/dock.ts（152 行）
+## web/src/app/dock.ts（160 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `layoutDebug` | 28 | function |  | 2 |
-| `setupDock` | 38 | function | export | 1 |
-| `scaleLayout` | 106 | arrow |  | 1 |
-| `walk` | 113 | arrow |  | 2 |
-| `apply` | 128 | arrow |  | 3 |
+| `layoutDebug` | 29 | function |  | 2 |
+| `setupDock` | 39 | function | export | 1 |
+| `scaleLayout` | 114 | arrow |  | 1 |
+| `walk` | 121 | arrow |  | 2 |
+| `apply` | 136 | arrow |  | 3 |
 
 ## web/src/app/layout.ts（123 行）
 
@@ -303,7 +303,7 @@
 | `buildLayout` | 17 | function | export | 1 |
 | `buildLayoutLegacy` | 73 | function | export | 1 |
 
-## web/src/app/layouts.ts（103 行）
+## web/src/app/layouts.ts（119 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -314,6 +314,16 @@
 |---|---|---|---|---|
 | `formatLog` | 2 | function | export | 1 |
 
+## web/src/app/spreadsheet.ts（120 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `esc` | 10 | function |  | 7 |
+| `attrRow` | 14 | function |  | 2 |
+| `renderPayload` | 21 | function | export | 2 |
+| `addVerts` | 56 | arrow |  | 2 |
+| `renderSpreadsheet` | 91 | function | export | 1 |
+
 ## web/src/bridge/client.ts（133 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
@@ -322,20 +332,20 @@
 | `connectWs` | 97 | function | export | 1 |
 | `connect` | 102 | arrow |  | 1 |
 
-## web/src/main.ts（270 行）
+## web/src/main.ts（276 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `refreshNodeFlags` | 50 | function |  | 3 |
-| `inputStatsText` | 76 | function |  | 2 |
-| `outputStatsText` | 85 | function |  | 2 |
-| `renderInspector` | 94 | function |  | 2 |
-| `runNetwork` | 129 | function |  | 2 |
-| `startHdaWatch` | 152 | function |  | 2 |
-| `check` | 154 | arrow |  | 1 |
-| `stopHdaWatch` | 171 | function |  | 2 |
-| `loadSnapshotIntoStore` | 180 | function |  | 2 |
-| `connect` | 199 | function |  | 4 |
+| `refreshNodeFlags` | 55 | function |  | 3 |
+| `inputStatsText` | 81 | function |  | 2 |
+| `outputStatsText` | 90 | function |  | 2 |
+| `renderInspector` | 99 | function |  | 2 |
+| `runNetwork` | 135 | function |  | 2 |
+| `startHdaWatch` | 158 | function |  | 2 |
+| `check` | 160 | arrow |  | 1 |
+| `stopHdaWatch` | 177 | function |  | 2 |
+| `loadSnapshotIntoStore` | 186 | function |  | 2 |
+| `connect` | 205 | function |  | 4 |
 
 ## web/src/nodes2/graph.ts（734 行）
 
@@ -415,17 +425,17 @@
 | `up` | 61 | arrow |  | 1 |
 | `release` | 89 | arrow |  | 0 |
 
-## web/src/viewport/geometry.ts（126 行）
+## web/src/viewport/geometry.ts（128 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `toVec` | 7 | function |  | 1 |
 | `buildWireSegments` | 13 | function |  | 2 |
 | `buildMeshFaces` | 38 | function | export | 2 |
-| `buildPoints` | 67 | function |  | 2 |
-| `buildCurves` | 80 | function | export | 3 |
-| `buildInputs` | 108 | function | export | 1 |
-| `buildOutputs` | 118 | function | export | 1 |
+| `buildPoints` | 69 | function |  | 2 |
+| `buildCurves` | 82 | function | export | 3 |
+| `buildInputs` | 110 | function | export | 1 |
+| `buildOutputs` | 120 | function | export | 1 |
 
 ## web/src/viewport/renderer.ts（352 行）
 

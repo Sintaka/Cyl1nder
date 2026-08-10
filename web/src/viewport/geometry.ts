@@ -36,12 +36,14 @@ function buildWireSegments(points: number[][], faces: number[][], color: number)
 /** Mesh faces -> group of { faceMesh, wireMesh } so the renderer can switch display modes
  *  (lit / unlit / wireframe / wireframe+face). Fan-triangulated; shared BufferGeometry. */
 export function buildMeshFaces(points: number[][], faces: number[][], color: number): THREE.Group | null {
+  console.log("[mesh] buildMeshFaces points=", points.length, "faces=", faces.length);
   if (faces.length === 0) return null;
   const tri: number[] = [];
   for (const face of faces) {
     if (face.length < 3) continue;
     for (let i = 1; i < face.length - 1; i++) tri.push(face[0], face[i], face[i + 1]);
   }
+  console.log("[mesh] triangles=", tri.length / 3, "sample face=", JSON.stringify(faces[0]));
   if (tri.length === 0) return null;
   const positions = new Float32Array(points.length * 3);
   points.forEach((p, i) => {

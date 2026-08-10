@@ -62,7 +62,18 @@ export const DESK1_LAYOUT = {
                 "activeView": "graph",
                 "id": "1"
               },
-              "size": 489
+              "size": 360
+            },
+            {
+              "type": "leaf",
+              "data": {
+                "views": [
+                  "spreadsheet"
+                ],
+                "activeView": "spreadsheet",
+                "id": "5"
+              },
+              "size": 200
             }
           ],
           "size": 667
@@ -94,6 +105,11 @@ export const DESK1_LAYOUT = {
       "id": "log",
       "contentComponent": "log",
       "title": "Log"
+    },
+    "spreadsheet": {
+      "id": "spreadsheet",
+      "contentComponent": "spreadsheet",
+      "title": "Spreadsheet"
     }
   },
   "activeGroup": "2"

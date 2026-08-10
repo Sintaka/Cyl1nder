@@ -201,3 +201,18 @@ html, body, #app { height: 100%; margin: 0; }
   stroke: #ffd166 !important; stroke-width: 3 !important;
   filter: drop-shadow(0 0 6px rgba(255, 209, 102, 0.8));
 }
+
+/* Geometry Spreadsheet */
+.cyl-spreadsheet { width: 100%; height: 100%; overflow: auto; background: #101114; color: #cfd2d6; font: 10px/1.4 ui-monospace, monospace; }
+.cyl-sp-section { border-bottom: 1px solid #22252a; padding: 4px 8px; }
+.cyl-sp-head { color: #7ce3a8; font-weight: 700; margin: 2px 0 4px; }
+.cyl-sp-tabs { display: flex; gap: 4px; margin-bottom: 4px; }
+.cyl-sp-tab { background: #1c1e24; border: 1px solid #33363c; color: #9aa1ab; border-radius: 4px; font-size: 10px; padding: 2px 8px; cursor: pointer; }
+.cyl-sp-tab.active { background: #2b6cb0; color: #fff; border-color: #2b6cb0; }
+.cyl-sp-pane { overflow: auto; max-height: 220px; }
+.cyl-sp-pane.hidden { display: none; }
+.cyl-sp-table { border-collapse: collapse; width: 100%; }
+.cyl-sp-table th, .cyl-sp-table td { border: 1px solid #22252a; padding: 1px 6px; text-align: left; white-space: nowrap; }
+.cyl-sp-table th { background: #1a1d22; color: #8f959e; position: sticky; top: 0; }
+.cyl-sp-table tr:hover td { background: #1c2430; }
+.cyl-sp-empty { padding: 12px; color: #6b7280; }

@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-10T13:37:05.588Z",
-  "totalFunctions": 235,
+  "generatedAt": "2026-08-10T13:52:16.057Z",
+  "totalFunctions": 240,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -1287,39 +1287,39 @@
     },
     {
       "file": "web/src/app/dock.ts",
-      "lineCount": 152,
+      "lineCount": 160,
       "functions": [
         {
           "name": "layoutDebug",
-          "line": 28,
+          "line": 29,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "setupDock",
-          "line": 38,
+          "line": 39,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "scaleLayout",
-          "line": 106,
+          "line": 114,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "walk",
-          "line": 113,
+          "line": 121,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "apply",
-          "line": 128,
+          "line": 136,
           "kind": "arrow",
           "exported": false,
           "calls": 3
@@ -1348,7 +1348,7 @@
     },
     {
       "file": "web/src/app/layouts.ts",
-      "lineCount": 103,
+      "lineCount": 119,
       "functions": []
     },
     {
@@ -1358,6 +1358,47 @@
         {
           "name": "formatLog",
           "line": 2,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/app/spreadsheet.ts",
+      "lineCount": 120,
+      "functions": [
+        {
+          "name": "esc",
+          "line": 10,
+          "kind": "function",
+          "exported": false,
+          "calls": 7
+        },
+        {
+          "name": "attrRow",
+          "line": 14,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "renderPayload",
+          "line": 21,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "addVerts",
+          "line": 56,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "renderSpreadsheet",
+          "line": 91,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -1393,74 +1434,74 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 270,
+      "lineCount": 276,
       "functions": [
         {
           "name": "refreshNodeFlags",
-          "line": 50,
+          "line": 55,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "inputStatsText",
-          "line": 76,
+          "line": 81,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "outputStatsText",
-          "line": 85,
+          "line": 90,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderInspector",
-          "line": 94,
+          "line": 99,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "runNetwork",
-          "line": 129,
+          "line": 135,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "startHdaWatch",
-          "line": 152,
+          "line": 158,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "check",
-          "line": 154,
+          "line": 160,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "stopHdaWatch",
-          "line": 171,
+          "line": 177,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "loadSnapshotIntoStore",
-          "line": 180,
+          "line": 186,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "connect",
-          "line": 199,
+          "line": 205,
           "kind": "function",
           "exported": false,
           "calls": 4
@@ -1811,7 +1852,7 @@
     },
     {
       "file": "web/src/viewport/geometry.ts",
-      "lineCount": 126,
+      "lineCount": 128,
       "functions": [
         {
           "name": "toVec",
@@ -1836,28 +1877,28 @@
         },
         {
           "name": "buildPoints",
-          "line": 67,
+          "line": 69,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "buildCurves",
-          "line": 80,
+          "line": 82,
           "kind": "function",
           "exported": true,
           "calls": 3
         },
         {
           "name": "buildInputs",
-          "line": 108,
+          "line": 110,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "buildOutputs",
-          "line": 118,
+          "line": 120,
           "kind": "function",
           "exported": true,
           "calls": 1
