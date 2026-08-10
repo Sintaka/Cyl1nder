@@ -168,6 +168,12 @@ export function makeNullNode(): CylNode {
 async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
   const editor = new NodeEditor<Schemes>();
   const area = new AreaPlugin<Schemes, AreaExtra>(container);
+  // Task 1: rete's AreaPlugin installs a default Drag handler that pans the whole
+  // network on ANY-pointer (incl. LMB) drag over the background. Disable it so LMB
+  // blank-drag only drives rect-select. MMB pan (attachMMBPan) and wheel zoom (the
+  // separate Zoom handler) are unaffected; node dragging uses each NodeView's own
+  // Drag handler and keeps working.
+  area.area.setDragHandler(null);
   const connection = new ConnectionPlugin<Schemes, AreaExtra>();
   const engine = new DataflowEngine<DataflowEngineScheme>();
   const react = new ReactPlugin<Schemes, AreaExtra>({ createRoot });
@@ -236,6 +242,7 @@ export async function createReteGraph(
   initTooltip(container);
   attachInsertion(g.editor, g.area, container);
   attachRectSelect(g.editor, g.area, container, g.selectable);
+  attachShakeDisconnect(g.editor, g.area, container);
 
   // Houdini display semantics: only ONE node per network may be displayed.
   // Clicking a node's display chip clears all others and lights this one.
@@ -496,54 +503,159 @@ function attachTabSearch(
 }
 
 // ---------------------------------------------------------------------------
-// Y cut mode: hold Y, click an edge/node to remove
+// Y cut line: hold Y, drag a red line across connections to cut them all
 // ---------------------------------------------------------------------------
+
+/** Screen-space point-to-segment distance (px). */
+function distToSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  let t = len2 === 0 ? 0 : ((px - ax) * dx + (py - ay) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+/** Sample a connection's rendered SVG path into screen-space points (same technique as hitTestConnection). */
+function sampleConnectionPath(
+  area: AreaPlugin<Schemes, AreaExtra>,
+  id: string,
+): { x: number; y: number }[] | null {
+  const view = area.connectionViews.get(id);
+  if (!view) return null;
+  const svg = (view.element.querySelector("path") ?? view.element) as SVGPathElement | null;
+  if (!svg || typeof svg.getTotalLength !== "function") return null;
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return null;
+  const len = svg.getTotalLength();
+  const step = Math.max(4, len / 40);
+  const pts: { x: number; y: number }[] = [];
+  for (let t = 0; t <= len; t += step) {
+    const p = svg.getPointAtLength(t);
+    const sp = new DOMPoint(p.x, p.y).matrixTransform(ctm);
+    pts.push({ x: sp.x, y: sp.y });
+  }
+  return pts;
+}
 
 function attachCutMode(
   editor: NodeEditor<Schemes>,
   area: AreaPlugin<Schemes, AreaExtra>,
   container: HTMLElement,
 ): void {
-  let active = false;
+  let armed = false;
+  let drawing = false;
+  let seg: { x0: number; y0: number; x1: number; y1: number } | null = null;
+
+  // Full-cover, absolutely-positioned SVG for the red cut line. pointer-events:none
+  // so it never intercepts graph input; z-index above nodes/connections/previews.
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:9;";
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  line.setAttribute("stroke", "#ff3b30");
+  line.setAttribute("stroke-width", "2");
+  line.setAttribute("stroke-linecap", "round");
+  line.setAttribute("x1", "0");
+  line.setAttribute("y1", "0");
+  line.setAttribute("x2", "0");
+  line.setAttribute("y2", "0");
+  svg.appendChild(line);
+  container.appendChild(svg);
+
   const isTyping = () => {
     const el = document.activeElement;
     if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return false;
     return el.getClientRects().length > 0;
   };
+
+  const showLine = (x0: number, y0: number, x1: number, y1: number) => {
+    seg = { x0, y0, x1, y1 };
+    const rect = container.getBoundingClientRect();
+    line.setAttribute("x1", String(x0 - rect.left));
+    line.setAttribute("y1", String(y0 - rect.top));
+    line.setAttribute("x2", String(x1 - rect.left));
+    line.setAttribute("y2", String(y1 - rect.top));
+  };
+  const hideLine = () => {
+    seg = null;
+    line.setAttribute("x1", "0");
+    line.setAttribute("y1", "0");
+    line.setAttribute("x2", "0");
+    line.setAttribute("y2", "0");
+  };
+
+  const cutConnection = (id: string) => {
+    const conn = editor.getConnection(id) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
+    const src = conn ? ((editor.getNode(conn.source as string) as CylNode | undefined)?.label ?? conn.source) : "?";
+    const tgt = conn ? ((editor.getNode(conn.target as string) as CylNode | undefined)?.label ?? conn.target) : "?";
+    void editor.removeConnection(id);
+    log(`cut connection ${id} (${src} -> ${tgt})`);
+  };
+
+  const cutBySegment = (x0: number, y0: number, x1: number, y1: number) => {
+    const ids = Array.from(area.connectionViews.keys());
+    for (const id of ids) {
+      if (!area.connectionViews.has(id)) continue;
+      const pts = sampleConnectionPath(area, id);
+      if (!pts) continue;
+      if (pts.some((p) => distToSegment(p.x, p.y, x0, y0, x1, y1) <= 8)) cutConnection(id);
+    }
+  };
+
   window.addEventListener("keydown", (e) => {
     if (e.key.toLowerCase() !== "y" || e.repeat || isTyping()) return;
-    active = true;
-    container.classList.add("cut-mode");
+    armed = true;
     e.preventDefault();
   });
   window.addEventListener("keyup", (e) => {
     if (e.key.toLowerCase() !== "y") return;
-    active = false;
-    container.classList.remove("cut-mode");
+    armed = false;
+    drawing = false;
+    hideLine();
   });
-  area.addPipe((context) => {
-    if (!active) return context;
-    if (context.type === "pointerdown" && context.data?.event?.target) {
-      const target = context.data.event.target as Element;
-      const edge = target.closest?.("[data-testid=connection]") ?? target.closest?.("path");
-      if (edge) {
-        // rete-connection-plugin renders svg paths; find the connection id from DOM
-        const connId = edge.closest?.("span")?.querySelector?.("svg")?.getAttribute?.("data-connection-id")
-          ?? (edge as SVGElement).getAttribute?.("data-connection-id");
-        if (connId) {
-          void editor.removeConnection(connId as never);
-          log(`cut connection ${connId}`);
-          return context;
-        }
-      }
-      const hit = nodeFromTarget(editor, area, target);
-      if (hit && hit.node.kind === "null") {
-        void editor.removeNode(hit.id);
-        log(`removed null node ${hit.id}`);
-      }
+
+  container.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (!armed || e.button !== 0) return;
+      const target = e.target as Element;
+      // only start a cut line on the blank graph surface (not nodes/ports/chips/inputs)
+      if (nodeFromTarget(editor, area, target)) return;
+      if (target.closest?.(".cyl-ns") || target.closest?.(".cyl-rp-port") || target.closest?.("button") || target instanceof HTMLInputElement) return;
+      drawing = true;
+      showLine(e.clientX, e.clientY, e.clientX, e.clientY);
+      e.preventDefault();
+      e.stopImmediatePropagation(); // keep rect-select / area drag from hijacking the cut
+    },
+    true,
+  );
+
+  container.addEventListener(
+    "pointermove",
+    (e) => {
+      if (!drawing || !seg) return;
+      showLine(seg.x0, seg.y0, e.clientX, e.clientY);
+      e.preventDefault();
+    },
+    true,
+  );
+
+  const up = (e: PointerEvent) => {
+    if (!armed || !drawing) return;
+    drawing = false;
+    const s = seg;
+    hideLine();
+    if (!s) return;
+    if (Math.hypot(s.x1 - s.x0, s.y1 - s.y0) < 4) {
+      // click without dragging: cut the single connection under the cursor
+      const connId = hitTestConnection(area, e.clientX, e.clientY);
+      if (connId) cutConnection(connId);
+    } else {
+      cutBySegment(s.x0, s.y0, s.x1, s.y1);
     }
-    return context;
-  });
+  };
+  window.addEventListener("pointerup", up);
+  window.addEventListener("pointercancel", up);
 }
 
 // ---------------------------------------------------------------------------
@@ -931,4 +1043,146 @@ function attachRectSelect(
     store.pushLog(`[node] rect-select complete`);
   };
   window.addEventListener("pointerup", up);
+}
+
+// ---------------------------------------------------------------------------
+// Shake a node to disconnect + auto-reconnect nearest compatible neighbors.
+// Drag a node back-and-forth quickly (>=3 direction reversals within ~600ms
+// with >6px per segment); all its connections are cut, then it re-links to the
+// nearest left neighbor's first output (into our first input) and nearest right
+// neighbor's first input (from our first output) when the socket types match
+// and the target slot is free.
+// NOTE: v1 interpretation of "auto-connect the first matching input/output" -
+// every socket is GEO in v1 so type matches usually succeed. May be refined
+// once real per-port types exist.
+// ---------------------------------------------------------------------------
+
+function attachShakeDisconnect(
+  editor: NodeEditor<Schemes>,
+  area: AreaPlugin<Schemes, AreaExtra>,
+  container: HTMLElement,
+): void {
+  let trackingId: string | null = null;
+  let shakeFired = false;
+  let buf: { x: number; y: number; t: number }[] = [];
+
+  const reset = () => {
+    trackingId = null;
+    shakeFired = false;
+    buf = [];
+  };
+
+  const shakeNode = async (id: string) => {
+    const node = editor.getNode(id) as CylNode | undefined;
+    if (!node) return;
+
+    // 1. Cut every connection touching this node.
+    const touching = editor.getConnections().filter((c) => c.source === id || c.target === id);
+    for (const c of touching) {
+      const src = (editor.getNode(c.source as string) as CylNode | undefined)?.label ?? c.source;
+      const tgt = (editor.getNode(c.target as string) as CylNode | undefined)?.label ?? c.target;
+      await editor.removeConnection(c.id);
+      log(`shake cut ${c.id} (${src} -> ${tgt})`);
+    }
+
+    const pos = area.nodeViews.get(id)?.position ?? { x: 0, y: 0 };
+    const firstIn = Object.entries(node.inputs)[0];
+    const firstOut = Object.entries(node.outputs)[0];
+
+    // 2. INPUT side: nearest node to the LEFT whose FIRST output socket type
+    //    matches our first input -> connect that first output into our first input.
+    if (firstIn && firstIn[1]) {
+      const inKey = firstIn[0];
+      const inSocket = firstIn[1].socket.name;
+      const inFree = !editor.getConnections().some((c) => c.target === id && c.targetInput === inKey);
+      if (inFree) {
+        let best: { node: CylNode; d: number } | null = null;
+        for (const other of editor.getNodes() as CylNode[]) {
+          if (other.id === id) continue;
+          const p = area.nodeViews.get(other.id)?.position;
+          if (!p || p.x >= pos.x) continue; // must be to the LEFT
+          const out = Object.entries(other.outputs)[0];
+          if (!out || !out[1] || out[1].socket.name !== inSocket) continue;
+          const d = Math.hypot(p.x - pos.x, p.y - pos.y);
+          if (!best || d < best.d) best = { node: other, d };
+        }
+        if (best) {
+          const outKey = Object.keys(best.node.outputs)[0];
+          await editor.addConnection(new ClassicPreset.Connection(best.node, outKey, node, inKey) as unknown as Schemes["Connection"]);
+          log(`shake reconnect: ${best.node.label}.${outKey} -> ${node.label}.${inKey}`);
+        }
+      }
+    }
+
+    // 3. OUTPUT side: nearest node to the RIGHT whose FIRST input socket type
+    //    matches our first output and whose first input slot is free -> connect
+    //    our first output into that first input.
+    if (firstOut && firstOut[1]) {
+      const outKey = firstOut[0];
+      const outSocket = firstOut[1].socket.name;
+      let best: { node: CylNode; d: number } | null = null;
+      for (const other of editor.getNodes() as CylNode[]) {
+        if (other.id === id) continue;
+        const p = area.nodeViews.get(other.id)?.position;
+        if (!p || p.x <= pos.x) continue; // must be to the RIGHT
+        const inp = Object.entries(other.inputs)[0];
+        if (!inp || !inp[1] || inp[1].socket.name !== outSocket) continue;
+        const inpKey = inp[0];
+        const inFree = !editor.getConnections().some((c) => c.target === other.id && c.targetInput === inpKey);
+        if (!inFree) continue;
+        const d = Math.hypot(p.x - pos.x, p.y - pos.y);
+        if (!best || d < best.d) best = { node: other, d };
+      }
+      if (best) {
+        const inKey = Object.keys(best.node.inputs)[0];
+        await editor.addConnection(new ClassicPreset.Connection(node, outKey, best.node, inKey) as unknown as Schemes["Connection"]);
+        log(`shake reconnect: ${node.label}.${outKey} -> ${best.node.label}.${inKey}`);
+      }
+    }
+  };
+
+  container.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (e.button !== 0) return;
+      const target = e.target as Element;
+      if (target.closest?.(".cyl-rp-port") || target.closest?.(".cyl-ns") || target.closest?.("button") || target instanceof HTMLInputElement) return;
+      const hit = nodeFromTarget(editor, area, target);
+      if (!hit) return;
+      trackingId = hit.id;
+      shakeFired = false;
+      buf = [{ x: e.clientX, y: e.clientY, t: performance.now() }];
+    },
+    true,
+  );
+
+  container.addEventListener(
+    "pointermove",
+    (e) => {
+      const id = trackingId;
+      if (!id || shakeFired) return;
+      const now = performance.now();
+      buf.push({ x: e.clientX, y: e.clientY, t: now });
+      if (buf.length > 8) buf.shift();
+      // Only the last ~600ms of movement matters for the reversal pattern.
+      const recent = buf.filter((p) => now - p.t <= 600);
+      if (recent.length < 5) return;
+      let reversals = 0;
+      let prev: { dx: number; dy: number } | null = null;
+      for (let i = 1; i < recent.length; i++) {
+        const dx = recent[i].x - recent[i - 1].x;
+        const dy = recent[i].y - recent[i - 1].y;
+        if (Math.hypot(dx, dy) < 6) continue; // ignore micro-movements
+        if (prev && prev.dx * dx + prev.dy * dy < 0) reversals += 1;
+        prev = { dx, dy };
+      }
+      if (reversals < 3) return;
+      shakeFired = true;
+      void shakeNode(id);
+    },
+    true,
+  );
+
+  window.addEventListener("pointerup", reset);
+  window.addEventListener("pointercancel", reset);
 }

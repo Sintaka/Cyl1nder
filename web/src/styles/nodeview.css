@@ -50,10 +50,12 @@
 /* ---- custom rete node view (NodeView.tsx) ---- */
 .cyl-graph .cyl-rp-node {
   position: relative;
-  background: #1b1e24;
+  background: rgba(27, 30, 36, 0.5);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   border: 1px solid #3a3f4a;
   border-radius: 6px;
-  box-shadow: 0 4px 14px rgba(0,0,0,.45);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03), 0 4px 14px rgba(0,0,0,.45);
   font-family: system-ui, sans-serif;
   color: #cfd2d6;
   min-width: 264px;
@@ -64,10 +66,10 @@
 .cyl-graph .cyl-rp-node.freeze { opacity: .6; }
 .cyl-graph .cyl-rp-title { font-size: 12px; font-weight: 700; color: #7ce3a8; flex: 1; white-space: nowrap; }
 .cyl-graph .cyl-rp-badges { font-size: 9px; color: #ffd166; }
-.cyl-graph .cyl-rp-stats { font-size: 8px; color: #8f959e; white-space: pre; margin: 2px 0 4px; }
+.cyl-graph .cyl-rp-stats { font-size: 8px; color: #a9b0ba; white-space: pre; margin: 2px 0 4px; }
 .cyl-graph .cyl-rp-ports { display: flex; justify-content: space-between; gap: 8px; }
 .cyl-graph .cyl-rp-col { display: flex; flex-direction: column; gap: 2px; }
-.cyl-graph .cyl-rp-port { display: flex; align-items: center; gap: 4px; font-size: 9px; color: #8f959e; min-height: 14px; }
+.cyl-graph .cyl-rp-port { display: flex; align-items: center; gap: 4px; font-size: 9px; color: #a9b0ba; min-height: 14px; }
 /* output ports: label on the LEFT, socket on the RIGHT (line start hugs the node edge, not the label) */
 .cyl-graph .cyl-rp-port.output { flex-direction: row; }
 .cyl-graph .cyl-rp-port .output > span, .cyl-graph .cyl-rp-port .input > span {
@@ -136,6 +138,8 @@
 .cyl-graph .cyl-rp-node { overflow: hidden; } /* let chips hug the top edge */
 /* seamless: rightmost chip keeps the top-right corner radius */
 .cyl-graph .cyl-rp-chips .cyl-ns:first-child { border-top-right-radius: 6px; } /* matches node radius */
+/* chip gap dividers: 1px line between chips, same color as the node border (rightmost/display has none) */
+.cyl-graph .cyl-rp-chips .cyl-ns:not(:first-child) { border-left: 1px solid #3a3f4a; }
 /* state colors: default fully transparent; on = solid color; hover = color+half bg blend */
 .cyl-graph .cyl-ns.display.on { background: #3b82f6; }            /* Display light blue */
 .cyl-graph .cyl-ns.display:hover { background: rgba(59,130,246,.55); }

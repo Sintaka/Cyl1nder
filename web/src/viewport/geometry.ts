@@ -34,7 +34,8 @@ function buildWireSegments(points: number[][], faces: number[][], color: number)
 }
 
 /** Mesh faces -> group of { faceMesh, wireMesh } so the renderer can switch display modes
- *  (lit / unlit / wireframe / wireframe+face). Fan-triangulated; shared BufferGeometry. */
+ *  (smooth/flat shaded, unlit wire, wireframe, wireframe ghost). Fan-triangulated; shared
+ *  BufferGeometry; computeVertexNormals supplies smooth normals (flat shading uses flatShading). */
 export function buildMeshFaces(points: number[][], faces: number[][], color: number): THREE.Group | null {
   console.log("[mesh] buildMeshFaces points=", points.length, "faces=", faces.length);
   if (faces.length === 0) return null;
@@ -56,7 +57,7 @@ export function buildMeshFaces(points: number[][], faces: number[][], color: num
   geo.setIndex(tri);
   geo.computeVertexNormals(); // MeshLambertMaterial requires normals; without them faces don't shade
   const face = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x666666, side: THREE.DoubleSide }));
-  const wire = buildWireSegments(points, faces, 0x000000); // wireframe = black
+  const wire = buildWireSegments(points, faces, 0x000000); // default black; renderer overrides per display mode
   if (wire) wire.visible = false;
   const group = new THREE.Group();
   group.add(face);

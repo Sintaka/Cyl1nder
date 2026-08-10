@@ -8,16 +8,28 @@ import type { Camera } from "three";
  * Mouse-button mapping is forced to Houdini conventions (LMB rotate / MMB pan /
  * RMB dolly) because three.js defaults are LMB rotate / MMB dolly / RMB pan.
  */
-/** Move the camera along its view direction (real dolly, not fov change). dir>0 = closer. */
+/** Move the camera along its view direction (real dolly, not fov change). amount>0 = closer (zoom in). */
 function dollyCamera(controls: OrbitControls, amount: number): void {
   const cam = controls.object as THREE.PerspectiveCamera;
   const target = controls.target;
-  const dir = target.clone().sub(cam.position);
+  const dir = target.clone().sub(cam.position); // camera -> target
   const dist = dir.length();
-  if (dist < 0.001) return;
-  const next = Math.max(0.2, Math.min(200, dist + amount));
-  dir.normalize().multiplyScalar(next - dist);
-  cam.position.add(dir);
+  // Degenerate pose: the camera (nearly) coincides with the target, so `dir`
+  // is a zero vector and normalizing it would produce NaN. Fall back to the
+  // camera's own view direction (negated) so zooming OUT still works from here.
+  if (dist < 1e-4) {
+    dir.copy(cam.getWorldDirection(new THREE.Vector3()).negate());
+  } else {
+    dir.divideScalar(dist); // normalize the camera->target direction
+  }
+  // FIXED focal length: this is a real dolly - only the camera POSITION moves
+  // along its view axis; cam.fov / cam.zoom / projection matrix never change.
+  // Clamping keeps wheel-in monotonic (never crosses the near plane or snaps
+  // back) and makes wheel-out always recover.
+  const MIN_D = 0.05; // safely beyond camera.near (0.01)
+  const MAX_D = 500;
+  const next = Math.max(MIN_D, Math.min(MAX_D, dist - amount)); // +amount = closer
+  cam.position.copy(target).addScaledVector(dir, -next);
   controls.update();
 }
 

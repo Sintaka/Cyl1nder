@@ -13,6 +13,28 @@ export interface ReferenceItem {
   color: number;
 }
 
+/** Viewport display modes: smooth/flat Lambert shading (optional black wire),
+ *  unlit wire shading, pure wireframe, and a translucent wireframe ghost. */
+export type DisplayMode =
+  | "smooth-shaded"
+  | "smooth-wire"
+  | "flat-shaded"
+  | "flat-wire"
+  | "unlit-wire"
+  | "wireframe"
+  | "wireframe-ghost";
+
+/** Mode label + menu order (menu renders in object-key order, exactly as required). */
+const MODE_LABELS: Record<DisplayMode, string> = {
+  "smooth-shaded": "Smooth Shaded",
+  "smooth-wire": "Smooth Wire Shaded",
+  "flat-shaded": "Flat Shaded",
+  "flat-wire": "Flat Wire Shaded",
+  "unlit-wire": "Unlit Wire Shaded",
+  wireframe: "Wireframe",
+  "wireframe-ghost": "Wireframe Ghost",
+};
+
 /**
  * Three.js viewport (WebGLRenderer default; WebGPU swap reserved via RENDER_MODE).
  * Data/render separation: store -> refresh() -> rebuild curve groups.
@@ -33,13 +55,15 @@ export class Viewport {
   private selectedLine: THREE.Line | null = null;
   private animId = 0;
 
-  /** Simple material system: lit (grey Lambert + headlight) / unlit / wireframe / wireframe+face. */
-  displayMode: "lit" | "unlit" | "wireframe" | "wireframe-face" = "lit";
+  /** Display modes: smooth/flat shaded (Lambert, optional black wire), unlit wire, wireframe, wireframe ghost. */
+  displayMode: DisplayMode = "smooth-shaded";
   /** Debug reference boxes: verify the viewport can render (independent of incoming data). */
   private debugBoxes = new THREE.Group();
   private headLight = new THREE.DirectionalLight(0xffffff, 1.1);
   private ambient = new THREE.AmbientLight(0x404050, 0.8);
   private modeBtn: HTMLButtonElement;
+  /** Mode remembered before entering wireframe-ghost, so W can restore it. */
+  private modeBeforeGhost: DisplayMode = "smooth-shaded";
 
   private constructor(
     private container: HTMLElement,
@@ -78,18 +102,15 @@ export class Viewport {
     this.modeBtn = document.createElement("button");
     this.modeBtn.type = "button";
     this.modeBtn.className = "cyl-mode-chip";
-    this.modeBtn.textContent = "Lit";
+    this.modeBtn.textContent = MODE_LABELS[this.displayMode];
     // hold-to-open dropdown: hover an option, release applies it
     const modeMenu = document.createElement("div");
     modeMenu.className = "cyl-mode-menu hidden";
     container.appendChild(modeMenu);
     const showModeMenu = () => {
-      const modes: [string, string][] = [
-        ["lit", "Lit"],
-        ["unlit", "Unlit"],
-        ["wireframe", "Wire"],
-        ["wireframe-face", "Wire+Face"],
-      ];
+      const modes = (Object.keys(MODE_LABELS) as DisplayMode[]).map(
+        (k) => [k, MODE_LABELS[k]] as [DisplayMode, string],
+      );
       modeMenu.innerHTML = modes
         .map(([k, label]) => `<div class="cyl-mode-item ${k === this.displayMode ? "on" : ""}" data-mode="${k}">${label}</div>`)
         .join("");
@@ -101,7 +122,7 @@ export class Viewport {
     const hideModeMenu = () => modeMenu.classList.add("hidden");
     const applyMode = () => {
       const hover = modeMenu.querySelector(".cyl-mode-item.hover") as HTMLElement | null;
-      const m = (hover?.dataset.mode ?? this.displayMode) as typeof this.displayMode;
+      const m = (hover?.dataset.mode ?? this.displayMode) as DisplayMode;
       this.setDisplayMode(m);
       hideModeMenu();
     };
@@ -132,7 +153,7 @@ export class Viewport {
     modeMenu.addEventListener("click", (e) => {
       const item = (e.target as HTMLElement).closest?.(".cyl-mode-item");
       if (item) {
-        this.setDisplayMode((item as HTMLElement).dataset.mode as typeof this.displayMode);
+        this.setDisplayMode((item as HTMLElement).dataset.mode as DisplayMode);
         closeModeMenu();
       }
     });
@@ -173,6 +194,7 @@ export class Viewport {
     this.scene.add(this.referenceGroup);
 
     new ResizeObserver(() => this.resize()).observe(container);
+    this.attachKeyboardShortcuts();
     this.animate();
   }
 
@@ -365,37 +387,78 @@ export class Viewport {
     store.pushLog("[viewport] frame default view");
   }
 
-  setDisplayMode(mode: typeof this.displayMode): void {
+  setDisplayMode(mode: DisplayMode): void {
     this.displayMode = mode;
-    this.modeBtn.textContent =
-      mode === "lit" ? "Lit" : mode === "unlit" ? "Unlit" : mode === "wireframe" ? "Wire" : "Wire+Face";
+    this.modeBtn.textContent = MODE_LABELS[mode];
     this.applyDisplayMode();
     store.pushLog(`[viewport] display mode = ${mode}`);
   }
 
-  toggleDisplayMode(): void {
-    const order: (typeof this.displayMode)[] = ["lit", "unlit", "wireframe", "wireframe-face"];
-    const i = order.indexOf(this.displayMode);
-    this.setDisplayMode(order[(i + 1) % order.length]);
+  /** W / Shift+W display-mode hotkeys. Lives here (not main.ts) so F/B handlers stay untouched. */
+  private attachKeyboardShortcuts(): void {
+    const isTyping = (): boolean => {
+      const el = document.activeElement;
+      return (
+        el instanceof HTMLInputElement ||
+        el instanceof HTMLTextAreaElement ||
+        (el instanceof HTMLElement && el.isContentEditable)
+      );
+    };
+    window.addEventListener("keydown", (e) => {
+      if (e.repeat || e.key.toLowerCase() !== "w" || isTyping()) return;
+      e.preventDefault();
+      if (e.shiftKey) {
+        // Shift+W: toggle inside the shaded pair you're in; from any other mode, enter the smooth pair.
+        if (this.displayMode === "flat-shaded") this.setDisplayMode("flat-wire");
+        else if (this.displayMode === "flat-wire") this.setDisplayMode("flat-shaded");
+        else if (this.displayMode === "smooth-shaded") this.setDisplayMode("smooth-wire");
+        else if (this.displayMode === "smooth-wire") this.setDisplayMode("smooth-shaded");
+        else this.setDisplayMode("smooth-wire");
+        return;
+      }
+      // W: toggle between the PREVIOUS mode and wireframe-ghost (remember/restore).
+      if (this.displayMode === "wireframe-ghost") {
+        this.setDisplayMode(this.modeBeforeGhost);
+      } else {
+        this.modeBeforeGhost = this.displayMode;
+        this.setDisplayMode("wireframe-ghost");
+      }
+    });
   }
 
   /** Apply the current display mode to every face/wire mesh pair (curves stay lines). */
   private applyDisplayMode(): void {
+    const m = this.displayMode;
+    const wireVisible =
+      m === "smooth-wire" || m === "flat-wire" || m === "unlit-wire" || m === "wireframe" || m === "wireframe-ghost";
+    // Wireframe + ghost use bone-white wire (#CCCBBA); every other wire mode stays black.
+    const wireColor = m === "wireframe" || m === "wireframe-ghost" ? 0xcccbBA : 0x000000;
     const walk = (obj: THREE.Object3D): void => {
       const ud = obj.userData as { face?: THREE.Mesh; wire?: THREE.Mesh; color?: number };
       if (ud.face && ud.wire) {
         const color = ud.color ?? 0x4fc3f7;
-        const m = this.displayMode;
-        const faceMat =
-          m === "lit"
-            ? new THREE.MeshLambertMaterial({ color: 0x9aa0a6, side: THREE.DoubleSide })
-            : new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide });
+        let faceMat: THREE.Material | THREE.Material[];
+        if (m === "smooth-shaded" || m === "smooth-wire") {
+          // smooth vertex normals (computeVertexNormals in geometry.ts) + grey Lambert + headlight
+          faceMat = new THREE.MeshLambertMaterial({ color: 0x9aa0a6, side: THREE.DoubleSide });
+        } else if (m === "flat-shaded" || m === "flat-wire") {
+          faceMat = new THREE.MeshLambertMaterial({ color: 0x9aa0a6, side: THREE.DoubleSide, flatShading: true });
+        } else if (m === "unlit-wire") {
+          faceMat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide });
+        } else if (m === "wireframe-ghost") {
+          faceMat = new THREE.MeshBasicMaterial({
+            color: 0x000000,
+            transparent: true,
+            opacity: 0.8,
+            side: THREE.DoubleSide,
+          });
+        } else {
+          faceMat = ud.face.material; // wireframe: faces hidden, material irrelevant
+        }
         ud.face.material = faceMat;
         ud.face.visible = m !== "wireframe";
-        if (ud.wire) {
-          ud.wire.material = new THREE.LineBasicMaterial({ color: 0x000000 }); // geometry wireframe = black
-          ud.wire.visible = m === "wireframe" || m === "wireframe-face";
-        }
+        ud.wire.material = new THREE.LineBasicMaterial({ color: wireColor });
+        ud.wire.visible = wireVisible;
       }
       for (const c of obj.children) walk(c);
     };

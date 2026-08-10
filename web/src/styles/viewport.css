@@ -29,7 +29,7 @@
 /* display-mode dropdown */
 .cyl-mode-menu {
   position: fixed; z-index: 200; background: #1b1e24; border: 1px solid #3a3f4a;
-  border-radius: 6px; min-width: 118px; padding: 3px; box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  border-radius: 6px; min-width: 170px; padding: 3px; box-shadow: 0 8px 24px rgba(0,0,0,.5);
 }
 .cyl-mode-menu.hidden { display: none; }
 .cyl-mode-item { padding: 4px 10px; cursor: pointer; color: #cfd2d6; font-size: 12px; border-radius: 4px; }

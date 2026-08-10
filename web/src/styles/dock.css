@@ -3,6 +3,102 @@
 .cyl-dock { flex: 1; min-height: 0; min-width: 0; background: #141518; }
 /* dockview panels keep our dark look */
 .cyl-dock .dockview-theme-dark { --dv-group-view-background-color: #141518; }
+
+/* ---- dockview tabs: rounded rectangles (keep the app dark theme) ----
+   Tab bar + tab colors via dockview CSS vars (active tab accent = #2b6cb0).
+   Border-radius + a few px horizontal gap come from the .dv-tab rules below. */
+.cyl-dock .dockview-theme-dark {
+  --dv-tabs-and-actions-container-background-color: #1c1e22;
+  --dv-activegroup-visiblepanel-tab-background-color: #2b6cb0;
+  --dv-activegroup-visiblepanel-tab-color: #fff;
+  --dv-activegroup-hiddenpanel-tab-background-color: #1b1e24;
+  --dv-activegroup-hiddenpanel-tab-color: #9aa1ab;
+  --dv-inactivegroup-visiblepanel-tab-background-color: #20537e;
+  --dv-inactivegroup-visiblepanel-tab-color: #fff;
+  --dv-inactivegroup-hiddenpanel-tab-background-color: #17191d;
+  --dv-inactivegroup-hiddenpanel-tab-color: #8f959e;
+  --dv-tab-divider-color: transparent;
+}
+.cyl-dock .dockview-theme-dark .dv-tab {
+  border-radius: 6px;
+  margin: 3px 2px; /* horizontal gap between rounded tabs */
+}
+/* hover background for inactive tabs (dockview theme rule is very specific,
+   so !important is needed to reliably override the bundled stylesheet) */
+.cyl-dock .dockview-theme-dark .dv-tab.dv-inactive-tab:hover {
+  background-color: #2a2d33 !important;
+}
+
+/* ---- "+" add-panel button (right end of each tab bar, same rounded look) ---- */
+.cyl-dock-add {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 20px;
+  height: 20px;
+  margin: 0 6px 0 2px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #9aa1ab;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+.cyl-dock-add:hover {
+  background: #2a2d33;
+  border-color: #33363c;
+  color: #cfd2d6;
+}
+
+/* ---- "+" menu: small dark rounded menu (matches .cyl-menu-drop look) ---- */
+.cyl-dock-add-menu {
+  position: fixed;
+  z-index: 2000;
+  min-width: 180px;
+  padding: 4px;
+  background: #1b1e24;
+  border: 1px solid #3a3f4a;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+.cyl-dock-add-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: #cfd2d6;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.cyl-dock-add-menu button:hover { background: #232a33; }
+
+/* ---- instance panel placeholders (Viewport / Node Graph are singletons in v1) ---- */
+.cyl-instance-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  background: #141518;
+  color: #6b7280;
+  text-align: center;
+}
+.cyl-instance-ph-title { color: #9aa1ab; font-weight: 700; font-size: 13px; }
+.cyl-instance-ph-note { max-width: 340px; font-size: 11px; line-height: 1.5; color: #6b7280; }
+
 .cyl-graph, .cyl-viewport, .cyl-inspector, .cyl-log { width: 100%; height: 100%; }
 .cyl-log-panel { display: flex; flex-direction: column; overflow: hidden; }
 .cyl-log-panel .cyl-log-body { flex: 1; overflow: auto; padding: 4px 10px; font: 10px/1.5 ui-monospace, monospace; color: #8f959e; white-space: pre-wrap; }
