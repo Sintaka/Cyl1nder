@@ -33,6 +33,12 @@ export class Viewport {
   private selectedLine: THREE.Line | null = null;
   private animId = 0;
 
+  /** Simple material system: lit (grey Lambert + headlight) / unlit / wireframe / wireframe+face. */
+  displayMode: "lit" | "unlit" | "wireframe" | "wireframe-face" = "lit";
+  private headLight = new THREE.DirectionalLight(0xffffff, 1.1);
+  private ambient = new THREE.AmbientLight(0x404050, 0.8);
+  private modeBtn: HTMLButtonElement;
+
   private constructor(
     private container: HTMLElement,
     private onEdit: (out: OutputBuffer) => void,
@@ -57,6 +63,21 @@ export class Viewport {
 
     this.scene.background = new THREE.Color(0x1a1a1a);
     this.scene.add(new THREE.GridHelper(10, 20, 0x3a3a3a, 0x262626));
+    this.headLight.position.set(4, 6, 8);
+    this.scene.add(this.headLight);
+    this.scene.add(this.ambient);
+
+    // display-mode toggle chip (top-right of the viewport)
+    this.modeBtn = document.createElement("button");
+    this.modeBtn.type = "button";
+    this.modeBtn.className = "cyl-mode-chip";
+    this.modeBtn.textContent = "Lit";
+    this.modeBtn.title = "Display mode: Lit / Unlit / Wireframe / Wireframe+Face";
+    this.modeBtn.addEventListener("pointerdown", (e) => {
+      e.stopPropagation();
+      this.toggleDisplayMode();
+    });
+    container.appendChild(this.modeBtn);
 
     this.camera = new THREE.PerspectiveCamera(
       45,
@@ -99,12 +120,14 @@ export class Viewport {
       this.inputGroup.add(buildInputs(store.inputs));
       this.lastInputRev = store.inputRev;
       store.pushLogSilent(`[viewport] inputs rebuilt rev=${store.inputRev} curves=${store.inputs.reduce((n, i) => n + i.curves.length, 0)} faces=${store.inputs.reduce((n, i) => n + (i.faces?.length ?? 0), 0)}`);
+      this.applyDisplayMode();
     }
     if (store.outputRev !== this.lastOutputRev) {
       this.outputGroup.clear();
       this.outputGroup.add(buildOutputs(store.outputs));
       this.lastOutputRev = store.outputRev;
       store.pushLogSilent(`[viewport] outputs rebuilt rev=${store.outputRev} buffers=${store.outputs.length}`);
+      this.applyDisplayMode();
     }
   }
 
@@ -131,6 +154,7 @@ export class Viewport {
         this.referenceGroup.add(sub);
       }
     }
+    this.applyDisplayMode();
   }
 
   /** Node-graph -> viewport linkage: picking a node/port selects its curve. */
@@ -245,6 +269,43 @@ export class Viewport {
     store.pushLog("[viewport] frame default view");
   }
 
+  setDisplayMode(mode: typeof this.displayMode): void {
+    this.displayMode = mode;
+    this.modeBtn.textContent =
+      mode === "lit" ? "Lit" : mode === "unlit" ? "Unlit" : mode === "wireframe" ? "Wire" : "Wire+Face";
+    this.applyDisplayMode();
+    store.pushLog(`[viewport] display mode = ${mode}`);
+  }
+
+  toggleDisplayMode(): void {
+    const order: (typeof this.displayMode)[] = ["lit", "unlit", "wireframe", "wireframe-face"];
+    const i = order.indexOf(this.displayMode);
+    this.setDisplayMode(order[(i + 1) % order.length]);
+  }
+
+  /** Apply the current display mode to every face/wire mesh pair (curves stay lines). */
+  private applyDisplayMode(): void {
+    const walk = (obj: THREE.Object3D): void => {
+      const ud = obj.userData as { face?: THREE.Mesh; wire?: THREE.Mesh; color?: number };
+      if (ud.face && ud.wire) {
+        const color = ud.color ?? 0x4fc3f7;
+        const m = this.displayMode;
+        const faceMat =
+          m === "lit"
+            ? new THREE.MeshLambertMaterial({ color: 0x9aa0a6 })
+            : new THREE.MeshBasicMaterial({ color });
+        ud.face.material = faceMat;
+        ud.face.visible = m !== "wireframe";
+        ud.wire.material = new THREE.MeshBasicMaterial({ color, wireframe: true });
+        ud.wire.visible = m === "wireframe" || m === "wireframe-face";
+      }
+      for (const c of obj.children) walk(c);
+    };
+    walk(this.inputGroup);
+    walk(this.outputGroup);
+    walk(this.referenceGroup);
+  }
+
   private resize(): void {
     const w = this.container.clientWidth;
     const h = Math.max(1, this.container.clientHeight);
@@ -256,6 +317,8 @@ export class Viewport {
   private animate = (): void => {
     this.animId = requestAnimationFrame(this.animate);
     this.controls.update();
+    // headlight = simple camera light
+    this.headLight.position.copy(this.camera.position);
     this.renderer.render(this.scene, this.camera);
   };
 

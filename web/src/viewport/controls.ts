@@ -35,12 +35,13 @@ export class HoudiniControls {
       true,
     );
 
-    // Houdini drag-zoom on plain RMB (no Alt): right/up drag zooms IN, left/down
-    // zooms OUT, incremental, ~2x sensitivity, fully takes over RMB.
+    // Houdini drag-zoom on RMB (with or without Alt): right/up drag zooms IN,
+    // left/down zooms OUT, incremental, normalized, ~4x base sensitivity
+    // (2x the previous setting as requested). Fully takes over RMB from OrbitControls.
     dom.addEventListener(
       "pointerdown",
       (e) => {
-        if (e.button !== 2 || e.altKey) return;
+        if (e.button !== 2) return;
         e.preventDefault();
         e.stopPropagation();
         let last = { x: e.clientX, y: e.clientY };
@@ -51,7 +52,7 @@ export class HoudiniControls {
           const delta = (dx - dy) / 60; // normalized: right(+x)-up(-y) = in
           if (Math.abs(delta) > 0.001) {
             const cam = this.controls.object as THREE.PerspectiveCamera;
-            const factor = 1 + Math.abs(delta) * 2; // ~2x sensitivity
+            const factor = 1 + Math.abs(delta) * 4; // ~4x sensitivity (2x of previous 2x)
             cam.zoom = Math.max(0.05, Math.min(40, cam.zoom * (delta > 0 ? factor : 1 / factor)));
             cam.updateProjectionMatrix();
             this.controls.update();
@@ -67,6 +68,23 @@ export class HoudiniControls {
         window.addEventListener("pointercancel", up);
       },
       true,
+    );
+
+    // Wheel zoom ALWAYS works (Houdini: wheel zooms without Alt). Captured before
+    // OrbitControls so it can't be skipped by enabled=false and never doubles up.
+    dom.addEventListener(
+      "wheel",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const cam = this.controls.object as THREE.PerspectiveCamera;
+        const delta = -e.deltaY;
+        const factor = 1 + Math.min(Math.abs(delta) * 0.0016, 0.5);
+        cam.zoom = Math.max(0.05, Math.min(40, cam.zoom * (delta > 0 ? factor : 1 / factor)));
+        cam.updateProjectionMatrix();
+        this.controls.update();
+      },
+      { capture: true, passive: false },
     );
     const release = () => {
       this.controls.enabled = false;

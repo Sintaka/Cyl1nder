@@ -73,3 +73,14 @@
   3. viewport 用 **wireframe Mesh** 渲染 faces（`EdgesGeometry` 对平滑球面会丢全部边，生成空 LineSegments——坑）。
   4. renderer `preserveDrawingBuffer: true`（构造时传，便于截图/检测；实际渲染一直正常）。
 - 验证：sphere 输入 → bridge inputs pts=12 prims=20；视口 cyan 线框像素 274（sphere 显示）。
+
+## v0.1.00024（2026-08-10）
+- **滚轮缩放修复**：OrbitControls `enabled=false`（无 Alt）时连 wheel 都跳过 → 自定义 wheel（捕获阶段 preventDefault+stopPropagation），无 Alt 滚轮始终缩放。
+- **Alt+RMB 归一化缩放**：RMB（Alt 或无 Alt）统一归一化拖拽缩放（右上放大、左下缩小），灵敏度 4 倍（此前 2 倍的 2 倍）。
+- **简单材质系统 + 显示模式**（viewport 右上角 chip 循环切换）：
+  - `Lit`：mesh 面灰色 MeshLambertMaterial + 头灯（DirectionalLight 每帧跟随 camera）+ AmbientLight；
+  - `Unlit`：MeshBasicMaterial 纯色；
+  - `Wire`：仅线框（wire mesh）；
+  - `Wire+Face`：线框叠加面。
+  - mesh 由 `buildMeshFaces` 构建为 { faceMesh, wireMesh } Group，`applyDisplayMode()` 切换；曲线保持线。
+- **polygon 面显示**：Lit 模式实体灰面（此前只有线框）。协议 faces → 面渲染闭环完成。

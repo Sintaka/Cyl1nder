@@ -400,26 +400,26 @@
 |---|---|---|---|---|
 | `createRenderer` | 18 | function | export | 1 |
 
-## web/src/viewport/controls.ts（82 行）
+## web/src/viewport/controls.ts（100 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `HoudiniControls` | 11 | class | export | 0 |
-| `onMove` | 47 | arrow |  | 0 |
-| `up` | 60 | arrow |  | 1 |
-| `release` | 71 | arrow |  | 0 |
+| `onMove` | 48 | arrow |  | 0 |
+| `up` | 61 | arrow |  | 1 |
+| `release` | 89 | arrow |  | 0 |
 
-## web/src/viewport/geometry.ts（77 行）
+## web/src/viewport/geometry.ts（83 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `toVec` | 7 | function |  | 1 |
-| `buildMeshFaces` | 14 | function | export | 2 |
-| `buildCurves` | 35 | function | export | 3 |
-| `buildInputs` | 59 | function | export | 1 |
-| `buildOutputs` | 69 | function | export | 1 |
+| `buildMeshFaces` | 13 | function | export | 2 |
+| `buildCurves` | 41 | function | export | 3 |
+| `buildInputs` | 65 | function | export | 1 |
+| `buildOutputs` | 75 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（270 行）
+## web/src/viewport/renderer.ts（333 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|

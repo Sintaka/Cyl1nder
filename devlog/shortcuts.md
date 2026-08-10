@@ -26,6 +26,7 @@
 | `Alt` + 左键拖动 | 旋转 |
 | `Alt` + 中键拖动 | 平移 |
 | `Alt` + 右键拖动 | 缩放（OrbitControls dolly） |
-| 右键拖动（无 Alt） | **归一化拖拽缩放**：向右上拖 = 放大拉近，向左下拖 = 拉远，灵敏度约 2 倍 |
-| 滚轮 | 缩放窗口 |
+| 右键拖动（Alt 或无 Alt） | **归一化拖拽缩放**：向右上拖 = 放大拉近，向左下拖 = 拉远，增量归一化，灵敏度约 4 倍（2x 之前设置） |
+| 滚轮（无需 Alt） | 缩放窗口（捕获阶段自定义 wheel，OrbitControls enabled=false 不再吞掉） |
+| 右上角模式 chip（点击） | 显示模式循环：Lit（灰色 Lambert + 头灯）/ Unlit（纯色）/ Wire（仅线框）/ Wire+Face（线框+面） |
 | 左键点选曲线 | 选中并拖拽平移（TransformControls，编辑 → push outputs） |

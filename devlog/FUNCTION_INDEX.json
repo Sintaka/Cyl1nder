@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-10T12:17:42.458Z",
+  "generatedAt": "2026-08-10T12:40:03.536Z",
   "totalFunctions": 227,
   "files": [
     {
@@ -1735,7 +1735,7 @@
     },
     {
       "file": "web/src/viewport/controls.ts",
-      "lineCount": 82,
+      "lineCount": 100,
       "functions": [
         {
           "name": "HoudiniControls",
@@ -1746,21 +1746,21 @@
         },
         {
           "name": "onMove",
-          "line": 47,
+          "line": 48,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "up",
-          "line": 60,
+          "line": 61,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "release",
-          "line": 71,
+          "line": 89,
           "kind": "arrow",
           "exported": false,
           "calls": 0
@@ -1769,7 +1769,7 @@
     },
     {
       "file": "web/src/viewport/geometry.ts",
-      "lineCount": 77,
+      "lineCount": 83,
       "functions": [
         {
           "name": "toVec",
@@ -1780,28 +1780,28 @@
         },
         {
           "name": "buildMeshFaces",
-          "line": 14,
+          "line": 13,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "buildCurves",
-          "line": 35,
+          "line": 41,
           "kind": "function",
           "exported": true,
           "calls": 3
         },
         {
           "name": "buildInputs",
-          "line": 59,
+          "line": 65,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "buildOutputs",
-          "line": 69,
+          "line": 75,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -1810,7 +1810,7 @@
     },
     {
       "file": "web/src/viewport/renderer.ts",
-      "lineCount": 270,
+      "lineCount": 333,
       "functions": [
         {
           "name": "Viewport",

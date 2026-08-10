@@ -185,3 +185,12 @@ html, body, #app { height: 100%; margin: 0; }
 .cyl-dock .dockview-theme-dark { --dv-group-view-background-color: #141518; }
 .cyl-graph, .cyl-viewport, .cyl-inspector, .cyl-log { width: 100%; height: 100%; }
 .cyl-log { overflow: auto; padding: 4px 10px; font: 10px/1.5 ui-monospace, monospace; color: #8f959e; white-space: pre-wrap; }
+
+/* viewport display-mode toggle chip (top-right) */
+.cyl-mode-chip {
+  position: absolute; top: 8px; right: 8px; z-index: 20;
+  background: rgba(30, 41, 59, 0.92); border: 1px solid #4b5563; border-radius: 6px;
+  color: #e5e7eb; font-size: 11px; padding: 3px 9px; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,.4);
+}
+.cyl-mode-chip:hover { border-color: #60a5fa; }

@@ -8,10 +8,9 @@ function toVec(p: number[]): THREE.Vector3 {
   return new THREE.Vector3(p[0], p[1], p[2]);
 }
 
-/** Mesh faces -> wireframe mesh (fan-triangulated). EdgesGeometry is unusable here:
- *  on smooth surfaces (e.g. a sphere) it drops nearly every edge, yielding an empty
- *  LineSegments. A wireframe Mesh draws every triangle edge reliably. */
-export function buildMeshFaces(points: number[][], faces: number[][], color: number): THREE.Mesh | null {
+/** Mesh faces -> group of { faceMesh, wireMesh } so the renderer can switch display modes
+ *  (lit / unlit / wireframe / wireframe+face). Fan-triangulated; shared BufferGeometry. */
+export function buildMeshFaces(points: number[][], faces: number[][], color: number): THREE.Group | null {
   if (faces.length === 0) return null;
   const tri: number[] = [];
   for (const face of faces) {
@@ -28,7 +27,14 @@ export function buildMeshFaces(points: number[][], faces: number[][], color: num
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geo.setIndex(tri);
-  return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, wireframe: true }));
+  const face = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x9aa0a6 }));
+  const wire = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, wireframe: true }));
+  wire.visible = false;
+  const group = new THREE.Group();
+  group.add(face);
+  group.add(wire);
+  group.userData = { color, face, wire };
+  return group;
 }
 
 /** One polyline per curve + wireframe for mesh faces; store curve + input index in userData. */
