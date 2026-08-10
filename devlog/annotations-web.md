@@ -141,3 +141,8 @@
 - **null 唯一命名从 null1 开始**：第一个 null 即 `null1`（Houdini 式），创建时检测 label 冲突并递增到无冲突（不简单 +1 复用）。
 - **display 支持中间 null 节点**：`getDisplayNode()` 返回当前 display 节点（任意 kind），viewport 按其 kind 显示——null 直通输出 → 显示 inputs（修复 display null 时 inputs/outputs 全 false）。
 - **geo 连线朱红**：所有 connection path + geo socket 改朱红 `#ff6b6b`（CSS 统一），浅蓝预留 float。
+
+## v0.1.00033（2026-08-10）
+- **节点图序列化 round-trip（scene-snapshot-research P0）**：`graph.serializeGraph()`（nodes 含 id/kind/label/flags/位置 + connections + viewport transform）→ `restoreGraph()`（清空重建节点+连接+视口，null 命名恢复）；连接时从快照恢复 node-graph；store 变化防抖 1.5s 保存 graph。
+- **dock 布局保存**：dockview 布局变化 → `PUT snapshot {docking}`（docking-layout.json）+ localStorage；恢复暂用程序化 Desk1（fromJSON bug 未解，记录）。
+- **node-parm.json 预留**：绝对地址键（如 `/obj/geo1/Cyl1nder1/cyl1nder_py0`）存节点参数，参数系统设计后填充。

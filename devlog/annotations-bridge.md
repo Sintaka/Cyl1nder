@@ -29,3 +29,17 @@
   - `routes.py`：`PUT /inputs`、`PUT /outputs` 后 `_maybe_snapshot()` 节流写快照（≥5s，防 cook 风暴）；`GET /api/hda/<serial>/snapshot` 读快照。
   - `workspace.all_outputs()` 新增。
   - 验证：smoke 后快照文件生成（inputs/meta/outputs），GET snapshot 返回。
+
+## v0.1.00033（2026-08-10）
+- **快照系统 v2（固定格式 + 分目录）**：
+  ```
+  <hip目录>/Cyl1nder/<serial>/
+    io/inputs.json           几何输入缓存
+    io/outputs.json          几何输出缓存
+    scene/meta.json          metadata（schemaVersion 2）
+    scene/node-graph.json    节点网络（nodes/connections/viewport，web 保存）
+    scene/node-parm.json     节点参数（绝对地址键，预留）
+    docking-layout.json      dockview 布局（web 保存）
+  ```
+  文件**固定名（无 serial 前缀）**——serial 即文件夹名；兼容 v1 旧格式（`<serial>.<part>.json` 读取回退）。
+- REST：`PUT /api/hda/{serial}/snapshot` 接收 `{graph, parm, docking}`（web 显式保存 scene 部分）；`GET /api/hda/{serial}/snapshot` 返回全部 parts。

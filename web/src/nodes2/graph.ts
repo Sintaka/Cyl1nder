@@ -50,6 +50,8 @@ export interface ReteGraph {
   setFlag(kind: NodeKind, key: keyof NodeFlags, value: boolean): NodeFlags | undefined;
   getDisplayNode(): { kind: NodeKind; flags: NodeFlags } | null;
   frameSelection(): void;
+  serializeGraph(): unknown;
+  restoreGraph(data: unknown): Promise<void>;
 }
 
 const GEO = "geo";
@@ -283,6 +285,55 @@ export async function createReteGraph(
       const target = selected.length > 0 ? selected : all;
       if (target.length > 0) void AreaExtensions.zoomAt(g.area, target);
       store.pushLog(`[node] frame ${selected.length > 0 ? `${selected.length} selected` : "all"} nodes`);
+    },
+    serializeGraph: () => {
+      const nodes = g.editor.getNodes().map((n) => {
+        const c = n as CylNode;
+        const pos = g.area.nodeViews.get(n.id)?.position;
+        return { id: n.id, kind: c.kind, label: c.label, baseLabel: c.baseLabel, flags: c.flags, x: pos?.x ?? 0, y: pos?.y ?? 0 };
+      });
+      const connections = g.editor.getConnections().map((c) => ({
+        source: c.source,
+        sourceOutput: c.sourceOutput,
+        target: c.target,
+        targetInput: c.targetInput,
+      }));
+      return { schemaVersion: 2, viewport: { ...g.area.area.transform }, nodes, connections };
+    },
+    restoreGraph: async (data) => {
+      const d = data as {
+        nodes?: { id: string; kind: NodeKind; label: string; baseLabel?: string; flags?: NodeFlags; x: number; y: number }[];
+        connections?: { source: string; sourceOutput: string; target: string; targetInput: string }[];
+        viewport?: { k: number; x: number; y: number };
+      };
+      if (!d?.nodes) return;
+      for (const n of g.editor.getNodes()) await g.editor.removeNode(n.id);
+      const idMap = new Map<string, string>();
+      for (const nd of d.nodes) {
+        let n: CylNode;
+        if (nd.kind === "input") n = makeInputNode();
+        else if (nd.kind === "output") n = makeOutputNode();
+        else n = makeNullNode();
+        n.flags = { ...DEFAULT_FLAGS, ...(nd.flags ?? {}) };
+        n.label = nd.label ?? n.label;
+        n.baseLabel = nd.baseLabel ?? n.baseLabel;
+        await g.editor.addNode(n);
+        idMap.set(nd.id, n.id);
+        await g.area.translate(n.id, { x: nd.x ?? 0, y: nd.y ?? 0 });
+      }
+      for (const c of d.connections ?? []) {
+        const src = g.editor.getNode(idMap.get(c.source) ?? "") as CylNode | undefined;
+        const tgt = g.editor.getNode(idMap.get(c.target) ?? "") as CylNode | undefined;
+        if (!src || !tgt) continue;
+        await g.editor.addConnection(
+          new ClassicPreset.Connection(src, c.sourceOutput, tgt, c.targetInput) as unknown as Schemes["Connection"],
+        );
+      }
+      if (d.viewport && d.viewport.k) {
+        await g.area.area.zoom(d.viewport.k);
+        await g.area.area.translate(d.viewport.x ?? 0, d.viewport.y ?? 0);
+      }
+      store.pushLog(`[node] restored graph: ${d.nodes.length} nodes / ${(d.connections ?? []).length} connections`);
     },
   };
 }

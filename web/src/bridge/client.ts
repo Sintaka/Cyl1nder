@@ -79,8 +79,22 @@ export class BridgeClient {
   /** Unified path system: read the disk snapshot (cyl://<serial>/snapshot). */
   async getSnapshot(
     serial: string,
-  ): Promise<{ serial: string; snapshot: { inputs?: unknown[]; outputs?: unknown[] } | null }> {
+  ): Promise<{ serial: string; snapshot: { inputs?: unknown[]; outputs?: unknown[]; graph?: unknown; parm?: unknown; docking?: unknown } | null }> {
     return json(await fetch(`${this.base}/api/hda/${serial}/snapshot`));
+  }
+
+  /** Persist the scene part: node graph / node params / docking layout. */
+  async putSnapshot(
+    serial: string,
+    data: { graph?: unknown; parm?: unknown; docking?: unknown },
+  ): Promise<{ ok: boolean; serial: string }> {
+    return json(
+      await fetch(`${this.base}/api/hda/${serial}/snapshot`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    );
   }
 
   async getLogs(serial?: string, level?: string, limit = 200): Promise<LogEntry[]> {

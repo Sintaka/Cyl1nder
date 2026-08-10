@@ -124,11 +124,12 @@ store.subscribe(() => {
   graph.setStats("input", inputStatsText());
   graph.setStats("output", outputStatsText());
   renderInspector();
-  layout.logEl.textContent = store.logs.slice(-10).join("\n");
+  layout.logEl.textContent = store.logs.slice(-40).join("\n");
   layout.statusDot.className = `cyl-status ${store.status}`;
   viewport.refresh();
   refreshNodeFlags();
   renderSpreadsheet(spreadsheetEl, store.inputs, "inputs");
+  scheduleSaveGraph();
   const showHint = !store.serial || store.status === "offline";
   layout.hintEl.classList.toggle("hidden", !showHint);
   layout.hintEl.textContent = !store.serial
@@ -199,6 +200,15 @@ async function loadSnapshotIntoStore(serial: string): Promise<void> {
     if (Array.isArray(inputs) && inputs.length > 0 && store.inputs.length === 0) {
       store.setInputs(inputs as never, store.inputRev + 1); // bump rev so viewport rebuilds
       store.pushLog(`[path] restored ${inputs.length} inputs from snapshot`);
+    }
+    const g = snapshot.graph as { nodes?: unknown[] } | undefined;
+    if (g?.nodes?.length) {
+      try {
+        await graph.restoreGraph(snapshot.graph);
+        store.pushLog(`[path] restored node graph (${g.nodes.length} nodes)`);
+      } catch (e) {
+        store.pushLog(`[path] graph restore failed: ${String(e)}`);
+      }
     }
     if (Array.isArray(outputs) && outputs.length > 0 && store.outputs.length === 0) {
       store.upsertOutputs(outputs as never, store.outputRev + 1);
@@ -286,5 +296,19 @@ window.addEventListener("keydown", (e) => {
   if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
   viewport.toggleDebugBoxes();
 });
+
+/** Debounced persist of the node graph (nodes/positions/connections) to the path system. */
+var saveGraphTimer: number | undefined; // var: subscribe callback may fire before this line (TDZ-safe)
+function scheduleSaveGraph(): void {
+  if (saveGraphTimer !== undefined) window.clearTimeout(saveGraphTimer);
+  saveGraphTimer = window.setTimeout(() => {
+    if (!store.serial) return;
+    try {
+      void client.putSnapshot(store.serial, { graph: graph.serializeGraph() }).catch(() => undefined);
+    } catch {
+      /* ignore */
+    }
+  }, 1500);
+}
 
 store.pushLog(`Cyl1nder web v${APP_VERSION} · Tab=搜索 Y=剪切 右键=flags F=frame`);

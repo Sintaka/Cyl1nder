@@ -164,6 +164,23 @@ async def put_ui_layout(payload: dict) -> dict:
     return {"ok": True}
 
 
+@router.put("/api/hda/{serial}/snapshot")
+async def put_snapshot(serial: str, payload: dict) -> dict:
+    """Web persists the node graph / node params / docking layout (scene part)."""
+    _check_serial(serial)
+    st = get_state()
+    rec = st.registry.get(serial)
+    hip = rec.hip if rec else ""
+    write_snapshot(
+        serial,
+        hip,
+        graph=payload.get("graph"),
+        parm=payload.get("parm"),
+        docking=payload.get("docking"),
+    )
+    return {"ok": True, "serial": serial}
+
+
 @router.get("/api/logs")
 async def global_logs(
     level: str | None = None,

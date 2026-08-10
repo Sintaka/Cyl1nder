@@ -112,9 +112,11 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
           !Array.isArray((n as { data?: unknown }).data);
         if (bad((json as { grid?: { root?: unknown } })?.grid?.root)) return;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(json));
-        void client.putUiLayout(json).catch(() => undefined);
+        // persist as docking-layout.json in the unified path system
+        if (store.serial) {
+          void client.putSnapshot(store.serial, { docking: json }).catch(() => undefined);
+        }
         store.pushLog(layoutDebug(container, byId));
-        store.pushLog(`[layout-json] ${JSON.stringify(json)}`);
       } catch {
         /* ignore */
       }
