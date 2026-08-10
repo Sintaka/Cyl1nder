@@ -1,10 +1,10 @@
-﻿# Cyl1nder
+# Cyl1nder
 
 Cyl1nder 是「数据进 → 可视化/编辑 → 数据出」的**中间站**，用于打通 Houdini SOP HDA 与 WebGL 前端：
 Houdini 里的 Cyl1nder HDA（4 输入/4 输出）把几何推到本地桥（127.0.0.1:8375），浏览器里用 Three.js
-视口 + @antv/x6 节点图查看/编辑，再把结果拉回 Houdini 继续处理。Cyl1nder 不做成 DCC，剩下工作交给 Houdini。
+视口 + rete.js 节点图查看/编辑，再把结果拉回 Houdini 继续处理。Cyl1nder 不做成 DCC，剩下工作交给 Houdini。
 
-版本：`0.1.0-cyl1nder.<dailybuild>`（规范见 devlog/development-standards.md）
+版本：`0.1.00041`（x.xxx.xxxxx，每次 commit dailybuild++，规范见 devlog/development-standards.md）
 
 **许可证**：Cyl1nder Source-Available Non-Commercial License（禁止商用，个人学习/非商业可用；最终使用者负全责，与作者无关；详见根 LICENSE）。
 
@@ -37,7 +37,7 @@ Tab 搜索 **Cyl1nder** 创建节点（4 输入 / 4 输出）。免重启迭代�
 |---|---|
 | `bridge/` | Python 本地桥：registry / workspace / logs / REST / WS / MCP / compute 接口 |
 | `hda/` | Subnet HDA（4 进 4 出）+ 序列化器 + 桥客户端 + hython 冒烟 |
-| `web/` | Vite + TS：Three.js 视口 + X6 节点图 + 编辑工具 |
+| `web/` | Vite + TS：Three.js 视口 + rete.js 节点图 + 编辑工具 |
 | `mcp/` | Houdini MCP 启动器 + 桥 MCP 启动器 + 安装脚本 |
 | `scripts/` | 函数索引 / 依赖图 / API 索引生成器 |
 | `devlog/` | 规范、决策、协议、改动标注 |

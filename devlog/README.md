@@ -70,9 +70,12 @@
 | 节点状态 chip（D/R/B/F） | web/src/nodes2/NodeView.tsx · web/src/styles/nodeview.css |
 | nodeview MCP 工具 | scripts/cyl_debug.py nodeview <serial> · bridge/bridge/mcp_server.py · devlog/nodeview-mcp-report.md |
 | 并行修改规范（子智能体） | devlog/development-standards.md（「并行修改规范」章节） |
+| 编码规范 / 中文乱码 / git 历史清理 | devlog/development-standards.md（「编码与 Git 卫生」章节） |
 | Spreadsheet / 层级持久 / 列宽 | web/src/app/spreadsheet.ts · web/src/styles/spreadsheet.css · devlog/annotations-web.md |
 
 ## 最近版本
+- v0.1.00041：修复 viewport-bug-report / annotations-web 首行合并（PowerShell git show 数组未 -join 换行）；编码/数组坑 + git 历史卫生写入 development-standards；根 README（x6→rete、版本格式）与 AGENT_QUICKSTART（nodes→nodes2）过期引用同步。
+- v0.1.00040：git 历史清理（filter-branch 替换 devlog/README.md 巨 blob，.git 69MB→2MB，--force-with-lease 推送成功）；恢复 5 个被管道编码写坏的 devlog 文件（README/annotations-web/viewport-bug-report/shortcuts/temp-scene-log）。
 - v0.1.00039：spreadsheet.css 再拆分 + 4 路并行（Bacon/McClintock/Noether/James）：spreadsheet display-focus 过滤（null/_input_ 只显对应源）、层级持久（不因刷新回 point）、行交替深蓝、ptnum 窄列 int + P 每分量 10ch + 科学计数、标题栏漏缝修复；视口补 Unlit Shaded/Unlit Wire Shaded 对（Shift+W），Wireframe Ghost 面 0.2（80% 透明）；节点改名修复（rete remount 吞 dblclick → 手动 pointerdown 检测 + 模块级状态）+ 究极尾号去重（foo→foo1…）+ 毛玻璃 blur12px/明度+0.1；docking 标签上半圆角下半反圆角、活动深蓝、+ 跟随标签右移、标签栏滚轮横滚、✕ 固定右侧关闭整个 group、全局深色滚动条；并行修改规范写入 development-standards.md。
 - v0.1.00038：CSS 按域拆分（base/nodeview/viewport/dock）支持并行；相机 dolly 重写（焦距固定、无 NaN、0.05~500 钳制，修复贴原点拉不回+滚轮横跳）；显示模式 7 档（Smooth/Flat Shaded + Wire 对、Unlit Wire Shaded、Wireframe #CCCBBA、Wireframe Ghost，W/Shift+W 切换）；nodeview LMB 不平移（只框选）、按住 Y 拖红线切连线、甩动节点断联+就近自动重连；节点毛玻璃 0.5 + chip 间隔线；docking 圆角标签 + `+` 添加独立实例面板（5 种）。
 - v0.1.00037：Default.json（项目内布局，默认启动，修 dockview 加载时序/内容掉挂）；显示模式菜单 position:fixed + 单击持久/拖动应用；视口相机改真位移（dolly 非 fov fake）；_input_/_output_ display 只显示第一端口；右上 4 状态按钮方形贴角（14x14）；display 蓝优先级高于选中黄；修复 4 条无头线段（restoreGraph 先清孤立连接 + serialize 防御过滤）；MCP/调试钩子 __cylDv/__cylViewport。

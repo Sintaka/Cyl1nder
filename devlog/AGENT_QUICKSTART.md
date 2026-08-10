@@ -1,4 +1,4 @@
-﻿# AGENT_QUICKSTART — 新 agent 快速入口
+# AGENT_QUICKSTART — 新 agent 快速入口
 
 Cyl1nder = Houdini ⇄ 本地桥 ⇄ WebGL 前端 的中间站。目标不是 DCC。
 
@@ -10,7 +10,7 @@ Cyl1nder = Houdini ⇄ 本地桥 ⇄ WebGL 前端 的中间站。目标不是 DC
 
 ## 代码地图（定点搜索，不要整文件读）
 - 桥：bridge/bridge/{protocol,registry,workspace,logs,routes,ws,main,mcp_server,compute}.py
-- 前端：web/src/{app,bridge,stores,nodes,viewport,tools,protocol}
+- 前端：web/src/{app,bridge,stores,nodes2,styles,viewport,tools,protocol}
 - Houdini：hda/src/{cyl1nder_serializer,cyl1nder_bridge,cyl1nder_hda}.py
 - 索引脚本：scripts/gen-{index,graph,api-index}.mjs
 
