@@ -8,6 +8,19 @@ import type { Camera } from "three";
  * Mouse-button mapping is forced to Houdini conventions (LMB rotate / MMB pan /
  * RMB dolly) because three.js defaults are LMB rotate / MMB dolly / RMB pan.
  */
+/** Move the camera along its view direction (real dolly, not fov change). dir>0 = closer. */
+function dollyCamera(controls: OrbitControls, amount: number): void {
+  const cam = controls.object as THREE.PerspectiveCamera;
+  const target = controls.target;
+  const dir = target.clone().sub(cam.position);
+  const dist = dir.length();
+  if (dist < 0.001) return;
+  const next = Math.max(0.2, Math.min(200, dist + amount));
+  dir.normalize().multiplyScalar(next - dist);
+  cam.position.add(dir);
+  controls.update();
+}
+
 export class HoudiniControls {
   readonly controls: OrbitControls;
 
@@ -51,11 +64,7 @@ export class HoudiniControls {
           last = { x: ev.clientX, y: ev.clientY };
           const delta = (dx - dy) / 60; // normalized: right(+x)-up(-y) = in
           if (Math.abs(delta) > 0.001) {
-            const cam = this.controls.object as THREE.PerspectiveCamera;
-            const factor = 1 + Math.abs(delta) * 2; // ~2x sensitivity (halved from 4x per request)
-            cam.zoom = Math.max(0.05, Math.min(40, cam.zoom * (delta > 0 ? factor : 1 / factor)));
-            cam.updateProjectionMatrix();
-            this.controls.update();
+            dollyCamera(this.controls, delta * 0.5); // ~2x sensitivity real dolly
           }
         };
         const up = () => {
@@ -77,12 +86,8 @@ export class HoudiniControls {
       (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const cam = this.controls.object as THREE.PerspectiveCamera;
         const delta = -e.deltaY;
-        const factor = 1 + Math.min(Math.abs(delta) * 0.0016, 0.5);
-        cam.zoom = Math.max(0.05, Math.min(40, cam.zoom * (delta > 0 ? factor : 1 / factor)));
-        cam.updateProjectionMatrix();
-        this.controls.update();
+        dollyCamera(this.controls, delta * 0.02); // real camera displacement
       },
       { capture: true, passive: false },
     );

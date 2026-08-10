@@ -1,5 +1,6 @@
 import "./styles.css";
 import { buildLayout } from "./app/layout";
+import { DEFAULT_LAYOUT, DEFAULT_LAYOUT_NAME } from "./app/layouts";
 import { applyLayout, setupDock } from "./app/dock";
 import { renderSpreadsheet } from "./app/spreadsheet";
 import { store } from "./stores/workspace";
@@ -56,6 +57,7 @@ layout.logEl.appendChild(logBody);
 const spreadsheetEl = document.createElement("div");
 spreadsheetEl.id = "cyl-spreadsheet";
 spreadsheetEl.className = "cyl-spreadsheet";
+(window as unknown as Record<string, unknown>).__cylDv = null; // debug hook (MCP debug access)
 const dv = setupDock(layout.dockContainer, {
   graph: layout.graphContainer,
   viewport: layout.viewportContainer,
@@ -63,6 +65,13 @@ const dv = setupDock(layout.dockContainer, {
   log: layout.logEl,
   spreadsheet: spreadsheetEl,
 });
+(window as unknown as Record<string, unknown>).__cylDv = dv;
+// dockview lazily mounts inactive tab content: the Log panel's .cyl-log element is NOT in
+// the DOM until its tab is activated. Re-render accumulated logs when it comes on screen.
+(dv as unknown as { api?: { onDidActiveChange?: (fn: (e: { panel: { id: string } }) => void) => unknown } }).api
+  ?.onDidActiveChange?.((e) => {
+    if (e.panel.id === "log") renderLog();
+  });
 
 // ---------------- menu bar (File / Layout) ----------------
 layout.root.querySelectorAll(".cyl-menu").forEach((menu) => {
@@ -81,7 +90,7 @@ layout.root.querySelectorAll(".cyl-menu").forEach((menu) => {
   }, { capture: true });
 });
 
-let currentLayoutName = "Desk1";
+let currentLayoutName = DEFAULT_LAYOUT_NAME;
 const getDockJson = () => (dv as unknown as { toJSON(): unknown }).toJSON();
 const saveCurrentLayout = (name: string) => {
   void client.saveLayout(name, getDockJson()).then((r) => {
@@ -143,18 +152,17 @@ layout.menuLayout.querySelectorAll("button").forEach((b) => {
       const name = window.prompt("Layout name (same name overwrites):", currentLayoutName);
       if (name) saveCurrentLayout(name.trim());
     } else if (act === "reload-layout") {
-      // re-apply the saved layout, else fall back to the programmatic Desk1
+      // re-apply the saved layout, else fall back to the bundled Default.json
       void client.loadLayout(currentLayoutName).then((r) => {
-        if (r.layout) {
-          applyLayout(dv, r.layout, {
-            graph: layout.graphContainer,
-            viewport: layout.viewportContainer,
-            inspector: layout.inspectorEl,
-            log: layout.logEl,
-            spreadsheet: spreadsheetEl,
-          });
-          store.pushLog(`[layout] reloaded "${currentLayoutName}"`);
-        }
+        const json = r.layout ?? DEFAULT_LAYOUT;
+        applyLayout(dv, json, {
+          graph: layout.graphContainer,
+          viewport: layout.viewportContainer,
+          inspector: layout.inspectorEl,
+          log: layout.logEl,
+          spreadsheet: spreadsheetEl,
+        });
+        store.pushLog(`[layout] reloaded "${currentLayoutName}"${r.layout ? "" : " (bundled default)"}`);
       });
     }
   });
@@ -179,6 +187,7 @@ layout.autoRunCheck.addEventListener("change", () => {
   store.pushLog(`auto-run ${autoRun ? "on" : "off"}`);
 });
 
+(window as unknown as Record<string, unknown>).__cylViewport = null; // debug hook
 const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuffer) => {
   if (!store.serial) return;
   client
@@ -186,15 +195,29 @@ const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuf
     .then((r) => store.pushLog(`edit out${out.index} pushed rev=${r.rev}`))
     .catch((e) => store.pushLog(`edit failed: ${String(e)}`));
 });
+(window as unknown as Record<string, unknown>).__cylViewport = viewport;
+
+// Default startup layout: bundled Default.json (the user's Desk1 arrangement, versioned in the
+// project). Applied AFTER graph + viewport are created so dockview fromJSON moves panels that
+// already own their content (fixes the load-timing / collapsed-panel cascade).
+applyLayout(dv, DEFAULT_LAYOUT, {
+  graph: layout.graphContainer,
+  viewport: layout.viewportContainer,
+  inspector: layout.inspectorEl,
+  log: layout.logEl,
+  spreadsheet: spreadsheetEl,
+});
+currentLayoutName = DEFAULT_LAYOUT_NAME;
+store.pushLog(`[layout] default layout "${DEFAULT_LAYOUT_NAME}" applied`);
 
 /** Node flags -> viewport: display visibility + reference reference overlays. */
 function refreshNodeFlags(): void {
   // Viewport follows the node-view display flag of WHATEVER node is displayed,
   // at PORT level (not just node kind):
-  //   _input_  -> show all 4 source inputs (in0..in3)
+  //   _input_  -> show ONLY the first source input (in0)
   //   null     -> passthrough: show ONLY the input segment wired through it
   //               (graph.getDisplayPortIndex() resolves in0..in3 from the graph)
-  //   _output_ -> show result buffers (outputs); nothing when Houdini hasn't pushed
+  //   _output_ -> show ONLY the first output buffer (out0); nothing when Houdini hasn't pushed
   //   no display node -> keep showing inputs (safe source view)
   const disp = graph.getDisplayNode();
   const kind = disp?.kind ?? null;
@@ -206,10 +229,17 @@ function refreshNodeFlags(): void {
   if (kind === "null") {
     // display only the input segment routed through this null node
     viewport.setDisplayFocus("inputs", graph.getDisplayPortIndex());
+  } else if (kind === "input") {
+    // _input_ displayed: Houdini shows ONE source - only the first port
+    viewport.setDisplayFocus("inputs", 0);
   } else {
     viewport.setDisplayFocus("inputs", null);
   }
-  viewport.setDisplayFocus("outputs", null);
+  if (kind === "output") {
+    viewport.setDisplayFocus("outputs", 0); // only the first output buffer
+  } else {
+    viewport.setDisplayFocus("outputs", null);
+  }
 
   const inFlags = graph.getFlags("input");
   const outFlags = graph.getFlags("output");

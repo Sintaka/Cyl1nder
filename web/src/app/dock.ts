@@ -129,22 +129,19 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
   return dv;
 }
 
-/** Apply a saved layout JSON (best effort); re-attach orphaned content elements. */
-export function applyLayout(dv: DockviewComponent, json: unknown, content: DockContent): void {
+/** Apply a saved layout JSON (best effort).
+ *  NOTE: dockview 7 lazily mounts inactive tab content - a tab that is never shown
+ *  keeps its content element inside a DETACHED wrapper until activated (the tab bar
+ *  survives but .cyl-log is not in the DOM). This is dockview's intended behavior;
+ *  the app reacts to it in main.ts via api.onDidActiveChange -> renderLog().
+ */
+export function applyLayout(dv: DockviewComponent, json: unknown, _content: DockContent): void {
   try {
     (dv as unknown as { fromJSON(d: unknown, o: { reuseExistingPanels: boolean }): void }).fromJSON(
       json as Parameters<DockviewComponent["fromJSON"]>[0],
       { reuseExistingPanels: true },
     );
   } catch {
-    /* fall through to re-attach */
+    /* fall through to the programmatic layout already built by setupDock */
   }
-  setTimeout(() => {
-    for (const [id, el] of Object.entries(content)) {
-      if (el.isConnected) continue;
-      const panel = dv.getPanel(id) as { view?: { content?: { element?: HTMLElement } } } | undefined;
-      const contentEl = panel?.view?.content?.element;
-      if (contentEl && !el.isConnected) contentEl.appendChild(el);
-    }
-  }, 250);
 }

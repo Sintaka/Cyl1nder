@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **267** 个函数/类。
+> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **271** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -302,13 +302,14 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/dock.ts（151 行）
+## web/src/app/dock.ts（161 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `layoutDebug` | 28 | function |  | 2 |
 | `setupDock` | 38 | function | export | 1 |
-| `applyLayout` | 133 | function | export | 1 |
+| `reattachOrphans` | 136 | function |  | 4 |
+| `applyLayout` | 148 | function | export | 1 |
 
 ## web/src/app/layout.ts（172 行）
 
@@ -317,7 +318,7 @@
 | `buildLayout` | 20 | function | export | 1 |
 | `buildLayoutLegacy` | 99 | function | export | 1 |
 
-## web/src/app/layouts.ts（119 行）
+## web/src/app/layouts.ts（11 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -346,29 +347,29 @@
 | `connectWs` | 126 | function | export | 1 |
 | `connect` | 131 | arrow |  | 1 |
 
-## web/src/main.ts（457 行）
+## web/src/main.ts（487 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `matchLogFilter` | 29 | arrow |  | 0 |
-| `renderLog` | 30 | arrow |  | 2 |
-| `toggle` | 71 | arrow |  | 6 |
-| `getDockJson` | 85 | arrow |  | 3 |
-| `saveCurrentLayout` | 86 | arrow |  | 2 |
-| `refreshLayoutPresets` | 94 | arrow |  | 1 |
-| `refreshNodeFlags` | 191 | function |  | 3 |
-| `inputStatsText` | 231 | function |  | 2 |
-| `outputStatsText` | 240 | function |  | 2 |
-| `renderInspector` | 249 | function |  | 2 |
-| `runNetwork` | 286 | function |  | 2 |
-| `startHdaWatch` | 309 | function |  | 2 |
-| `check` | 311 | arrow |  | 1 |
-| `stopHdaWatch` | 328 | function |  | 2 |
-| `loadSnapshotIntoStore` | 337 | function |  | 3 |
-| `connect` | 365 | function |  | 4 |
-| `scheduleSaveGraph` | 445 | function |  | 2 |
+| `matchLogFilter` | 30 | arrow |  | 0 |
+| `renderLog` | 31 | arrow |  | 3 |
+| `toggle` | 80 | arrow |  | 6 |
+| `getDockJson` | 94 | arrow |  | 3 |
+| `saveCurrentLayout` | 95 | arrow |  | 2 |
+| `refreshLayoutPresets` | 103 | arrow |  | 1 |
+| `refreshNodeFlags` | 214 | function |  | 3 |
+| `inputStatsText` | 261 | function |  | 2 |
+| `outputStatsText` | 270 | function |  | 2 |
+| `renderInspector` | 279 | function |  | 2 |
+| `runNetwork` | 316 | function |  | 2 |
+| `startHdaWatch` | 339 | function |  | 2 |
+| `check` | 341 | arrow |  | 1 |
+| `stopHdaWatch` | 358 | function |  | 2 |
+| `loadSnapshotIntoStore` | 367 | function |  | 3 |
+| `connect` | 395 | function |  | 4 |
+| `scheduleSaveGraph` | 475 | function |  | 2 |
 
-## web/src/nodes2/graph.ts（925 行）
+## web/src/nodes2/graph.ts（935 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -383,29 +384,29 @@
 | `makeNullNode` | 154 | function | export | 4 |
 | `buildGraph` | 168 | function |  | 2 |
 | `createReteGraph` | 225 | function | export | 1 |
-| `attachTabSearch` | 398 | function |  | 2 |
-| `render` | 414 | arrow |  | 4 |
-| `create` | 429 | arrow |  | 2 |
-| `close` | 457 | arrow |  | 6 |
-| `update` | 463 | arrow |  | 3 |
-| `attachCutMode` | 492 | function |  | 2 |
-| `isTyping` | 498 | arrow |  | 1 |
-| `attachFlagMenu` | 543 | function |  | 2 |
-| `show` | 555 | arrow |  | 2 |
-| `setNodeStateHandler` | 609 | function | export | 2 |
-| `fireNodeState` | 612 | function | export | 1 |
-| `initTooltip` | 618 | function | export | 2 |
-| `showTooltip` | 624 | function | export | 1 |
-| `hideTooltip` | 637 | function | export | 1 |
-| `attachMMBPan` | 645 | function |  | 2 |
-| `onMove` | 653 | arrow |  | 0 |
-| `onUp` | 656 | arrow |  | 0 |
-| `attachDotGrid` | 674 | function |  | 2 |
-| `hitTestConnection` | 705 | function |  | 2 |
-| `attachInsertion` | 733 | function |  | 2 |
-| `setHover` | 756 | arrow |  | 2 |
-| `up` | 818 | arrow |  | 0 |
-| `attachRectSelect` | 864 | function |  | 2 |
+| `attachTabSearch` | 408 | function |  | 2 |
+| `render` | 424 | arrow |  | 4 |
+| `create` | 439 | arrow |  | 2 |
+| `close` | 467 | arrow |  | 6 |
+| `update` | 473 | arrow |  | 3 |
+| `attachCutMode` | 502 | function |  | 2 |
+| `isTyping` | 508 | arrow |  | 1 |
+| `attachFlagMenu` | 553 | function |  | 2 |
+| `show` | 565 | arrow |  | 2 |
+| `setNodeStateHandler` | 619 | function | export | 2 |
+| `fireNodeState` | 622 | function | export | 1 |
+| `initTooltip` | 628 | function | export | 2 |
+| `showTooltip` | 634 | function | export | 1 |
+| `hideTooltip` | 647 | function | export | 1 |
+| `attachMMBPan` | 655 | function |  | 2 |
+| `onMove` | 663 | arrow |  | 0 |
+| `onUp` | 666 | arrow |  | 0 |
+| `attachDotGrid` | 684 | function |  | 2 |
+| `hitTestConnection` | 715 | function |  | 2 |
+| `attachInsertion` | 743 | function |  | 2 |
+| `setHover` | 766 | arrow |  | 2 |
+| `up` | 828 | arrow |  | 0 |
+| `attachRectSelect` | 874 | function |  | 2 |
 
 ## web/src/protocol/compare.ts（23 行）
 
@@ -440,14 +441,15 @@
 |---|---|---|---|---|
 | `createRenderer` | 18 | function | export | 1 |
 
-## web/src/viewport/controls.ts（100 行）
+## web/src/viewport/controls.ts（105 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `HoudiniControls` | 11 | class | export | 0 |
-| `onMove` | 48 | arrow |  | 0 |
-| `up` | 61 | arrow |  | 1 |
-| `release` | 89 | arrow |  | 0 |
+| `dollyCamera` | 12 | function |  | 3 |
+| `HoudiniControls` | 24 | class | export | 0 |
+| `onMove` | 61 | arrow |  | 0 |
+| `up` | 70 | arrow |  | 1 |
+| `release` | 94 | arrow |  | 0 |
 
 ## web/src/viewport/geometry.ts（128 行）
 
@@ -461,11 +463,13 @@
 | `buildInputs` | 110 | function | export | 1 |
 | `buildOutputs` | 120 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（402 行）
+## web/src/viewport/renderer.ts（431 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `Viewport` | 20 | class | export | 1 |
 | `showModeMenu` | 86 | arrow |  | 1 |
-| `hideModeMenu` | 101 | arrow |  | 1 |
-| `applyMode` | 102 | arrow |  | 0 |
+| `hideModeMenu` | 101 | arrow |  | 2 |
+| `applyMode` | 102 | arrow |  | 1 |
+| `openModeMenu` | 117 | arrow |  | 1 |
+| `closeModeMenu` | 118 | arrow |  | 3 |

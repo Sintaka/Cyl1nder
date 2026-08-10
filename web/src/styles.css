@@ -107,10 +107,9 @@ html, body, #app { height: 100%; margin: 0; }
   min-width: 264px;
   padding: 4px 6px 6px;
 }
-.cyl-graph .cyl-rp-node.displayed { border-color: #60a5fa; box-shadow: 0 0 0 1px #60a5fa, 0 4px 14px rgba(0,0,0,.45); } /* display = light blue */
+.cyl-graph .cyl-rp-node.displayed { border-color: #60a5fa; box-shadow: 0 0 0 1px #60a5fa, 0 4px 14px rgba(0,0,0,.45); } /* display = light blue ring */
 .cyl-graph .cyl-rp-node.bypass { border-style: dashed; opacity: .75; }
 .cyl-graph .cyl-rp-node.freeze { opacity: .6; }
-.cyl-graph .cyl-rp-head { display: flex; align-items: center; gap: 4px; }
 .cyl-graph .cyl-rp-title { font-size: 12px; font-weight: 700; color: #7ce3a8; flex: 1; white-space: nowrap; }
 .cyl-graph .cyl-rp-badges { font-size: 9px; color: #ffd166; }
 .cyl-graph .cyl-rp-stats { font-size: 8px; color: #8f959e; white-space: pre; margin: 2px 0 4px; }
@@ -165,8 +164,11 @@ html, body, #app { height: 100%; margin: 0; }
   border-width: 2.5px; box-shadow: 0 0 8px rgba(79,195,247,.75);
 }
 .cyl-graph .cyl-rp-node:hover { border-color: #fde68a; } /* pale yellow hover */
-.cyl-graph .cyl-rp-node.selected { border-color: #fde047; box-shadow: 0 0 0 1px #fde047, 0 4px 14px rgba(0,0,0,.45); } /* selected yellow */
-.cyl-graph .cyl-rp-node.displayed:hover { border-color: #38a169; }
+.cyl-graph .cyl-rp-node.selected { border-color: #fde047; box-shadow: 0 0 0 1px rgba(253,224,71,.55), 0 4px 14px rgba(0,0,0,.3); } /* selected yellow - faint (display blue outranks) */
+.cyl-graph .cyl-rp-node.displayed:hover { border-color: #93c5fd; }
+/* display blue outranks selection yellow (higher specificity); when both, keep a faint
+   yellow edge so the selection is still visible under the blue display ring */
+.cyl-graph .cyl-rp-node.displayed.selected { border-color: #60a5fa; box-shadow: 0 0 0 1px #60a5fa, 0 0 0 3px rgba(253,224,71,.4), 0 4px 14px rgba(0,0,0,.45); }
 .cyl-graph [data-testid="connection"]:hover svg {
   filter: drop-shadow(0 0 2px rgba(124, 227, 168, 1)) drop-shadow(0 0 7px rgba(124, 227, 168, 0.55));
 }
@@ -213,23 +215,25 @@ html, body, #app { height: 100%; margin: 0; }
 .cyl-sp-empty { padding: 12px; color: #6b7280; }
 
 /* node header: name left (double-click rename), state chips right (right->left: D R B F) */
-.cyl-graph .cyl-rp-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.cyl-graph .cyl-rp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 4px; }
 .cyl-graph .cyl-rp-title { cursor: text; }
 .cyl-graph .cyl-rp-rename {
   flex: 1; min-width: 0; background: #0f1012; color: #e6e9ef; border: 1px solid #3b82f6;
   border-radius: 3px; font-size: 11px; padding: 1px 4px; outline: none;
 }
 .cyl-graph .cyl-rp-chips {
-  flex: 1; display: flex; flex-direction: row-reverse; min-width: 0;
-  margin-left: 6px; height: 12px;
+  flex: 0 0 auto; display: flex; flex-direction: row-reverse; min-width: 0;
+  /* pull up past the node top padding and right past the node right padding so the
+     squares press against the node frame's top-right corner */
+  margin: -4px -6px 0 6px; height: 14px;
 }
 .cyl-graph .cyl-rp-chips .cyl-ns {
-  flex: 1 1 0; height: 12px; border: none; border-radius: 0; padding: 0;
+  width: 14px; height: 14px; flex: 0 0 14px; border: none; border-radius: 0; padding: 0;
   background: transparent; display: block; cursor: pointer; min-width: 0;
 }
 .cyl-graph .cyl-rp-node { overflow: hidden; } /* let chips hug the top edge */
 /* seamless: rightmost chip keeps the top-right corner radius */
-.cyl-graph .cyl-rp-chips .cyl-ns:first-child { border-top-right-radius: 5px; }
+.cyl-graph .cyl-rp-chips .cyl-ns:first-child { border-top-right-radius: 6px; } /* matches node radius */
 /* state colors: default fully transparent; on = solid color; hover = color+half bg blend */
 .cyl-graph .cyl-ns.display.on { background: #3b82f6; }            /* Display light blue */
 .cyl-graph .cyl-ns.display:hover { background: rgba(59,130,246,.55); }
@@ -270,7 +274,7 @@ html, body, #app { height: 100%; margin: 0; }
 
 /* display-mode dropdown */
 .cyl-mode-menu {
-  position: absolute; z-index: 55; background: #1b1e24; border: 1px solid #3a3f4a;
+  position: fixed; z-index: 200; background: #1b1e24; border: 1px solid #3a3f4a;
   border-radius: 6px; min-width: 118px; padding: 3px; box-shadow: 0 8px 24px rgba(0,0,0,.5);
 }
 .cyl-mode-menu.hidden { display: none; }

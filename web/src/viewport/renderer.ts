@@ -109,11 +109,40 @@ export class Viewport {
       const item = (e.target as HTMLElement).closest?.(".cyl-mode-item");
       modeMenu.querySelectorAll(".cyl-mode-item").forEach((i) => i.classList.toggle("hover", i === item));
     });
+    // Click vs drag: a plain click keeps the menu open persistently (click an item or
+    // anywhere outside to apply/close); a drag (pointer moved >4px) applies the hovered
+    // option on release. This fixes "click closes immediately" and the docked-panel clip.
+    let modeOpen = false;
+    let modeStart = { x: 0, y: 0 };
+    const openModeMenu = () => { showModeMenu(); modeOpen = true; };
+    const closeModeMenu = () => { modeOpen = false; hideModeMenu(); };
     this.modeBtn.addEventListener("pointerdown", (e) => {
       e.stopPropagation();
-      showModeMenu();
+      if (modeOpen) { closeModeMenu(); return; } // second click toggles closed
+      modeStart = { x: e.clientX, y: e.clientY };
+      openModeMenu();
     });
-    window.addEventListener("pointerup", applyMode);
+    window.addEventListener("pointerup", (e) => {
+      if (!modeOpen) return;
+      const dx = e.clientX - modeStart.x;
+      const dy = e.clientY - modeStart.y;
+      if (Math.hypot(dx, dy) > 4) applyMode(); // drag: apply hovered option on release
+      // click: menu stays open; item click / outside click closes it
+    });
+    modeMenu.addEventListener("click", (e) => {
+      const item = (e.target as HTMLElement).closest?.(".cyl-mode-item");
+      if (item) {
+        this.setDisplayMode((item as HTMLElement).dataset.mode as typeof this.displayMode);
+        closeModeMenu();
+      }
+    });
+    document.addEventListener(
+      "pointerdown",
+      (e) => {
+        if (modeOpen && !modeMenu.contains(e.target as Node) && e.target !== this.modeBtn) closeModeMenu();
+      },
+      true,
+    );
     container.appendChild(this.modeBtn);
 
     // 35mm-equivalent lens: vertical FOV = 2*atan(24/(2*35)) ≈ 38 deg (full-frame 36x24).

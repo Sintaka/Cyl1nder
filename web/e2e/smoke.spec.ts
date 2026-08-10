@@ -17,5 +17,7 @@ test("Cyl1nder page loads and connects to a live serial", async ({ page }) => {
   await expect(page.locator(".cyl-graph .cyl-rp-title").first()).toBeVisible({ timeout: 15000 });
   await expect(page.locator(".cyl-viewport canvas")).toBeVisible();
   await expect(page.locator(".cyl-status")).toHaveClass(/ok/, { timeout: 15000 });
+  // dockview lazily mounts inactive tab content: activate the Log tab to surface .cyl-log
+  await page.locator(".dv-tab", { hasText: "Log" }).first().click({ timeout: 15000 });
   await expect(page.locator(".cyl-log")).toContainText("hello", { timeout: 15000 });
 });

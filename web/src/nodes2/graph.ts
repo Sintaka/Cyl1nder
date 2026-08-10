@@ -313,12 +313,19 @@ export async function createReteGraph(
         const pos = g.area.nodeViews.get(n.id)?.position;
         return { id: n.id, kind: c.kind, label: c.label, baseLabel: c.baseLabel, flags: c.flags, x: pos?.x ?? 0, y: pos?.y ?? 0 };
       });
-      const connections = g.editor.getConnections().map((c) => ({
-        source: c.source,
-        sourceOutput: c.sourceOutput,
-        target: c.target,
-        targetInput: c.targetInput,
-      }));
+      // Defensive: only serialize connections whose endpoint nodes still exist. Rete can
+      // leave orphan connections behind after node removal, and persisting those produced
+      // the "4 headless segments" bug (1 node / 4 dangling conns snapshot).
+      const nodeIds = new Set(g.editor.getNodes().map((n) => n.id));
+      const connections = g.editor
+        .getConnections()
+        .filter((c) => nodeIds.has(c.source) && nodeIds.has(c.target))
+        .map((c) => ({
+          source: c.source,
+          sourceOutput: c.sourceOutput,
+          target: c.target,
+          targetInput: c.targetInput,
+        }));
       return { schemaVersion: 2, viewport: { ...g.area.area.transform }, nodes, connections };
     },
     restoreGraph: async (data) => {
@@ -328,6 +335,9 @@ export async function createReteGraph(
         viewport?: { k: number; x: number; y: number };
       };
       if (!d?.nodes) return;
+      // Remove every live connection FIRST: rete's removeNode does not reliably drop its
+      // connections, so restoring over a stale graph left headless segments behind.
+      for (const c of g.editor.getConnections()) await g.editor.removeConnection(c.id);
       for (const n of g.editor.getNodes()) await g.editor.removeNode(n.id);
       const idMap = new Map<string, string>();
       let displayAssigned = false;

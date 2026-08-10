@@ -1,0 +1,98 @@
+{
+  "grid": {
+    "root": {
+      "type": "branch",
+      "data": [
+        {
+          "type": "branch",
+          "data": [
+            {
+              "type": "leaf",
+              "data": {
+                "views": [
+                  "viewport"
+                ],
+                "activeView": "viewport",
+                "id": "1"
+              },
+              "size": 734
+            },
+            {
+              "type": "leaf",
+              "data": {
+                "views": [
+                  "spreadsheet",
+                  "log"
+                ],
+                "activeView": "spreadsheet",
+                "id": "2"
+              },
+              "size": 243
+            }
+          ],
+          "size": 1411
+        },
+        {
+          "type": "branch",
+          "data": [
+            {
+              "type": "leaf",
+              "data": {
+                "views": [
+                  "inspector"
+                ],
+                "activeView": "inspector",
+                "id": "7"
+              },
+              "size": 488
+            },
+            {
+              "type": "leaf",
+              "data": {
+                "views": [
+                  "graph"
+                ],
+                "activeView": "graph",
+                "id": "4"
+              },
+              "size": 489
+            }
+          ],
+          "size": 748
+        }
+      ],
+      "size": 977
+    },
+    "width": 2159,
+    "height": 977,
+    "orientation": "HORIZONTAL"
+  },
+  "panels": {
+    "viewport": {
+      "id": "viewport",
+      "contentComponent": "viewport",
+      "title": "Viewport"
+    },
+    "graph": {
+      "id": "graph",
+      "contentComponent": "graph",
+      "title": "Node Graph"
+    },
+    "spreadsheet": {
+      "id": "spreadsheet",
+      "contentComponent": "spreadsheet",
+      "title": "Spreadsheet"
+    },
+    "log": {
+      "id": "log",
+      "contentComponent": "log",
+      "title": "Log"
+    },
+    "inspector": {
+      "id": "inspector",
+      "contentComponent": "inspector",
+      "title": "Inspector"
+    }
+  },
+  "activeGroup": "4"
+}
