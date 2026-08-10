@@ -1,11 +1,14 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <shelfDocument>
   <!-- Cyl1nder shelf: hot-reload tools for the Houdini <-> WebGL bridge.
        Install: copy this file to %USERPROFILE%\Documents\houdini22.0\toolbar\
-       (takes effect on next Houdini start; or add manually via shelf right-click -> New Tool). -->
+       (new buttons appear on next Houdini start / shelf refresh; the tool
+       scripts exec() files from disk on click, so their logic is hot-reload). -->
   <toolshelf name="Cyl1nder" label="Cyl1nder">
     <memberTool name="cyl1nder::reload_hda"/>
     <memberTool name="cyl1nder::reload_bridge"/>
+    <memberTool name="cyl1nder::toggle_bridge"/>
+    <memberTool name="cyl1nder::status_bridge"/>
   </toolshelf>
 
   <tool name="cyl1nder::reload_hda" label="Reload HDA" icon="MISC_python">
@@ -20,18 +23,30 @@ hou.ui.displayMessage("Cyl1nder HDA reloaded", title="Cyl1nder")
   </tool>
 
   <tool name="cyl1nder::reload_bridge" label="Reload Bridge" icon="MISC_python">
-    <helpText><![CDATA[Restart the Cyl1nder bridge process (127.0.0.1:8375). No Houdini restart.
+    <helpText><![CDATA[Restart the Cyl1nder bridge process (127.0.0.1:8375). Pure Python (netstat/taskkill + Popen), no PowerShell.
 HDA keeps working offline; next recook re-pushes inputs.]]></helpText>
     <script scriptType="python"><![CDATA[
-import subprocess
-ps = (
-    "$conn = Get-NetTCPConnection -State Listen -LocalPort 8375 -ErrorAction SilentlyContinue\n"
-    "if ($conn) { Stop-Process -Id ($conn.OwningProcess | Select-Object -First 1) -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 800 }\n"
-    "Start-Process -FilePath 'D:\\code\\dev\\Cyl1nder\\bridge\\.venv\\Scripts\\python.exe' -ArgumentList '-m','bridge' -WorkingDirectory 'D:\\code\\dev\\Cyl1nder\\bridge' -WindowStyle Hidden\n"
-)
-subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps], timeout=30)
 import hou
-hou.ui.displayMessage("Cyl1nder bridge restarted on 8375", title="Cyl1nder")
+exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/bridge_control.py", encoding="utf-8").read())
+hou.ui.displayMessage(restart_bridge(), title="Cyl1nder Bridge")
+]]></script>
+  </tool>
+
+  <tool name="cyl1nder::toggle_bridge" label="Toggle Bridge" icon="MISC_python">
+    <helpText><![CDATA[Start the bridge if it is offline, stop it if it is online (127.0.0.1:8375). Pure Python.]]></helpText>
+    <script scriptType="python"><![CDATA[
+import hou
+exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/bridge_control.py", encoding="utf-8").read())
+hou.ui.displayMessage(toggle_bridge(), title="Cyl1nder Bridge")
+]]></script>
+  </tool>
+
+  <tool name="cyl1nder::status_bridge" label="Status Bridge" icon="MISC_python">
+    <helpText><![CDATA[Show bridge status: /api/health version + serial count, or offline / port-occupied report. Pure Python.]]></helpText>
+    <script scriptType="python"><![CDATA[
+import hou
+exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/bridge_control.py", encoding="utf-8").read())
+hou.ui.displayMessage(status_bridge(), title="Cyl1nder Bridge")
 ]]></script>
   </tool>
 </shelfDocument>

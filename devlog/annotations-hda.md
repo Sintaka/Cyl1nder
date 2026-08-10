@@ -33,3 +33,11 @@
 ## v0.1.00005（2026-08-10）
 - **UI 端口 8376**：`web_url` 默认 `http://127.0.0.1:8376`（与桥 8375 相邻）；Open in Browser 自动开新端口。
 - **参数布局同行**：`auto_push|auto_pull|bridge_autostart` 一行（setJoinWithNext）；`force_cook|open_web|cyl1nder_regenerate` 一行。
+## v0.1.00007（2026-08-10）
+- **Shelf 工具改造**：新增纯 Python 桥控制模块 `hda/scripts/bridge_control.py`（stdlib：`netstat -ano` 找 PID、`taskkill /F` 停、`subprocess.Popen(DETACHED|CREATE_NO_WINDOW)` 起，与 HDA autostart 同一启动方式）。三个按钮全部改为 exec 该模块，**彻底移除 PowerShell**。
+  - `Reload Bridge` = `restart_bridge()`（kill + start + 等 /api/health）。
+  - 新增 `Toggle Bridge` = `toggle_bridge()`（在线则停、离线则起）。
+  - 新增 `Status Bridge` = `status_bridge()`（报版本/序列号数；端口被占但 health 不通时提示 PID）。
+  - shelf 已同步到 `%USERPROFILE%\Documents\houdini22.0\toolbar\Cyl1nder.shelf`。按钮逻辑 exec 磁盘文件→热更；**新按钮需 Houdini 重启/shelf 刷新一次才出现**。
+- **实测**：status→OFFLINE、toggle 起→ONLINE v0.1.00006 serials=26、toggle 停→OFFLINE、restart→healthy；桥最终由 restart 拉起（HDA autostart 兜底）。
+- **决策（Q4）**：前端 vite **不需要** Toggle/Status 按钮——桥生命周期由 Houdini 侧独占（HDA `bridge_autostart` + shelf），web 是被动消费者（状态点 + WS 重连 + 离线提示已覆盖"看状态"）；两方争抢启停同一进程会制造竞态。

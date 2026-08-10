@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-09），由 `node scripts/gen-index.mjs` 产出。共 **180** 个函数/类。
+> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **187** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -161,6 +161,18 @@
 | `disconnect` | 24 | def |  | 3 |
 | `broadcast` | 32 | def |  | 2 |
 | `ws_endpoint` | 53 | def |  | 1 |
+
+## hda/scripts/bridge_control.py（115 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `bridge_healthy` | 22 | def |  | 5 |
+| `find_pids` | 31 | def |  | 3 |
+| `stop_bridge` | 52 | def |  | 3 |
+| `start_bridge` | 66 | def |  | 3 |
+| `restart_bridge` | 83 | def |  | 1 |
+| `toggle_bridge` | 92 | def |  | 1 |
+| `status_bridge` | 100 | def |  | 1 |
 
 ## hda/scripts/build_hda.py（172 行）
 

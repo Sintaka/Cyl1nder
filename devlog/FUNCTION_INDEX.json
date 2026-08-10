@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-09T19:02:44.389Z",
-  "totalFunctions": 180,
+  "generatedAt": "2026-08-10T06:50:43.390Z",
+  "totalFunctions": 187,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -702,6 +702,61 @@
         {
           "name": "ws_endpoint",
           "line": 53,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "hda/scripts/bridge_control.py",
+      "lineCount": 115,
+      "functions": [
+        {
+          "name": "bridge_healthy",
+          "line": 22,
+          "kind": "def",
+          "exported": false,
+          "calls": 5
+        },
+        {
+          "name": "find_pids",
+          "line": 31,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "stop_bridge",
+          "line": 52,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "start_bridge",
+          "line": 66,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "restart_bridge",
+          "line": 83,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "toggle_bridge",
+          "line": 92,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "status_bridge",
+          "line": 100,
           "kind": "def",
           "exported": false,
           "calls": 1
