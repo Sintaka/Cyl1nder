@@ -1,4 +1,4 @@
-# python
+﻿# python
 __pycache__/
 *.pyc
 .venv/
@@ -31,3 +31,6 @@ hda/otls/backup/
 .idea/
 Thumbs.db
 .DS_Store
+# snapshot data (unified path system) - not source
+Cyl1nder/
+bridge/data/snapshots/
