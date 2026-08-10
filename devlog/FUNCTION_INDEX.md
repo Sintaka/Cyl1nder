@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **209** 个函数/类。
+> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **218** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -107,21 +107,33 @@
 | `_save` | 120 | def |  | 2 |
 | `_load` | 129 | def |  | 2 |
 
-## bridge/bridge/routes.py（120 行）
+## bridge/bridge/routes.py（158 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `root` | 15 | def |  | 1 |
-| `_check_serial` | 22 | def |  | 7 |
-| `health` | 28 | def |  | 1 |
-| `list_serials` | 34 | def |  | 1 |
-| `status` | 39 | def |  | 2 |
-| `put_inputs` | 51 | def |  | 1 |
-| `get_outputs` | 67 | def |  | 1 |
-| `put_outputs` | 76 | def |  | 2 |
-| `pending` | 91 | def |  | 1 |
-| `serial_logs` | 105 | def |  | 1 |
-| `global_logs` | 115 | def |  | 1 |
+| `_maybe_snapshot` | 19 | def |  | 3 |
+| `root` | 40 | def |  | 1 |
+| `_check_serial` | 47 | def |  | 8 |
+| `health` | 53 | def |  | 1 |
+| `list_serials` | 59 | def |  | 1 |
+| `status` | 64 | def |  | 2 |
+| `put_inputs` | 76 | def |  | 1 |
+| `get_outputs` | 93 | def |  | 1 |
+| `put_outputs` | 102 | def |  | 2 |
+| `pending` | 118 | def |  | 1 |
+| `serial_logs` | 132 | def |  | 1 |
+| `get_snapshot` | 142 | def |  | 1 |
+| `global_logs` | 153 | def |  | 1 |
+
+## bridge/bridge/snapshot.py（98 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `snapshot_root` | 21 | def |  | 3 |
+| `_part_path` | 33 | def |  | 3 |
+| `read_snapshot` | 37 | def |  | 1 |
+| `write_snapshot` | 53 | def |  | 1 |
+| `build_meta` | 87 | def |  | 1 |
 
 ## bridge/bridge/state.py（42 行）
 
@@ -133,7 +145,7 @@
 | `get_state` | 30 | def |  | 1 |
 | `reset_state` | 37 | def |  | 1 |
 
-## bridge/bridge/workspace.py（120 行）
+## bridge/bridge/workspace.py（124 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -143,13 +155,14 @@
 | `put_outputs` | 24 | def |  | 1 |
 | `get_outputs_since` | 46 | def |  | 1 |
 | `output_rev` | 53 | def |  | 1 |
-| `to_summary` | 57 | def |  | 2 |
-| `_same_content` | 86 | def |  | 2 |
-| `WorkspaceStore` | 96 | class |  | 0 |
-| `get_or_create` | 101 | def |  | 2 |
-| `get` | 109 | def |  | 4 |
-| `serials` | 113 | def |  | 1 |
-| `status` | 117 | def |  | 1 |
+| `all_outputs` | 57 | def |  | 1 |
+| `to_summary` | 61 | def |  | 2 |
+| `_same_content` | 90 | def |  | 2 |
+| `WorkspaceStore` | 100 | class |  | 0 |
+| `get_or_create` | 105 | def |  | 2 |
+| `get` | 113 | def |  | 4 |
+| `serials` | 117 | def |  | 1 |
+| `status` | 121 | def |  | 1 |
 
 ## bridge/bridge/ws.py（105 行）
 
@@ -262,11 +275,11 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/dock.ts（53 行）
+## web/src/app/dock.ts（77 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `setupDock` | 13 | function | export | 1 |
+| `setupDock` | 15 | function | export | 1 |
 
 ## web/src/app/layout.ts（123 行）
 
@@ -281,15 +294,15 @@
 |---|---|---|---|---|
 | `formatLog` | 2 | function | export | 1 |
 
-## web/src/bridge/client.ts（113 行）
+## web/src/bridge/client.ts（120 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `BridgeClient` | 23 | class | export | 0 |
-| `connectWs` | 77 | function | export | 1 |
-| `connect` | 82 | arrow |  | 1 |
+| `connectWs` | 84 | function | export | 1 |
+| `connect` | 89 | arrow |  | 1 |
 
-## web/src/main.ts（242 行）
+## web/src/main.ts（264 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -301,7 +314,8 @@
 | `startHdaWatch` | 146 | function |  | 2 |
 | `check` | 148 | arrow |  | 1 |
 | `stopHdaWatch` | 165 | function |  | 2 |
-| `connect` | 172 | function |  | 4 |
+| `loadSnapshotIntoStore` | 174 | function |  | 2 |
+| `connect` | 193 | function |  | 4 |
 
 ## web/src/nodes2/graph.ts（583 行）
 

@@ -63,6 +63,13 @@ export class BridgeClient {
     return json(await fetch(`${this.base}/api/hda/${serial}/outputs?since=${since}`));
   }
 
+  /** Unified path system: read the disk snapshot (cyl://<serial>/snapshot). */
+  async getSnapshot(
+    serial: string,
+  ): Promise<{ serial: string; snapshot: { inputs?: unknown[]; outputs?: unknown[] } | null }> {
+    return json(await fetch(`${this.base}/api/hda/${serial}/snapshot`));
+  }
+
   async getLogs(serial?: string, level?: string, limit = 200): Promise<LogEntry[]> {
     const q = new URLSearchParams({ limit: String(limit) });
     if (serial) q.set("serial", serial);

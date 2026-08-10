@@ -10,6 +10,8 @@ export interface DockContent {
   log: HTMLElement;
 }
 
+const STORAGE_KEY = "cyl1nder.dock.layout.v1";
+
 export function setupDock(container: HTMLElement, content: DockContent): DockviewComponent {
   const byId: Record<string, HTMLElement> = {
     graph: content.graph,
@@ -48,6 +50,28 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
     title: "Log",
     position: { referencePanel: "inspector", direction: "below" },
   });
+
+  // Persist the current layout as the default: any drag/float/resize saves a
+  // debounced toJSON to localStorage; the next launch restores it.
+  let saveTimer: number | undefined;
+  dv.api.onDidLayoutChange(() => {
+    if (saveTimer !== undefined) window.clearTimeout(saveTimer);
+    saveTimer = window.setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(dv.toJSON()));
+      } catch {
+        /* storage unavailable - skip */
+      }
+    }, 400);
+  });
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try {
+      dv.fromJSON(JSON.parse(saved) as Parameters<DockviewComponent["fromJSON"]>[0]);
+    } catch {
+      /* corrupt layout - fall back to the default 4-panel arrangement */
+    }
+  }
 
   return dv;
 }

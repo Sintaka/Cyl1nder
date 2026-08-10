@@ -54,6 +54,10 @@ class Workspace:
         with self._rev_lock:
             return self._output_rev
 
+    def all_outputs(self) -> list[OutputBuffer]:
+        with self._rev_lock:
+            return sorted(self._outputs.values(), key=lambda b: b.index)
+
     def to_summary(self) -> dict[str, Any]:
         with self._rev_lock:
             return {

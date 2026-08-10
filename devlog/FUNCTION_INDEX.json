@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-10T11:25:20.574Z",
-  "totalFunctions": 209,
+  "generatedAt": "2026-08-10T11:35:41.340Z",
+  "totalFunctions": 218,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -441,81 +441,136 @@
     },
     {
       "file": "bridge/bridge/routes.py",
-      "lineCount": 120,
+      "lineCount": 158,
       "functions": [
         {
+          "name": "_maybe_snapshot",
+          "line": 19,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
           "name": "root",
-          "line": 15,
+          "line": 40,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_check_serial",
-          "line": 22,
+          "line": 47,
           "kind": "def",
           "exported": false,
-          "calls": 7
+          "calls": 8
         },
         {
           "name": "health",
-          "line": 28,
+          "line": 53,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "list_serials",
-          "line": 34,
+          "line": 59,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "status",
-          "line": 39,
+          "line": 64,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "put_inputs",
-          "line": 51,
+          "line": 76,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get_outputs",
-          "line": 67,
+          "line": 93,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_outputs",
-          "line": 76,
+          "line": 102,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "pending",
-          "line": 91,
+          "line": 118,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "serial_logs",
-          "line": 105,
+          "line": 132,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "get_snapshot",
+          "line": 142,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "global_logs",
-          "line": 115,
+          "line": 153,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "bridge/bridge/snapshot.py",
+      "lineCount": 98,
+      "functions": [
+        {
+          "name": "snapshot_root",
+          "line": 21,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "_part_path",
+          "line": 33,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "read_snapshot",
+          "line": 37,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "write_snapshot",
+          "line": 53,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "build_meta",
+          "line": 87,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -565,7 +620,7 @@
     },
     {
       "file": "bridge/bridge/workspace.py",
-      "lineCount": 120,
+      "lineCount": 124,
       "functions": [
         {
           "name": "Workspace",
@@ -610,50 +665,57 @@
           "calls": 1
         },
         {
-          "name": "to_summary",
+          "name": "all_outputs",
           "line": 57,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "to_summary",
+          "line": 61,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_same_content",
-          "line": 86,
+          "line": 90,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "WorkspaceStore",
-          "line": 96,
+          "line": 100,
           "kind": "class",
           "exported": false,
           "calls": 0
         },
         {
           "name": "get_or_create",
-          "line": 101,
+          "line": 105,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "get",
-          "line": 109,
+          "line": 113,
           "kind": "def",
           "exported": false,
           "calls": 4
         },
         {
           "name": "serials",
-          "line": 113,
+          "line": 117,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "status",
-          "line": 117,
+          "line": 121,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -1177,11 +1239,11 @@
     },
     {
       "file": "web/src/app/dock.ts",
-      "lineCount": 53,
+      "lineCount": 77,
       "functions": [
         {
           "name": "setupDock",
-          "line": 13,
+          "line": 15,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -1223,7 +1285,7 @@
     },
     {
       "file": "web/src/bridge/client.ts",
-      "lineCount": 113,
+      "lineCount": 120,
       "functions": [
         {
           "name": "BridgeClient",
@@ -1234,14 +1296,14 @@
         },
         {
           "name": "connectWs",
-          "line": 77,
+          "line": 84,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "connect",
-          "line": 82,
+          "line": 89,
           "kind": "arrow",
           "exported": false,
           "calls": 1
@@ -1250,7 +1312,7 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 242,
+      "lineCount": 264,
       "functions": [
         {
           "name": "refreshNodeFlags",
@@ -1309,8 +1371,15 @@
           "calls": 2
         },
         {
+          "name": "loadSnapshotIntoStore",
+          "line": 174,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "connect",
-          "line": 172,
+          "line": 193,
           "kind": "function",
           "exported": false,
           "calls": 4

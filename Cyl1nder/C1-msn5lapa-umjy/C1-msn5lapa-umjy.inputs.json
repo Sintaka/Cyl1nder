@@ -1,0 +1,138 @@
+[
+  {
+    "index": 0,
+    "name": "in0",
+    "pointCount": 3,
+    "primCount": 1,
+    "points": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        1.0,
+        0.5,
+        0.0
+      ],
+      [
+        2.0,
+        1.0,
+        0.0
+      ]
+    ],
+    "curves": [
+      {
+        "pointIndices": [
+          0,
+          1,
+          2
+        ],
+        "widths": null
+      }
+    ],
+    "attributes": {}
+  },
+  {
+    "index": 1,
+    "name": "in1",
+    "pointCount": 3,
+    "primCount": 1,
+    "points": [
+      [
+        0.0,
+        0.0,
+        1.0
+      ],
+      [
+        1.0,
+        0.5,
+        1.0
+      ],
+      [
+        2.0,
+        1.0,
+        1.0
+      ]
+    ],
+    "curves": [
+      {
+        "pointIndices": [
+          0,
+          1,
+          2
+        ],
+        "widths": null
+      }
+    ],
+    "attributes": {}
+  },
+  {
+    "index": 2,
+    "name": "in2",
+    "pointCount": 3,
+    "primCount": 1,
+    "points": [
+      [
+        0.0,
+        0.0,
+        2.0
+      ],
+      [
+        1.0,
+        0.5,
+        2.0
+      ],
+      [
+        2.0,
+        1.0,
+        2.0
+      ]
+    ],
+    "curves": [
+      {
+        "pointIndices": [
+          0,
+          1,
+          2
+        ],
+        "widths": null
+      }
+    ],
+    "attributes": {}
+  },
+  {
+    "index": 3,
+    "name": "in3",
+    "pointCount": 3,
+    "primCount": 1,
+    "points": [
+      [
+        0.0,
+        0.0,
+        3.0
+      ],
+      [
+        1.0,
+        0.5,
+        3.0
+      ],
+      [
+        2.0,
+        1.0,
+        3.0
+      ]
+    ],
+    "curves": [
+      {
+        "pointIndices": [
+          0,
+          1,
+          2
+        ],
+        "widths": null
+      }
+    ],
+    "attributes": {}
+  }
+]

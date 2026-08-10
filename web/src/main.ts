@@ -169,6 +169,27 @@ function stopHdaWatch(): void {
   layout.hdaOffline.classList.add("hidden");
 }
 
+/** Viewport display path: fall back to the unified path system (disk snapshot)
+ *  when the live workspace has no geometry yet (Houdini not cooking / bridge restarted). */
+async function loadSnapshotIntoStore(serial: string): Promise<void> {
+  try {
+    const { snapshot } = await client.getSnapshot(serial);
+    if (!snapshot) return;
+    const inputs = snapshot.inputs as unknown[] | undefined;
+    const outputs = snapshot.outputs as unknown[] | undefined;
+    if (Array.isArray(inputs) && inputs.length > 0 && store.inputs.length === 0) {
+      store.setInputs(inputs as never, store.inputRev);
+      store.pushLog(`[path] restored ${inputs.length} inputs from snapshot`);
+    }
+    if (Array.isArray(outputs) && outputs.length > 0 && store.outputs.length === 0) {
+      store.upsertOutputs(outputs as never, store.outputRev);
+      store.pushLog(`[path] restored ${outputs.length} outputs from snapshot`);
+    }
+  } catch (e) {
+    store.pushLog(`[path] snapshot read failed: ${String(e)}`);
+  }
+}
+
 function connect(serialRaw: string): void {
   const serial = serialRaw.trim();
   if (!serial) return;
@@ -177,6 +198,7 @@ function connect(serialRaw: string): void {
   store.setSerial(serial);
   startHdaWatch(serial);
   store.pushLog(`connect ${serial}`);
+  void loadSnapshotIntoStore(serial);
   store.setStatus("connecting");
   wsDisconnect = connectWs(
     serial,

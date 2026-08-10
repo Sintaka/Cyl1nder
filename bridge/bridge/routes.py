@@ -5,10 +5,35 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import RedirectResponse
 
 from .protocol import InputsPut, OutputsPut, VERSION, WEB_UI_URL, is_valid_serial
+from .snapshot import build_meta, read_snapshot, write_snapshot
 from .state import get_state
 from .ws import manager
 
 router = APIRouter()
+
+# throttled snapshot writes (R5 content-compare inside write_snapshot; >=5s cadence)
+_SNAP_LAST: dict[str, float] = {}
+import time as _time
+
+
+async def _maybe_snapshot(serial: str) -> None:
+    """Persist inputs/outputs snapshot on data change, throttled to avoid cook storms."""
+    st = get_state()
+    rec = st.registry.get(serial)
+    if rec is None:
+        return
+    now = _time.time()
+    if now - _SNAP_LAST.get(serial, 0) < 5.0:
+        return
+    _SNAP_LAST[serial] = now
+    ws = st.workspaces.get_or_create(serial)
+    write_snapshot(
+        serial,
+        rec.hip,
+        meta=build_meta(serial, rec.hip, rec.nodePath, VERSION, ws.input_rev, ws.output_rev()),
+        inputs=[i.model_dump() for i in ws.inputs],
+        outputs=[o.model_dump() for o in ws.all_outputs()],
+    )
 
 
 @router.get("/")
@@ -60,6 +85,7 @@ async def put_inputs(serial: str, payload: InputsPut) -> dict:
         serial,
         {"type": "inputs", "inputs": [i.model_dump() for i in payload.inputs], "rev": rev},
     )
+    await _maybe_snapshot(serial)
     return {"ok": True, "serial": serial, "rev": rev}
 
 
@@ -84,6 +110,7 @@ async def put_outputs(serial: str, payload: OutputsPut) -> dict:
             serial,
             {"type": "outputs", "outputs": [o.model_dump() for o in accepted], "rev": rev},
         )
+    await _maybe_snapshot(serial)
     return {"ok": True, "serial": serial, "rev": rev}
 
 
@@ -109,6 +136,17 @@ async def serial_logs(
 ) -> dict:
     _check_serial(serial)
     return {"logs": get_state().logs.query(level=level, limit=limit, serial=serial)}
+
+
+@router.get("/api/hda/{serial}/snapshot")
+async def get_snapshot(serial: str) -> dict:
+    """Unified path system: read the disk snapshot (cyl://<serial>/snapshot)."""
+    _check_serial(serial)
+    st = get_state()
+    rec = st.registry.get(serial)
+    hip = rec.hip if rec else ""
+    snap = read_snapshot(hip, serial)
+    return {"serial": serial, "snapshot": snap}
 
 
 @router.get("/api/logs")

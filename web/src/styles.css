@@ -15,7 +15,8 @@ html, body, #app { height: 100%; margin: 0; }
 .cyl-panel-title { padding: 4px 8px; color: #7a7f87; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
 .cyl-graph { flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
 .cyl-center { flex: 1; min-width: 0; position: relative; }
-.cyl-viewport { position: absolute; inset: 0; }
+.cyl-viewport { position: relative; width: 100%; height: 100%; }
+.cyl-dock .dv-view { overflow: hidden; }
 .cyl-viewport canvas { display: block; }
 .cyl-right { flex: 0 0 250px; min-width: 0; border-left: 1px solid #2a2d33; overflow: auto; }
 .cyl-inspector { padding: 6px 10px; }

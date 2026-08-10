@@ -54,3 +54,8 @@
 - **F 键 frame（按悬停区域）**：悬停节点图 → `frameSelection()`（选中节点 / 无选中全部，`AreaExtensions.zoomAt`）；悬停 3D 视口 → `viewport.frame()`（几何体 bounding box，无几何体复位默认视角）。快捷键已登记 `devlog/shortcuts.md`。
 - **3D 视口 RMB 归一化拖拽缩放**：无 Alt 右键拖拽，向右上（+x,-y）放大拉近、左下（-x,+y）拉远，增量归一化，~2 倍灵敏度（手动 `camera.zoom`）。
 - **视口 debug 流**：`[viewport] inputs/outputs rebuilt`、`visibility`、`framed geometry` 日志（`pushLogSilent` 防死循环）。
+
+## v0.1.00020（2026-08-10）
+- **dockview 布局持久化（默认布局）**：任何拖拽/浮动/缩放后防抖 400ms 把 `dockview.toJSON()` 存 localStorage，下次启动 `fromJSON` 恢复——用户调整后的布局即成为默认。
+- **修复 dock 与 3D viewport 打架**：`.cyl-viewport { position:absolute; inset:0 }` 是旧 flex 布局遗留，dockview 里会溢出覆盖 tab 标题（松手后标题被 canvas 盖住）。改为 `position:relative; width/height:100%` + `.dv-view { overflow:hidden }`；实测 canvas 顶(71) 低于 tab 底(67)，不再覆盖。
+- **视口显示走统一路径系统**：连接 serial 时 `GET /api/hda/<serial>/snapshot`，若 WS workspace 无几何体（Houdini 未 cook / 桥重启）且磁盘快照有数据 → `store.setInputs/upsertOutputs` 填充 → 视口显示历史几何（实测 `[path] restored inputs`）。
