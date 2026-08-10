@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-10T14:02:32.112Z",
-  "totalFunctions": 240,
+  "generatedAt": "2026-08-10T14:09:42.843Z",
+  "totalFunctions": 237,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -1287,42 +1287,21 @@
     },
     {
       "file": "web/src/app/dock.ts",
-      "lineCount": 160,
+      "lineCount": 128,
       "functions": [
         {
           "name": "layoutDebug",
-          "line": 29,
+          "line": 28,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "setupDock",
-          "line": 39,
+          "line": 38,
           "kind": "function",
           "exported": true,
           "calls": 1
-        },
-        {
-          "name": "scaleLayout",
-          "line": 114,
-          "kind": "arrow",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "walk",
-          "line": 121,
-          "kind": "arrow",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "apply",
-          "line": 136,
-          "kind": "arrow",
-          "exported": false,
-          "calls": 3
         }
       ]
     },

@@ -12,7 +12,6 @@ import { DockviewComponent } from "dockview";
 import "dockview/dist/styles/dockview.css";
 import { store } from "../stores/workspace";
 import { BridgeClient } from "../bridge/client";
-import { DESK1_LAYOUT } from "./layouts";
 
 export interface DockContent {
   graph: HTMLElement;
@@ -48,10 +47,22 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
   const dv = new DockviewComponent(container, {
     createComponent: (opts: { id: string; name: string }) => {
       const key = String(opts.name ?? opts.id ?? "");
-      const element = byId[key] ?? document.createElement("div");
-      element.style.width = "100%";
-      element.style.height = "100%";
-      return { element, init: () => {}, dispose: () => {} };
+      // Fresh wrapper each call; content element is attached in init() which dockview
+      // calls at panel-initialization time (after the wrapper is in the DOM). Attaching
+      // eagerly left .cyl-log orphaned across fromJSON re-layouts.
+      const wrapper = document.createElement("div");
+      wrapper.style.cssText = "width:100%;height:100%;";
+      const inner = byId[key];
+      return {
+        element: wrapper,
+        init: () => {
+          if (inner) {
+            if (inner.isConnected) inner.remove();
+            if (!wrapper.contains(inner)) wrapper.appendChild(inner);
+          }
+        },
+        dispose: () => {},
+      };
     },
     theme: { name: "dark", className: "dockview-theme-dark", colorScheme: "dark" },
   });
@@ -107,54 +118,10 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
     }, 600);
   });
 
-  // Restore priority: bridge file (user's latest custom layout) -> DESK1 (built-in default).
-  // Sizes in saved layouts are absolute pixels captured at some window size; scale them
-  // to the current dock so a 2159px-wide Desk1 does not degrade to a "relative-only" look
-  // on a 1280px window.
-  const scaleLayout = (json: { grid?: { width?: number; height?: number; root?: unknown } }) => {
-    const grid = json.grid;
-    if (!grid) return;
-    const cw = container.clientWidth || 1280;
-    const ch = container.clientHeight || 720;
-    const sx = cw / (grid.width || cw);
-    const sy = ch / (grid.height || ch);
-    const walk = (node: any, parentOrient: "HORIZONTAL" | "VERTICAL" | null) => {
-      if (!node) return;
-      if (node.type === "leaf" && typeof node.size === "number") {
-        node.size = Math.max(60, Math.round(node.size * (parentOrient === "VERTICAL" ? sy : sx)));
-      } else if (node.type === "branch") {
-        if (typeof node.size === "number") {
-          node.size = Math.max(80, Math.round(node.size * (parentOrient === "VERTICAL" ? sy : sx)));
-        }
-        const orient: "HORIZONTAL" | "VERTICAL" = node.orientation === "VERTICAL" ? "VERTICAL" : "HORIZONTAL";
-        for (const c of node.data ?? []) walk(c, orient);
-      }
-    };
-    walk(grid.root, "HORIZONTAL");
-  };
-
-  const apply = (json: unknown) => {
-    if (!json) return false;
-    try {
-      scaleLayout(json as { grid?: { width?: number; height?: number; root?: unknown } });
-      dv.fromJSON(json as Parameters<DockviewComponent["fromJSON"]>[0]);
-      return true;
-    } catch {
-      return false;
-    }
-  };
-  void client
-    .getUiLayout()
-    .then((fileLayout) => {
-      if (apply(fileLayout)) {
-        store.pushLog("[layout] restored user layout from bridge file");
-      } else if (apply(DESK1_LAYOUT)) {
-        store.pushLog("[layout] restored default layout Desk1");
-      }
-    })
-    .catch(() => {
-      if (apply(DESK1_LAYOUT)) store.pushLog("[layout] restored default layout Desk1");
-    });
-
+  // NOTE: dockview 7 fromJSON drops content renderers on 5-panel layouts (observed
+  // with the Log panel: the tab survives but .cyl-log leaves the DOM). Layout restore
+  // via fromJSON is therefore disabled; we always start from the programmatic default
+  // below and keep saving the user's arrangement for future restore-once the bug is
+  // understood or worked around.
   return dv;
 }

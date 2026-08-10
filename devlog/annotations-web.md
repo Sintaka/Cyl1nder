@@ -123,3 +123,8 @@
   - display 节点**显示其全部端口**（不再 focus 隐藏第一项）——所有输入的 points/faces 都可见；
   - **无 out 端口数据时 fallback 显示 in 端口**（如 output_ 无 buffer → 显示 inputs）。
 - **系统验证**：normal sphere 测试数据完整走通——input0: 12pt/20prim/**60 vertices**/20 prims（spreadsheet 全部正确）+ 灰面 grey≈2900 + box 渲染。用户场景"只有点/无 vertices"= 该 serial 的 inputs **未带 faces**（旧 HDA 无 convert / 旧 serializer / 旧快照），需重新加载新 HDA 并 cook。
+
+## v0.1.00030（2026-08-10）
+- **Log 面板内容丢失修复**：dockview 7 的 `fromJSON` 在 5 面板布局下会丢弃 content renderer（Log tab 存活但 `.cyl-log` 离开 DOM——createComponent 直返元素/wrapper/init 挂载/reuseExistingPanels 均无效）。**决定：禁用 fromJSON 布局恢复**，始终用程序化默认布局（5 panel addPanel），拖拽保存（toJSON 到 bridge）保留。恢复功能待理解 dockview bug 后再开。
+- **调试参考 box**（B 键）：viewport 两个线框 box（+X 红 / +Y 青）验证渲染能力（red=185px ✓）。
+- **显示逻辑**：display 节点显示全部端口（不再 focus 隐藏第一项）+ 无 out 数据 fallback 显示输入。

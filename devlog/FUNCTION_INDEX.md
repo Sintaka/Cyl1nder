@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **240** 个函数/类。
+> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **237** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -286,15 +286,12 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/dock.ts（160 行）
+## web/src/app/dock.ts（128 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `layoutDebug` | 29 | function |  | 2 |
-| `setupDock` | 39 | function | export | 1 |
-| `scaleLayout` | 114 | arrow |  | 1 |
-| `walk` | 121 | arrow |  | 2 |
-| `apply` | 136 | arrow |  | 3 |
+| `layoutDebug` | 28 | function |  | 2 |
+| `setupDock` | 38 | function | export | 1 |
 
 ## web/src/app/layout.ts（123 行）
 
