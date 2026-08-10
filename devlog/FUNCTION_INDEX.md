@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **295** 个函数/类。
+> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **300** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -302,7 +302,7 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/dock.ts（453 行）
+## web/src/app/dock.ts（525 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -321,10 +321,12 @@
 | `ensureAddMenu` | 227 | function |  | 2 |
 | `toggleAddMenu` | 266 | function |  | 2 |
 | `groupIdForButton` | 281 | function |  | 2 |
-| `refreshAddButtons` | 288 | function |  | 4 |
-| `setupDock` | 311 | function | export | 1 |
-| `onLayoutChange` | 398 | arrow |  | 0 |
-| `applyLayout` | 442 | function | export | 1 |
+| `attachTabBarWheel` | 291 | function |  | 2 |
+| `closeTabGroup` | 309 | function |  | 2 |
+| `refreshAddButtons` | 325 | function |  | 4 |
+| `setupDock` | 383 | function | export | 1 |
+| `onLayoutChange` | 470 | arrow |  | 0 |
+| `applyLayout` | 514 | function | export | 1 |
 
 ## web/src/app/layout.ts（172 行）
 
@@ -344,15 +346,16 @@
 |---|---|---|---|---|
 | `formatLog` | 2 | function | export | 1 |
 
-## web/src/app/spreadsheet.ts（120 行）
+## web/src/app/spreadsheet.ts（165 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `esc` | 10 | function |  | 7 |
-| `attrRow` | 14 | function |  | 2 |
-| `renderPayload` | 21 | function | export | 2 |
-| `addVerts` | 56 | arrow |  | 2 |
-| `renderSpreadsheet` | 91 | function | export | 1 |
+| `esc` | 22 | function |  | 7 |
+| `fmtNum` | 27 | function |  | 7 |
+| `attrRow` | 34 | function |  | 2 |
+| `renderPayload` | 41 | function | export | 2 |
+| `addVerts` | 77 | arrow |  | 2 |
+| `renderSpreadsheet` | 119 | function | export | 1 |
 
 ## web/src/bridge/client.ts（162 行）
 
@@ -362,7 +365,7 @@
 | `connectWs` | 126 | function | export | 1 |
 | `connect` | 131 | arrow |  | 1 |
 
-## web/src/main.ts（487 行）
+## web/src/main.ts（492 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -376,15 +379,15 @@
 | `inputStatsText` | 261 | function |  | 2 |
 | `outputStatsText` | 270 | function |  | 2 |
 | `renderInspector` | 279 | function |  | 2 |
-| `runNetwork` | 316 | function |  | 2 |
-| `startHdaWatch` | 339 | function |  | 2 |
-| `check` | 341 | arrow |  | 1 |
-| `stopHdaWatch` | 358 | function |  | 2 |
-| `loadSnapshotIntoStore` | 367 | function |  | 3 |
-| `connect` | 395 | function |  | 4 |
-| `scheduleSaveGraph` | 475 | function |  | 2 |
+| `runNetwork` | 321 | function |  | 2 |
+| `startHdaWatch` | 344 | function |  | 2 |
+| `check` | 346 | arrow |  | 1 |
+| `stopHdaWatch` | 363 | function |  | 2 |
+| `loadSnapshotIntoStore` | 372 | function |  | 3 |
+| `connect` | 400 | function |  | 4 |
+| `scheduleSaveGraph` | 480 | function |  | 2 |
 
-## web/src/nodes2/graph.ts（1189 行）
+## web/src/nodes2/graph.ts（1212 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -399,38 +402,40 @@
 | `makeNullNode` | 154 | function | export | 4 |
 | `buildGraph` | 168 | function |  | 2 |
 | `createReteGraph` | 231 | function | export | 1 |
-| `attachTabSearch` | 415 | function |  | 2 |
-| `render` | 431 | arrow |  | 4 |
-| `create` | 446 | arrow |  | 2 |
-| `close` | 474 | arrow |  | 6 |
-| `update` | 480 | arrow |  | 3 |
-| `distToSegment` | 510 | function |  | 2 |
-| `sampleConnectionPath` | 520 | function |  | 2 |
-| `attachCutMode` | 541 | function |  | 2 |
-| `isTyping` | 565 | arrow |  | 1 |
-| `showLine` | 571 | arrow |  | 2 |
-| `hideLine` | 579 | arrow |  | 2 |
-| `cutConnection` | 587 | arrow |  | 2 |
-| `cutBySegment` | 595 | arrow |  | 1 |
-| `up` | 643 | arrow |  | 0 |
-| `attachFlagMenu` | 665 | function |  | 2 |
-| `show` | 677 | arrow |  | 2 |
-| `setNodeStateHandler` | 731 | function | export | 2 |
-| `fireNodeState` | 734 | function | export | 1 |
-| `initTooltip` | 740 | function | export | 2 |
-| `showTooltip` | 746 | function | export | 1 |
-| `hideTooltip` | 759 | function | export | 1 |
-| `attachMMBPan` | 767 | function |  | 2 |
-| `onMove` | 775 | arrow |  | 0 |
-| `onUp` | 778 | arrow |  | 0 |
-| `attachDotGrid` | 796 | function |  | 2 |
-| `hitTestConnection` | 827 | function |  | 3 |
-| `attachInsertion` | 855 | function |  | 2 |
-| `setHover` | 878 | arrow |  | 2 |
-| `attachRectSelect` | 986 | function |  | 2 |
-| `attachShakeDisconnect` | 1060 | function |  | 2 |
-| `reset` | 1069 | arrow |  | 0 |
-| `shakeNode` | 1075 | arrow |  | 1 |
+| `attachTabSearch` | 429 | function |  | 2 |
+| `render` | 445 | arrow |  | 4 |
+| `create` | 460 | arrow |  | 2 |
+| `close` | 488 | arrow |  | 6 |
+| `update` | 494 | arrow |  | 3 |
+| `distToSegment` | 524 | function |  | 2 |
+| `sampleConnectionPath` | 534 | function |  | 2 |
+| `attachCutMode` | 555 | function |  | 2 |
+| `isTyping` | 579 | arrow |  | 1 |
+| `showLine` | 585 | arrow |  | 2 |
+| `hideLine` | 593 | arrow |  | 2 |
+| `cutConnection` | 601 | arrow |  | 2 |
+| `cutBySegment` | 609 | arrow |  | 1 |
+| `up` | 657 | arrow |  | 0 |
+| `attachFlagMenu` | 679 | function |  | 2 |
+| `show` | 691 | arrow |  | 2 |
+| `setNodeStateHandler` | 745 | function | export | 2 |
+| `fireNodeState` | 748 | function | export | 1 |
+| `setRenameHandler` | 754 | function | export | 2 |
+| `fireRename` | 757 | function | export | 1 |
+| `initTooltip` | 763 | function | export | 2 |
+| `showTooltip` | 769 | function | export | 1 |
+| `hideTooltip` | 782 | function | export | 1 |
+| `attachMMBPan` | 790 | function |  | 2 |
+| `onMove` | 798 | arrow |  | 0 |
+| `onUp` | 801 | arrow |  | 0 |
+| `attachDotGrid` | 819 | function |  | 2 |
+| `hitTestConnection` | 850 | function |  | 3 |
+| `attachInsertion` | 878 | function |  | 2 |
+| `setHover` | 901 | arrow |  | 2 |
+| `attachRectSelect` | 1009 | function |  | 2 |
+| `attachShakeDisconnect` | 1083 | function |  | 2 |
+| `reset` | 1092 | arrow |  | 0 |
+| `shakeNode` | 1098 | arrow |  | 1 |
 
 ## web/src/protocol/compare.ts（23 行）
 
@@ -487,13 +492,13 @@
 | `buildInputs` | 111 | function | export | 1 |
 | `buildOutputs` | 121 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（494 行）
+## web/src/viewport/renderer.ts（498 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `Viewport` | 42 | class | export | 1 |
-| `showModeMenu` | 110 | arrow |  | 1 |
-| `hideModeMenu` | 122 | arrow |  | 2 |
-| `applyMode` | 123 | arrow |  | 1 |
-| `openModeMenu` | 138 | arrow |  | 1 |
-| `closeModeMenu` | 139 | arrow |  | 3 |
+| `Viewport` | 44 | class | export | 1 |
+| `showModeMenu` | 112 | arrow |  | 1 |
+| `hideModeMenu` | 124 | arrow |  | 2 |
+| `applyMode` | 125 | arrow |  | 1 |
+| `openModeMenu` | 140 | arrow |  | 1 |
+| `closeModeMenu` | 141 | arrow |  | 3 |

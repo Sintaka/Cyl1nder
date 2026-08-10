@@ -47,3 +47,28 @@ html, body, #app { height: 100%; margin: 0; }
 .cyl-log-filter { display: flex; gap: 4px; padding: 3px 10px; background: #0c0d0f; border-bottom: 1px solid #22252a; }
 .cyl-log-filter button { background: #1c1e24; border: 1px solid #33363c; color: #9aa1ab; border-radius: 3px; font-size: 10px; padding: 1px 7px; cursor: pointer; }
 .cyl-log-filter button.active { background: #2b6cb0; color: #fff; border-color: #2b6cb0; }
+
+/* ---- global scrollbar styling (vertical scrollbars match the dark background,
+   gray thumb; Firefox uses scrollbar-width/scrollbar-color) ---- */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: #141518;
+}
+*::-webkit-scrollbar-thumb {
+  background: #3a3f4a;
+  border-radius: 5px;
+  border: 2px solid #141518;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #4a5260;
+}
+*::-webkit-scrollbar-corner {
+  background: #141518;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3a3f4a #141518;
+}

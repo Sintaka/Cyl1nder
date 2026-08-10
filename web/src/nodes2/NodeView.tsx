@@ -7,11 +7,11 @@
  *   Bypass (yellow) / Freeze (icy blue). Reference/Bypass/Freeze are per-node toggles.
  * - ports rendered with RefSocket; each port div carries data-port-id for linkage.
  */
-import React, { useEffect, useReducer, useRef, useState } from "react";
+import React, { useEffect, useReducer, useRef } from "react";
 import { ClassicPreset } from "rete";
 import { Presets } from "rete-react-plugin";
 import type { ClassicScheme, ReactArea2D, RenderEmit } from "rete-react-plugin";
-import { fireNodeState, showTooltip, hideTooltip } from "./graph";
+import { fireNodeState, showTooltip, hideTooltip, fireRename } from "./graph";
 import type { CylNode } from "./graph";
 
 const { RefSocket } = Presets.classic;
@@ -32,6 +32,22 @@ function subscribeNodeChanged(fn: () => void): () => void {
   return () => displayListeners.delete(fn);
 }
 
+/**
+ * Last pointerdown on a node title, for manual double-click detection.
+ * Module-level on purpose: NodeView is remounted by the rete react plugin on
+ * selection re-renders, so a per-instance ref would reset between the two clicks
+ * of a double-click and the rename would never open.
+ */
+let lastTitleDown: { t: number; x: number; y: number } | null = null;
+
+/**
+ * Rename-in-progress state. Also module-level on purpose: the rete react plugin
+ * remounts NodeView on selection re-renders (which the double-click gesture itself
+ * triggers), so per-instance state would be reset and close the rename input.
+ */
+let editingNodeId: string | null = null;
+let editValue = "";
+
 type Props = {
   data: ClassicScheme["Node"];
   emit: RenderEmit<ClassicScheme>;
@@ -42,24 +58,48 @@ export function NodeView({ data, emit }: Props) {
   const [, force] = useReducer((x: number) => x + 1, 0);
   useEffect(() => subscribeNodeChanged(() => force()), []);
   const btnRef = useRef<HTMLButtonElement>(null);
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(node.label);
+  const editing = editingNodeId === node.id;
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (editing) inputRef.current?.focus();
+    if (!editing) return;
+    // Focus on the next frame AND after a short delay: the freshly-mounted input may
+    // not be interactive yet, and the tail of the dblclick gesture (including the
+    // rete-triggered remount) can steal focus / unmount a focused input. Focusing
+    // after that settles keeps the input reliably focused for typing.
+    const raf = requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select(); // selecting-all means typing replaces the old name
+    });
+    const late = window.setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 120);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(late);
+    };
   }, [editing]);
-  const inputs = Object.entries(node.inputs);
-  const outputs = Object.entries(node.outputs);
-  const flags = node.flags ?? { display: false, bypass: false, freeze: false, reference: false };
+
+  const startRename = () => {
+    lastTitleDown = null;
+    editingNodeId = node.id as string;
+    editValue = node.label;
+    force();
+  };
 
   const commitName = () => {
-    const v = name.trim();
+    const v = editValue.trim();
     if (v && v !== node.label) {
-      node.label = v;
-      node.baseLabel = v;
-      notifyNodeChanged();
+      // Ultimate suffix dedup: the graph-level rename handler returns a label that is
+      // unique across ALL nodes (foo -> foo1 -> foo2 ...) and applies it to the node.
+      const final = fireRename(node.id as string, v);
+      if (node.label !== final) {
+        node.label = final;
+        notifyNodeChanged();
+      }
     }
-    setEditing(false);
+    editingNodeId = null;
+    force();
   };
 
   const chip = (
@@ -108,6 +148,10 @@ export function NodeView({ data, emit }: Props) {
     </div>
   );
 
+  const inputs = Object.entries(node.inputs);
+  const outputs = Object.entries(node.outputs);
+  const flags = node.flags ?? { display: false, bypass: false, freeze: false, reference: false };
+
   return (
     <div
       className={`cyl-rp-node ${flags.bypass ? "bypass" : ""} ${flags.freeze ? "freeze" : ""} ${
@@ -119,12 +163,18 @@ export function NodeView({ data, emit }: Props) {
           <input
             ref={inputRef}
             className="cyl-rp-rename"
-            value={name}
+            value={editValue}
             spellCheck={false}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              editValue = e.target.value;
+              force();
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter") commitName();
-              if (e.key === "Escape") setEditing(false);
+              if (e.key === "Escape") {
+                editingNodeId = null;
+                force();
+              }
               e.stopPropagation();
             }}
             onBlur={commitName}
@@ -134,10 +184,24 @@ export function NodeView({ data, emit }: Props) {
           <span
             className="cyl-rp-title"
             title="double-click to rename"
+            onPointerDownCapture={(e) => {
+              // rete's node pointerdown chain (Drag -> nodepicked -> simpleNodesOrder)
+              // reorders the node element in the DOM, which suppresses the browser's
+              // click/dblclick events on this span, so onDoubleClick alone never fires.
+              // Detect the double-click manually so the rename input reliably opens.
+              const now = performance.now();
+              const last = lastTitleDown;
+              if (last && now - last.t < 400 && Math.abs(e.clientX - last.x) < 8 && Math.abs(e.clientY - last.y) < 8) {
+                e.preventDefault(); // suppress the tail mousedown of the dblclick so it cannot steal focus
+                startRename();
+              } else {
+                lastTitleDown = { t: now, x: e.clientX, y: e.clientY };
+              }
+            }}
             onDoubleClick={(e) => {
+              e.preventDefault(); // stop native text selection of the title
               e.stopPropagation();
-              setName(node.label);
-              setEditing(true);
+              startRename();
             }}
           >
             {node.label}

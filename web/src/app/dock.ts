@@ -284,23 +284,95 @@ function groupIdForButton(dv: DockviewComponent, btn: HTMLElement): string | und
   return dv.api.groups.find((g) => g.element === gv)?.id ?? dv.api.activeGroup?.id;
 }
 
-/** Inject (or keep) a "+" button at the right end of every tab bar. */
+/** Horizontal wheel scrolling for overflowing tab strips (capture + preventDefault).
+ *  Only intercepts the wheel when the tabs actually overflow, so normal page
+ *  scrolling and the 3D viewport wheel-zoom (a different element) are untouched.
+ */
+function attachTabBarWheel(bar: HTMLElement): void {
+  if (bar.dataset.cylWheelBound === "1") return;
+  bar.dataset.cylWheelBound = "1";
+  bar.addEventListener(
+    "wheel",
+    (e) => {
+      const tabsContainer = bar.querySelector<HTMLElement>(".dv-tabs-container");
+      if (!tabsContainer) return;
+      if (tabsContainer.scrollWidth <= tabsContainer.clientWidth) return;
+      e.preventDefault();
+      e.stopPropagation();
+      tabsContainer.scrollLeft += e.deltaY + e.deltaX;
+    },
+    { capture: true, passive: false },
+  );
+}
+
+/** Close the ENTIRE dock group behind a "✕" button (all panels in that tab bar). */
+function closeTabGroup(dv: DockviewComponent, btn: HTMLElement): void {
+  const gv = btn.closest(".dv-groupview") as HTMLElement | null;
+  const group = gv ? dv.api.groups.find((g) => g.element === gv) : dv.api.activeGroup;
+  if (!group) {
+    store.pushLog("[layout] ✕ close: no dock group found");
+    return;
+  }
+  const names = group.panels.map((p) => p.title ?? p.id).join(", ") || group.id;
+  const count = group.panels.length;
+  group.api.close();
+  store.pushLog("[layout] closed dock group \"" + names + "\" (" + count + " panels) via ✕");
+}
+
+/** Inject (or keep) the "+" add button right after the tabs of every tab bar, the
+ *  pinned "✕" group-close button at the far-right end of the bar, and horizontal
+ *  wheel scrolling for overflowing tab strips. */
 function refreshAddButtons(dv: DockviewComponent, container: HTMLElement): void {
   const bars = container.querySelectorAll<HTMLElement>(".dv-tabs-and-actions-container");
   for (const bar of Array.from(bars)) {
-    if (bar.querySelector(":scope > .cyl-dock-add")) continue;
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "cyl-dock-add";
-    btn.title = "添加面板 (add panel)";
-    btn.textContent = "+";
-    // Keep dockview's tab/group drag sources from treating the button as a tab.
-    btn.addEventListener("pointerdown", (e) => e.stopPropagation());
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      toggleAddMenu(dv, groupIdForButton(dv, btn), btn);
-    });
-    bar.appendChild(btn);
+    const tabsContainer = bar.querySelector<HTMLElement>(".dv-tabs-container");
+    if (!tabsContainer) continue;
+
+    // "+" add-panel button: kept as the LAST child of the scrollable tabs list so
+    // it sits immediately after the last tab and moves right as tabs are
+    // added/docked. appendChild both creates and re-positions an existing node,
+    // so this never duplicates.
+    let addBtn = bar.querySelector<HTMLButtonElement>(".cyl-dock-add");
+    if (!addBtn) {
+      addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.className = "cyl-dock-add";
+      addBtn.title = "添加面板 (add panel)";
+      addBtn.textContent = "+";
+      // Listeners attach ONCE at creation; refreshAddButtons only re-positions an
+      // existing button (attaching on every call would stack duplicate handlers).
+      const created = addBtn;
+      // Keep dockview's tab/group drag sources from treating the button as a tab.
+      created.addEventListener("pointerdown", (e) => e.stopPropagation());
+      created.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleAddMenu(dv, groupIdForButton(dv, created), created);
+      });
+    }
+    const add = addBtn;
+    tabsContainer.appendChild(add);
+
+    // "✕" group-close button: pinned at the far-right END of the tab bar (OUTSIDE
+    // the scrollable tabs list) so it never scrolls away; closes the whole group.
+    let closeBtn = bar.querySelector<HTMLButtonElement>(":scope > .cyl-dock-close");
+    if (!closeBtn) {
+      closeBtn = document.createElement("button");
+      closeBtn.type = "button";
+      closeBtn.className = "cyl-dock-close";
+      closeBtn.title = "关闭整个 Docking 分组 (close group)";
+      closeBtn.textContent = "✕";
+      // Listeners attach ONCE at creation; refreshAddButtons only re-positions.
+      const created = closeBtn;
+      created.addEventListener("pointerdown", (e) => e.stopPropagation());
+      created.addEventListener("click", (e) => {
+        e.stopPropagation();
+        closeTabGroup(dv, created);
+      });
+    }
+    const close = closeBtn;
+    bar.appendChild(close);
+
+    attachTabBarWheel(bar);
   }
 }
 

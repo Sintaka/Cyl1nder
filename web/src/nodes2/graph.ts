@@ -272,6 +272,20 @@ export async function createReteGraph(
     }
   });
 
+  // Ultimate suffix dedup after rename: the label must be unique across ALL nodes.
+  setRenameHandler((nodeId, desired) => {
+    const self = g.editor.getNode(nodeId) as CylNode | undefined;
+    if (!self) return desired;
+    const used = new Set(
+      (g.editor.getNodes() as CylNode[]).filter((n) => n.id !== nodeId).map((n) => n.label),
+    );
+    let final = desired;
+    for (let i = 1; used.has(final); i++) final = `${desired}${i}`;
+    self.label = final; // baseLabel keeps the original base (null nodes stay "null")
+    notifyNodeChanged();
+    return final;
+  });
+
   return {
     editor: g.editor,
     area: g.area,
@@ -733,6 +747,15 @@ export function setNodeStateHandler(fn: ((nodeId: string, key: "display" | "refe
 }
 export function fireNodeState(nodeId: string, key: "display" | "reference" | "bypass" | "freeze"): void {
   nodeStateHandler?.(nodeId, key);
+}
+
+/** Rename handler: returns the final (deduped) label for a node rename; registered by createReteGraph. */
+let renameHandler: ((nodeId: string, desired: string) => string) | null = null;
+export function setRenameHandler(fn: ((nodeId: string, desired: string) => string) | null): void {
+  renameHandler = fn;
+}
+export function fireRename(nodeId: string, desired: string): string {
+  return renameHandler ? renameHandler(nodeId, desired) : desired;
 }
 
 /** Custom floating tooltip (dark rounded chip) replacing the native title tooltip. */

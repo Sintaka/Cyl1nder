@@ -14,12 +14,13 @@ export interface ReferenceItem {
 }
 
 /** Viewport display modes: smooth/flat Lambert shading (optional black wire),
- *  unlit wire shading, pure wireframe, and a translucent wireframe ghost. */
+ *  unlit shading/wire, pure wireframe, and a translucent wireframe ghost. */
 export type DisplayMode =
   | "smooth-shaded"
   | "smooth-wire"
   | "flat-shaded"
   | "flat-wire"
+  | "unlit-shaded"
   | "unlit-wire"
   | "wireframe"
   | "wireframe-ghost";
@@ -30,6 +31,7 @@ const MODE_LABELS: Record<DisplayMode, string> = {
   "smooth-wire": "Smooth Wire Shaded",
   "flat-shaded": "Flat Shaded",
   "flat-wire": "Flat Wire Shaded",
+  "unlit-shaded": "Unlit Shaded",
   "unlit-wire": "Unlit Wire Shaded",
   wireframe: "Wireframe",
   "wireframe-ghost": "Wireframe Ghost",
@@ -55,7 +57,7 @@ export class Viewport {
   private selectedLine: THREE.Line | null = null;
   private animId = 0;
 
-  /** Display modes: smooth/flat shaded (Lambert, optional black wire), unlit wire, wireframe, wireframe ghost. */
+  /** Display modes: smooth/flat shaded (Lambert, optional black wire), unlit shaded/wire, wireframe, wireframe ghost. */
   displayMode: DisplayMode = "smooth-shaded";
   /** Debug reference boxes: verify the viewport can render (independent of incoming data). */
   private debugBoxes = new THREE.Group();
@@ -413,6 +415,8 @@ export class Viewport {
         else if (this.displayMode === "flat-wire") this.setDisplayMode("flat-shaded");
         else if (this.displayMode === "smooth-shaded") this.setDisplayMode("smooth-wire");
         else if (this.displayMode === "smooth-wire") this.setDisplayMode("smooth-shaded");
+        else if (this.displayMode === "unlit-shaded") this.setDisplayMode("unlit-wire");
+        else if (this.displayMode === "unlit-wire") this.setDisplayMode("unlit-shaded");
         else this.setDisplayMode("smooth-wire");
         return;
       }
@@ -443,13 +447,13 @@ export class Viewport {
           faceMat = new THREE.MeshLambertMaterial({ color: 0x9aa0a6, side: THREE.DoubleSide });
         } else if (m === "flat-shaded" || m === "flat-wire") {
           faceMat = new THREE.MeshLambertMaterial({ color: 0x9aa0a6, side: THREE.DoubleSide, flatShading: true });
-        } else if (m === "unlit-wire") {
+        } else if (m === "unlit-shaded" || m === "unlit-wire") {
           faceMat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide });
         } else if (m === "wireframe-ghost") {
           faceMat = new THREE.MeshBasicMaterial({
             color: 0x000000,
             transparent: true,
-            opacity: 0.8,
+            opacity: 0.2,
             side: THREE.DoubleSide,
           });
         } else {

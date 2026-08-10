@@ -5,11 +5,12 @@
 .cyl-dock .dockview-theme-dark { --dv-group-view-background-color: #141518; }
 
 /* ---- dockview tabs: rounded rectangles (keep the app dark theme) ----
-   Tab bar + tab colors via dockview CSS vars (active tab accent = #2b6cb0).
+   Tab bar + tab colors via dockview CSS vars (active tab = dark blue #2e4f7d,
+   brighter than the panel bg but NOT bright blue; inactive tabs keep their look).
    Border-radius + a few px horizontal gap come from the .dv-tab rules below. */
 .cyl-dock .dockview-theme-dark {
   --dv-tabs-and-actions-container-background-color: #1c1e22;
-  --dv-activegroup-visiblepanel-tab-background-color: #2b6cb0;
+  --dv-activegroup-visiblepanel-tab-background-color: #2e4f7d; /* dark-blue active tab (brighter than the panel, NOT bright blue) */
   --dv-activegroup-visiblepanel-tab-color: #fff;
   --dv-activegroup-hiddenpanel-tab-background-color: #1b1e24;
   --dv-activegroup-hiddenpanel-tab-color: #9aa1ab;
@@ -23,13 +24,60 @@
   border-radius: 6px;
   margin: 3px 2px; /* horizontal gap between rounded tabs */
 }
+/* Active tab: VSCode/Houdini style - rounded TOP edge only + concave (inverted)
+   bottom corners so it visually merges with the panel content below. The notch is
+   painted with the CONTENT background (--dv-group-view-background-color), not the
+   tab-bar background. A higher z-index lets the active tab overlap the adjacent
+   inactive tabs and hide their bottom corners behind it. */
+.cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab {
+  position: relative;
+  z-index: 10;            /* overlap adjacent inactive tabs */
+  border-radius: 6px 6px 0 0; /* top edge rounded only */
+  margin: 3px -4px 0;     /* flush with the content bottom + slight side overlap */
+}
+/* Active tab is the FIRST tab: keep the normal left margin so it isn't clipped
+   by the scrollable's left edge. */
+.cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab:first-child {
+  margin-left: 2px;
+}
+/* Active tab is the LAST tab (its next sibling is the "+" button): only touch the
+   button instead of overlapping it. */
+.cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab:has(+ .cyl-dock-add) {
+  margin-right: -2px;
+}
+/* bottom-left concave notch (quarter-disc of the content background) */
+.cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab::before {
+  content: "";
+  position: absolute;
+  top: auto;              /* neutralizes dockview's :not(:first-child) divider rule */
+  left: 0;
+  bottom: 0;
+  width: 8px;
+  height: 8px;
+  background: radial-gradient(circle at 0 100%, var(--dv-group-view-background-color) 0 8px, transparent 8.5px);
+  pointer-events: none;
+  z-index: 11;
+}
+/* bottom-right concave notch */
+.cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab::after {
+  content: "";
+  position: absolute;
+  top: auto;
+  right: 0;
+  bottom: 0;
+  width: 8px;
+  height: 8px;
+  background: radial-gradient(circle at 100% 100%, var(--dv-group-view-background-color) 0 8px, transparent 8.5px);
+  pointer-events: none;
+  z-index: 11;
+}
 /* hover background for inactive tabs (dockview theme rule is very specific,
    so !important is needed to reliably override the bundled stylesheet) */
 .cyl-dock .dockview-theme-dark .dv-tab.dv-inactive-tab:hover {
   background-color: #2a2d33 !important;
 }
 
-/* ---- "+" add-panel button (right end of each tab bar, same rounded look) ---- */
+/* ---- "+" add-panel button (right after the last tab, inside the scrollable tabs list) ---- */
 .cyl-dock-add {
   flex: 0 0 auto;
   align-self: center;
@@ -55,6 +103,35 @@
   background: #2a2d33;
   border-color: #33363c;
   color: #cfd2d6;
+}
+
+/* ---- "✕" group-close button (pinned far-right of each tab bar, ALWAYS visible;
+   it lives OUTSIDE the scrollable tabs list so it never scrolls away) ---- */
+.cyl-dock-close {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 20px;
+  height: 20px;
+  margin: 0 6px 0 2px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #9aa1ab;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+.cyl-dock-close:hover {
+  background: #2a2d33;
+  border-color: #33363c;
+  color: #e8a0a0;
 }
 
 /* ---- "+" menu: small dark rounded menu (matches .cyl-menu-drop look) ---- */

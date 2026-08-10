@@ -301,7 +301,12 @@ store.subscribe(() => {
   layout.statusDot.className = `cyl-status ${store.status}`;
   viewport.refresh();
   refreshNodeFlags();
-  renderSpreadsheet(spreadsheetEl, store.inputs, "inputs");
+  // Spreadsheet follows the node-view display flag: a null/_input_ display shows
+  // only that routed source port (Bacon's SpreadsheetFocus contract), not all 4.
+  const spDisp = graph.getDisplayNode();
+  const spKind = spDisp?.kind ?? null;
+  const spIndex = spKind === "null" ? graph.getDisplayPortIndex() : spKind === "input" ? 0 : null;
+  renderSpreadsheet(spreadsheetEl, store.inputs, "inputs", { kind: spKind, index: spIndex });
   scheduleSaveGraph();
   const showHint = !store.serial || store.status === "offline";
   layout.hintEl.classList.toggle("hidden", !showHint);

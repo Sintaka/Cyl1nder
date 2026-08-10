@@ -12,6 +12,20 @@
 - **Codex 子智能体**：适当时候可以直接使用子智能体（并行调研 / 独立小改动）。
 - **许可证**：本项目采用 **Cyl1nder Source-Available Non-Commercial License**（见根 LICENSE）：源码可用、**禁止商用**、个人学习/非商业不限、允许修改（宽松，衍生作品同约束并保留声明署名）、**最终使用者负全责、与作者无关**。引入第三方代码时确保许可兼容；Animehairstudio / Zeno(MPL-2.0) 代码只借鉴不复制。
 
+﻿## 并行修改规范 / Parallel modification standards（2026-08-11 起）
+**规则（铁律）：用户要求"codex 子智能体并行完成"时，主进程必须按此流程执行，子智能体必须遵守。**
+
+1. **先评估，再调结构，最后并行**：
+   - 评估各改动落在哪些文件；**同文件 = 不能并行**（会互相覆盖），**不同文件 = 可直接并行**。
+   - 值得调整结构时**先由主进程改结构**（如把共享单文件拆成按域小文件），使每个子智能体的写集完全不相交，然后再 spawn。
+2. **写集（write set）唯一**：每个子智能体只允许修改分配到的文件清单，**禁止碰任何其他文件**。CSS 归属固定：`base.css`(全局壳/滚动条) / `nodeview.css`(节点图) / `viewport.css`(3D视口) / `dock.css`(docking) / `spreadsheet.css`(表格)。
+3. **跨文件交互先定契约**：需要联动（如 main.ts 传 display focus 给 spreadsheet）时，主进程先在任务里写死函数签名/参数契约，子智能体按契约实现；主进程负责另一侧（如 main.ts 的调用点）在合并时补上。
+4. **视觉样式冲突时的应急**：某 agent 的样式本应进 CSS 但 CSS 归属他人 → 用**内联样式**（element.style.cssText），不越界改 CSS 文件。
+5. **各自验证**：每个 agent 提交前必须 `node node_modules/typescript/bin/tsc --noEmit`（web 目录）通过，并尽量用 Playwright headless Edge 连**已在跑的 8376 dev server** 自测（禁止另起 vite）。
+6. **主进程合并**：全部 agent 完成后，主进程统一 review diff → 全量验证（tsc / vitest / pytest / e2e / verify-all / 综合 Playwright 复测）→ 更新 devlog + 索引 + 版本号 → 单个 commit。
+7. **并行纪律**：agent 之间互不等待、互不读对方未提交的中间态；发现工作区有其他进程的并发修改时**不动它们**（只做自己写集）。
+8. 完成并行任务后，把"本次结构拆分"与"并行过程"记入 devlog（annotations-web / README 最近版本）。
+
 ## 调试规范 / Debugging standards（2026-08-10 起累积，按条目追加）
 - **Houdini 端与 Codex 一律使用官方 fxhoudinimcp**（pip 包 v2.10.0，github healkeiser/fxhoudinimcp，`python -m fxhoudinimcp`）；默认端口 **8100**，被其他 Houdini 实例占用时自动 8101+（官方 find_servers 探测 8100..8115）。**禁止自己写 MCP 桥；不用 oculairmedia fork / run_houdini_mcp.py / rpyc 18811 那套**。Codex 配置见 `[mcp_servers.fxhoudinimcp]`（config.toml）。
 - **Houdini 免重启热重载**（详见 devlog/hda-hot-reload.md）：
