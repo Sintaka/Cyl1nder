@@ -75,6 +75,112 @@ def cyl1nder_read_snapshot(serial: str) -> dict:
     return {"serial": serial, "summary": summary}
 
 
+# ---- nodeview: 节点网络视图（读取快照 scene/node-graph.json，不依赖 web 在线）----
+
+
+def _read_graph(serial: str) -> dict | None:
+    """读取某 serial 的节点图快照（schemaVersion 2），无快照返回 None。"""
+    st = get_state()
+    rec = st.registry.get(serial)
+    hip = rec.hip if rec else ""
+    snap = read_snapshot(hip, serial)
+    if not snap:
+        return None
+    graph = snap.get("graph")
+    return graph if isinstance(graph, dict) else None
+
+
+def _node_map(graph: dict) -> dict[str, dict]:
+    return {n.get("id"): n for n in graph.get("nodes", []) if isinstance(n, dict) and n.get("id")}
+
+
+@mcp.tool()
+def cyl1nder_nodeview_nodes(serial: str) -> list[dict] | None:
+    """节点网络：列出该 serial 节点图的所有节点（id/kind/label/baseLabel/flags/x/y）。无快照返回 null。"""
+    graph = _read_graph(serial)
+    if graph is None:
+        return None
+    return graph.get("nodes", [])
+
+
+@mcp.tool()
+def cyl1nder_nodeview_connections(serial: str) -> list[dict] | None:
+    """节点网络：列出该 serial 节点图的所有连接（source/sourceOutput/target/targetInput），并附 sourceLabel/targetLabel。无快照返回 null。"""
+    graph = _read_graph(serial)
+    if graph is None:
+        return None
+    nodes = _node_map(graph)
+    out: list[dict] = []
+    for c in graph.get("connections", []):
+        if not isinstance(c, dict):
+            continue
+        row = dict(c)
+        src = nodes.get(c.get("source"))
+        tgt = nodes.get(c.get("target"))
+        row["sourceLabel"] = src.get("label") if src else None
+        row["targetLabel"] = tgt.get("label") if tgt else None
+        out.append(row)
+    return out
+
+
+@mcp.tool()
+def cyl1nder_nodeview_status(serial: str) -> dict | None:
+    """节点网络：摘要（节点数/连接数/viewport transform/每节点 flags，尤其 display 节点）。无快照返回 null。"""
+    graph = _read_graph(serial)
+    if graph is None:
+        return None
+    nodes = graph.get("nodes", [])
+    flags_by_node: list[dict] = []
+    display_ids: list[str] = []
+    for n in nodes:
+        if not isinstance(n, dict):
+            continue
+        f = n.get("flags") or {}
+        flags_by_node.append({"id": n.get("id"), "label": n.get("label"), "flags": f})
+        if f.get("display"):
+            display_ids.append(n.get("id"))
+    return {
+        "serial": serial,
+        "schemaVersion": graph.get("schemaVersion"),
+        "nodeCount": len(nodes),
+        "connectionCount": len(graph.get("connections", [])),
+        "viewport": graph.get("viewport") or {},
+        "displayNodes": display_ids,
+        "nodes": flags_by_node,
+    }
+
+
+@mcp.tool()
+def cyl1nder_nodeview_connected(serial: str, nodeId: str) -> dict | None:
+    """节点网络：某节点的前驱/后继连接（谁连到它、它连到哪里），带 label 解析。无快照返回 null。"""
+    graph = _read_graph(serial)
+    if graph is None:
+        return None
+    nodes = _node_map(graph)
+    preds: list[dict] = []
+    succs: list[dict] = []
+    for c in graph.get("connections", []):
+        if not isinstance(c, dict):
+            continue
+        if c.get("target") == nodeId:
+            row = dict(c)
+            src = nodes.get(c.get("source"))
+            row["sourceLabel"] = src.get("label") if src else None
+            preds.append(row)
+        elif c.get("source") == nodeId:
+            row = dict(c)
+            tgt = nodes.get(c.get("target"))
+            row["targetLabel"] = tgt.get("label") if tgt else None
+            succs.append(row)
+    return {
+        "serial": serial,
+        "nodeId": nodeId,
+        "node": nodes.get(nodeId),
+        "predecessors": preds,
+        "successors": succs,
+    }
+
+
 @mcp.tool()
 def cyl1nder_read_layout() -> dict:
     """Debug: current docking layout (docking-layout.json from the bridge file)."""

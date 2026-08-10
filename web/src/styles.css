@@ -219,20 +219,29 @@ html, body, #app { height: 100%; margin: 0; }
   flex: 1; min-width: 0; background: #0f1012; color: #e6e9ef; border: 1px solid #3b82f6;
   border-radius: 3px; font-size: 11px; padding: 1px 4px; outline: none;
 }
-.cyl-graph .cyl-rp-chips { display: flex; flex-direction: row-reverse; gap: 3px; }
-.cyl-graph .cyl-ns {
-  width: 18px; height: 15px; border-radius: 3px; border: 1px solid #3a3f4a;
-  background: transparent; color: #6b7280; font-size: 9px; font-weight: 700;
-  display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
+.cyl-graph .cyl-rp-chips {
+  flex: 1; display: flex; flex-direction: row-reverse; min-width: 0;
+  margin-left: 6px; height: 12px;
 }
-.cyl-graph .cyl-ns:hover { border-color: #9aa1ab; }
-.cyl-graph .cyl-ns.display.on { background: #3b82f6; border-color: #60a5fa; color: #fff; }       /* Display light blue */
-.cyl-graph .cyl-ns.reference.on { background: #ec4899; border-color: #f472b6; color: #fff; }     /* Reference pink */
-.cyl-graph .cyl-ns.bypass.on { background: #f59e0b; border-color: #fbbf24; color: #1a1a1a; }     /* Bypass yellow */
-.cyl-graph .cyl-ns.freeze.on { background: #7dd3fc; border-color: #bae6fd; color: #0c4a6e; }     /* Freeze icy blue */
+.cyl-graph .cyl-rp-chips .cyl-ns {
+  flex: 1 1 0; height: 12px; border: none; border-radius: 0; padding: 0;
+  background: transparent; display: block; cursor: pointer; min-width: 0;
+}
+.cyl-graph .cyl-rp-node { overflow: hidden; } /* let chips hug the top edge */
+/* seamless: rightmost chip keeps the top-right corner radius */
+.cyl-graph .cyl-rp-chips .cyl-ns:first-child { border-top-right-radius: 5px; }
+/* state colors: default fully transparent; on = solid color; hover = color+half bg blend */
+.cyl-graph .cyl-ns.display.on { background: #3b82f6; }            /* Display light blue */
+.cyl-graph .cyl-ns.display:hover { background: rgba(59,130,246,.55); }
+.cyl-graph .cyl-ns.reference.on { background: #ec4899; }          /* Reference pink */
+.cyl-graph .cyl-ns.reference:hover { background: rgba(236,72,153,.55); }
+.cyl-graph .cyl-ns.bypass.on { background: #f59e0b; }             /* Bypass yellow */
+.cyl-graph .cyl-ns.bypass:hover { background: rgba(245,158,11,.55); }
+.cyl-graph .cyl-ns.freeze.on { background: #7dd3fc; }             /* Freeze icy blue */
+.cyl-graph .cyl-ns.freeze:hover { background: rgba(125,211,252,.55); }
 
 /* menu bar */
-.cyl-menubar { display: flex; gap: 2px; }
+.cyl-menubar { display: flex; gap: 2px; user-select: none; -webkit-user-select: none; }
 .cyl-menu { position: relative; }
 .cyl-menu-label { padding: 2px 8px; cursor: pointer; border-radius: 3px; color: #cfd2d6; font-size: 12px; }
 .cyl-menu-label:hover { background: #2a2d33; }
@@ -251,3 +260,20 @@ html, body, #app { height: 100%; margin: 0; }
 .cyl-log-filter { display: flex; gap: 4px; padding: 3px 10px; background: #0c0d0f; border-bottom: 1px solid #22252a; }
 .cyl-log-filter button { background: #1c1e24; border: 1px solid #33363c; color: #9aa1ab; border-radius: 3px; font-size: 10px; padding: 1px 7px; cursor: pointer; }
 .cyl-log-filter button.active { background: #2b6cb0; color: #fff; border-color: #2b6cb0; }
+
+/* rectangle multi-select overlay */
+.cyl-rect-select {
+  position: absolute; border: 1px solid #3b82f6; background: rgba(59,130,246,.12);
+  z-index: 30; pointer-events: none;
+}
+.cyl-rect-select.hidden { display: none; }
+
+/* display-mode dropdown */
+.cyl-mode-menu {
+  position: absolute; z-index: 55; background: #1b1e24; border: 1px solid #3a3f4a;
+  border-radius: 6px; min-width: 118px; padding: 3px; box-shadow: 0 8px 24px rgba(0,0,0,.5);
+}
+.cyl-mode-menu.hidden { display: none; }
+.cyl-mode-item { padding: 4px 10px; cursor: pointer; color: #cfd2d6; font-size: 12px; border-radius: 4px; }
+.cyl-mode-item.on { color: #7ce3a8; }
+.cyl-mode-item.hover { background: #2b6cb0; color: #fff; }

@@ -163,3 +163,12 @@
 - **节点状态重构**：去掉右键菜单（留给别的用）；头部左上名称**双击改名**（inline input，Enter 提交）；右上 4 个等距矩形 chip（从右往左）：Display（浅蓝，net 唯一）/ Reference（粉，原 wireframe 改名，暂无语义）/ Bypass（黄）/ Freeze（冰蓝白），后三者每节点独立 toggle；移除突出 D 按钮。
 - **viewport 显示**：所有输入统一 0.4 灰（不再四端口各色）；poly 面默认 0.4 灰 Lambert；wire 黑色 LineSegments。
 - **node view 无头线段**：恢复快照 graph 后连接端点正常（经 TDZ 修复 + restoreGraph 校验）；client TDZ 修复（菜单逻辑提前声明）。
+
+## v0.1.00036（2026-08-11）
+- **菜单栏防文字选中**：menubar `user-select: none`。
+- **viewport**：geometry wireframe 统一**黑色**（applyDisplayMode 强制 0x000000，不再被端口灰覆盖）；显示模式右上角改**按住下拉菜单**（Lit/Unlit/Wire/Wire+Face，悬停高亮、松开应用鼠标停留项）。
+- **node view**：
+  - **LMB 空白拖拽 = rect 框选多选**（overlay 蓝色矩形，nodeViews 位置判断 select/unselect）；节点/端口/chip 上拖拽不受影响。
+  - **Display Flag 直接走节点右上角**（不再需要右键菜单；右键菜单已删）：chip 点击 → displayHandler（net 唯一）；**restoreGraph 强制单 display**（快照可能含多个 display，恢复时仅保留第一个）。
+  - **右上 4 按钮无缝纯色**：flex 均分、贴合节点边缘（最右保持圆角）、无字母纯色块；on 显示对应颜色（Display 浅蓝/Reference 粉/Bypass 黄/Freeze 冰蓝白）；悬停 = 颜色+背景一半混合；提示用自定义 tooltip。
+- **MCP nodeview API**（子智能体 Arendt）：`cyl1nder_nodeview_nodes` / `_connections` / `_status` / `_connected`（读 scene/node-graph.json，无快照返回 null）+ `scripts/cyl_debug.py nodeview <serial>`。报告 devlog/nodeview-mcp-report.md。

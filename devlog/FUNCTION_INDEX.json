@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-10T15:53:45.519Z",
-  "totalFunctions": 257,
+  "generatedAt": "2026-08-10T16:11:16.561Z",
+  "totalFunctions": 267,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -206,7 +206,7 @@
     },
     {
       "file": "bridge/bridge/mcp_server.py",
-      "lineCount": 153,
+      "lineCount": 259,
       "functions": [
         {
           "name": "_index_files",
@@ -244,50 +244,92 @@
           "calls": 1
         },
         {
+          "name": "_read_graph",
+          "line": 81,
+          "kind": "def",
+          "exported": false,
+          "calls": 5
+        },
+        {
+          "name": "_node_map",
+          "line": 93,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "cyl1nder_nodeview_nodes",
+          "line": 98,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "cyl1nder_nodeview_connections",
+          "line": 107,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "cyl1nder_nodeview_status",
+          "line": 127,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "cyl1nder_nodeview_connected",
+          "line": 154,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
           "name": "cyl1nder_read_layout",
-          "line": 79,
+          "line": 185,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "walk",
-          "line": 89,
+          "line": 195,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "cyl1nder_read_logs",
-          "line": 102,
+          "line": 208,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "cyl1nder_get_errors",
-          "line": 108,
+          "line": 214,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "cyl1nder_get_geometry_summary",
-          "line": 114,
+          "line": 220,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "cyl1nder_index_query",
-          "line": 124,
+          "line": 230,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "run_stdio",
-          "line": 147,
+          "line": 253,
           "kind": "def",
           "exported": false,
           "calls": 2
@@ -1615,7 +1657,7 @@
     },
     {
       "file": "web/src/nodes2/graph.ts",
-      "lineCount": 851,
+      "lineCount": 925,
       "functions": [
         {
           "name": "log",
@@ -1636,7 +1678,7 @@
           "line": 70,
           "kind": "function",
           "exported": false,
-          "calls": 5
+          "calls": 6
         },
         {
           "name": "renderNode",
@@ -1696,157 +1738,164 @@
         },
         {
           "name": "attachTabSearch",
-          "line": 390,
+          "line": 398,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "render",
-          "line": 406,
+          "line": 414,
           "kind": "arrow",
           "exported": false,
           "calls": 4
         },
         {
           "name": "create",
-          "line": 421,
+          "line": 429,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "close",
-          "line": 449,
+          "line": 457,
           "kind": "arrow",
           "exported": false,
           "calls": 6
         },
         {
           "name": "update",
-          "line": 455,
+          "line": 463,
           "kind": "arrow",
           "exported": false,
           "calls": 3
         },
         {
           "name": "attachCutMode",
-          "line": 484,
+          "line": 492,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "isTyping",
-          "line": 490,
+          "line": 498,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "attachFlagMenu",
-          "line": 535,
+          "line": 543,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "show",
-          "line": 547,
+          "line": 555,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "setNodeStateHandler",
-          "line": 601,
+          "line": 609,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "fireNodeState",
-          "line": 604,
+          "line": 612,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "initTooltip",
-          "line": 610,
+          "line": 618,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "showTooltip",
-          "line": 616,
+          "line": 624,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "hideTooltip",
-          "line": 629,
+          "line": 637,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "attachMMBPan",
-          "line": 637,
+          "line": 645,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "onMove",
-          "line": 645,
+          "line": 653,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "onUp",
-          "line": 648,
+          "line": 656,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "attachDotGrid",
-          "line": 666,
+          "line": 674,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "hitTestConnection",
-          "line": 697,
+          "line": 705,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "attachInsertion",
-          "line": 725,
+          "line": 733,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "setHover",
-          "line": 748,
+          "line": 756,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "up",
-          "line": 810,
+          "line": 818,
           "kind": "arrow",
           "exported": false,
           "calls": 0
+        },
+        {
+          "name": "attachRectSelect",
+          "line": 864,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
         }
       ]
     },
@@ -2026,7 +2075,7 @@
     },
     {
       "file": "web/src/viewport/renderer.ts",
-      "lineCount": 372,
+      "lineCount": 402,
       "functions": [
         {
           "name": "Viewport",
@@ -2034,6 +2083,27 @@
           "kind": "class",
           "exported": true,
           "calls": 1
+        },
+        {
+          "name": "showModeMenu",
+          "line": 86,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "hideModeMenu",
+          "line": 101,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "applyMode",
+          "line": 102,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 0
         }
       ]
     }

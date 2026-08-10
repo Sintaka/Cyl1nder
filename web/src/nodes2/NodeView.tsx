@@ -64,20 +64,26 @@ export function NodeView({ data, emit }: Props) {
 
   const chip = (
     key: "display" | "reference" | "bypass" | "freeze",
-    label: string,
     active: boolean,
     title: string,
   ) => (
     <button
       type="button"
       className={`cyl-ns ${key} ${active ? "on" : ""}`}
-      title={title}
       onPointerDownCapture={(e) => {
         e.stopPropagation();
-        fireNodeState(node.id as string, key);
+        if (key === "display") {
+          // display is unique per network - route to the display handler, not fireNodeState
+          displayHandler?.(node.id as string);
+        } else {
+          fireNodeState(node.id as string, key);
+        }
       }}
+      onMouseEnter={(e) => showTooltip(e.clientX, e.clientY, title)}
+      onMouseMove={(e) => showTooltip(e.clientX, e.clientY, title)}
+      onMouseLeave={() => hideTooltip()}
     >
-      {label}
+      {/* pure color block - no letter */}
     </button>
   );
 
@@ -138,10 +144,10 @@ export function NodeView({ data, emit }: Props) {
           </span>
         )}
         <div className="cyl-rp-chips">
-          {chip("display", "D", flags.display, "Display (one per network, light blue)")}
-          {chip("reference", "R", flags.reference, "Reference (pink, no logic yet)")}
-          {chip("bypass", "B", flags.bypass, "Bypass (yellow, no logic yet)")}
-          {chip("freeze", "F", flags.freeze, "Freeze (icy blue, no logic yet)")}
+          {chip("display", flags.display, "Display (one per network, light blue)")}
+          {chip("reference", flags.reference, "Reference (pink, no logic yet)")}
+          {chip("bypass", flags.bypass, "Bypass (yellow, no logic yet)")}
+          {chip("freeze", flags.freeze, "Freeze (icy blue, no logic yet)")}
         </div>
       </div>
       {node.stats ? <div className="cyl-rp-stats">{node.stats}</div> : null}

@@ -4,6 +4,7 @@ Usage:
   python scripts/cyl_debug.py status          # bridge + UI health, serials
   python scripts/cyl_debug.py layout          # current docking-layout.json
   python scripts/cyl_debug.py snapshot <serial>  # snapshot summary for a serial
+  python scripts/cyl_debug.py nodeview <serial>  # node-graph.json summary (nodes/conns/viewport/flags)
   python scripts/cyl_debug.py browser         # detect Chrome windows via CDP (if remote-debugging enabled)
   python scripts/cyl_debug.py probe           # one-line watchdog (bridge/ui/hda heartbeat)
 
@@ -92,6 +93,63 @@ def snapshot(serial: str) -> str:
     return f"{serial}: {parts} | {' '.join(summary)}"
 
 
+def _registry_hip(serial: str) -> str:
+    """Look up registry.json for the serial's hip (mirrors bridge registry)."""
+    reg_file = BRIDGE_ROOT / "data" / "registry.json"
+    try:
+        recs = json.loads(reg_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    for rec in recs if isinstance(recs, list) else []:
+        if rec.get("serial") == serial:
+            return str(rec.get("hip", "") or "")
+    return ""
+
+
+def _nodeview_root(serial: str) -> Path:
+    """Derive snapshot root from registry hip (mirrors bridge/snapshot.py)."""
+    import os
+    env = os.environ.get("CYL1NDER_SNAPSHOT_ROOT")
+    if env:
+        return Path(env) / serial
+    hip = _registry_hip(serial)
+    if hip:
+        hip_dir = Path(hip).parent
+        if hip_dir.is_absolute():
+            return hip_dir / "Cyl1nder" / serial
+    return BRIDGE_ROOT / "data" / "snapshots" / serial
+
+
+def nodeview(serial: str) -> str:
+    """Read scene/node-graph.json (schema v2) for a serial and print a compact summary."""
+    root = _nodeview_root(serial)
+    path = root / "scene" / "node-graph.json"
+    if not path.exists():
+        return f"{serial}: no scene/node-graph.json (root={root})"
+    try:
+        g = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return f"{serial}: node-graph.json corrupt"
+    nodes = [n for n in g.get("nodes", []) if isinstance(n, dict)]
+    conns = g.get("connections", [])
+    vp = g.get("viewport", {})
+    display = [n.get("id") for n in nodes if (n.get("flags") or {}).get("display")]
+    lines = [
+        f"{serial}: nodeview v{g.get('schemaVersion')} | {len(nodes)} nodes / {len(conns)} conns",
+        f"  viewport: k={vp.get('k')} x={vp.get('x')} y={vp.get('y')} | display={display or '-'}",
+    ]
+    for n in nodes:
+        f = n.get("flags") or {}
+        marks = "".join(k[0].upper() for k, v in sorted(f.items()) if v)
+        line = "  - %-18s %-8s %s @(%.1f,%.1f)%s" % (
+            n.get("id"), n.get("kind"), n.get("label"),
+            float(n.get("x") or 0), float(n.get("y") or 0),
+            (" [" + marks + "]") if marks else "",
+        )
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def browser() -> str:
     port = 9222
     try:
@@ -117,5 +175,5 @@ def probe() -> str:
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "status"
-    fn = {"status": status, "layout": layout, "snapshot": lambda: snapshot(sys.argv[2] if len(sys.argv) > 2 else ""), "browser": browser, "probe": probe}.get(cmd, status)
+    fn = {"status": status, "layout": layout, "snapshot": lambda: snapshot(sys.argv[2] if len(sys.argv) > 2 else ""), "nodeview": lambda: nodeview(sys.argv[2] if len(sys.argv) > 2 else ""), "browser": browser, "probe": probe}.get(cmd, status)
     print(fn())

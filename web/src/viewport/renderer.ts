@@ -79,11 +79,41 @@ export class Viewport {
     this.modeBtn.type = "button";
     this.modeBtn.className = "cyl-mode-chip";
     this.modeBtn.textContent = "Lit";
-    this.modeBtn.title = "Display mode: Lit / Unlit / Wireframe / Wireframe+Face";
+    // hold-to-open dropdown: hover an option, release applies it
+    const modeMenu = document.createElement("div");
+    modeMenu.className = "cyl-mode-menu hidden";
+    container.appendChild(modeMenu);
+    const showModeMenu = () => {
+      const modes: [string, string][] = [
+        ["lit", "Lit"],
+        ["unlit", "Unlit"],
+        ["wireframe", "Wire"],
+        ["wireframe-face", "Wire+Face"],
+      ];
+      modeMenu.innerHTML = modes
+        .map(([k, label]) => `<div class="cyl-mode-item ${k === this.displayMode ? "on" : ""}" data-mode="${k}">${label}</div>`)
+        .join("");
+      modeMenu.classList.remove("hidden");
+      const r = this.modeBtn.getBoundingClientRect();
+      modeMenu.style.left = `${r.left}px`;
+      modeMenu.style.top = `${r.bottom + 2}px`;
+    };
+    const hideModeMenu = () => modeMenu.classList.add("hidden");
+    const applyMode = () => {
+      const hover = modeMenu.querySelector(".cyl-mode-item.hover") as HTMLElement | null;
+      const m = (hover?.dataset.mode ?? this.displayMode) as typeof this.displayMode;
+      this.setDisplayMode(m);
+      hideModeMenu();
+    };
+    modeMenu.addEventListener("pointermove", (e) => {
+      const item = (e.target as HTMLElement).closest?.(".cyl-mode-item");
+      modeMenu.querySelectorAll(".cyl-mode-item").forEach((i) => i.classList.toggle("hover", i === item));
+    });
     this.modeBtn.addEventListener("pointerdown", (e) => {
       e.stopPropagation();
-      this.toggleDisplayMode();
+      showModeMenu();
     });
+    window.addEventListener("pointerup", applyMode);
     container.appendChild(this.modeBtn);
 
     // 35mm-equivalent lens: vertical FOV = 2*atan(24/(2*35)) ≈ 38 deg (full-frame 36x24).
@@ -334,7 +364,7 @@ export class Viewport {
         ud.face.material = faceMat;
         ud.face.visible = m !== "wireframe";
         if (ud.wire) {
-          ud.wire.material = new THREE.LineBasicMaterial({ color });
+          ud.wire.material = new THREE.LineBasicMaterial({ color: 0x000000 }); // geometry wireframe = black
           ud.wire.visible = m === "wireframe" || m === "wireframe-face";
         }
       }

@@ -181,7 +181,7 @@ async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
     }),
   );
   AreaExtensions.simpleNodesOrder(area);
-  AreaExtensions.selectableNodes(area, AreaExtensions.selector(), { accumulating: AreaExtensions.accumulateOnCtrl() });
+  const selectable = AreaExtensions.selectableNodes(area, AreaExtensions.selector(), { accumulating: AreaExtensions.accumulateOnCtrl() });
 
   // rete 2 plugin hierarchy: editor.use(area) + area.use(render/connection); engine on editor.
   (editor as unknown as { use(p: unknown): void }).use(area);
@@ -218,7 +218,7 @@ async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
     true,
   );
 
-  return { editor, area, engine, input, output, react };
+  return { editor, area, engine, input, output, react, selectable };
 }
 
 /** Create the graph; returns a handle with UI helpers. */
@@ -235,6 +235,7 @@ export async function createReteGraph(
   attachDotGrid(g.area, container);
   initTooltip(container);
   attachInsertion(g.editor, g.area, container);
+  attachRectSelect(g.editor, g.area, container, g.selectable);
 
   // Houdini display semantics: only ONE node per network may be displayed.
   // Clicking a node's display chip clears all others and lights this one.
@@ -329,12 +330,19 @@ export async function createReteGraph(
       if (!d?.nodes) return;
       for (const n of g.editor.getNodes()) await g.editor.removeNode(n.id);
       const idMap = new Map<string, string>();
+      let displayAssigned = false;
       for (const nd of d.nodes) {
         let n: CylNode;
         if (nd.kind === "input") n = makeInputNode();
         else if (nd.kind === "output") n = makeOutputNode();
         else n = makeNullNode();
-        n.flags = { ...DEFAULT_FLAGS, ...(nd.flags ?? {}) };
+        const flags = { ...DEFAULT_FLAGS, ...(nd.flags ?? {}) };
+        if (flags.display && displayAssigned) {
+          flags.display = false; // only ONE display per network survives a restore
+        } else if (flags.display) {
+          displayAssigned = true;
+        }
+        n.flags = flags;
         n.label = nd.label ?? n.label;
         n.baseLabel = nd.baseLabel ?? n.baseLabel;
         await g.editor.addNode(n);
@@ -845,6 +853,72 @@ function attachInsertion(
         }
       }
     })();
+  };
+  window.addEventListener("pointerup", up);
+}
+
+// ---------------------------------------------------------------------------
+// LMB drag on blank canvas = rectangle multi-select (rete nodes)
+// ---------------------------------------------------------------------------
+
+function attachRectSelect(
+  editor: NodeEditor<Schemes>,
+  area: AreaPlugin<Schemes, AreaExtra>,
+  container: HTMLElement,
+  selectable: { select: (id: string, acc: boolean) => Promise<void>; unselect: (id: string) => Promise<void> } | undefined,
+): void {
+  const overlay = document.createElement("div");
+  overlay.className = "cyl-rect-select hidden";
+  container.appendChild(overlay);
+  let sel: { x0: number; y0: number } | null = null;
+
+  container.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (e.button !== 0 || e.altKey || e.metaKey || e.ctrlKey) return;
+      const target = e.target as Element;
+      if (target.closest(".cyl-ns") || target.closest(".cyl-rp-port") || target.closest("button") || target instanceof HTMLInputElement) return;
+      if (nodeFromTarget(editor, area, target)) return; // node drag, not rect select
+      sel = { x0: e.clientX, y0: e.clientY };
+      overlay.classList.remove("hidden");
+    },
+    true,
+  );
+  container.addEventListener(
+    "pointermove",
+    (e) => {
+      if (!sel) return;
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const x0 = sel.x0 - rect.left;
+      const y0 = sel.y0 - rect.top;
+      overlay.style.left = `${Math.min(x0, x)}px`;
+      overlay.style.top = `${Math.min(y0, y)}px`;
+      overlay.style.width = `${Math.abs(x - x0)}px`;
+      overlay.style.height = `${Math.abs(y - y0)}px`;
+    },
+    true,
+  );
+  const up = (e: PointerEvent) => {
+    if (!sel || !selectable) return;
+    const t = area.area.transform;
+    const rect = container.getBoundingClientRect();
+    const lx = (Math.min(sel.x0, e.clientX) - rect.left - t.x) / t.k;
+    const ly = (Math.min(sel.y0, e.clientY) - rect.top - t.y) / t.k;
+    const rx = (Math.max(sel.x0, e.clientX) - rect.left - t.x) / t.k;
+    const ry = (Math.max(sel.y0, e.clientY) - rect.top - t.y) / t.k;
+    sel = null;
+    overlay.classList.add("hidden");
+    for (const [id, view] of area.nodeViews) {
+      const p = view.position;
+      if (p && p.x >= lx && p.x <= rx && p.y >= ly && p.y <= ry) {
+        void selectable.select(id, true);
+      } else {
+        void selectable.unselect(id);
+      }
+    }
+    store.pushLog(`[node] rect-select complete`);
   };
   window.addEventListener("pointerup", up);
 }

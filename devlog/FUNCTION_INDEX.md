@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **257** 个函数/类。
+> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **267** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -61,7 +61,7 @@
 |---|---|---|---|---|
 | `create_app` | 14 | def |  | 2 |
 
-## bridge/bridge/mcp_server.py（153 行）
+## bridge/bridge/mcp_server.py（259 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -70,13 +70,19 @@
 | `cyl1nder_list_serials` | 40 | def |  | 1 |
 | `cyl1nder_get_status` | 46 | def |  | 1 |
 | `cyl1nder_read_snapshot` | 58 | def |  | 1 |
-| `cyl1nder_read_layout` | 79 | def |  | 1 |
-| `walk` | 89 | def |  | 3 |
-| `cyl1nder_read_logs` | 102 | def |  | 1 |
-| `cyl1nder_get_errors` | 108 | def |  | 1 |
-| `cyl1nder_get_geometry_summary` | 114 | def |  | 1 |
-| `cyl1nder_index_query` | 124 | def |  | 1 |
-| `run_stdio` | 147 | def |  | 2 |
+| `_read_graph` | 81 | def |  | 5 |
+| `_node_map` | 93 | def |  | 3 |
+| `cyl1nder_nodeview_nodes` | 98 | def |  | 1 |
+| `cyl1nder_nodeview_connections` | 107 | def |  | 1 |
+| `cyl1nder_nodeview_status` | 127 | def |  | 1 |
+| `cyl1nder_nodeview_connected` | 154 | def |  | 1 |
+| `cyl1nder_read_layout` | 185 | def |  | 1 |
+| `walk` | 195 | def |  | 3 |
+| `cyl1nder_read_logs` | 208 | def |  | 1 |
+| `cyl1nder_get_errors` | 214 | def |  | 1 |
+| `cyl1nder_get_geometry_summary` | 220 | def |  | 1 |
+| `cyl1nder_index_query` | 230 | def |  | 1 |
+| `run_stdio` | 253 | def |  | 2 |
 
 ## bridge/bridge/protocol.py（96 行）
 
@@ -362,13 +368,13 @@
 | `connect` | 365 | function |  | 4 |
 | `scheduleSaveGraph` | 445 | function |  | 2 |
 
-## web/src/nodes2/graph.ts（851 行）
+## web/src/nodes2/graph.ts（925 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `log` | 60 | arrow |  | 6 |
 | `nodeByKind` | 65 | function |  | 4 |
-| `nodeFromTarget` | 70 | function |  | 5 |
+| `nodeFromTarget` | 70 | function |  | 6 |
 | `renderNode` | 86 | function |  | 1 |
 | `portIndexFromTarget` | 101 | function |  | 2 |
 | `CylNode` | 113 | class | export | 3 |
@@ -377,28 +383,29 @@
 | `makeNullNode` | 154 | function | export | 4 |
 | `buildGraph` | 168 | function |  | 2 |
 | `createReteGraph` | 225 | function | export | 1 |
-| `attachTabSearch` | 390 | function |  | 2 |
-| `render` | 406 | arrow |  | 4 |
-| `create` | 421 | arrow |  | 2 |
-| `close` | 449 | arrow |  | 6 |
-| `update` | 455 | arrow |  | 3 |
-| `attachCutMode` | 484 | function |  | 2 |
-| `isTyping` | 490 | arrow |  | 1 |
-| `attachFlagMenu` | 535 | function |  | 2 |
-| `show` | 547 | arrow |  | 2 |
-| `setNodeStateHandler` | 601 | function | export | 2 |
-| `fireNodeState` | 604 | function | export | 1 |
-| `initTooltip` | 610 | function | export | 2 |
-| `showTooltip` | 616 | function | export | 1 |
-| `hideTooltip` | 629 | function | export | 1 |
-| `attachMMBPan` | 637 | function |  | 2 |
-| `onMove` | 645 | arrow |  | 0 |
-| `onUp` | 648 | arrow |  | 0 |
-| `attachDotGrid` | 666 | function |  | 2 |
-| `hitTestConnection` | 697 | function |  | 2 |
-| `attachInsertion` | 725 | function |  | 2 |
-| `setHover` | 748 | arrow |  | 2 |
-| `up` | 810 | arrow |  | 0 |
+| `attachTabSearch` | 398 | function |  | 2 |
+| `render` | 414 | arrow |  | 4 |
+| `create` | 429 | arrow |  | 2 |
+| `close` | 457 | arrow |  | 6 |
+| `update` | 463 | arrow |  | 3 |
+| `attachCutMode` | 492 | function |  | 2 |
+| `isTyping` | 498 | arrow |  | 1 |
+| `attachFlagMenu` | 543 | function |  | 2 |
+| `show` | 555 | arrow |  | 2 |
+| `setNodeStateHandler` | 609 | function | export | 2 |
+| `fireNodeState` | 612 | function | export | 1 |
+| `initTooltip` | 618 | function | export | 2 |
+| `showTooltip` | 624 | function | export | 1 |
+| `hideTooltip` | 637 | function | export | 1 |
+| `attachMMBPan` | 645 | function |  | 2 |
+| `onMove` | 653 | arrow |  | 0 |
+| `onUp` | 656 | arrow |  | 0 |
+| `attachDotGrid` | 674 | function |  | 2 |
+| `hitTestConnection` | 705 | function |  | 2 |
+| `attachInsertion` | 733 | function |  | 2 |
+| `setHover` | 756 | arrow |  | 2 |
+| `up` | 818 | arrow |  | 0 |
+| `attachRectSelect` | 864 | function |  | 2 |
 
 ## web/src/protocol/compare.ts（23 行）
 
@@ -454,8 +461,11 @@
 | `buildInputs` | 110 | function | export | 1 |
 | `buildOutputs` | 120 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（372 行）
+## web/src/viewport/renderer.ts（402 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `Viewport` | 20 | class | export | 1 |
+| `showModeMenu` | 86 | arrow |  | 1 |
+| `hideModeMenu` | 101 | arrow |  | 1 |
+| `applyMode` | 102 | arrow |  | 0 |
