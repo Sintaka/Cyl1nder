@@ -35,6 +35,11 @@ _SYNC: dict[str, dict] = {}
 # on unchanged Force Cooks; rebuild decision stays content-based (sync-architecture rule).
 _CORE_CACHE: dict[str, dict] = {}
 
+# scheme-B output cache: one network pull per cook round shared by all 4 roles.
+# _force_cook_node clears it so dirty -> recook re-pulls (Houdini SOP cache semantics).
+_OUT_CACHE: dict[str, dict] = {}
+_OUT_LOCK = threading.Lock()
+
 # HDA owns bridge startup: if unreachable, spawn it (one attempt / 5s)
 BRIDGE_PY = r"D:\code\dev\Cyl1nder\bridge\.venv\Scripts\python.exe"
 BRIDGE_CWD = r"D:\code\dev\Cyl1nder\bridge"
@@ -163,7 +168,10 @@ def _force_cook_node(node_path: str) -> None:
         if n is None:
             return
         _serial_parm = n.parm("cyl1nder_serial")
-        _state = _SYNC.get(_serial_parm.eval() if _serial_parm else "")
+        serial = _serial_parm.eval() if _serial_parm else ""
+        _state = _SYNC.get(serial)
+        if serial:
+            _OUT_CACHE.pop(serial, None)  # dirty -> recook must re-pull from bridge
         if _state is not None:
             _state["scheduled"] = False
         sp = n.parm("status")
@@ -431,6 +439,25 @@ def _same_geo(a: hou.Geometry, b: hou.Geometry) -> bool:
     return crv_a == crv_b
 
 
+def _role_buffer(serial: str, bridge_url: str, role: int) -> dict | None:
+    """Return this role's output buffer with ONE network pull per cook round.
+
+    The first role to cook pulls all 4 buffers once and caches them; the other
+    three reuse the cache. Content compare downstream decides rebuild.
+    """
+    with _OUT_LOCK:
+        cached = _OUT_CACHE.get(serial)
+        if cached is not None and role in cached["outputs"]:
+            return cached["outputs"][role]
+        client = BridgeClient(serial, bridge_url=bridge_url)
+        outputs, new_rev = client.pull_outputs(0)
+        if outputs is None:
+            return None
+        merged = {int(b.get("index", -1)): b for b in outputs if b.get("index") is not None}
+        _OUT_CACHE[serial] = {"rev": new_rev, "outputs": merged}
+        return merged.get(role)
+
+
 def cook(role: int) -> None:
     node = hou.pwd()
     root = _root(node)
@@ -470,28 +497,22 @@ def cook(role: int) -> None:
 
     if auto_pull:
         ensure_sync(root, serial)  # bidirectional: web edit -> dirty -> recook (<= sync_fps)
-        outputs, new_rev = client.pull_outputs(0)
-        if outputs is not None:
-            buf = next((b for b in outputs if int(b.get("index", -1)) == role), None)
-            if buf is not None and not _same_as_buffer(geo, buf):
-                geo.clear()
-                _build_detail(geo, buf)
-            elif buf is None:
-                # No data for THIS role on the bridge yet -> passthrough THIS role's own
-                # input. node.geometry() is always the input0 copy on a multi-input python
-                # SOP, so keeping it made all 4 output ports emit the first input.
-                srcs = node.inputs()
-                src = srcs[role] if role < len(srcs) else None
-                if src is not None:
-                    other = src.geometry()
-                    if other is not None and not _same_geo(geo, other):
-                        geo.clear()
-                        geo.merge(other)
-            if new_rev:
-                node.setUserData("cyl1nder_last_rev", str(new_rev))
-            _set_status(root, "ok" if not client.last_error else "offline")
-        else:
-            _set_status(root, "offline")
+        buf = _role_buffer(serial, bridge_url, role)
+        if buf is not None and not _same_as_buffer(geo, buf):
+            geo.clear()
+            _build_detail(geo, buf)
+        elif buf is None:
+            # No data for THIS role on the bridge yet -> passthrough THIS role's own
+            # input. node.geometry() is always the input0 copy on a multi-input python
+            # SOP, so keeping it made all 4 output ports emit the first input.
+            srcs = node.inputs()
+            src = srcs[role] if role < len(srcs) else None
+            if src is not None:
+                other = src.geometry()
+                if other is not None and not _same_geo(geo, other):
+                    geo.clear()
+                    geo.merge(other)
+        _set_status(root, "ok" if not client.last_error else "offline")
     else:
         # passthrough fallback: output index = input index (HDA still useful w/o bridge)
         geo.clear()

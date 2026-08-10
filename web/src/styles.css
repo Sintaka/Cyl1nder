@@ -108,3 +108,10 @@ html, body, #app { height: 100%; margin: 0; }
 .proto-editor .rete-Connection path { stroke: #4fc3f7; }
 .proto-log { height: 130px; overflow: auto; background: #0c0d0f; border-top: 1px solid #2a2d33;
   padding: 4px 10px; font: 10px/1.5 ui-monospace, monospace; color: #8f959e; white-space: pre-wrap; }
+
+/* ---- rete node graph in the main app (Houdini-ish dark) ---- */
+.cyl-graph .title { color: #7ce3a8; font-size: 12px; font-weight: 700; padding: 2px 6px; }
+.cyl-graph .output-title { color: #ff9e9e; font-size: 9px; }
+.cyl-graph .input-title { color: #8f959e; font-size: 9px; }
+.cyl-graph .input-socket, .cyl-graph .output-socket { border-color: #4fc3f7; background: #0b2430; }
+.cyl-graph [data-testid="connection"] path { stroke: #4fc3f7; }

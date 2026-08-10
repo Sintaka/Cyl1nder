@@ -1,0 +1,7 @@
+{
+    "extends": "rete-cli/configs/tsconfig.json",
+    "compilerOptions": {
+        "jsx": "react"
+    },
+    "include": ["src"]
+}

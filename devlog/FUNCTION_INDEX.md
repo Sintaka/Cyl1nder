@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **205** 个函数/类。
+> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **225** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -184,7 +184,7 @@
 | `probe` | 205 | def |  | 1 |
 | `log_result` | 214 | def |  | 2 |
 
-## hda/scripts/build_hda.py（190 行）
+## hda/scripts/build_hda.py（189 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -223,31 +223,32 @@
 | `pending_outputs` | 87 | def |  | 1 |
 | `pull_outputs` | 102 | def |  | 1 |
 
-## hda/src/cyl1nder_hda.py（500 行）
+## hda/src/cyl1nder_hda.py（521 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_ui_healthy` | 47 | def |  | 2 |
-| `_ensure_frontend` | 56 | def |  | 3 |
-| `_bridge_healthy` | 77 | def |  | 2 |
-| `_ensure_bridge` | 85 | def |  | 3 |
-| `_same_as_buffer` | 108 | def |  | 2 |
-| `_sync_loop` | 126 | def |  | 1 |
-| `_schedule_recook` | 152 | def |  | 3 |
-| `_force_cook_node` | 160 | def |  | 1 |
-| `ensure_sync` | 185 | def |  | 3 |
-| `_root` | 209 | def |  | 4 |
-| `_ensure_serial` | 213 | def |  | 3 |
-| `_parm` | 226 | def |  | 14 |
-| `_set_status` | 236 | def |  | 7 |
-| `_serialize_geo` | 245 | def |  | 3 |
-| `_build_detail` | 255 | def |  | 2 |
-| `_snapshot_parts` | 283 | def |  | 2 |
-| `_flat_signature` | 323 | def |  | 2 |
-| `_build_core_detail` | 335 | def |  | 3 |
-| `cook_core` | 359 | def |  | 2 |
-| `_same_geo` | 423 | def |  | 2 |
-| `cook` | 434 | def |  | 4 |
+| `_ui_healthy` | 52 | def |  | 2 |
+| `_ensure_frontend` | 61 | def |  | 3 |
+| `_bridge_healthy` | 82 | def |  | 2 |
+| `_ensure_bridge` | 90 | def |  | 3 |
+| `_same_as_buffer` | 113 | def |  | 2 |
+| `_sync_loop` | 131 | def |  | 1 |
+| `_schedule_recook` | 157 | def |  | 3 |
+| `_force_cook_node` | 165 | def |  | 1 |
+| `ensure_sync` | 193 | def |  | 3 |
+| `_root` | 217 | def |  | 4 |
+| `_ensure_serial` | 221 | def |  | 3 |
+| `_parm` | 234 | def |  | 14 |
+| `_set_status` | 244 | def |  | 6 |
+| `_serialize_geo` | 253 | def |  | 3 |
+| `_build_detail` | 263 | def |  | 2 |
+| `_snapshot_parts` | 291 | def |  | 2 |
+| `_flat_signature` | 331 | def |  | 2 |
+| `_build_core_detail` | 343 | def |  | 3 |
+| `cook_core` | 367 | def |  | 2 |
+| `_same_geo` | 431 | def |  | 2 |
+| `_role_buffer` | 442 | def |  | 2 |
+| `cook` | 461 | def |  | 4 |
 
 ## hda/src/cyl1nder_serializer.py（57 行）
 
@@ -285,16 +286,16 @@
 | `connectWs` | 77 | function | export | 1 |
 | `connect` | 82 | arrow |  | 1 |
 
-## web/src/main.ts（230 行）
+## web/src/main.ts（191 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `refreshNodeFlags` | 67 | function |  | 3 |
-| `inputStatsText` | 100 | function |  | 2 |
-| `outputStatsText` | 109 | function |  | 2 |
-| `renderInspector` | 118 | function |  | 2 |
-| `runNetwork` | 152 | function |  | 2 |
-| `connect` | 171 | function |  | 4 |
+| `refreshNodeFlags` | 42 | function |  | 3 |
+| `inputStatsText` | 63 | function |  | 2 |
+| `outputStatsText` | 72 | function |  | 2 |
+| `renderInspector` | 81 | function |  | 2 |
+| `runNetwork` | 116 | function |  | 2 |
+| `connect` | 135 | function |  | 4 |
 
 ## web/src/nodes/contextMenu.ts（83 行）
 
@@ -347,6 +348,30 @@
 | `searchPalette` | 20 | function | export | 2 |
 | `NodePalette` | 35 | class | export | 1 |
 | `attachPalette` | 126 | function | export | 1 |
+
+## web/src/nodes2/graph.ts（445 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `log` | 52 | arrow |  | 4 |
+| `nodeByKind` | 57 | function |  | 4 |
+| `nodeFromTarget` | 62 | function |  | 4 |
+| `portIndexFromTarget` | 77 | function |  | 2 |
+| `CylNode` | 89 | class | export | 3 |
+| `makeInputNode` | 115 | function |  | 2 |
+| `makeOutputNode` | 120 | function |  | 2 |
+| `makeNullNode` | 125 | function | export | 2 |
+| `buildGraph` | 138 | function |  | 2 |
+| `createReteGraph` | 188 | function | export | 1 |
+| `attachTabSearch` | 251 | function |  | 2 |
+| `render` | 267 | arrow |  | 3 |
+| `create` | 282 | arrow |  | 2 |
+| `close` | 298 | arrow |  | 6 |
+| `update` | 304 | arrow |  | 2 |
+| `attachCutMode` | 333 | function |  | 2 |
+| `isTyping` | 339 | arrow |  | 1 |
+| `attachFlagMenu` | 384 | function |  | 2 |
+| `show` | 396 | arrow |  | 2 |
 
 ## web/src/proto/main.ts（5 行）
 
@@ -402,7 +427,7 @@
 | `buildInputs` | 33 | function | export | 1 |
 | `buildOutputs` | 43 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（225 行）
+## web/src/viewport/renderer.ts（229 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|

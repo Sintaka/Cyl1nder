@@ -95,3 +95,9 @@
 - **build_hda.py 同步**：PY_CODE 改 `cook_core()`；FORCE_COOK_CALLBACK 遍历 python/blast/output 子节点；内部连线 core+blast+output。
 - **验证**：hython_smoke.py 全过（serial 不可变 / 4 输入 push / 4 输出 fallback 映射 out_i=in_i / web edit out0 → pull 回 out0）；HDA 已重建（`Cyl1nder_1.0.hda` 6.5KB）。
 - **调研依据**：`devlog/hda-runtime-optimization.md`（Einstein 子智能体：HDK maxoutputs>1 非典型路径不采用；方案 A/B 纯 Python 可做；`geometry()`=输出索引是 bug API 根源）。
+
+## v0.1.00016（2026-08-10）
+- **HDA 回退 4-Python + 方案 B 缓存**（否决 v0.1.00015 的 blast 方案）：用户指出 blast 按 prim 属性 `cyl1nder_role` 分组，**无 prim 只有点的数据流走不通**。回退 build_hda.py 到 4 个 Python SOP（各接全部 4 输入，role 参数 0..3），cyl1nder_hda.py 新增 `_role_buffer()`（`_OUT_CACHE` + `_OUT_LOCK`）：任意 role 首次 cook 拉全量 4 路 outputs 一次，其余 role 从缓存读——**4 次询问只 1 次网络**（Houdini SOP 缓存语义）。`_force_cook_node` 清缓存，dirty→recook 重新拉。
+- 输出口映射：python SOP 的 `node.inputs()[role].geometry()` 读第 role 个输入，bridge outputs 按 index 0..3 对应 out0..3（**从 0 开始**）。
+- 验证：HDA 重建 + hython 冒烟全过（serial 不可变 / 4 输入 push / 4 输出 fallback out_i=in_i / edit out0 pull 回）。
+- HDK 多输出论坛调研：子智能体 Ohm 进行中（hdk-multi-output-forum.md 待落库）。

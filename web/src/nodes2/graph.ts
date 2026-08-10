@@ -1,0 +1,445 @@
+/**
+ * Cyl1nder node graph on rete.js 2 (replaces the @antv/x6 custom graph).
+ * Houdini-style vertical nodes: inputs on the left, outputs on the right,
+ * 4-in/4-out, engine-level caching, node flags, Tab search, Y cut mode.
+ *
+ * v1 dataflow note: the network itself is still driven by the bridge/WS
+ * (store.inputs -> runNetwork -> pushOutputs). The rete DataflowEngine is wired
+ * so node outputs are cached and only recompute when inputs/connections change -
+ * the future compute engine. Nodes visualize stats and drive the 3D viewport.
+ */
+import { ClassicPreset, NodeEditor } from "rete";
+import { AreaPlugin, AreaExtensions } from "rete-area-plugin";
+import { ConnectionPlugin, Presets as ConnectionPresets } from "rete-connection-plugin";
+import { DataflowEngine, type DataflowEngineScheme } from "rete-engine";
+import { Presets, ReactPlugin, useRete } from "rete-react-plugin";
+import type { ClassicScheme, ReactArea2D } from "rete-react-plugin";
+import { createRoot } from "react-dom/client";
+import Fuse from "fuse.js";
+import { store } from "../stores/workspace";
+
+type Schemes = ClassicScheme;
+type AreaExtra = ReactArea2D<Schemes>;
+
+export type NodeKind = "input" | "output" | "null";
+
+export interface NodeFlags {
+  display: boolean;
+  bypass: boolean;
+  freeze: boolean;
+  wireframe: boolean;
+}
+
+export const DEFAULT_FLAGS: NodeFlags = { display: true, bypass: false, freeze: false, wireframe: false };
+
+export interface ReteGraphHandlers {
+  onNodePick?: (kind: NodeKind, port: number | null, nodeId: string) => void;
+  /** node flags changed (context menu) -> caller refreshes viewport visibility/reference */
+  onFlagsChanged?: (kind: NodeKind, flags: NodeFlags) => void;
+}
+
+export interface ReteGraph {
+  editor: NodeEditor<Schemes>;
+  area: AreaPlugin<Schemes, AreaExtra>;
+  engine: DataflowEngine<DataflowEngineScheme>;
+  destroy(): void;
+  setStats(kind: NodeKind, stats: string): void;
+  getFlags(kind: NodeKind): NodeFlags | undefined;
+  setFlag(kind: NodeKind, key: keyof NodeFlags, value: boolean): NodeFlags | undefined;
+}
+
+const GEO = "geo";
+const log = (m: string) => store.pushLog(`[node] ${m}`);
+
+/** Cached per-kind labels so setStats can restore the base title. */
+const BASE_LABEL: Record<string, string> = { input_: "input_", output_: "output_", null: "null" };
+
+function nodeByKind(editor: NodeEditor<Schemes>, kind: NodeKind): CylNode | undefined {
+  return editor.getNodes().find((x) => (x as CylNode).kind === kind) as CylNode | undefined;
+}
+
+/** Resolve a DOM target to a rete node via area.nodeViews (element containment). */
+function nodeFromTarget(
+  editor: NodeEditor<Schemes>,
+  area: AreaPlugin<Schemes, AreaExtra>,
+  target: Element | null,
+): { id: string; node: CylNode } | null {
+  if (!target) return null;
+  for (const [id, view] of area.nodeViews) {
+    if (view.element.contains(target)) {
+      const n = editor.getNode(id) as CylNode | undefined;
+      if (n) return { id, node: n };
+    }
+  }
+  return null;
+}
+
+function portIndexFromTarget(target: Element | null): number | null {
+  const el = target?.closest?.("[data-port-id]");
+  if (!el) return null;
+  const raw = el.getAttribute("data-port-id") ?? "";
+  const idx = parseInt(raw.replace(/[a-z]/g, ""), 10);
+  return Number.isNaN(idx) ? null : idx;
+}
+
+// ---------------------------------------------------------------------------
+// nodes
+// ---------------------------------------------------------------------------
+
+export class CylNode extends ClassicPreset.Node {
+  flags: NodeFlags = { ...DEFAULT_FLAGS };
+  stats = "";
+  kind: NodeKind = "null";
+  constructor(label: string, kind: NodeKind) {
+    super(label);
+    this.kind = kind;
+    BASE_LABEL[label] = label;
+  }
+  /** Rete dataflow: v1 just passes placeholder markers (stats view only). */
+  data(inputs: Record<string, unknown[]>): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    for (const key of Object.keys(this.outputs)) out[key] = { port: key, src: this.label };
+    for (const key of Object.keys(inputs)) out[key] = inputs[key]?.[0] ?? { empty: true };
+    return out;
+  }
+  flagText(): string {
+    const f = this.flags;
+    return (
+      (f.bypass ? "⏭" : "") +
+      (f.freeze ? "🔒" : "") +
+      (f.wireframe ? "⛶" : "")
+    );
+  }
+}
+
+function makeInputNode(): CylNode {
+  const n = new CylNode("input_", "input");
+  for (let i = 0; i < 4; i++) n.addOutput(`in${i}`, new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
+  return n;
+}
+function makeOutputNode(): CylNode {
+  const n = new CylNode("output_", "output");
+  for (let i = 0; i < 4; i++) n.addInput(`out${i}`, new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
+  return n;
+}
+export function makeNullNode(): CylNode {
+  const n = new CylNode("null", "null");
+  for (let i = 0; i < 4; i++) {
+    n.addInput(`in${i}`, new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
+    n.addOutput(`out${i}`, new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
+  }
+  return n;
+}
+
+// ---------------------------------------------------------------------------
+// editor factory
+// ---------------------------------------------------------------------------
+
+async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
+  const editor = new NodeEditor<Schemes>();
+  const area = new AreaPlugin<Schemes, AreaExtra>(container);
+  const connection = new ConnectionPlugin<Schemes, AreaExtra>();
+  const engine = new DataflowEngine<DataflowEngineScheme>();
+  const react = new ReactPlugin<Schemes, AreaExtra>({ createRoot });
+
+  connection.addPreset(ConnectionPresets.classic.setup());
+  react.addPreset(Presets.classic.setup());
+  AreaExtensions.simpleNodesOrder(area);
+  AreaExtensions.selectableNodes(area, AreaExtensions.selector(), { accumulating: AreaExtensions.accumulateOnCtrl() });
+
+  // rete 2 plugin hierarchy: editor.use(area) + area.use(render/connection); engine on editor.
+  (editor as unknown as { use(p: unknown): void }).use(area);
+  (area as unknown as { use(p: unknown): void }).use(react);
+  (area as unknown as { use(p: unknown): void }).use(connection);
+  (editor as unknown as { use(p: unknown): void }).use(engine);
+
+  const input = makeInputNode();
+  const output = makeOutputNode();
+  await editor.addNode(input);
+  await editor.addNode(output);
+  await area.translate(input.id, { x: 24, y: 40 });
+  await area.translate(output.id, { x: 420, y: 40 });
+
+  for (let i = 0; i < 4; i++) {
+    await editor.addConnection(
+      new ClassicPreset.Connection(input, `in${i}`, output, `out${i}`) as unknown as Schemes["Connection"],
+    );
+  }
+  void AreaExtensions.zoomAt(area, editor.getNodes());
+
+  // --- node pick -> viewport linkage (capture phase: rete drag stops bubbling)
+  container.addEventListener(
+    "pointerdown",
+    (ev) => {
+      const target = ev.target as Element;
+      const hit = nodeFromTarget(editor, area, target);
+      if (hit) {
+        const idx = portIndexFromTarget(target);
+        handlers.onNodePick?.(hit.node.kind, idx, hit.id);
+      }
+    },
+    true,
+  );
+
+  return { editor, area, engine, input, output, react };
+}
+
+/** Create the graph; returns a handle with UI helpers. */
+export async function createReteGraph(
+  container: HTMLElement,
+  handlers: ReteGraphHandlers = {},
+): Promise<ReteGraph> {
+  const g = await buildGraph(container, handlers);
+
+  attachTabSearch(g.editor, g.area, container);
+  attachCutMode(g.editor, g.area, container);
+  attachFlagMenu(g.editor, g.area, container, (n) => handlers.onFlagsChanged?.(n.kind, { ...n.flags }));
+
+  return {
+    editor: g.editor,
+    area: g.area,
+    engine: g.engine,
+    destroy: () => (g.editor as unknown as { destroy?: () => void }).destroy?.(),
+    setStats: (kind, stats) => {
+      const n = nodeByKind(g.editor, kind);
+      if (!n) return;
+      n.stats = stats;
+      // NOTE: rete2 render signal needs an `element` (ElementsHolder WeakMap key); a bare
+      // emit crashes. Stats are stored on the node; visual refresh deferred to a custom
+      // React node component (next step). Flags still drive the 3D viewport via getFlags.
+    },
+    getFlags: (kind) => {
+      const n = nodeByKind(g.editor, kind);
+      return n ? { ...n.flags } : undefined;
+    },
+    setFlag: (kind, key, value) => {
+      const n = nodeByKind(g.editor, kind);
+      if (!n) return undefined;
+      n.flags = { ...n.flags, [key]: value };
+      return { ...n.flags };
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Tab search (Fuse.js mature fuzzy search)
+// ---------------------------------------------------------------------------
+
+interface PaletteEntry {
+  kind: NodeKind;
+  label: string;
+  desc: string;
+  keywords: string;
+}
+
+const PALETTE: PaletteEntry[] = [
+  { kind: "input", label: "input_", desc: "4-output source", keywords: "source input 输入" },
+  { kind: "output", label: "output_", desc: "4-input sink", keywords: "sink output 输出" },
+  { kind: "null", label: "null", desc: "passthrough 4+4", keywords: "null passthrough 直通" },
+];
+
+const fuse = new Fuse(PALETTE, {
+  keys: [
+    { name: "label", weight: 0.5 },
+    { name: "desc", weight: 0.25 },
+    { name: "keywords", weight: 0.25 },
+  ],
+  threshold: 0.4,
+  ignoreLocation: true,
+});
+
+function attachTabSearch(
+  editor: NodeEditor<Schemes>,
+  area: AreaPlugin<Schemes, AreaExtra>,
+  container: HTMLElement,
+): void {
+  const overlay = document.createElement("div");
+  overlay.className = "cyl-palette hidden";
+  overlay.innerHTML = `<input class="cyl-palette-input" placeholder="Tab: search nodes…" spellcheck="false" /><div class="cyl-palette-list"></div>`;
+  const input = overlay.querySelector(".cyl-palette-input") as HTMLInputElement;
+  const list = overlay.querySelector(".cyl-palette-list") as HTMLDivElement;
+  container.appendChild(overlay);
+
+  let open = false;
+  let index = 0;
+  let results: PaletteEntry[] = [];
+
+  const render = () => {
+    list.innerHTML = "";
+    results.forEach((r, i) => {
+      const row = document.createElement("div");
+      row.className = "cyl-palette-row" + (i === index ? " active" : "");
+      row.innerHTML = `<span class="p-label">${r.label}</span><span class="p-desc">${r.desc}</span>`;
+      row.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        index = i;
+        create();
+      });
+      list.appendChild(row);
+    });
+  };
+
+  const create = async () => {
+    const entry = results[index];
+    if (!entry) return;
+    const center = { x: 240, y: 120 };
+    if (entry.kind === "null") {
+      const n = makeNullNode();
+      await editor.addNode(n);
+      await area.translate(n.id, center);
+      log(`created null node ${n.id}`);
+    } else {
+      const existing = editor.getNodes().find((x) => (x as CylNode).kind === entry.kind);
+      if (existing) await area.translate(existing.id, center);
+    }
+    close();
+  };
+
+  const close = () => {
+    open = false;
+    overlay.classList.add("hidden");
+    input.blur();
+  };
+
+  const update = (q: string) => {
+    results = q.trim() ? fuse.search(q).map((r) => r.item) : PALETTE;
+    index = 0;
+    render();
+  };
+
+  input.addEventListener("input", () => update(input.value));
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") { index = (index + 1) % Math.max(1, results.length); render(); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { index = (index - 1 + results.length) % Math.max(1, results.length); render(); e.preventDefault(); }
+    else if (e.key === "Enter") { create(); e.preventDefault(); }
+    else if (e.key === "Escape") { close(); e.preventDefault(); }
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Tab") return;
+    const el = document.activeElement;
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
+    e.preventDefault();
+    open = !open;
+    if (open) { overlay.classList.remove("hidden"); update(""); input.focus(); }
+    else close();
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Y cut mode: hold Y, click an edge/node to remove
+// ---------------------------------------------------------------------------
+
+function attachCutMode(
+  editor: NodeEditor<Schemes>,
+  area: AreaPlugin<Schemes, AreaExtra>,
+  container: HTMLElement,
+): void {
+  let active = false;
+  const isTyping = () => {
+    const el = document.activeElement;
+    if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return false;
+    return el.getClientRects().length > 0;
+  };
+  window.addEventListener("keydown", (e) => {
+    if (e.key.toLowerCase() !== "y" || e.repeat || isTyping()) return;
+    active = true;
+    container.classList.add("cut-mode");
+    e.preventDefault();
+  });
+  window.addEventListener("keyup", (e) => {
+    if (e.key.toLowerCase() !== "y") return;
+    active = false;
+    container.classList.remove("cut-mode");
+  });
+  area.addPipe((context) => {
+    if (!active) return context;
+    if (context.type === "pointerdown" && context.data?.event?.target) {
+      const target = context.data.event.target as Element;
+      const edge = target.closest?.("[data-testid=connection]") ?? target.closest?.("path");
+      if (edge) {
+        // rete-connection-plugin renders svg paths; find the connection id from DOM
+        const connId = edge.closest?.("span")?.querySelector?.("svg")?.getAttribute?.("data-connection-id")
+          ?? (edge as SVGElement).getAttribute?.("data-connection-id");
+        if (connId) {
+          void editor.removeConnection(connId as never);
+          log(`cut connection ${connId}`);
+          return context;
+        }
+      }
+      const hit = nodeFromTarget(editor, area, target);
+      if (hit && hit.node.kind === "null") {
+        void editor.removeNode(hit.id);
+        log(`removed null node ${hit.id}`);
+      }
+    }
+    return context;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// right-click flag menu (DOM overlay)
+// ---------------------------------------------------------------------------
+
+function attachFlagMenu(
+  editor: NodeEditor<Schemes>,
+  area: AreaPlugin<Schemes, AreaExtra>,
+  container: HTMLElement,
+  onChanged?: (node: CylNode) => void,
+): void {
+  const menu = document.createElement("div");
+  menu.className = "cyl-node-menu hidden";
+  container.appendChild(menu);
+  let currentId = "";
+  const close = () => menu.classList.add("hidden");
+
+  const show = (x: number, y: number, node: CylNode) => {
+    currentId = node.id;
+    menu.innerHTML = "";
+    const labels: [keyof NodeFlags, string][] = [
+      ["display", "Display"],
+      ["bypass", "Bypass"],
+      ["freeze", "Freeze"],
+      ["wireframe", "Wireframe"],
+    ];
+    for (const [key, label] of labels) {
+      const row = document.createElement("div");
+      row.className = "cyl-node-menu-row";
+      row.innerHTML = `<input type="checkbox" ${node.flags[key] ? "checked" : ""}/><span>${label}</span>`;
+      // pointerdown (not click): the container closes the menu on any pointerdown
+      // (bubble phase), which would otherwise swallow the row click.
+      row.addEventListener("pointerdown", (e) => {
+        e.stopPropagation();
+        node.flags = { ...node.flags, [key]: !node.flags[key] };
+        log(`node ${node.kind} ${key}=${node.flags[key]}`);
+        onChanged?.(node);
+        show(x, y, node);
+      });
+      menu.appendChild(row);
+    }
+    const del = document.createElement("div");
+    del.className = "cyl-node-menu-row danger";
+    del.innerHTML = `<span>Delete</span>`;
+    del.addEventListener("pointerdown", (e) => {
+      e.stopPropagation();
+      if (node.kind === "null") void editor.removeNode(node.id);
+      close();
+    });
+    menu.appendChild(del);
+    menu.classList.remove("hidden");
+    const rect = container.getBoundingClientRect();
+    menu.style.left = `${Math.min(x - rect.left, rect.width - 170)}px`;
+    menu.style.top = `${Math.min(y - rect.top, rect.height - 190)}px`;
+  };
+
+  container.addEventListener("contextmenu", (ev) => {
+    const hit = nodeFromTarget(editor, area, ev.target as Element);
+    if (hit) {
+      ev.preventDefault();
+      show(ev.clientX, ev.clientY, hit.node);
+    } else {
+      close();
+    }
+  });
+  container.addEventListener("pointerdown", () => close());
+}

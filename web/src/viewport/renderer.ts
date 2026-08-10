@@ -130,7 +130,11 @@ export class Viewport {
 
   /** Node-graph -> viewport linkage: picking a node/port selects its curve. */
   pickByNode(kind: "input" | "output" | "null", index: number | null): void {
-    if (kind === "input" && index !== null) {
+    if (kind === "input") {
+      if (index === null) {
+        store.pushLog("input_ node picked - click a port (in0..in3) to select that curve");
+        return;
+      }
       const inp = store.inputs.find((i) => i.index === index);
       if (!inp || inp.curves.length === 0) {
         store.pushLog(`input_${index}: no curve to select`);

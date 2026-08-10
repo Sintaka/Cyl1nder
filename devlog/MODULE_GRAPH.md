@@ -12,15 +12,21 @@
   - app/app-config
   - app/layout
   - bridge/client
-  - nodes/contextMenu
-  - nodes/cutMode
-  - nodes/cyl1nderNode
-  - nodes/palette
+  - nodes2/graph
   - protocol/compare
   - protocol/types
   - stores/workspace
   - styles.css
   - viewport/renderer
+- `nodes2/graph.ts`
+  - fuse.js
+  - react-dom/client
+  - rete
+  - rete-area-plugin
+  - rete-connection-plugin
+  - rete-engine
+  - rete-react-plugin
+  - stores/workspace
 - `nodes/contextMenu.ts`
   - @antv/x6
   - nodes/cyl1nderNode

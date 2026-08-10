@@ -2,18 +2,7 @@ import "./styles.css";
 import { attachSplitters, buildLayout } from "./app/layout";
 import { store } from "./stores/workspace";
 import { BridgeClient, connectWs } from "./bridge/client";
-import {
-  createGraph,
-  registerNodes,
-  upsertFlowGraph,
-  INPUT_NODE,
-  OUTPUT_NODE,
-  getFlags,
-  type GraphHandlers,
-} from "./nodes/cyl1nderNode";
-import { attachPalette } from "./nodes/palette";
-import { attachCutMode } from "./nodes/cutMode";
-import { attachContextMenu } from "./nodes/contextMenu";
+import { createReteGraph, type ReteGraphHandlers } from "./nodes2/graph";
 import { Viewport, type ReferenceItem } from "./viewport/renderer";
 import { APP_VERSION } from "./app/app-config";
 import { inputsEqual } from "./protocol/compare";
@@ -21,15 +10,16 @@ import type { OutputBuffer } from "./protocol/types";
 
 const layout = buildLayout(document.getElementById("app")!);
 attachSplitters(layout.root);
-registerNodes();
 const client = new BridgeClient();
 
-const handlers: GraphHandlers = {
+const handlers: ReteGraphHandlers = {
   onNodePick: (kind, index, _nodeId) => viewport.pickByNode(kind, index),
-  onEdgeCut: (edgeId) => store.pushLog(`cut edge ${edgeId}`),
-  onNodeRemoved: (nodeId) => store.pushLog(`removed node ${nodeId}`),
+  onFlagsChanged: (kind, flags) => {
+    store.pushLog(`node ${kind} flags -> ${JSON.stringify(flags)}`);
+    refreshNodeFlags();
+  },
 };
-const graph = createGraph(layout.graphContainer, handlers);
+const graph = await createReteGraph(layout.graphContainer, handlers);
 
 let wsDisconnect: (() => void) | null = null;
 let autoRun = layout.autoRunCheck.checked;
@@ -48,51 +38,24 @@ const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuf
     .catch((e) => store.pushLog(`edit failed: ${String(e)}`));
 });
 
-// Tab search palette + Y cut mode + right-click flag menu.
-const palette = attachPalette(graph, layout.graphContainer);
-const detachCut = attachCutMode(graph, layout.graphContainer, (what, id) => {
-  store.pushLog(`cut ${what} ${id}`);
-});
-const closeMenu = attachContextMenu(
-  graph,
-  layout.graphContainer,
-  (nodeId, _flags) => {
-    store.pushLog(`node ${nodeId} flags changed`);
-    refreshNodeFlags();
-  },
-  (nodeId) => handlers.onNodeRemoved?.(nodeId),
-);
-
 /** Node flags -> viewport: display visibility + wireframe reference overlays. */
 function refreshNodeFlags(): void {
-  const inputNode = graph.getCellById(INPUT_NODE) as Parameters<typeof getFlags>[0] | undefined;
-  const outputNode = graph.getCellById(OUTPUT_NODE) as Parameters<typeof getFlags>[0] | undefined;
-  const showInputs = inputNode ? getFlags(inputNode).display : true;
-  const showOutputs = outputNode ? getFlags(outputNode).display : true;
-  viewport.setVisibility("inputs", showInputs);
-  viewport.setVisibility("outputs", showOutputs);
+  const inF = graph.getFlags("input");
+  const outF = graph.getFlags("output");
+  viewport.setVisibility("inputs", inF?.display ?? true);
+  viewport.setVisibility("outputs", outF?.display ?? true);
 
   const refs: ReferenceItem[] = [];
-  if (inputNode && getFlags(inputNode).wireframe) {
+  if (inF?.wireframe) {
     for (const inp of store.inputs) {
       if (inp.curves.length > 0) refs.push({ points: inp.points, curves: inp.curves, color: 0x4fc3f7 });
     }
   }
-  if (outputNode) {
+  if (outF?.wireframe) {
     const outRefs = store.outputs.flatMap((o) =>
       o.curves.length > 0 ? [{ points: o.points, curves: o.curves, color: 0xff5252 }] : [],
     );
-    if (getFlags(outputNode).wireframe && outRefs.length > 0) refs.push(...outRefs);
-  }
-  // Null nodes: reference = passthrough inputs (same as source).
-  const nullNodes = graph.getNodes().filter((n) => n.shape !== INPUT_NODE && n.shape !== OUTPUT_NODE);
-  for (const n of nullNodes) {
-    const f = getFlags(n);
-    if (!f.wireframe) continue;
-    for (const inp of store.inputs) {
-      if (inp.curves.length > 0) refs.push({ points: inp.points, curves: inp.curves, color: 0xffd166 });
-    }
-    break; // one reference set is enough for the passthrough view
+    if (outRefs.length > 0) refs.push(...outRefs);
   }
   viewport.setReference(refs.length > 0 ? refs : null);
 }
@@ -133,7 +96,8 @@ function renderInspector(): void {
 }
 
 store.subscribe(() => {
-  upsertFlowGraph(graph, store.serial || "—", inputStatsText(), outputStatsText());
+  graph.setStats("input", inputStatsText());
+  graph.setStats("output", outputStatsText());
   renderInspector();
   layout.logEl.textContent = store.logs.slice(-10).join("\n");
   layout.statusDot.className = `cyl-status ${store.status}`;
@@ -225,5 +189,3 @@ if (qs) {
 }
 
 store.pushLog(`Cyl1nder web v${APP_VERSION} · Tab=搜索 Y=剪切 右键=flags`);
-// Keep palette/cut/menu refs alive (no unused-var warnings in strict builds).
-void palette; void detachCut; void closeMenu;

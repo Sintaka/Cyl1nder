@@ -1,0 +1,9 @@
+{
+    "extends": "rete-cli/configs/tsconfig.json",
+    "compilerOptions": {
+        "lib": [
+            "DOM"
+        ]
+    },
+    "include": ["src", "test"]
+}
