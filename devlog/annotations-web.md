@@ -45,3 +45,12 @@
 - **点阵背景 + 缩放 LOD**（`attachDotGrid`）：屏幕空间 `radial-gradient` 点阵，随 zoom 分档透明度（k≥0.9→0.85 / ≥0.55→0.5 / ≥0.3→0.22 / 更远→隐藏），随 pan 滚动背景位置。
 - **HDA 离线红叹号**（viewport 左上角）：`/api/hda/<serial>/pending` 兼作心跳（30fps poller touch registry.lastSeen）；web 每 5s watchdog 查 status，lastSeen 超 15s → 显示「⚠ HDA 离线」。
 - **@antv/x6 彻底删除**：`web/src/nodes/` 移除、`@antv/x6` 卸载、旧 palette/flags 测试删除（Fuse 搜索与 flags 逻辑已迁 rete 版）。
+
+## v0.1.00019（2026-08-10）
+- **proto 清理**：删除 `proto-rete.html` 与 `web/src/proto/`（原型已完成使命，rete 已正式迁移）。
+- **Tab 搜索修复**：改名后 palette label 同步 `_input_` / `_output_`（关键词含中文）。
+- **线段高亮改辉光**：`stroke-width` 加粗会覆盖原蓝线显内凹 → 改为 `drop-shadow` 辉光（双层 shadow）+ 轻微加粗，背景边缘亮光效果。
+- **Docking system（dockview 7）**：`web/src/app/dock.ts` 用 `dockview`（vanilla、零依赖）把 Node Graph / Viewport / Inspector / Log 拆成 4 个可拖拽重组/浮动/缩放的 tab 面板；`layout.ts` 重构为 header + dock 容器（JS 创建内容容器交给 dockview）；旧 flex+splitters 布局保留为 `buildLayoutLegacy` 回退。坑：`createComponent(opts)` 字段是 **`name`**（非 `component`）。
+- **F 键 frame（按悬停区域）**：悬停节点图 → `frameSelection()`（选中节点 / 无选中全部，`AreaExtensions.zoomAt`）；悬停 3D 视口 → `viewport.frame()`（几何体 bounding box，无几何体复位默认视角）。快捷键已登记 `devlog/shortcuts.md`。
+- **3D 视口 RMB 归一化拖拽缩放**：无 Alt 右键拖拽，向右上（+x,-y）放大拉近、左下（-x,+y）拉远，增量归一化，~2 倍灵敏度（手动 `camera.zoom`）。
+- **视口 debug 流**：`[viewport] inputs/outputs rebuilt`、`visibility`、`framed geometry` 日志（`pushLogSilent` 防死循环）。

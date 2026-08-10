@@ -34,6 +34,40 @@ export class HoudiniControls {
       },
       true,
     );
+
+    // Houdini drag-zoom on plain RMB (no Alt): right/up drag zooms IN, left/down
+    // zooms OUT, incremental, ~2x sensitivity, fully takes over RMB.
+    dom.addEventListener(
+      "pointerdown",
+      (e) => {
+        if (e.button !== 2 || e.altKey) return;
+        e.preventDefault();
+        e.stopPropagation();
+        let last = { x: e.clientX, y: e.clientY };
+        const onMove = (ev: PointerEvent) => {
+          const dx = ev.clientX - last.x;
+          const dy = ev.clientY - last.y;
+          last = { x: ev.clientX, y: ev.clientY };
+          const delta = (dx - dy) / 60; // normalized: right(+x)-up(-y) = in
+          if (Math.abs(delta) > 0.001) {
+            const cam = this.controls.object as THREE.PerspectiveCamera;
+            const factor = 1 + Math.abs(delta) * 2; // ~2x sensitivity
+            cam.zoom = Math.max(0.05, Math.min(40, cam.zoom * (delta > 0 ? factor : 1 / factor)));
+            cam.updateProjectionMatrix();
+            this.controls.update();
+          }
+        };
+        const up = () => {
+          window.removeEventListener("pointermove", onMove);
+          window.removeEventListener("pointerup", up);
+          window.removeEventListener("pointercancel", up);
+        };
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", up);
+        window.addEventListener("pointercancel", up);
+      },
+      true,
+    );
     const release = () => {
       this.controls.enabled = false;
     };

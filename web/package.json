@@ -12,6 +12,7 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "dockview": "^7.0.4",
     "fuse.js": "^7.5.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

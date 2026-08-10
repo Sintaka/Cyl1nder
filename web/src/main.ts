@@ -1,5 +1,6 @@
 import "./styles.css";
-import { attachSplitters, buildLayout } from "./app/layout";
+import { buildLayout } from "./app/layout";
+import { setupDock } from "./app/dock";
 import { store } from "./stores/workspace";
 import { BridgeClient, connectWs } from "./bridge/client";
 import { createReteGraph, type ReteGraphHandlers } from "./nodes2/graph";
@@ -9,7 +10,12 @@ import { inputsEqual } from "./protocol/compare";
 import type { OutputBuffer } from "./protocol/types";
 
 const layout = buildLayout(document.getElementById("app")!);
-attachSplitters(layout.root);
+setupDock(layout.dockContainer, {
+  graph: layout.graphContainer,
+  viewport: layout.viewportContainer,
+  inspector: layout.inspectorEl,
+  log: layout.logEl,
+});
 const client = new BridgeClient();
 
 const handlers: ReteGraphHandlers = {
@@ -220,4 +226,17 @@ if (qs) {
     .catch((e) => store.pushLog(`bridge unreachable: ${String(e)}`));
 }
 
-store.pushLog(`Cyl1nder web v${APP_VERSION} · Tab=搜索 Y=剪切 右键=flags`);
+/** F = frame, dispatched by hover area:
+ *  node graph -> frame selected nodes (or all when none selected)
+ *  3D viewport -> frame geometry (or default view when nothing shown) */
+window.addEventListener("keydown", (e) => {
+  if (e.key.toLowerCase() !== "f" || e.repeat) return;
+  const el = document.activeElement;
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
+  e.preventDefault();
+  const overGraph = layout.graphContainer.matches(":hover");
+  if (overGraph) graph.frameSelection();
+  else viewport.frame();
+});
+
+store.pushLog(`Cyl1nder web v${APP_VERSION} · Tab=搜索 Y=剪切 右键=flags F=frame`);

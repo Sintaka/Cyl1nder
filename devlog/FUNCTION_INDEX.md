@@ -262,15 +262,18 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/layout.ts（114 行）
+## web/src/app/dock.ts（53 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `buildLayout` | 16 | function | export | 1 |
-| `attachSplitters` | 69 | function | export | 1 |
-| `onDown` | 75 | arrow |  | 0 |
-| `onMove` | 87 | arrow |  | 0 |
-| `onUp` | 100 | arrow |  | 0 |
+| `setupDock` | 13 | function | export | 1 |
+
+## web/src/app/layout.ts（123 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `buildLayout` | 17 | function | export | 1 |
+| `buildLayoutLegacy` | 73 | function | export | 1 |
 
 ## web/src/app/log.ts（4 行）
 
@@ -286,56 +289,51 @@
 | `connectWs` | 77 | function | export | 1 |
 | `connect` | 82 | arrow |  | 1 |
 
-## web/src/main.ts（223 行）
+## web/src/main.ts（242 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `refreshNodeFlags` | 44 | function |  | 3 |
-| `inputStatsText` | 65 | function |  | 2 |
-| `outputStatsText` | 74 | function |  | 2 |
-| `renderInspector` | 83 | function |  | 2 |
-| `runNetwork` | 118 | function |  | 2 |
-| `startHdaWatch` | 140 | function |  | 2 |
-| `check` | 142 | arrow |  | 1 |
-| `stopHdaWatch` | 159 | function |  | 2 |
-| `connect` | 166 | function |  | 4 |
+| `refreshNodeFlags` | 50 | function |  | 3 |
+| `inputStatsText` | 71 | function |  | 2 |
+| `outputStatsText` | 80 | function |  | 2 |
+| `renderInspector` | 89 | function |  | 2 |
+| `runNetwork` | 124 | function |  | 2 |
+| `startHdaWatch` | 146 | function |  | 2 |
+| `check` | 148 | arrow |  | 1 |
+| `stopHdaWatch` | 165 | function |  | 2 |
+| `connect` | 172 | function |  | 4 |
 
-## web/src/nodes2/graph.ts（575 行）
-
-| 函数 | 行号 | 类型 | 导出 | calls |
-|---|---|---|---|---|
-| `log` | 54 | arrow |  | 5 |
-| `nodeByKind` | 59 | function |  | 4 |
-| `nodeFromTarget` | 64 | function |  | 4 |
-| `renderNode` | 80 | function |  | 1 |
-| `portIndexFromTarget` | 95 | function |  | 2 |
-| `CylNode` | 107 | class | export | 3 |
-| `makeInputNode` | 133 | function |  | 2 |
-| `makeOutputNode` | 138 | function |  | 2 |
-| `makeNullNode` | 143 | function | export | 2 |
-| `buildGraph` | 154 | function |  | 2 |
-| `createReteGraph` | 211 | function | export | 1 |
-| `attachTabSearch` | 295 | function |  | 2 |
-| `render` | 311 | arrow |  | 4 |
-| `create` | 326 | arrow |  | 2 |
-| `close` | 342 | arrow |  | 6 |
-| `update` | 348 | arrow |  | 3 |
-| `attachCutMode` | 377 | function |  | 2 |
-| `isTyping` | 383 | arrow |  | 1 |
-| `attachFlagMenu` | 428 | function |  | 2 |
-| `show` | 440 | arrow |  | 2 |
-| `initTooltip` | 494 | function | export | 2 |
-| `showTooltip` | 500 | function | export | 1 |
-| `hideTooltip` | 513 | function | export | 1 |
-| `attachMMBPan` | 521 | function |  | 2 |
-| `onMove` | 529 | arrow |  | 0 |
-| `onUp` | 532 | arrow |  | 0 |
-| `attachDotGrid` | 550 | function |  | 2 |
-
-## web/src/proto/main.ts（5 行）
+## web/src/nodes2/graph.ts（583 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
+| `log` | 55 | arrow |  | 5 |
+| `nodeByKind` | 60 | function |  | 4 |
+| `nodeFromTarget` | 65 | function |  | 4 |
+| `renderNode` | 81 | function |  | 1 |
+| `portIndexFromTarget` | 96 | function |  | 2 |
+| `CylNode` | 108 | class | export | 3 |
+| `makeInputNode` | 134 | function |  | 2 |
+| `makeOutputNode` | 139 | function |  | 2 |
+| `makeNullNode` | 144 | function | export | 2 |
+| `buildGraph` | 155 | function |  | 2 |
+| `createReteGraph` | 212 | function | export | 1 |
+| `attachTabSearch` | 303 | function |  | 2 |
+| `render` | 319 | arrow |  | 4 |
+| `create` | 334 | arrow |  | 2 |
+| `close` | 350 | arrow |  | 6 |
+| `update` | 356 | arrow |  | 3 |
+| `attachCutMode` | 385 | function |  | 2 |
+| `isTyping` | 391 | arrow |  | 1 |
+| `attachFlagMenu` | 436 | function |  | 2 |
+| `show` | 448 | arrow |  | 2 |
+| `initTooltip` | 502 | function | export | 2 |
+| `showTooltip` | 508 | function | export | 1 |
+| `hideTooltip` | 521 | function | export | 1 |
+| `attachMMBPan` | 529 | function |  | 2 |
+| `onMove` | 537 | arrow |  | 0 |
+| `onUp` | 540 | arrow |  | 0 |
+| `attachDotGrid` | 558 | function |  | 2 |
 
 ## web/src/protocol/compare.ts（22 行）
 
@@ -370,12 +368,14 @@
 |---|---|---|---|---|
 | `createRenderer` | 18 | function | export | 1 |
 
-## web/src/viewport/controls.ts（48 行）
+## web/src/viewport/controls.ts（82 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `HoudiniControls` | 11 | class | export | 0 |
-| `release` | 37 | arrow |  | 0 |
+| `onMove` | 47 | arrow |  | 0 |
+| `up` | 60 | arrow |  | 1 |
+| `release` | 71 | arrow |  | 0 |
 
 ## web/src/viewport/geometry.ts（51 行）
 
@@ -386,7 +386,7 @@
 | `buildInputs` | 33 | function | export | 1 |
 | `buildOutputs` | 43 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（232 行）
+## web/src/viewport/renderer.ts（268 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|

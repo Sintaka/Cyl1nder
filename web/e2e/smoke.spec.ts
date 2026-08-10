@@ -14,7 +14,7 @@ test("Cyl1nder page loads and connects to a live serial", async ({ page }) => {
   test.skip(!serial, "no serial registered in bridge");
 
   await page.goto(`http://127.0.0.1:8376/?serial=${serial}`);
-  await expect(page.locator(".cyl-graph .title").first()).toBeVisible({ timeout: 15000 });
+  await expect(page.locator(".cyl-graph .cyl-rp-title").first()).toBeVisible({ timeout: 15000 });
   await expect(page.locator(".cyl-viewport canvas")).toBeVisible();
   await expect(page.locator(".cyl-status")).toHaveClass(/ok/, { timeout: 15000 });
   await expect(page.locator(".cyl-log")).toContainText("hello", { timeout: 15000 });

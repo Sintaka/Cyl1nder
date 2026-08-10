@@ -48,6 +48,7 @@ export interface ReteGraph {
   setStats(kind: NodeKind, stats: string): void;
   getFlags(kind: NodeKind): NodeFlags | undefined;
   setFlag(kind: NodeKind, key: keyof NodeFlags, value: boolean): NodeFlags | undefined;
+  frameSelection(): void;
 }
 
 const GEO = "geo";
@@ -262,6 +263,13 @@ export async function createReteGraph(
       notifyNodeChanged();
       return { ...n.flags };
     },
+    frameSelection: () => {
+      const all = g.editor.getNodes();
+      const selected = all.filter((n) => (n as ClassicPreset.Node).selected);
+      const target = selected.length > 0 ? selected : all;
+      if (target.length > 0) void AreaExtensions.zoomAt(g.area, target);
+      store.pushLog(`[node] frame ${selected.length > 0 ? `${selected.length} selected` : "all"} nodes`);
+    },
   };
 }
 
@@ -277,9 +285,9 @@ interface PaletteEntry {
 }
 
 const PALETTE: PaletteEntry[] = [
-  { kind: "input", label: "input_", desc: "4-output source", keywords: "source input 输入" },
-  { kind: "output", label: "output_", desc: "4-input sink", keywords: "sink output 输出" },
-  { kind: "null", label: "null", desc: "passthrough 4+4", keywords: "null passthrough 直通" },
+  { kind: "input", label: "_input_", desc: "4-output source", keywords: "source input 输入 起点" },
+  { kind: "output", label: "_output_", desc: "4-input sink", keywords: "sink output 输出 终点" },
+  { kind: "null", label: "null", desc: "passthrough 1+1", keywords: "null passthrough 直通" },
 ];
 
 const fuse = new Fuse(PALETTE, {

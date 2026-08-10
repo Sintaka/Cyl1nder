@@ -207,6 +207,42 @@ export class Viewport {
     this.onEdit(out);
   }
 
+  /** Frame the visible geometry (or reset to default when nothing is shown). */
+  frame(): void {
+    const box = new THREE.Box3();
+    let has = false;
+    for (const group of [this.inputGroup, this.outputGroup]) {
+      if (!group.visible) continue;
+      const b = new THREE.Box3().setFromObject(group);
+      if (!b.isEmpty()) {
+        box.union(b);
+        has = true;
+      }
+    }
+    if (!has) {
+      this.frameDefault();
+      return;
+    }
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3()).length();
+    this.controls.controls.target.copy(center);
+    this.camera.position.copy(center).add(new THREE.Vector3(0, 0, Math.max(size * 1.5, 1)));
+    this.camera.zoom = 1;
+    this.camera.updateProjectionMatrix();
+    this.controls.controls.update();
+    store.pushLog(`[viewport] framed geometry center=${center.toArray().map((n) => n.toFixed(2)).join(",")} size=${size.toFixed(2)}`);
+  }
+
+  /** Reset to the default camera pose. */
+  frameDefault(): void {
+    this.controls.controls.target.set(0, 0, 0);
+    this.camera.position.set(4, 3, 6);
+    this.camera.zoom = 1;
+    this.camera.updateProjectionMatrix();
+    this.controls.controls.update();
+    store.pushLog("[viewport] frame default view");
+  }
+
   private resize(): void {
     const w = this.container.clientWidth;
     const h = Math.max(1, this.container.clientHeight);

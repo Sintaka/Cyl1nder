@@ -4,12 +4,16 @@
 
 - `app/app-config.ts`
   - three/webgpu
+- `app/dock.ts`
+  - dockview
+  - dockview/dist/styles/dockview.css
 - `app/layout.ts`
 - `app/log.ts`
 - `bridge/client.ts`
   - protocol/types
 - `main.ts`
   - app/app-config
+  - app/dock
   - app/layout
   - bridge/client
   - nodes2/graph
@@ -29,9 +33,6 @@
   - rete-engine
   - rete-react-plugin
   - stores/workspace
-- `proto/main.ts`
-  - proto/rete
-  - styles.css
 - `protocol/compare.ts`
   - protocol/types
 - `protocol/types.ts`
