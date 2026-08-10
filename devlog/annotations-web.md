@@ -84,3 +84,13 @@
   - `Wire+Face`：线框叠加面。
   - mesh 由 `buildMeshFaces` 构建为 { faceMesh, wireMesh } Group，`applyDisplayMode()` 切换；曲线保持线。
 - **polygon 面显示**：Lit 模式实体灰面（此前只有线框）。协议 faces → 面渲染闭环完成。
+
+## v0.1.00025（2026-08-10）
+- **Alt+RMB 灵敏度减半**：归一化缩放 factor 4x → 2x（回到此前状态）。
+- **相机 35mm**：PerspectiveCamera fov 45° → 38°（35mm 等效垂直 FOV = 2·atan(24/(2·35))）。
+- **poly 实体面显示修复**（深挖显示系统）：
+  1. fan 三角化 BufferGeometry **缺 normal** → MeshLambertMaterial 无法着色，面不渲染 → 补 `geo.computeVertexNormals()`（这是面不显示的直接根因）；
+  2. 面材质 `side: THREE.DoubleSide`（fan 三角化法线可能朝内被剔除）；
+  3. **孤立点渲染**：不在任何 curve/face 的点用 THREE.Points 小圆点显示（之前只画曲线+面，孤立点不显示）。
+- **poly 回 Houdini 丢失修复**：`transform.ts inputToOutput` 补 `faces`（编辑路径输出丢 faces → HDA pull 只有点无 poly）；`_build_detail` faces 重建已验证（Polygon closed）。
+- **Desk1 布局恢复**：布局 size 是绝对像素（Desk1 基于 2159 屏），小窗口下退化"相对布局" → `dock.ts scaleLayout()` 加载时按容器尺寸缩放 size；`ui-layout.json` 重置为 Desk1 排布（viewport 左大/log 左下/inspector 右上/graph 右下）。

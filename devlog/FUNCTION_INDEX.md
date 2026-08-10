@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **227** 个函数/类。
+> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **230** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -286,13 +286,15 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/dock.ts（118 行）
+## web/src/app/dock.ts（144 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `layoutDebug` | 28 | function |  | 2 |
 | `setupDock` | 38 | function | export | 1 |
-| `apply` | 95 | arrow |  | 3 |
+| `scaleLayout` | 98 | arrow |  | 1 |
+| `walk` | 105 | arrow |  | 2 |
+| `apply` | 120 | arrow |  | 3 |
 
 ## web/src/app/layout.ts（123 行）
 
@@ -385,7 +387,7 @@
 |---|---|---|---|---|
 | `WorkspaceStore` | 6 | class | export | 1 |
 
-## web/src/tools/transform.ts（41 行）
+## web/src/tools/transform.ts（42 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -409,17 +411,18 @@
 | `up` | 61 | arrow |  | 1 |
 | `release` | 89 | arrow |  | 0 |
 
-## web/src/viewport/geometry.ts（83 行）
+## web/src/viewport/geometry.ts（101 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `toVec` | 7 | function |  | 1 |
 | `buildMeshFaces` | 13 | function | export | 2 |
-| `buildCurves` | 41 | function | export | 3 |
-| `buildInputs` | 65 | function | export | 1 |
-| `buildOutputs` | 75 | function | export | 1 |
+| `buildPoints` | 42 | function |  | 2 |
+| `buildCurves` | 55 | function | export | 3 |
+| `buildInputs` | 83 | function | export | 1 |
+| `buildOutputs` | 93 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（333 行）
+## web/src/viewport/renderer.ts（335 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|

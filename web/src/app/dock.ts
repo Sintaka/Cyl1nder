@@ -92,9 +92,35 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
   });
 
   // Restore priority: bridge file (user's latest custom layout) -> DESK1 (built-in default).
+  // Sizes in saved layouts are absolute pixels captured at some window size; scale them
+  // to the current dock so a 2159px-wide Desk1 does not degrade to a "relative-only" look
+  // on a 1280px window.
+  const scaleLayout = (json: { grid?: { width?: number; height?: number; root?: unknown } }) => {
+    const grid = json.grid;
+    if (!grid) return;
+    const cw = container.clientWidth || 1280;
+    const ch = container.clientHeight || 720;
+    const sx = cw / (grid.width || cw);
+    const sy = ch / (grid.height || ch);
+    const walk = (node: any, parentOrient: "HORIZONTAL" | "VERTICAL" | null) => {
+      if (!node) return;
+      if (node.type === "leaf" && typeof node.size === "number") {
+        node.size = Math.max(60, Math.round(node.size * (parentOrient === "VERTICAL" ? sy : sx)));
+      } else if (node.type === "branch") {
+        if (typeof node.size === "number") {
+          node.size = Math.max(80, Math.round(node.size * (parentOrient === "VERTICAL" ? sy : sx)));
+        }
+        const orient: "HORIZONTAL" | "VERTICAL" = node.orientation === "VERTICAL" ? "VERTICAL" : "HORIZONTAL";
+        for (const c of node.data ?? []) walk(c, orient);
+      }
+    };
+    walk(grid.root, "HORIZONTAL");
+  };
+
   const apply = (json: unknown) => {
     if (!json) return false;
     try {
+      scaleLayout(json as { grid?: { width?: number; height?: number; root?: unknown } });
       dv.fromJSON(json as Parameters<DockviewComponent["fromJSON"]>[0]);
       return true;
     } catch {

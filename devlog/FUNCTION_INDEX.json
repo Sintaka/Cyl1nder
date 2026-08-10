@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-10T12:40:03.536Z",
-  "totalFunctions": 227,
+  "generatedAt": "2026-08-10T12:55:52.660Z",
+  "totalFunctions": 230,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -1287,7 +1287,7 @@
     },
     {
       "file": "web/src/app/dock.ts",
-      "lineCount": 118,
+      "lineCount": 144,
       "functions": [
         {
           "name": "layoutDebug",
@@ -1304,8 +1304,22 @@
           "calls": 1
         },
         {
+          "name": "scaleLayout",
+          "line": 98,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "walk",
+          "line": 105,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "apply",
-          "line": 95,
+          "line": 120,
           "kind": "arrow",
           "exported": false,
           "calls": 3
@@ -1688,7 +1702,7 @@
     },
     {
       "file": "web/src/tools/transform.ts",
-      "lineCount": 41,
+      "lineCount": 42,
       "functions": [
         {
           "name": "translatePoint",
@@ -1769,7 +1783,7 @@
     },
     {
       "file": "web/src/viewport/geometry.ts",
-      "lineCount": 83,
+      "lineCount": 101,
       "functions": [
         {
           "name": "toVec",
@@ -1786,22 +1800,29 @@
           "calls": 2
         },
         {
+          "name": "buildPoints",
+          "line": 42,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "buildCurves",
-          "line": 41,
+          "line": 55,
           "kind": "function",
           "exported": true,
           "calls": 3
         },
         {
           "name": "buildInputs",
-          "line": 65,
+          "line": 83,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "buildOutputs",
-          "line": 75,
+          "line": 93,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -1810,7 +1831,7 @@
     },
     {
       "file": "web/src/viewport/renderer.ts",
-      "lineCount": 333,
+      "lineCount": 335,
       "functions": [
         {
           "name": "Viewport",

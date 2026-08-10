@@ -52,7 +52,7 @@ export class HoudiniControls {
           const delta = (dx - dy) / 60; // normalized: right(+x)-up(-y) = in
           if (Math.abs(delta) > 0.001) {
             const cam = this.controls.object as THREE.PerspectiveCamera;
-            const factor = 1 + Math.abs(delta) * 4; // ~4x sensitivity (2x of previous 2x)
+            const factor = 1 + Math.abs(delta) * 2; // ~2x sensitivity (halved from 4x per request)
             cam.zoom = Math.max(0.05, Math.min(40, cam.zoom * (delta > 0 ? factor : 1 / factor)));
             cam.updateProjectionMatrix();
             this.controls.update();

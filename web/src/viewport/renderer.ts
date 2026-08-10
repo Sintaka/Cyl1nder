@@ -79,8 +79,10 @@ export class Viewport {
     });
     container.appendChild(this.modeBtn);
 
+    // 35mm-equivalent lens: vertical FOV = 2*atan(24/(2*35)) ≈ 38 deg (full-frame 36x24).
+    const CAMERA_FOV_35MM = 38;
     this.camera = new THREE.PerspectiveCamera(
-      45,
+      CAMERA_FOV_35MM,
       container.clientWidth / Math.max(1, container.clientHeight),
       0.01,
       1000,
@@ -292,8 +294,8 @@ export class Viewport {
         const m = this.displayMode;
         const faceMat =
           m === "lit"
-            ? new THREE.MeshLambertMaterial({ color: 0x9aa0a6 })
-            : new THREE.MeshBasicMaterial({ color });
+            ? new THREE.MeshLambertMaterial({ color: 0x9aa0a6, side: THREE.DoubleSide })
+            : new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide });
         ud.face.material = faceMat;
         ud.face.visible = m !== "wireframe";
         ud.wire.material = new THREE.MeshBasicMaterial({ color, wireframe: true });

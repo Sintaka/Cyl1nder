@@ -27,7 +27,8 @@ export function buildMeshFaces(points: number[][], faces: number[][], color: num
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geo.setIndex(tri);
-  const face = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x9aa0a6 }));
+  geo.computeVertexNormals(); // MeshLambertMaterial requires normals; without them faces don't shade
+  const face = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x9aa0a6, side: THREE.DoubleSide }));
   const wire = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, wireframe: true }));
   wire.visible = false;
   const group = new THREE.Group();
@@ -37,7 +38,20 @@ export function buildMeshFaces(points: number[][], faces: number[][], color: num
   return group;
 }
 
-/** One polyline per curve + wireframe for mesh faces; store curve + input index in userData. */
+/** Isolated points (not referenced by any curve/face) rendered as small dots. */
+function buildPoints(points: number[][], used: Set<number>, color: number): THREE.Points | null {
+  const pts: number[] = [];
+  points.forEach((p, i) => {
+    if (used.has(i)) return;
+    pts.push(p[0] ?? 0, p[1] ?? 0, p[2] ?? 0);
+  });
+  if (pts.length === 0) return null;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pts), 3));
+  return new THREE.Points(geo, new THREE.PointsMaterial({ color, size: 0.06, sizeAttenuation: true }));
+}
+
+/** One polyline per curve + wireframe/faces for mesh + dots for isolated points. */
 export function buildCurves(
   points: number[][],
   curves: CurveData[],
@@ -46,10 +60,11 @@ export function buildCurves(
   inputIndex: number | null,
 ): THREE.Group {
   const group = new THREE.Group();
+  const used = new Set<number>();
   for (const curve of curves) {
-    const pts = curve.pointIndices
-      .map((i) => points[i])
-      .filter((p): p is number[] => Boolean(p));
+    const idxs = curve.pointIndices.filter((i) => i >= 0 && i < points.length);
+    idxs.forEach((i) => used.add(i));
+    const pts = idxs.map((i) => points[i]).filter((p): p is number[] => Boolean(p));
     if (pts.length < 2) continue;
     const geo = new THREE.BufferGeometry().setFromPoints(pts.map(toVec));
     const mat = new THREE.LineBasicMaterial({ color });
@@ -57,8 +72,11 @@ export function buildCurves(
     line.userData = { curve, inputIndex };
     group.add(line);
   }
+  for (const face of faces) face.forEach((i) => used.add(i));
   const mesh = buildMeshFaces(points, faces, color);
   if (mesh) group.add(mesh);
+  const pts = buildPoints(points, used, color);
+  if (pts) group.add(pts);
   return group;
 }
 

@@ -36,6 +36,7 @@ export function inputToOutput(index: number, input: InputPayload, points: number
     primCount: input.primCount,
     points,
     curves: input.curves,
+    faces: input.faces ?? [],
     attributes: input.attributes,
   };
 }
