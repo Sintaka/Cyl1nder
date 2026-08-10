@@ -36,6 +36,9 @@
   - @antv/x6
   - fuse.js
   - nodes/cyl1nderNode
+- `proto/main.ts`
+  - proto/rete
+  - styles.css
 - `protocol/compare.ts`
   - protocol/types
 - `protocol/types.ts`

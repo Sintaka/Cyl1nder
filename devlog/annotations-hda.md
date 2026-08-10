@@ -84,3 +84,14 @@
 - **shelf 全部触发式**：Toggle/Reload/Status 三个按钮均后台线程执行 + 状态栏 + `bridge_control.log`，主线程零阻塞。
 - ⚠️ **Houdini 需重启一次**：当前会话内存里的 shelf 仍是启动时加载的**旧同步版**（`displayMessage(restart_bridge())` 会阻塞主线程数秒 → 用户遇到的"卡死"）；磁盘/toolbar 已是线程版。重启后生效。
 - ⚠️ **fxhoudinimcp 8100 当前 502**（插件 hwebserver 对所有请求报错，含 mcp.health）——非桥问题，Houdini 重启可恢复。
+
+## v0.1.00015（2026-08-10）
+- **修复「4 个输出口都输出第一个输入」bug**：`hou.Node.geometry()` 的参数是**输出索引**，多输入 Python SOP 上 `node.geometry()` 永远返回 input0 副本；bridge 无该 role 数据时旧代码保持这个 input0 副本 → 4 口全变第一个输入。修复：无数据时 passthrough **该 role 自己的输入**（`node.inputs()[role].geometry()`），内容对比后重建（`_same_geo`）。已加 hython 冒烟断言 `out_i = in_i`。
+- **HDA runtime 优化（方案 A，调研结论落地）**：Subnet 内从「4 个 Python SOP」改为「**1 个 Python SOP（cyl1nder_core）+ 4 个 blast**」：
+  - `cook_core()` 一次 cook 完成：推 4 输入（1 次 HTTP）+ 拉 4 路 outputs（1 次 HTTP）→ 合并写入 detail，每 polyline prim 带 `cyl1nder_role`(0..3) prim 属性 → `_CORE_CACHE` 内容对比（per serial）防视口频闪。
+  - 4 个 blast（grouptype=prims, group=`@cyl1nder_role=N`, negate=1）把合并 detail 拆到 out0..3（本地 C++ 快速，无 Python 无网络）。
+  - 效果：重活（序列化/HTTP/全量重建）从 4 次收敛为 1 次；blast 拆分路径零 Python。
+  - 保留 `cook(role)` 兼容旧 .hda（4 Python SOP 版）。
+- **build_hda.py 同步**：PY_CODE 改 `cook_core()`；FORCE_COOK_CALLBACK 遍历 python/blast/output 子节点；内部连线 core+blast+output。
+- **验证**：hython_smoke.py 全过（serial 不可变 / 4 输入 push / 4 输出 fallback 映射 out_i=in_i / web edit out0 → pull 回 out0）；HDA 已重建（`Cyl1nder_1.0.hda` 6.5KB）。
+- **调研依据**：`devlog/hda-runtime-optimization.md`（Einstein 子智能体：HDK maxoutputs>1 非典型路径不采用；方案 A/B 纯 Python 可做；`geometry()`=输出索引是 bug API 根源）。

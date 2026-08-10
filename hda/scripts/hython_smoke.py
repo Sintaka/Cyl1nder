@@ -78,6 +78,17 @@ def main() -> int:
     assert ws["inputRev"] >= 1, "inputs not pushed"
     print("workspace:", json.dumps(ws, indent=2))
 
+    # Fallback mapping: with no outputs on the bridge yet, each out_i must
+    # passthrough ITS OWN input (not input0) - regression test for the
+    # "all 4 ports emit the first input" bug.
+    for i in range(4):
+        g = node.node(f"out{i}").geometry()
+        pts = g.points()
+        assert len(pts) == 3, f"out{i} expected 3 pts, got {len(pts)}"
+        z = pts[0].position().z()
+        assert abs(z - float(i)) < 1e-6, f"out{i} z={z} expected {i} (per-role fallback)"
+    print("4-output fallback mapping OK (out_i = in_i)")
+
     # web-side edit for output 0 -> pull back into out0
     edit = {
         "outputs": [

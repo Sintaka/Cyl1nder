@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-10T06:50:43.390Z",
-  "totalFunctions": 187,
+  "generatedAt": "2026-08-10T09:51:26.791Z",
+  "totalFunctions": 205,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -710,73 +710,143 @@
     },
     {
       "file": "hda/scripts/bridge_control.py",
-      "lineCount": 115,
+      "lineCount": 229,
       "functions": [
         {
-          "name": "bridge_healthy",
-          "line": 22,
-          "kind": "def",
-          "exported": false,
-          "calls": 5
-        },
-        {
-          "name": "find_pids",
-          "line": 31,
-          "kind": "def",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "stop_bridge",
-          "line": 52,
-          "kind": "def",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "start_bridge",
-          "line": 66,
-          "kind": "def",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "restart_bridge",
-          "line": 83,
-          "kind": "def",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "toggle_bridge",
-          "line": 92,
-          "kind": "def",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "status_bridge",
-          "line": 100,
-          "kind": "def",
-          "exported": false,
-          "calls": 1
-        }
-      ]
-    },
-    {
-      "file": "hda/scripts/build_hda.py",
-      "lineCount": 172,
-      "functions": [
-        {
-          "name": "_parm_group",
+          "name": "_clean_env",
           "line": 44,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
+          "name": "_console_flags",
+          "line": 51,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "_get",
+          "line": 57,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "_port_up",
+          "line": 65,
+          "kind": "def",
+          "exported": false,
+          "calls": 6
+        },
+        {
+          "name": "bridge_healthy",
+          "line": 75,
+          "kind": "def",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "frontend_healthy",
+          "line": 85,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "houdini_probe",
+          "line": 89,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "find_pids",
+          "line": 104,
+          "kind": "def",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "_wait_port_free",
+          "line": 122,
+          "kind": "def",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "_kill_port",
+          "line": 131,
+          "kind": "def",
+          "exported": false,
+          "calls": 5
+        },
+        {
+          "name": "ensure_frontend",
+          "line": 144,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "start_bridge",
+          "line": 160,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "restart_bridge",
+          "line": 181,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "toggle_bridge",
+          "line": 186,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "status_bridge",
+          "line": 193,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "probe",
+          "line": 205,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "log_result",
+          "line": 214,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        }
+      ]
+    },
+    {
+      "file": "hda/scripts/build_hda.py",
+      "lineCount": 190,
+      "functions": [
+        {
+          "name": "_parm_group",
+          "line": 57,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
           "name": "build",
-          "line": 103,
+          "line": 116,
           "kind": "def",
           "exported": false,
           "calls": 2
@@ -785,7 +855,7 @@
     },
     {
       "file": "hda/scripts/hython_smoke.py",
-      "lineCount": 111,
+      "lineCount": 122,
       "functions": [
         {
           "name": "_req",
@@ -812,46 +882,46 @@
     },
     {
       "file": "hda/scripts/reload_hda.py",
-      "lineCount": 87,
+      "lineCount": 89,
       "functions": [
         {
           "name": "_reload_modules",
-          "line": 30,
+          "line": 31,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_instances",
-          "line": 43,
+          "line": 44,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_force_recook_all",
-          "line": 48,
+          "line": 49,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_rebuild_hda",
-          "line": 62,
+          "line": 63,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_reload_definition",
-          "line": 68,
+          "line": 69,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "reload_cyl1nder",
-          "line": 75,
+          "line": 76,
           "kind": "def",
           "exported": false,
           "calls": 3
@@ -922,98 +992,154 @@
     },
     {
       "file": "hda/src/cyl1nder_hda.py",
-      "lineCount": 281,
+      "lineCount": 500,
       "functions": [
         {
+          "name": "_ui_healthy",
+          "line": 47,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_ensure_frontend",
+          "line": 56,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
           "name": "_bridge_healthy",
-          "line": 31,
+          "line": 77,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_ensure_bridge",
-          "line": 39,
+          "line": 85,
           "kind": "def",
           "exported": false,
-          "calls": 2
+          "calls": 3
         },
         {
           "name": "_same_as_buffer",
-          "line": 61,
+          "line": 108,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_sync_loop",
-          "line": 79,
+          "line": 126,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_schedule_recook",
-          "line": 105,
+          "line": 152,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_force_cook_node",
-          "line": 113,
+          "line": 160,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "ensure_sync",
-          "line": 138,
-          "kind": "def",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "_root",
-          "line": 162,
+          "line": 185,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
+          "name": "_root",
+          "line": 209,
+          "kind": "def",
+          "exported": false,
+          "calls": 4
+        },
+        {
           "name": "_ensure_serial",
-          "line": 166,
+          "line": 213,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "_parm",
+          "line": 226,
+          "kind": "def",
+          "exported": false,
+          "calls": 14
+        },
+        {
+          "name": "_set_status",
+          "line": 236,
+          "kind": "def",
+          "exported": false,
+          "calls": 7
+        },
+        {
+          "name": "_serialize_geo",
+          "line": 245,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "_build_detail",
+          "line": 255,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
-          "name": "_parm",
-          "line": 179,
+          "name": "_snapshot_parts",
+          "line": 283,
           "kind": "def",
           "exported": false,
-          "calls": 8
+          "calls": 2
         },
         {
-          "name": "_set_status",
-          "line": 189,
+          "name": "_flat_signature",
+          "line": 323,
           "kind": "def",
           "exported": false,
-          "calls": 5
+          "calls": 2
         },
         {
-          "name": "_build_detail",
-          "line": 198,
+          "name": "_build_core_detail",
+          "line": 335,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "cook_core",
+          "line": 359,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_same_geo",
+          "line": 423,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "cook",
-          "line": 222,
+          "line": 434,
           "kind": "def",
           "exported": false,
-          "calls": 3
+          "calls": 4
         }
       ]
     },
@@ -1389,6 +1515,11 @@
           "calls": 1
         }
       ]
+    },
+    {
+      "file": "web/src/proto/main.ts",
+      "lineCount": 5,
+      "functions": []
     },
     {
       "file": "web/src/protocol/compare.ts",

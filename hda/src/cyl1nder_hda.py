@@ -1,8 +1,16 @@
-"""Runtime cook logic for the Cyl1nder HDA's 4 internal Python SOPs.
+"""Runtime cook logic for the Cyl1nder HDA.
 
-The HDA is a thin shell: 4 python SOPs (role 0..3) import this module via
-PYTHONPATH (hda/package/cyl1nder.json) and call cook(role). Editing this file
-is hot-reload friendly - no HDA rebuild needed (Houdini reloads the module).
+Two layouts are supported:
+- runtime-optimized (current): ONE python SOP `cyl1nder_core` calls cook_core().
+  It pushes all 4 inputs once, pulls all 4 outputs in ONE HTTP round-trip and
+  writes a MERGED detail where every polyline prim carries a `cyl1nder_role`
+  prim attribute (0..3). Four lightweight `blast` SOPs (grouptype=prims,
+  group=@cyl1nder_role=N, negate=1) split the merged detail into out0..out3.
+  => heavy work (serialize/HTTP/deserialize) happens ONCE per cook, not 4x.
+- legacy (older HDA): 4 python SOPs each call cook(role); kept for backward
+  compat with already-installed .hda files.
+
+Editing this file is hot-reload friendly - no HDA rebuild needed.
 """
 from __future__ import annotations
 
@@ -22,6 +30,10 @@ INPUT_COUNT = 4
 
 # bidirectional sync: web edits -> bridge pending -> 30fps poller -> dirty -> recook
 _SYNC: dict[str, dict] = {}
+
+# content cache for the merged core detail (per serial) - prevents viewport flicker
+# on unchanged Force Cooks; rebuild decision stays content-based (sync-architecture rule).
+_CORE_CACHE: dict[str, dict] = {}
 
 # HDA owns bridge startup: if unreachable, spawn it (one attempt / 5s)
 BRIDGE_PY = r"D:\code\dev\Cyl1nder\bridge\.venv\Scripts\python.exe"
@@ -161,7 +173,7 @@ def _force_cook_node(node_path: str) -> None:
             except Exception:  # noqa: BLE001
                 pass
         for c in n.children():
-            if c.type().name() == "python":
+            if c.type().name() in ("python", "blast", "output"):
                 try:
                     c.cook(force=True)
                 except Exception:  # noqa: BLE001
@@ -230,6 +242,16 @@ def _set_status(root: hou.Node, text: str) -> None:
             pass
 
 
+def _serialize_geo(geo: hou.Geometry) -> dict:
+    """Minimal (points, curves) snapshot of a geometry - no attributes."""
+    pts = [
+        [round(p.position().x(), 6), round(p.position().y(), 6), round(p.position().z(), 6)]
+        for p in geo.points()
+    ]
+    curves = [{"pointIndices": [p.number() for p in prim.points()]} for prim in geo.prims()]
+    return {"points": pts, "curves": curves}
+
+
 def _build_detail(geo: hou.Geometry, buf: dict) -> None:
     """Build output detail from an OutputBuffer dict (points + polyline curves + width)."""
     pts_data = buf.get("points") or []
@@ -254,6 +276,161 @@ def _build_detail(geo: hou.Geometry, buf: dict) -> None:
                     created[idx].setAttribValue(widths_attr, float(w[k]))
 
 
+# ---------------------------------------------------------------------------
+# runtime-optimized layout: ONE python SOP (cook_core) + 4 blast splitters
+# ---------------------------------------------------------------------------
+
+def _snapshot_parts(root: hou.Node, node: hou.Node) -> list[dict]:
+    """Per-role data for the merged detail: bridge buffer if present else passthrough.
+
+    Each part: {"role": i, "points": [...], "curves": [{"pointIndices": [...]}]}
+    """
+    serial = _parm(root, "cyl1nder_serial", "") or ""
+    client = BridgeClient(
+        serial,
+        bridge_url=_parm(root, "bridge_url", "http://127.0.0.1:8375"),
+        node_path=root.path(),
+        label="Cyl1nder",
+    )
+    outputs, _ = client.pull_outputs(0)
+    srcs = node.inputs()
+    parts: list[dict] = []
+    for i in range(INPUT_COUNT):
+        buf = None
+        if outputs is not None:
+            buf = next((b for b in outputs if int(b.get("index", -1)) == i), None)
+        if buf is not None and (buf.get("points") or []):
+            parts.append(
+                {
+                    "role": i,
+                    "points": buf.get("points") or [],
+                    "curves": [
+                        {"pointIndices": c.get("pointIndices") or []}
+                        for c in (buf.get("curves") or [])
+                    ],
+                }
+            )
+        else:
+            src = srcs[i] if i < len(srcs) else None
+            if src is not None:
+                snap = _serialize_geo(src.geometry())
+                parts.append({"role": i, "points": snap["points"], "curves": snap["curves"]})
+            else:
+                parts.append({"role": i, "points": [], "curves": []})
+    return parts
+
+
+def _flat_signature(parts: list[dict]) -> dict:
+    """Merged flat representation used as the content cache key."""
+    points: list[list[float]] = []
+    curves: list[dict] = []
+    for part in parts:
+        base = len(points)
+        points.extend(part["points"])
+        for c in part["curves"]:
+            curves.append({"role": part["role"], "pointIndices": [i + base for i in c["pointIndices"]]})
+    return {"points": points, "curves": curves}
+
+
+def _build_core_detail(geo: hou.Geometry, parts: list[dict], cache_key: str) -> None:
+    """Rebuild the merged detail only when content changed (prevents flicker)."""
+    sig = _flat_signature(parts)
+    prev = _CORE_CACHE.get(cache_key)
+    if prev == sig:
+        return
+    geo.clear()
+    created: list[hou.Point] = []
+    for p in sig["points"]:
+        pt = geo.createPoint()
+        pt.setPosition(hou.Vector3(float(p[0]), float(p[1]), float(p[2])))
+        created.append(pt)
+    role_attr = None
+    for c in sig["curves"]:
+        prim = geo.createPolygon(is_closed=False)
+        for idx in c["pointIndices"]:
+            if 0 <= idx < len(created):
+                prim.addVertex(created[idx])
+        if role_attr is None:
+            role_attr = geo.addAttrib(hou.attribType.Prim, "cyl1nder_role", 0)
+        prim.setAttribValue("cyl1nder_role", int(c["role"]))
+    _CORE_CACHE[cache_key] = sig
+
+
+def cook_core() -> None:
+    """Single-python-SOP runtime: push 4 inputs once, pull 4 outputs once, merge.
+
+    The merged detail carries `cyl1nder_role` (prim) so downstream blasts split it.
+    """
+    node = hou.pwd()
+    root = _root(node)
+    serial = _ensure_serial(node)
+    bridge_url = _parm(root, "bridge_url", "http://127.0.0.1:8375")
+    auto_push = bool(_parm(root, "auto_push", 1))
+    auto_pull = bool(_parm(root, "auto_pull", 1))
+    geo = node.geometry()
+
+    client = BridgeClient(serial, bridge_url=bridge_url, node_path=root.path(), label="Cyl1nder")
+    _ensure_bridge(root)
+    _ensure_frontend(root)
+
+    if auto_push:
+        srcs = node.inputs()
+        inputs: list[dict] = []
+        for i in range(INPUT_COUNT):
+            src = srcs[i] if i < len(srcs) else None
+            geo_i = src.geometry() if src is not None else None
+            if geo_i is None:
+                inputs.append(
+                    {
+                        "index": i,
+                        "name": f"in{i}",
+                        "pointCount": 0,
+                        "primCount": 0,
+                        "points": [],
+                        "curves": [],
+                        "attributes": {},
+                    }
+                )
+            else:
+                inputs.append(serialize_input(geo_i, i, f"in{i}"))
+        hip = hou.hipFile.path()
+        client.push_inputs(inputs, hip=hip)
+        _set_status(root, "ok" if not client.last_error else "offline")
+
+    if auto_pull:
+        ensure_sync(root, serial)  # bidirectional: web edit -> dirty -> recook (<= sync_fps)
+        parts = _snapshot_parts(root, node)
+        _build_core_detail(geo, parts, serial)
+        _set_status(root, "ok" if not client.last_error else "offline")
+    else:
+        # passthrough: merge the 4 inputs (with role attrs) so blasts still split.
+        parts: list[dict] = []
+        srcs = node.inputs()
+        for i in range(INPUT_COUNT):
+            src = srcs[i] if i < len(srcs) else None
+            if src is not None:
+                snap = _serialize_geo(src.geometry())
+                parts.append({"role": i, "points": snap["points"], "curves": snap["curves"]})
+            else:
+                parts.append({"role": i, "points": [], "curves": []})
+        _build_core_detail(geo, parts, serial)
+
+
+# ---------------------------------------------------------------------------
+# legacy layout: 4 python SOPs each call cook(role) (older .hda compatibility)
+# ---------------------------------------------------------------------------
+
+def _same_geo(a: hou.Geometry, b: hou.Geometry) -> bool:
+    """Content compare of two geometries (points + polyline vertex order)."""
+    pts_a = [[round(p.position().x(), 6), round(p.position().y(), 6), round(p.position().z(), 6)] for p in a.points()]
+    pts_b = [[round(p.position().x(), 6), round(p.position().y(), 6), round(p.position().z(), 6)] for p in b.points()]
+    if pts_a != pts_b:
+        return False
+    crv_a = [[p.number() for p in prim.points()] for prim in a.prims()]
+    crv_b = [[p.number() for p in prim.points()] for prim in b.prims()]
+    return crv_a == crv_b
+
+
 def cook(role: int) -> None:
     node = hou.pwd()
     root = _root(node)
@@ -262,8 +439,6 @@ def cook(role: int) -> None:
     auto_push = bool(_parm(root, "auto_push", 1))
     auto_pull = bool(_parm(root, "auto_pull", 1))
     geo = node.geometry()
-    # NOTE: do NOT clear upfront - only rebuild when a new buffer arrives for this role,
-    # otherwise Force Cook / stale recooks would wipe existing outputs.
 
     client = BridgeClient(serial, bridge_url=bridge_url, node_path=root.path(), label="Cyl1nder")
     _ensure_bridge(root)
@@ -295,15 +470,23 @@ def cook(role: int) -> None:
 
     if auto_pull:
         ensure_sync(root, serial)  # bidirectional: web edit -> dirty -> recook (<= sync_fps)
-        # Always pull the latest buffers; rebuild only when CONTENT changed (hash compare).
-        # Content-based = self-healing: immune to bridge-restart rev resets and stale
-        # "consumed rev with wrong geometry" state that plagued the earlier design.
         outputs, new_rev = client.pull_outputs(0)
         if outputs is not None:
             buf = next((b for b in outputs if int(b.get("index", -1)) == role), None)
             if buf is not None and not _same_as_buffer(geo, buf):
                 geo.clear()
                 _build_detail(geo, buf)
+            elif buf is None:
+                # No data for THIS role on the bridge yet -> passthrough THIS role's own
+                # input. node.geometry() is always the input0 copy on a multi-input python
+                # SOP, so keeping it made all 4 output ports emit the first input.
+                srcs = node.inputs()
+                src = srcs[role] if role < len(srcs) else None
+                if src is not None:
+                    other = src.geometry()
+                    if other is not None and not _same_geo(geo, other):
+                        geo.clear()
+                        geo.merge(other)
             if new_rev:
                 node.setUserData("cyl1nder_last_rev", str(new_rev))
             _set_status(root, "ok" if not client.last_error else "offline")

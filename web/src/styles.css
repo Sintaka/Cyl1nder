@@ -1,4 +1,4 @@
-﻿* { box-sizing: border-box; }
+* { box-sizing: border-box; }
 html, body, #app { height: 100%; margin: 0; }
 .cyl-app { display: flex; flex-direction: column; height: 100%; background: #141518; color: #cfd2d6; font: 12px/1.4 system-ui, sans-serif; }
 .cyl-header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #1c1e22; border-bottom: 1px solid #2a2d33; }
@@ -86,3 +86,25 @@ html, body, #app { height: 100%; margin: 0; }
 .cyl-node-menu-row:hover { background: #232a33; }
 .cyl-node-menu-row.danger { color: #ff6b6b; }
 .cyl-node-menu-row input { pointer-events: none; }
+/* ---- rete.js prototype (proto-rete.html) ---- */
+.proto-wrap { height: 100%; display: flex; flex-direction: column; background: #141518; }
+.proto-toolbar { display: flex; gap: 8px; align-items: center; padding: 8px 10px; background: #1c1e22; border-bottom: 1px solid #2a2d33; }
+.proto-toolbar button { background: #2b6cb0; border: none; color: #fff; border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+.proto-toolbar .proto-note { color: #6b7280; font-size: 11px; }
+.proto-editor { flex: 1; min-height: 0; position: relative; }
+
+/* Houdini-ish dark node look for the classic rete preset */
+.proto-editor .rete-Node {
+  background: #1b1e24;
+  border: 1px solid #3a3f4a;
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.4);
+  font-family: system-ui, sans-serif;
+  color: #cfd2d6;
+}
+.proto-editor .rete-Node-title { font-size: 12px; font-weight: 700; color: #7ce3a8; padding: 4px 8px; }
+.proto-editor .rete-Node-input-title, .proto-editor .rete-Node-output-title { font-size: 9px; color: #8f959e; }
+.proto-editor .rete-Socket { border-color: #4fc3f7; background: #0b2430; }
+.proto-editor .rete-Connection path { stroke: #4fc3f7; }
+.proto-log { height: 130px; overflow: auto; background: #0c0d0f; border-top: 1px solid #2a2d33;
+  padding: 4px 10px; font: 10px/1.5 ui-monospace, monospace; color: #8f959e; white-space: pre-wrap; }

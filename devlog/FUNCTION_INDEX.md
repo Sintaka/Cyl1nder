@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **187** 个函数/类。
+> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **205** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -162,26 +162,36 @@
 | `broadcast` | 32 | def |  | 2 |
 | `ws_endpoint` | 53 | def |  | 1 |
 
-## hda/scripts/bridge_control.py（115 行）
+## hda/scripts/bridge_control.py（229 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `bridge_healthy` | 22 | def |  | 5 |
-| `find_pids` | 31 | def |  | 3 |
-| `stop_bridge` | 52 | def |  | 3 |
-| `start_bridge` | 66 | def |  | 3 |
-| `restart_bridge` | 83 | def |  | 1 |
-| `toggle_bridge` | 92 | def |  | 1 |
-| `status_bridge` | 100 | def |  | 1 |
+| `_clean_env` | 44 | def |  | 3 |
+| `_console_flags` | 51 | def |  | 3 |
+| `_get` | 57 | def |  | 3 |
+| `_port_up` | 65 | def |  | 6 |
+| `bridge_healthy` | 75 | def |  | 4 |
+| `frontend_healthy` | 85 | def |  | 3 |
+| `houdini_probe` | 89 | def |  | 3 |
+| `find_pids` | 104 | def |  | 4 |
+| `_wait_port_free` | 122 | def |  | 4 |
+| `_kill_port` | 131 | def |  | 5 |
+| `ensure_frontend` | 144 | def |  | 2 |
+| `start_bridge` | 160 | def |  | 3 |
+| `restart_bridge` | 181 | def |  | 1 |
+| `toggle_bridge` | 186 | def |  | 1 |
+| `status_bridge` | 193 | def |  | 1 |
+| `probe` | 205 | def |  | 1 |
+| `log_result` | 214 | def |  | 2 |
 
-## hda/scripts/build_hda.py（172 行）
+## hda/scripts/build_hda.py（190 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_parm_group` | 44 | def |  | 3 |
-| `build` | 103 | def |  | 2 |
+| `_parm_group` | 57 | def |  | 3 |
+| `build` | 116 | def |  | 2 |
 
-## hda/scripts/hython_smoke.py（111 行）
+## hda/scripts/hython_smoke.py（122 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -189,16 +199,16 @@
 | `_make_curve_input` | 33 | def |  | 2 |
 | `main` | 51 | def |  | 2 |
 
-## hda/scripts/reload_hda.py（87 行）
+## hda/scripts/reload_hda.py（89 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_reload_modules` | 30 | def |  | 2 |
-| `_instances` | 43 | def |  | 2 |
-| `_force_recook_all` | 48 | def |  | 3 |
-| `_rebuild_hda` | 62 | def |  | 2 |
-| `_reload_definition` | 68 | def |  | 2 |
-| `reload_cyl1nder` | 75 | def |  | 3 |
+| `_reload_modules` | 31 | def |  | 2 |
+| `_instances` | 44 | def |  | 2 |
+| `_force_recook_all` | 49 | def |  | 3 |
+| `_rebuild_hda` | 63 | def |  | 2 |
+| `_reload_definition` | 69 | def |  | 2 |
+| `reload_cyl1nder` | 76 | def |  | 3 |
 
 ## hda/src/cyl1nder_bridge.py（111 行）
 
@@ -213,23 +223,31 @@
 | `pending_outputs` | 87 | def |  | 1 |
 | `pull_outputs` | 102 | def |  | 1 |
 
-## hda/src/cyl1nder_hda.py（281 行）
+## hda/src/cyl1nder_hda.py（500 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_bridge_healthy` | 31 | def |  | 2 |
-| `_ensure_bridge` | 39 | def |  | 2 |
-| `_same_as_buffer` | 61 | def |  | 2 |
-| `_sync_loop` | 79 | def |  | 1 |
-| `_schedule_recook` | 105 | def |  | 3 |
-| `_force_cook_node` | 113 | def |  | 1 |
-| `ensure_sync` | 138 | def |  | 2 |
-| `_root` | 162 | def |  | 3 |
-| `_ensure_serial` | 166 | def |  | 2 |
-| `_parm` | 179 | def |  | 8 |
-| `_set_status` | 189 | def |  | 5 |
-| `_build_detail` | 198 | def |  | 2 |
-| `cook` | 222 | def |  | 3 |
+| `_ui_healthy` | 47 | def |  | 2 |
+| `_ensure_frontend` | 56 | def |  | 3 |
+| `_bridge_healthy` | 77 | def |  | 2 |
+| `_ensure_bridge` | 85 | def |  | 3 |
+| `_same_as_buffer` | 108 | def |  | 2 |
+| `_sync_loop` | 126 | def |  | 1 |
+| `_schedule_recook` | 152 | def |  | 3 |
+| `_force_cook_node` | 160 | def |  | 1 |
+| `ensure_sync` | 185 | def |  | 3 |
+| `_root` | 209 | def |  | 4 |
+| `_ensure_serial` | 213 | def |  | 3 |
+| `_parm` | 226 | def |  | 14 |
+| `_set_status` | 236 | def |  | 7 |
+| `_serialize_geo` | 245 | def |  | 3 |
+| `_build_detail` | 255 | def |  | 2 |
+| `_snapshot_parts` | 283 | def |  | 2 |
+| `_flat_signature` | 323 | def |  | 2 |
+| `_build_core_detail` | 335 | def |  | 3 |
+| `cook_core` | 359 | def |  | 2 |
+| `_same_geo` | 423 | def |  | 2 |
+| `cook` | 434 | def |  | 4 |
 
 ## hda/src/cyl1nder_serializer.py（57 行）
 
@@ -329,6 +347,11 @@
 | `searchPalette` | 20 | function | export | 2 |
 | `NodePalette` | 35 | class | export | 1 |
 | `attachPalette` | 126 | function | export | 1 |
+
+## web/src/proto/main.ts（5 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
 
 ## web/src/protocol/compare.ts（22 行）
 

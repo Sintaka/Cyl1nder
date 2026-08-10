@@ -17,12 +17,12 @@ OUT = os.environ.get(
 )
 
 INPUT_COUNT = 4
-PY_CODE = "import cyl1nder_hda\ncyl1nder_hda.cook(role={role})\n"
+PY_CODE = "import cyl1nder_hda\ncyl1nder_hda.cook_core()\n"
 
 FORCE_COOK_CALLBACK = (
     "node = hou.pwd()\n"
     "for n in node.children():\n"
-    '    if n.type().name() == "python":\n'
+    '    if n.type().name() in ("python", "blast", "output"):\n'
     "        n.cook(force=True)\n"
 )
 
@@ -123,19 +123,24 @@ def build(output_path: str = OUT) -> hou.Node:
     for i in range(INPUT_COUNT):
         ins[i].setInput(0, inds[i])
 
-    pys = []
-    for i in range(INPUT_COUNT):
-        p = sub.createNode("python", f"cyl1nder_py{i}")
-        p.parm("python").set(PY_CODE.format(role=i))
-        p.parm("maintainstate").set(0)  # re-run every HDA recook -> push/pull on update
-        for j in range(INPUT_COUNT):
-            p.setInput(j, ins[j], 0)
-        pys.append(p)
+    # runtime-optimized: ONE python SOP does push(4)+pull(4) in a single cook and
+    # writes a merged detail with per-prim `cyl1nder_role`; 4 lightweight blast
+    # SOPs split it into out0..out3 (no Python, no network in the split path).
+    core = sub.createNode("python", "cyl1nder_core")
+    core.parm("python").set(PY_CODE)
+    core.parm("maintainstate").set(0)  # re-run every HDA recook -> push/pull on update
+    for j in range(INPUT_COUNT):
+        core.setInput(j, ins[j], 0)
 
     for i in range(INPUT_COUNT):
+        b = sub.createNode("blast", f"bl{i}")
+        b.setInput(0, core, 0)
+        b.parm("grouptype").set("prims")
+        b.parm("group").set(f"@cyl1nder_role={i}")
+        b.parm("negate").set(1)  # keep only the role group (blast default deletes it)
         o = sub.createNode("output", f"out{i}")
         o.parm("outputidx").set(i)
-        o.setInput(0, pys[i], 0)
+        o.setInput(0, b, 0)
 
     sub.setParmTemplateGroup(_parm_group())
 
