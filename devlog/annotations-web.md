@@ -99,3 +99,14 @@
 - **Desk1 布局修复（四方均分）**：根因 = Desk1 手写 JSON **缺 branch `orientation`**，dockview fromJSON 无法正确解析 size 方向 → 四模块均分。补 `VERTICAL` orientation（branch1: viewport/log 上下、branch2: inspector/graph 上下）+ `scaleLayout` 按窗口缩放 size；`ui-layout.json` 重置。实测：viewport 885×470 大、log 144 小、右列两模块 ✓。
 - **Display flag 默认仅显示第一项**：`viewport.setDisplayFocus(kind, index)`——display 节点时只显示其第一个端口（input_ → in0，output_ → out0），不再 4 路全显；`refreshNodeFlags` 接入。
 - **节点插入连线**：独立 null 节点（无连接）可拖动到任意连线上——拖动时 `getScreenCTM` 几何命中边 + **金色高亮预览**（path.drop-target），**松开左键执行插入**（A→B 拆成 A→null.in0 + null.out0→B）。坑：SVG path 本地坐标需 `getScreenCTM` 转屏幕（area translate/scale transform）。
+
+## v0.1.00027（2026-08-10）
+- **插入预览 + 布局展开**：拖动 null 到连线时，除金色高亮外还画**两条虚线预览**（A端→鼠标→B端，getScreenCTM）；松开插入后**自动展开布局**（null 右侧节点右移 180px）。
+- **输出端口连线起点右移**：`row-reverse` 把 label 放到了 socket 右边导致连线起点被 label 挡 → 改为 label 左 socket 右（socket 贴节点右边缘）。
+- **poly 显示深度修复**（参考 Anime Hair Studio）：
+  1. wire 改**手动 LineSegments**（从 faces 提取去重边，无三角对角线，AHS scalpBuilderCurveLatticeEdges 同款）；
+  2. `computeVertexNormals` + `DoubleSide`（面可着色、法线朝内不剔除）；
+  3. **快照恢复 rev bug**：`loadSnapshotIntoStore` 用旧 rev 调 setInputs → viewport 不重建（空 Group 残留）→ 恢复时 rev+1；
+  4. **setDisplayFocus 只遍历顶层**（buildInputs 包的 Group）→ 全隐藏 → 改 `traverse` 匹配 inputN/outputN 层。
+  - 实测：sphere 灰面 grey=5196 像素 + display 仅 input0 可见。
+- **ui-layout.json 损坏防御**：发现 branch data 被写成字符串 `" "`（损坏布局 → 四方均分）；已重置为 Desk1，并在 dock 保存时校验（branch 非数组不落盘）。

@@ -81,6 +81,14 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
     saveTimer = window.setTimeout(() => {
       try {
         const json = dv.toJSON();
+        // sanity: a corrupt save (branch data degraded to a string) would break
+        // every future load into an equal-split layout - refuse to persist that.
+        const bad = (n: unknown): boolean =>
+          !!n &&
+          typeof n === "object" &&
+          (n as { type?: string }).type === "branch" &&
+          !Array.isArray((n as { data?: unknown }).data);
+        if (bad((json as { grid?: { root?: unknown } })?.grid?.root)) return;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(json));
         void client.putUiLayout(json).catch(() => undefined);
         store.pushLog(layoutDebug(container, byId));

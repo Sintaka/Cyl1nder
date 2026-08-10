@@ -143,15 +143,15 @@ export class Viewport {
   /** Display flag shows only the FIRST port of the displayed node (Houdini display).
    *  index=null shows the whole group. */
   setDisplayFocus(kind: "inputs" | "outputs", index: number | null): void {
-    const apply = (group: THREE.Group, prefix: string, active: boolean) => {
-      for (const c of group.children) {
-        if (!active) { c.visible = false; continue; }
-        const m = c.name?.match(new RegExp(`^${prefix}(\\d+)$`));
-        c.visible = index === null || (m ? Number(m[1]) === index : false);
-      }
-    };
-    apply(this.inputGroup, "input", kind === "inputs");
-    apply(this.outputGroup, "output", kind === "outputs");
+    // buildInputs/buildOutputs wrap the per-port groups inside one Group; traverse
+    // to find the actual inputN/outputN groups (face/wire meshes live inside them).
+    const root = kind === "inputs" ? this.inputGroup : this.outputGroup;
+    const prefix = kind === "inputs" ? "input" : "output";
+    const re = new RegExp(`^${prefix}(\\d+)$`);
+    root.traverse((o) => {
+      const m = o.name?.match(re);
+      if (m) o.visible = index === null || Number(m[1]) === index;
+    });
     store.pushLogSilent(`[viewport] display focus ${kind} index=${index}`);
   }
 
@@ -313,8 +313,10 @@ export class Viewport {
             : new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide });
         ud.face.material = faceMat;
         ud.face.visible = m !== "wireframe";
-        ud.wire.material = new THREE.MeshBasicMaterial({ color, wireframe: true });
-        ud.wire.visible = m === "wireframe" || m === "wireframe-face";
+        if (ud.wire) {
+          ud.wire.material = new THREE.LineBasicMaterial({ color });
+          ud.wire.visible = m === "wireframe" || m === "wireframe-face";
+        }
       }
       for (const c of obj.children) walk(c);
     };

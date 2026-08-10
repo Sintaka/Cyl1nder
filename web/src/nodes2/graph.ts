@@ -623,15 +623,57 @@ function attachInsertion(
   let draggingNull: string | null = null;
   let hoverConn: string | null = null;
 
-  const setHover = (connId: string | null) => {
+  // Insertion preview overlay: two dashed lines showing A->mouse->B before release.
+  const overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  overlay.setAttribute("class", "cyl-insert-preview");
+  overlay.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:6;";
+  container.appendChild(overlay);
+  const dashA = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  const dashB = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  for (const l of [dashA, dashB]) {
+    l.setAttribute("stroke", "#ffd166");
+    l.setAttribute("stroke-width", "2");
+    l.setAttribute("stroke-dasharray", "7 5");
+    overlay.appendChild(l);
+  }
+
+  const setHover = (connId: string | null, mouseX = 0, mouseY = 0) => {
     if (hoverConn) {
       area.connectionViews.get(hoverConn)?.element.querySelector("path")?.classList.remove("drop-target");
       hoverConn = null;
     }
-    if (connId) {
-      area.connectionViews.get(connId)?.element.querySelector("path")?.classList.add("drop-target");
-      hoverConn = connId;
-    }
+    dashA.setAttribute("x1", "0");
+    dashA.setAttribute("y1", "0");
+    dashA.setAttribute("x2", "0");
+    dashA.setAttribute("y2", "0");
+    dashB.setAttribute("x1", "0");
+    dashB.setAttribute("y1", "0");
+    dashB.setAttribute("x2", "0");
+    dashB.setAttribute("y2", "0");
+    if (!connId) return;
+    const view = area.connectionViews.get(connId);
+    if (!view) return;
+    view.element.querySelector("path")?.classList.add("drop-target");
+    hoverConn = connId;
+    // dashed preview from source socket -> mouse -> target socket
+    const svg = view.element.querySelector("path") as SVGPathElement | null;
+    if (!svg || typeof svg.getTotalLength !== "function") return;
+    const ctm = svg.getScreenCTM();
+    const rect = container.getBoundingClientRect();
+    if (!ctm) return;
+    const len = svg.getTotalLength();
+    const p0 = svg.getPointAtLength(0);
+    const p1 = svg.getPointAtLength(len);
+    const start = new DOMPoint(p0.x, p0.y).matrixTransform(ctm);
+    const end = new DOMPoint(p1.x, p1.y).matrixTransform(ctm);
+    dashA.setAttribute("x1", String(start.x - rect.left));
+    dashA.setAttribute("y1", String(start.y - rect.top));
+    dashA.setAttribute("x2", String(mouseX - rect.left));
+    dashA.setAttribute("y2", String(mouseY - rect.top));
+    dashB.setAttribute("x1", String(mouseX - rect.left));
+    dashB.setAttribute("y1", String(mouseY - rect.top));
+    dashB.setAttribute("x2", String(end.x - rect.left));
+    dashB.setAttribute("y2", String(end.y - rect.top));
   };
 
   container.addEventListener(
@@ -648,9 +690,7 @@ function attachInsertion(
     (e) => {
       if (!draggingNull) return;
       const connId = hitTestConnection(area, e.clientX, e.clientY);
-      if (connId !== hoverConn) {
-        setHover(connId);
-      }
+      if (connId !== hoverConn) setHover(connId, e.clientX, e.clientY);
     },
     true,
   );
@@ -658,9 +698,9 @@ function attachInsertion(
   const up = () => {
     if (!draggingNull) return;
     draggingNull = null;
-    if (!hoverConn) return;
     const connId = hoverConn;
     setHover(null);
+    if (!connId) return;
     const nullNode = editor.getNodes().find((n) => (n as CylNode).kind === "null") as CylNode | undefined;
     if (!nullNode) return;
     const conn = editor.getConnection(connId) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
@@ -677,6 +717,16 @@ function attachInsertion(
         new ClassicPreset.Connection(nullNode, "out0", tgtNode, conn.targetInput as string) as unknown as Schemes["Connection"],
       );
       store.pushLog(`[node] inserted null into ${srcNode.label} -> ${tgtNode.label}`);
+      // spread the layout: shift every node to the right of the inserted null
+      const nullPos = area.nodeViews.get(nullNode.id)?.position;
+      if (nullPos) {
+        const offset = 180;
+        for (const n of editor.getNodes()) {
+          if (n.id === nullNode.id) continue;
+          const pos = area.nodeViews.get(n.id)?.position;
+          if (pos && pos.x > nullPos.x + 30) void area.translate(n.id, { x: pos.x + offset, y: pos.y });
+        }
+      }
     })();
   };
   window.addEventListener("pointerup", up);

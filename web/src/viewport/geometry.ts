@@ -8,6 +8,31 @@ function toVec(p: number[]): THREE.Vector3 {
   return new THREE.Vector3(p[0], p[1], p[2]);
 }
 
+/** Wireframe edges built manually from faces (dedup), like Anime Hair Studio's approach
+ *  (scalpBuilderCurveLatticeEdges): no internal triangle diagonals, no wireframe-Mesh quirks. */
+function buildWireSegments(points: number[][], faces: number[][], color: number): THREE.LineSegments | null {
+  const edges = new Set<string>();
+  const pos: number[] = [];
+  for (const face of faces) {
+    const n = face.length;
+    for (let i = 0; i < n; i++) {
+      const a = face[i];
+      const b = face[(i + 1) % n];
+      const key = a < b ? `${a}-${b}` : `${b}-${a}`;
+      if (edges.has(key)) continue;
+      edges.add(key);
+      const pa = points[a];
+      const pb = points[b];
+      if (!pa || !pb) continue;
+      pos.push(pa[0] ?? 0, pa[1] ?? 0, pa[2] ?? 0, pb[0] ?? 0, pb[1] ?? 0, pb[2] ?? 0);
+    }
+  }
+  if (pos.length === 0) return null;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));
+  return new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color }));
+}
+
 /** Mesh faces -> group of { faceMesh, wireMesh } so the renderer can switch display modes
  *  (lit / unlit / wireframe / wireframe+face). Fan-triangulated; shared BufferGeometry. */
 export function buildMeshFaces(points: number[][], faces: number[][], color: number): THREE.Group | null {
@@ -29,11 +54,11 @@ export function buildMeshFaces(points: number[][], faces: number[][], color: num
   geo.setIndex(tri);
   geo.computeVertexNormals(); // MeshLambertMaterial requires normals; without them faces don't shade
   const face = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x9aa0a6, side: THREE.DoubleSide }));
-  const wire = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, wireframe: true }));
-  wire.visible = false;
+  const wire = buildWireSegments(points, faces, color);
+  if (wire) wire.visible = false;
   const group = new THREE.Group();
   group.add(face);
-  group.add(wire);
+  if (wire) group.add(wire);
   group.userData = { color, face, wire };
   return group;
 }

@@ -184,11 +184,11 @@ async function loadSnapshotIntoStore(serial: string): Promise<void> {
     const inputs = snapshot.inputs as unknown[] | undefined;
     const outputs = snapshot.outputs as unknown[] | undefined;
     if (Array.isArray(inputs) && inputs.length > 0 && store.inputs.length === 0) {
-      store.setInputs(inputs as never, store.inputRev);
+      store.setInputs(inputs as never, store.inputRev + 1); // bump rev so viewport rebuilds
       store.pushLog(`[path] restored ${inputs.length} inputs from snapshot`);
     }
     if (Array.isArray(outputs) && outputs.length > 0 && store.outputs.length === 0) {
-      store.upsertOutputs(outputs as never, store.outputRev);
+      store.upsertOutputs(outputs as never, store.outputRev + 1);
       store.pushLog(`[path] restored ${outputs.length} outputs from snapshot`);
     }
   } catch (e) {

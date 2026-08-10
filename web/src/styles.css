@@ -117,7 +117,8 @@ html, body, #app { height: 100%; margin: 0; }
 .cyl-graph .cyl-rp-ports { display: flex; justify-content: space-between; gap: 8px; }
 .cyl-graph .cyl-rp-col { display: flex; flex-direction: column; gap: 2px; }
 .cyl-graph .cyl-rp-port { display: flex; align-items: center; gap: 4px; font-size: 9px; color: #8f959e; min-height: 14px; }
-.cyl-graph .cyl-rp-port.output { flex-direction: row-reverse; }
+/* output ports: label on the LEFT, socket on the RIGHT (line start hugs the node edge, not the label) */
+.cyl-graph .cyl-rp-port.output { flex-direction: row; }
 .cyl-graph .cyl-rp-port .output > span, .cyl-graph .cyl-rp-port .input > span {
   display: inline-flex; align-items: center; justify-content: center; height: 100%;
 }

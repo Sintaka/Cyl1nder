@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-10T13:19:50.435Z",
+  "generatedAt": "2026-08-10T13:37:05.588Z",
   "totalFunctions": 235,
   "files": [
     {
@@ -1287,7 +1287,7 @@
     },
     {
       "file": "web/src/app/dock.ts",
-      "lineCount": 144,
+      "lineCount": 152,
       "functions": [
         {
           "name": "layoutDebug",
@@ -1305,21 +1305,21 @@
         },
         {
           "name": "scaleLayout",
-          "line": 98,
+          "line": 106,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "walk",
-          "line": 105,
+          "line": 113,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "apply",
-          "line": 120,
+          "line": 128,
           "kind": "arrow",
           "exported": false,
           "calls": 3
@@ -1469,7 +1469,7 @@
     },
     {
       "file": "web/src/nodes2/graph.ts",
-      "lineCount": 684,
+      "lineCount": 734,
       "functions": [
         {
           "name": "log",
@@ -1676,14 +1676,14 @@
         },
         {
           "name": "setHover",
-          "line": 626,
+          "line": 640,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "up",
-          "line": 658,
+          "line": 698,
           "kind": "arrow",
           "exported": false,
           "calls": 0
@@ -1811,7 +1811,7 @@
     },
     {
       "file": "web/src/viewport/geometry.ts",
-      "lineCount": 101,
+      "lineCount": 126,
       "functions": [
         {
           "name": "toVec",
@@ -1821,36 +1821,43 @@
           "calls": 1
         },
         {
-          "name": "buildMeshFaces",
+          "name": "buildWireSegments",
           "line": 13,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "buildMeshFaces",
+          "line": 38,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "buildPoints",
-          "line": 42,
+          "line": 67,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "buildCurves",
-          "line": 55,
+          "line": 80,
           "kind": "function",
           "exported": true,
           "calls": 3
         },
         {
           "name": "buildInputs",
-          "line": 83,
+          "line": 108,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "buildOutputs",
-          "line": 93,
+          "line": 118,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -1859,7 +1866,7 @@
     },
     {
       "file": "web/src/viewport/renderer.ts",
-      "lineCount": 350,
+      "lineCount": 352,
       "functions": [
         {
           "name": "Viewport",
@@ -1867,13 +1874,6 @@
           "kind": "class",
           "exported": true,
           "calls": 1
-        },
-        {
-          "name": "apply",
-          "line": 146,
-          "kind": "arrow",
-          "exported": false,
-          "calls": 2
         }
       ]
     }

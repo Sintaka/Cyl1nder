@@ -286,15 +286,15 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/dock.ts（144 行）
+## web/src/app/dock.ts（152 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `layoutDebug` | 28 | function |  | 2 |
 | `setupDock` | 38 | function | export | 1 |
-| `scaleLayout` | 98 | arrow |  | 1 |
-| `walk` | 105 | arrow |  | 2 |
-| `apply` | 120 | arrow |  | 3 |
+| `scaleLayout` | 106 | arrow |  | 1 |
+| `walk` | 113 | arrow |  | 2 |
+| `apply` | 128 | arrow |  | 3 |
 
 ## web/src/app/layout.ts（123 行）
 
@@ -337,7 +337,7 @@
 | `loadSnapshotIntoStore` | 180 | function |  | 2 |
 | `connect` | 199 | function |  | 4 |
 
-## web/src/nodes2/graph.ts（684 行）
+## web/src/nodes2/graph.ts（734 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -370,8 +370,8 @@
 | `attachDotGrid` | 559 | function |  | 2 |
 | `hitTestConnection` | 590 | function |  | 2 |
 | `attachInsertion` | 618 | function |  | 2 |
-| `setHover` | 626 | arrow |  | 2 |
-| `up` | 658 | arrow |  | 0 |
+| `setHover` | 640 | arrow |  | 2 |
+| `up` | 698 | arrow |  | 0 |
 
 ## web/src/protocol/compare.ts（23 行）
 
@@ -415,20 +415,20 @@
 | `up` | 61 | arrow |  | 1 |
 | `release` | 89 | arrow |  | 0 |
 
-## web/src/viewport/geometry.ts（101 行）
+## web/src/viewport/geometry.ts（126 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `toVec` | 7 | function |  | 1 |
-| `buildMeshFaces` | 13 | function | export | 2 |
-| `buildPoints` | 42 | function |  | 2 |
-| `buildCurves` | 55 | function | export | 3 |
-| `buildInputs` | 83 | function | export | 1 |
-| `buildOutputs` | 93 | function | export | 1 |
+| `buildWireSegments` | 13 | function |  | 2 |
+| `buildMeshFaces` | 38 | function | export | 2 |
+| `buildPoints` | 67 | function |  | 2 |
+| `buildCurves` | 80 | function | export | 3 |
+| `buildInputs` | 108 | function | export | 1 |
+| `buildOutputs` | 118 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（350 行）
+## web/src/viewport/renderer.ts（352 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `Viewport` | 20 | class | export | 1 |
-| `apply` | 146 | arrow |  | 2 |
