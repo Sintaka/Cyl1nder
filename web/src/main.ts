@@ -53,28 +53,30 @@ const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuf
 
 /** Node flags -> viewport: display visibility + wireframe reference overlays. */
 function refreshNodeFlags(): void {
-  const inF = graph.getFlags("input");
-  const outF = graph.getFlags("output");
-  const inDisplay = inF?.display ?? true; // default: _input_ displayed
-  const outDisplay = outF?.display ?? false;
-  // Viewport follows the node-view display flag: the displayed node's data shows.
-  // output_ with an empty buffer falls back to the first input port's data.
+  // Viewport follows the node-view display flag of WHATEVER node is displayed
+  // (input_ / output_ / null). null's output is a passthrough of its input, so
+  // showing a null node displays the inputs. Default: _input_.
+  const disp = graph.getDisplayNode();
+  const inDisplay = disp?.kind === "input";
+  const outDisplay = disp?.kind === "output";
+  const nullDisplay = disp?.kind === "null";
   const hasOutputs = store.outputs.length > 0;
   const showOutputs = outDisplay && hasOutputs;
-  const showInputs = inDisplay || (outDisplay && !hasOutputs);
-  viewport.setVisibility("inputs", showInputs);
+  const showInputs = inDisplay || nullDisplay || (outDisplay && !hasOutputs);
+  viewport.setVisibility("inputs", showInputs || disp === null);
   viewport.setVisibility("outputs", showOutputs);
-  // show every port of the displayed node (index=null keeps all groups visible)
   viewport.setDisplayFocus("inputs", null);
   viewport.setDisplayFocus("outputs", null);
 
+  const inFlags = graph.getFlags("input");
+  const outFlags = graph.getFlags("output");
   const refs: ReferenceItem[] = [];
-  if (inF?.wireframe) {
+  if (inFlags?.wireframe) {
     for (const inp of store.inputs) {
       if (inp.curves.length > 0) refs.push({ points: inp.points, curves: inp.curves, color: 0x4fc3f7 });
     }
   }
-  if (outF?.wireframe) {
+  if (outFlags?.wireframe) {
     const outRefs = store.outputs.flatMap((o) =>
       o.curves.length > 0 ? [{ points: o.points, curves: o.curves, color: 0xff5252 }] : [],
     );

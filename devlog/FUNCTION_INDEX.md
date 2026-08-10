@@ -286,7 +286,7 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/dock.ts（128 行）
+## web/src/app/dock.ts（131 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -329,56 +329,56 @@
 | `connectWs` | 97 | function | export | 1 |
 | `connect` | 102 | arrow |  | 1 |
 
-## web/src/main.ts（288 行）
+## web/src/main.ts（290 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `refreshNodeFlags` | 55 | function |  | 3 |
-| `inputStatsText` | 86 | function |  | 2 |
-| `outputStatsText` | 95 | function |  | 2 |
-| `renderInspector` | 104 | function |  | 2 |
-| `runNetwork` | 140 | function |  | 2 |
-| `startHdaWatch` | 163 | function |  | 2 |
-| `check` | 165 | arrow |  | 1 |
-| `stopHdaWatch` | 182 | function |  | 2 |
-| `loadSnapshotIntoStore` | 191 | function |  | 2 |
-| `connect` | 210 | function |  | 4 |
+| `inputStatsText` | 88 | function |  | 2 |
+| `outputStatsText` | 97 | function |  | 2 |
+| `renderInspector` | 106 | function |  | 2 |
+| `runNetwork` | 142 | function |  | 2 |
+| `startHdaWatch` | 165 | function |  | 2 |
+| `check` | 167 | arrow |  | 1 |
+| `stopHdaWatch` | 184 | function |  | 2 |
+| `loadSnapshotIntoStore` | 193 | function |  | 2 |
+| `connect` | 212 | function |  | 4 |
 
-## web/src/nodes2/graph.ts（751 行）
+## web/src/nodes2/graph.ts（757 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `log` | 55 | arrow |  | 5 |
-| `nodeByKind` | 60 | function |  | 4 |
-| `nodeFromTarget` | 65 | function |  | 5 |
-| `renderNode` | 81 | function |  | 1 |
-| `portIndexFromTarget` | 96 | function |  | 2 |
-| `CylNode` | 108 | class | export | 3 |
-| `makeInputNode` | 137 | function |  | 2 |
-| `makeOutputNode` | 142 | function |  | 2 |
-| `makeNullNode` | 149 | function | export | 2 |
-| `buildGraph` | 163 | function |  | 2 |
-| `createReteGraph` | 220 | function | export | 1 |
-| `attachTabSearch` | 312 | function |  | 2 |
-| `render` | 328 | arrow |  | 4 |
-| `create` | 343 | arrow |  | 2 |
-| `close` | 359 | arrow |  | 6 |
-| `update` | 365 | arrow |  | 3 |
-| `attachCutMode` | 394 | function |  | 2 |
-| `isTyping` | 400 | arrow |  | 1 |
-| `attachFlagMenu` | 445 | function |  | 2 |
-| `show` | 457 | arrow |  | 2 |
-| `initTooltip` | 511 | function | export | 2 |
-| `showTooltip` | 517 | function | export | 1 |
-| `hideTooltip` | 530 | function | export | 1 |
-| `attachMMBPan` | 538 | function |  | 2 |
-| `onMove` | 546 | arrow |  | 0 |
-| `onUp` | 549 | arrow |  | 0 |
-| `attachDotGrid` | 567 | function |  | 2 |
-| `hitTestConnection` | 598 | function |  | 2 |
-| `attachInsertion` | 626 | function |  | 2 |
-| `setHover` | 649 | arrow |  | 2 |
-| `up` | 710 | arrow |  | 0 |
+| `log` | 56 | arrow |  | 5 |
+| `nodeByKind` | 61 | function |  | 4 |
+| `nodeFromTarget` | 66 | function |  | 5 |
+| `renderNode` | 82 | function |  | 1 |
+| `portIndexFromTarget` | 97 | function |  | 2 |
+| `CylNode` | 109 | class | export | 3 |
+| `makeInputNode` | 138 | function |  | 2 |
+| `makeOutputNode` | 143 | function |  | 2 |
+| `makeNullNode` | 150 | function | export | 3 |
+| `buildGraph` | 164 | function |  | 2 |
+| `createReteGraph` | 221 | function | export | 1 |
+| `attachTabSearch` | 317 | function |  | 2 |
+| `render` | 333 | arrow |  | 4 |
+| `create` | 348 | arrow |  | 2 |
+| `close` | 365 | arrow |  | 6 |
+| `update` | 371 | arrow |  | 3 |
+| `attachCutMode` | 400 | function |  | 2 |
+| `isTyping` | 406 | arrow |  | 1 |
+| `attachFlagMenu` | 451 | function |  | 2 |
+| `show` | 463 | arrow |  | 2 |
+| `initTooltip` | 517 | function | export | 2 |
+| `showTooltip` | 523 | function | export | 1 |
+| `hideTooltip` | 536 | function | export | 1 |
+| `attachMMBPan` | 544 | function |  | 2 |
+| `onMove` | 552 | arrow |  | 0 |
+| `onUp` | 555 | arrow |  | 0 |
+| `attachDotGrid` | 573 | function |  | 2 |
+| `hitTestConnection` | 604 | function |  | 2 |
+| `attachInsertion` | 632 | function |  | 2 |
+| `setHover` | 655 | arrow |  | 2 |
+| `up` | 716 | arrow |  | 0 |
 
 ## web/src/protocol/compare.ts（23 行）
 

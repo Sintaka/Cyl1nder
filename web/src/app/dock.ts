@@ -67,23 +67,26 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
     theme: { name: "dark", className: "dockview-theme-dark", colorScheme: "dark" },
   });
 
-  dv.addPanel({ id: "graph", component: "graph", title: "Node Graph" });
+  // Desk1 programmatic layout: viewport top-left (large), log below it, inspector
+  // top-right, graph below inspector, spreadsheet at the bottom-right. Explicit
+  // positions keep panels from collapsing together (dockview's default stacking).
+  dv.addPanel({ id: "viewport", component: "viewport", title: "Viewport" });
   dv.addPanel({
-    id: "viewport",
-    component: "viewport",
-    title: "Viewport",
-    position: { direction: "right" },
+    id: "log",
+    component: "log",
+    title: "Log",
+    position: { referencePanel: "viewport", direction: "below" },
   });
   dv.addPanel({
     id: "inspector",
     component: "inspector",
     title: "Inspector",
-    position: { referencePanel: "viewport", direction: "below" },
+    position: { referencePanel: "viewport", direction: "right" },
   });
   dv.addPanel({
-    id: "log",
-    component: "log",
-    title: "Log",
+    id: "graph",
+    component: "graph",
+    title: "Node Graph",
     position: { referencePanel: "inspector", direction: "below" },
   });
   dv.addPanel({

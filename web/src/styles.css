@@ -93,7 +93,7 @@ html, body, #app { height: 100%; margin: 0; }
 .cyl-graph .output-title { color: #ff9e9e; font-size: 9px; }
 .cyl-graph .input-title { color: #8f959e; font-size: 9px; }
 .cyl-graph .input-socket, .cyl-graph .output-socket { background: transparent; border: none; }
-.cyl-graph [data-testid="connection"] path { stroke: #4fc3f7; }
+.cyl-graph [data-testid="connection"] path { stroke: #ff6b6b; }
 
 /* ---- custom rete node view (NodeView.tsx) ---- */
 .cyl-graph .cyl-rp-node {
@@ -123,7 +123,7 @@ html, body, #app { height: 100%; margin: 0; }
   display: inline-flex; align-items: center; justify-content: center; height: 100%;
 }
 .cyl-graph .cyl-rp-port .output div[title], .cyl-graph .cyl-rp-port .input div[title] {
-  width: 10px; height: 10px; border-radius: 50%; background: #0b2430; border: 1.5px solid #4fc3f7;
+  width: 10px; height: 10px; border-radius: 50%; background: #2b0b0b; border: 1.5px solid #ff6b6b;
   box-sizing: border-box;
 }
 /* display chip: blue rounded rect hugging the node's top-right edge */

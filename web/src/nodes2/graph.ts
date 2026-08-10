@@ -48,6 +48,7 @@ export interface ReteGraph {
   setStats(kind: NodeKind, stats: string): void;
   getFlags(kind: NodeKind): NodeFlags | undefined;
   setFlag(kind: NodeKind, key: keyof NodeFlags, value: boolean): NodeFlags | undefined;
+  getDisplayNode(): { kind: NodeKind; flags: NodeFlags } | null;
   frameSelection(): void;
 }
 
@@ -144,10 +145,10 @@ function makeOutputNode(): CylNode {
   for (let i = 0; i < 4; i++) n.addInput(`out${i}`, new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
   return n;
 }
-/** Houdini-style unique naming: null, null1, null2… (never reuse a deleted suffix). */
-let nullSeq = 0;
+/** Houdini-style unique naming: null1, null2… (first node already carries a suffix). */
+let nullSeq = 1;
 export function makeNullNode(): CylNode {
-  const name = nullSeq === 0 ? "null" : `null${nullSeq}`;
+  const name = `null${nullSeq}`;
   nullSeq += 1;
   const n = new CylNode(name, "null");
   n.baseLabel = "null";
@@ -272,6 +273,10 @@ export async function createReteGraph(
       notifyNodeChanged();
       return { ...n.flags };
     },
+    getDisplayNode: () => {
+      const n = g.editor.getNodes().find((x) => (x as CylNode).flags.display) as CylNode | undefined;
+      return n ? { kind: n.kind, flags: { ...n.flags } } : null;
+    },
     frameSelection: () => {
       const all = g.editor.getNodes();
       const selected = all.filter((n) => (n as ClassicPreset.Node).selected);
@@ -345,10 +350,11 @@ function attachTabSearch(
     if (!entry) return;
     const center = { x: 240, y: 120 };
     if (entry.kind === "null") {
-      const n = makeNullNode();
+      let n = makeNullNode();
+      while (editor.getNodes().some((x) => (x as CylNode).label === n.label)) n = makeNullNode();
       await editor.addNode(n);
       await area.translate(n.id, center);
-      log(`created null node ${n.id}`);
+      log(`created null node ${n.label}`);
     } else {
       const existing = editor.getNodes().find((x) => (x as CylNode).kind === entry.kind);
       if (existing) await area.translate(existing.id, center);

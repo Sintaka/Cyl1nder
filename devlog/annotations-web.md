@@ -135,3 +135,9 @@
 - **in 端口多连接**：插入前未检查 null.in0 已有连接 → 重复连。修复：插入时先移除该 in0 的旧连接（`one-input` 约束）。
 - **Tab palette 输入残留**：重新打开 palette 时 `input.value` 保留上次 → open 时清空。
 - **display flag 驱动**：视口跟随节点 display（_input_ 默认点亮 → 显示 inputs；_output_ 无 buffer → fallback 显示 inputs）。
+
+## v0.1.00032（2026-08-10）
+- **布局恢复（Desk1 程序化）**：dockview `fromJSON` 有 content 丢失 bug（v0.1.00030 记录）→ 用**程序化 addPanel + 明确 position** 重建 Desk1（viewport 左上大 / log 左下 / inspector 右上 / graph 右中 / spreadsheet 右下），不再挤在一起。
+- **null 唯一命名从 null1 开始**：第一个 null 即 `null1`（Houdini 式），创建时检测 label 冲突并递增到无冲突（不简单 +1 复用）。
+- **display 支持中间 null 节点**：`getDisplayNode()` 返回当前 display 节点（任意 kind），viewport 按其 kind 显示——null 直通输出 → 显示 inputs（修复 display null 时 inputs/outputs 全 false）。
+- **geo 连线朱红**：所有 connection path + geo socket 改朱红 `#ff6b6b`（CSS 统一），浅蓝预留 float。
