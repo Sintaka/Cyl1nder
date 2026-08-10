@@ -76,3 +76,11 @@
   - 已通过 fxhoudinimcp 在 Houdini 内重建 HDA（`reload_cyl1nder(definition=True)`），实例 `/obj/geo1/Cyl1nder1` serial `C1-msm6dsp7-ob6t` 保留，`open_web` 回调已更新。
 - **实测**：status 双显（bridge ONLINE | ui ONLINE）；toggle stop 双关（8375+8376 各杀）；toggle start → bridge OK + "ui OK (spawned vite on 8376)"；8376 返回 200。桥版本已到 v0.1.00011。
 - **端口决策**：应用数据路径仅 8375+8376；8100 是 fxhoudinimcp 控制通道非数据路径；dev 不合并端口（vite HMR 需要），发行版可让桥托管 dist 静态文件合并为单端口（见 decisions.md）。
+
+## v0.1.00013（2026-08-10）
+- **可见性可配（默认可见）**：`bridge_control.py` 增加 `CYL1NDER_CONSOLE=0` 时隐藏（DETACHED|NO_WINDOW），默认 `CREATE_NEW_CONSOLE` 可见。评估结论：**开发期保持可见**（错误/日志即时可见、Ctrl+C 可停、不会像这次桥静默死亡），发行版再隐藏。
+- **外部监控"壳"**：新增 `bridge_control.py probe` —— 超快单行看门狗（netstat 端口检查 + fxhoudinimcp `mcp.health` 0.4s 上限，不碰重计算），**可在 Houdini 外运行**，Houdini 重度计算/无响应时也能给出反馈（bridge/ui/houdini-fxmcp 三态）。
+- **status 提速**：`status_bridge()` 改为先 netstat 瞬时判端口，HTTP 只取详情（0.3s 上限）+ houdini-fxmcp 探测；单次 ~0.5s（含 python 启动）。
+- **shelf 全部触发式**：Toggle/Reload/Status 三个按钮均后台线程执行 + 状态栏 + `bridge_control.log`，主线程零阻塞。
+- ⚠️ **Houdini 需重启一次**：当前会话内存里的 shelf 仍是启动时加载的**旧同步版**（`displayMessage(restart_bridge())` 会阻塞主线程数秒 → 用户遇到的"卡死"）；磁盘/toolbar 已是线程版。重启后生效。
+- ⚠️ **fxhoudinimcp 8100 当前 502**（插件 hwebserver 对所有请求报错，含 mcp.health）——非桥问题，Houdini 重启可恢复。

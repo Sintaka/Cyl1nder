@@ -85,11 +85,32 @@ except Exception:
   </tool>
 
   <tool name="cyl1nder::status_bridge" label="Status Bridge" icon="MISC_python">
-    <helpText><![CDATA[Show bridge status: /api/health version + serial count, or offline / port-occupied report. Pure Python, fast.]]></helpText>
+    <helpText><![CDATA[Show bridge + web UI + Houdini-fxmcp status (fast port/health probe).
+Runs in a background thread: Houdini is NOT blocked. Result: status bar + bridge_control.log.]]></helpText>
     <script scriptType="python"><![CDATA[
 import hou
+import threading
 exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/bridge_control.py", encoding="utf-8-sig").read())
-hou.ui.displayMessage(status_bridge(), title="Cyl1nder Bridge")
+
+def _run():
+    msg = status_bridge()
+    log_result("[shelf:status] " + msg)
+    try:
+        import hdefereval
+        def _post():
+            try:
+                hou.ui.setStatusMessage("Cyl1nder: " + msg, severity=hou.severityType.Message)
+            except Exception:
+                pass
+        hdefereval.executeInMainThread(_post)
+    except Exception:
+        pass
+
+threading.Thread(target=_run, daemon=True).start()
+try:
+    hou.ui.setStatusMessage("Cyl1nder: status check running...", severity=hou.severityType.Message)
+except Exception:
+    pass
 ]]></script>
   </tool>
 </shelfDocument>
