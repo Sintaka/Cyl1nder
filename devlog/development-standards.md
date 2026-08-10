@@ -19,5 +19,11 @@
   - 改 HDA 定义（内部网络/参数/按钮）：`reload_cyl1nder(definition=True)`（重建 + `hou.hda.reloadFile`）
   - 改 bridge 进程：重启 bridge（`cd bridge; .venv\Scripts\python -m bridge`），与 Houdini 无关
 - 关键机制：python SOP 用 `cook(force=True)` 强制重跑（普通 cook() 命中缓存）；实例 `maintainstate=0` 使每次 HDA recook 自动重跑新代码。
+- **使用 fxhoudinimcp 前必须先读官方使用手册**（github healkeiser/fxhoudinimcp 的 README/源码，尤其 `bridge.py` 与工具参数）。工具名/参数一律以官方为准，**禁止凭猜测调用**。已踩过的坑：
+  - `shelf.run_shelf_tool` 参数是 `tool_name`（不是 `name`），可选 `kwargs/parent_path`。
+  - `code.execute_python` 的代码**不支持顶层 return**（exec 语义）；想返回值就写文件或打印，从外部读。
+  - `hou.severityType` 枚举**没有 `Info`**，只有 `Message/Warning/Error/Fatal`。
+  - HTTP 直连（免 MCP 客户端）格式：`POST http://127.0.0.1:8100/api`，`Content-Type: application/x-www-form-urlencoded`，body `json=["namespace.function",[args],{kwargs}]`；可用 `mcp.health` / `mcp.list_commands` 探活，用官方包 `from fxhoudinimcp.bridge import HoudiniBridge` 最省事。
+- **禁止用会弹 Windows 消息框/错误框的方式调试**（如 `cmd /c start` 引号错误会弹 "Windows cannot find ..."）。调试信息一律写文件/日志（如 `bridge_control.log`、`spawn_out.txt`）或经 fxhoudinimcp 读回，不要用窗口。启动外部进程统一 `subprocess.CREATE_NEW_CONSOLE`（可见但非弹窗）。
 - **从 Houdini 拉外部 Python 必须剥离 PYTHONHOME/PYTHONPATH**：Houdini 把 `PYTHONHOME` 指向自己的 3.11 stdlib，子进程（如 bridge venv 3.12）继承后启动即崩（SRE module mismatch）。spawn 时 `env={k:v for k,v in os.environ.items() if not k.upper().startswith("PYTHON")}`。详见 annotations-hda v0.1.00010。
 - **Houdini 可能随时重启，Codex 不会收到任何消息**：fxhoudinimcp（8100）连不上时按序排查——① 先尝试重连（重试当前 MCP 调用 / 新会话）；② 仍连不上 → 查找是否有 `Houdini.exe` 进程（`tasklist | findstr Houdini` 或 `Get-Process houdini*`）：有进程 = Houdini 在跑，只是 MCP 服务未起/端口变化（看 8100~8115 或让用户确认），无进程 = Houdini 没开，需提示用户启动。不要一上来就假设是 MCP 配置坏了。

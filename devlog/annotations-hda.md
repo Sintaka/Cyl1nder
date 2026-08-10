@@ -61,3 +61,9 @@
 - **验证（fxhoudinimcp HTTP 直连 Houdini）**：`shelf.run_shelf_tool cyl1nder::toggle_bridge` 从 Houdini 内触发——stop→DOWN ✓、start→2s ok ✓；新版脚本（severityType.Message）在 Houdini 内执行无错 ✓。
 - ⚠️ 当前 Houdini 会话内存里的 shelf 仍是旧脚本（主线程那行 severityType.Info 会报一次 Python 错，但不影响 toggle 逻辑）；**重启 Houdini（或刷新 shelf）后彻底干净**。
 - 坑记录：`cmd /c start` 在本环境无法启动新进程（所有变体 NOT RUN）；`CREATE_NEW_CONSOLE` 直接 Popen 才有效。
+
+## v0.1.00011（2026-08-10）
+- **确认 bridge 轮询行为 = 正常（设计内）**：日志里大量 `GET /api/hda/<serial>/pending?since=0` 是 HDA 的 **sync_fps=30 双向同步轮询器**（每 ~33ms 查一次 web 是否推了新 outputs，dirty 才拉取）；`/api/health` 是 shelf Status/启动确认在查。新 serial `C1-msm6dsp7-ob6t` = 当前场景新建的 HDA 实例。此 30fps 轮询流量正是方案B流式（snapshot+delta / WS / 长轮询，见 streaming-plan-b.md）要消除的，v1 轮询架构下属预期。
+- **确认桥单实例**：netstat 8375 仅一个 LISTENING（venv 启动器 + 基础 python 属同一逻辑桥）；此前多次验证测试会短暂出现多个控制台窗口属正常测试现象。
+- **弹窗来源说明**：用户看到的 "Windows cannot find ..." 弹窗来自调试阶段 `cmd /c start` 引号错误（会触发 Windows 错误框），已彻底移除该启动方式（改 `CREATE_NEW_CONSOLE`），并写入规范：禁止用会弹 Windows 消息框的方式调试，调试输出走文件/日志。
+- **规范补充**：使用 fxhoudinimcp 前必须读官方手册；记录工具参数坑（run_shelf_tool 用 tool_name、execute_python 无顶层 return、severityType 无 Info、HTTP 直连 body 格式）。
