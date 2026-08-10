@@ -13,6 +13,7 @@
 |---|---|
 | `Tab` | 打开节点搜索（Fuse.js 模糊搜索 `_input_` / `_output_` / `null`），↑↓ 选择 / Enter 创建 / Esc 关闭 |
 | `Y`（按住） | 剪切模式：点边删边、点 null 节点删节点（_input_/_output_ 主干保护） |
+| 拖动 null 节点到连线 | **插入网络**：拖动时金色高亮预览边，松开插入（A→null→B） |
 | 右键节点 | Flags 菜单（Display / Bypass / Freeze / Wireframe / Delete） |
 | 节点右上 `D` chip | Houdini Display：点亮该节点（一个 net 仅一个），默认选中其第一个端口数据 |
 | 中键（MMB）拖动 | 画布平移 |

@@ -94,3 +94,8 @@
   3. **孤立点渲染**：不在任何 curve/face 的点用 THREE.Points 小圆点显示（之前只画曲线+面，孤立点不显示）。
 - **poly 回 Houdini 丢失修复**：`transform.ts inputToOutput` 补 `faces`（编辑路径输出丢 faces → HDA pull 只有点无 poly）；`_build_detail` faces 重建已验证（Polygon closed）。
 - **Desk1 布局恢复**：布局 size 是绝对像素（Desk1 基于 2159 屏），小窗口下退化"相对布局" → `dock.ts scaleLayout()` 加载时按容器尺寸缩放 size；`ui-layout.json` 重置为 Desk1 排布（viewport 左大/log 左下/inspector 右上/graph 右下）。
+
+## v0.1.00026（2026-08-10）
+- **Desk1 布局修复（四方均分）**：根因 = Desk1 手写 JSON **缺 branch `orientation`**，dockview fromJSON 无法正确解析 size 方向 → 四模块均分。补 `VERTICAL` orientation（branch1: viewport/log 上下、branch2: inspector/graph 上下）+ `scaleLayout` 按窗口缩放 size；`ui-layout.json` 重置。实测：viewport 885×470 大、log 144 小、右列两模块 ✓。
+- **Display flag 默认仅显示第一项**：`viewport.setDisplayFocus(kind, index)`——display 节点时只显示其第一个端口（input_ → in0，output_ → out0），不再 4 路全显；`refreshNodeFlags` 接入。
+- **节点插入连线**：独立 null 节点（无连接）可拖动到任意连线上——拖动时 `getScreenCTM` 几何命中边 + **金色高亮预览**（path.drop-target），**松开左键执行插入**（A→B 拆成 A→null.in0 + null.out0→B）。坑：SVG path 本地坐标需 `getScreenCTM` 转屏幕（area translate/scale transform）。

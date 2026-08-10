@@ -140,6 +140,21 @@ export class Viewport {
     store.pushLogSilent(`[viewport] visibility ${kind}=${visible} (inputs=${this.inputGroup.visible} outputs=${this.outputGroup.visible})`);
   }
 
+  /** Display flag shows only the FIRST port of the displayed node (Houdini display).
+   *  index=null shows the whole group. */
+  setDisplayFocus(kind: "inputs" | "outputs", index: number | null): void {
+    const apply = (group: THREE.Group, prefix: string, active: boolean) => {
+      for (const c of group.children) {
+        if (!active) { c.visible = false; continue; }
+        const m = c.name?.match(new RegExp(`^${prefix}(\\d+)$`));
+        c.visible = index === null || (m ? Number(m[1]) === index : false);
+      }
+    };
+    apply(this.inputGroup, "input", kind === "inputs");
+    apply(this.outputGroup, "output", kind === "outputs");
+    store.pushLogSilent(`[viewport] display focus ${kind} index=${index}`);
+  }
+
   /** Wireframe reference overlays driven by node "wireframe" flags. */
   setReference(items: ReferenceItem[] | null): void {
     this.referenceGroup.clear();

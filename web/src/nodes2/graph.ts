@@ -221,6 +221,7 @@ export async function createReteGraph(
   attachMMBPan(g.area, container);
   attachDotGrid(g.area, container);
   initTooltip(container);
+  attachInsertion(g.editor, g.area, container);
 
   // Houdini display semantics: only ONE node per network may be displayed.
   // Clicking a node's display chip clears all others and lights this one.
@@ -579,4 +580,104 @@ function attachDotGrid(area: AreaPlugin<Schemes, AreaExtra>, container: HTMLElem
     return ctx;
   });
   requestAnimationFrame(update);
+}
+
+// ---------------------------------------------------------------------------
+// Insertion: drag a standalone null node over a connection -> highlight preview,
+// release -> splice it into the edge (A->B becomes A->null->B).
+// ---------------------------------------------------------------------------
+
+function hitTestConnection(
+  area: AreaPlugin<Schemes, AreaExtra>,
+  x: number,
+  y: number,
+): string | null {
+  // getScreenCTM maps SVG path-local points to screen coordinates, so the area's
+  // translate/scale transform is fully accounted for (verified against DOMPoint).
+  const threshold = 14;
+  for (const [id, view] of area.connectionViews) {
+    const svg = (view.element.querySelector("path") ?? view.element) as SVGPathElement | null;
+    if (!svg || typeof svg.getTotalLength !== "function") continue;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) continue;
+    const rect = svg.getBoundingClientRect();
+    if (x < rect.left - 40 || x > rect.right + 40 || y < rect.top - 40 || y > rect.bottom + 40) continue;
+    const len = svg.getTotalLength();
+    const step = Math.max(4, len / 40);
+    for (let t = 0; t <= len; t += step) {
+      const p = svg.getPointAtLength(t);
+      const sp = new DOMPoint(p.x, p.y).matrixTransform(ctm);
+      const dx = sp.x - x;
+      const dy = sp.y - y;
+      if (dx * dx + dy * dy < threshold * threshold) return id;
+    }
+  }
+  return null;
+}
+
+function attachInsertion(
+  editor: NodeEditor<Schemes>,
+  area: AreaPlugin<Schemes, AreaExtra>,
+  container: HTMLElement,
+): void {
+  let draggingNull: string | null = null;
+  let hoverConn: string | null = null;
+
+  const setHover = (connId: string | null) => {
+    if (hoverConn) {
+      area.connectionViews.get(hoverConn)?.element.querySelector("path")?.classList.remove("drop-target");
+      hoverConn = null;
+    }
+    if (connId) {
+      area.connectionViews.get(connId)?.element.querySelector("path")?.classList.add("drop-target");
+      hoverConn = connId;
+    }
+  };
+
+  container.addEventListener(
+    "pointerdown",
+    (e) => {
+      const hit = nodeFromTarget(editor, area, e.target as Element);
+      if (hit && hit.node.kind === "null") draggingNull = hit.id;
+    },
+    true,
+  );
+
+  container.addEventListener(
+    "pointermove",
+    (e) => {
+      if (!draggingNull) return;
+      const connId = hitTestConnection(area, e.clientX, e.clientY);
+      if (connId !== hoverConn) {
+        setHover(connId);
+      }
+    },
+    true,
+  );
+
+  const up = () => {
+    if (!draggingNull) return;
+    draggingNull = null;
+    if (!hoverConn) return;
+    const connId = hoverConn;
+    setHover(null);
+    const nullNode = editor.getNodes().find((n) => (n as CylNode).kind === "null") as CylNode | undefined;
+    if (!nullNode) return;
+    const conn = editor.getConnection(connId) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
+    if (!conn) return;
+    const srcNode = editor.getNode(conn.source as string) as CylNode | undefined;
+    const tgtNode = editor.getNode(conn.target as string) as CylNode | undefined;
+    if (!srcNode || !tgtNode) return;
+    void (async () => {
+      await editor.removeConnection(connId);
+      await editor.addConnection(
+        new ClassicPreset.Connection(srcNode, conn.sourceOutput as string, nullNode, "in0") as unknown as Schemes["Connection"],
+      );
+      await editor.addConnection(
+        new ClassicPreset.Connection(nullNode, "out0", tgtNode, conn.targetInput as string) as unknown as Schemes["Connection"],
+      );
+      store.pushLog(`[node] inserted null into ${srcNode.label} -> ${tgtNode.label}`);
+    })();
+  };
+  window.addEventListener("pointerup", up);
 }

@@ -11,6 +11,7 @@ export const DESK1_LAYOUT = {
       "data": [
         {
           "type": "branch",
+          "orientation": "VERTICAL",
           "data": [
             {
               "type": "leaf",
@@ -39,6 +40,7 @@ export const DESK1_LAYOUT = {
         },
         {
           "type": "branch",
+          "orientation": "VERTICAL",
           "data": [
             {
               "type": "leaf",

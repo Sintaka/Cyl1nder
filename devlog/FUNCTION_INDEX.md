@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **230** 个函数/类。
+> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **235** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -303,7 +303,7 @@
 | `buildLayout` | 17 | function | export | 1 |
 | `buildLayoutLegacy` | 73 | function | export | 1 |
 
-## web/src/app/layouts.ts（101 行）
+## web/src/app/layouts.ts（103 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -322,28 +322,28 @@
 | `connectWs` | 97 | function | export | 1 |
 | `connect` | 102 | arrow |  | 1 |
 
-## web/src/main.ts（265 行）
+## web/src/main.ts（270 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `refreshNodeFlags` | 50 | function |  | 3 |
-| `inputStatsText` | 71 | function |  | 2 |
-| `outputStatsText` | 80 | function |  | 2 |
-| `renderInspector` | 89 | function |  | 2 |
-| `runNetwork` | 124 | function |  | 2 |
-| `startHdaWatch` | 147 | function |  | 2 |
-| `check` | 149 | arrow |  | 1 |
-| `stopHdaWatch` | 166 | function |  | 2 |
-| `loadSnapshotIntoStore` | 175 | function |  | 2 |
-| `connect` | 194 | function |  | 4 |
+| `inputStatsText` | 76 | function |  | 2 |
+| `outputStatsText` | 85 | function |  | 2 |
+| `renderInspector` | 94 | function |  | 2 |
+| `runNetwork` | 129 | function |  | 2 |
+| `startHdaWatch` | 152 | function |  | 2 |
+| `check` | 154 | arrow |  | 1 |
+| `stopHdaWatch` | 171 | function |  | 2 |
+| `loadSnapshotIntoStore` | 180 | function |  | 2 |
+| `connect` | 199 | function |  | 4 |
 
-## web/src/nodes2/graph.ts（583 行）
+## web/src/nodes2/graph.ts（684 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `log` | 55 | arrow |  | 5 |
 | `nodeByKind` | 60 | function |  | 4 |
-| `nodeFromTarget` | 65 | function |  | 4 |
+| `nodeFromTarget` | 65 | function |  | 5 |
 | `renderNode` | 81 | function |  | 1 |
 | `portIndexFromTarget` | 96 | function |  | 2 |
 | `CylNode` | 108 | class | export | 3 |
@@ -352,22 +352,26 @@
 | `makeNullNode` | 144 | function | export | 2 |
 | `buildGraph` | 155 | function |  | 2 |
 | `createReteGraph` | 212 | function | export | 1 |
-| `attachTabSearch` | 303 | function |  | 2 |
-| `render` | 319 | arrow |  | 4 |
-| `create` | 334 | arrow |  | 2 |
-| `close` | 350 | arrow |  | 6 |
-| `update` | 356 | arrow |  | 3 |
-| `attachCutMode` | 385 | function |  | 2 |
-| `isTyping` | 391 | arrow |  | 1 |
-| `attachFlagMenu` | 436 | function |  | 2 |
-| `show` | 448 | arrow |  | 2 |
-| `initTooltip` | 502 | function | export | 2 |
-| `showTooltip` | 508 | function | export | 1 |
-| `hideTooltip` | 521 | function | export | 1 |
-| `attachMMBPan` | 529 | function |  | 2 |
-| `onMove` | 537 | arrow |  | 0 |
-| `onUp` | 540 | arrow |  | 0 |
-| `attachDotGrid` | 558 | function |  | 2 |
+| `attachTabSearch` | 304 | function |  | 2 |
+| `render` | 320 | arrow |  | 4 |
+| `create` | 335 | arrow |  | 2 |
+| `close` | 351 | arrow |  | 6 |
+| `update` | 357 | arrow |  | 3 |
+| `attachCutMode` | 386 | function |  | 2 |
+| `isTyping` | 392 | arrow |  | 1 |
+| `attachFlagMenu` | 437 | function |  | 2 |
+| `show` | 449 | arrow |  | 2 |
+| `initTooltip` | 503 | function | export | 2 |
+| `showTooltip` | 509 | function | export | 1 |
+| `hideTooltip` | 522 | function | export | 1 |
+| `attachMMBPan` | 530 | function |  | 2 |
+| `onMove` | 538 | arrow |  | 0 |
+| `onUp` | 541 | arrow |  | 0 |
+| `attachDotGrid` | 559 | function |  | 2 |
+| `hitTestConnection` | 590 | function |  | 2 |
+| `attachInsertion` | 618 | function |  | 2 |
+| `setHover` | 626 | arrow |  | 2 |
+| `up` | 658 | arrow |  | 0 |
 
 ## web/src/protocol/compare.ts（23 行）
 
@@ -422,8 +426,9 @@
 | `buildInputs` | 83 | function | export | 1 |
 | `buildOutputs` | 93 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（335 行）
+## web/src/viewport/renderer.ts（350 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `Viewport` | 20 | class | export | 1 |
+| `apply` | 146 | arrow |  | 2 |

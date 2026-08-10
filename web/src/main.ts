@@ -50,8 +50,13 @@ const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuf
 function refreshNodeFlags(): void {
   const inF = graph.getFlags("input");
   const outF = graph.getFlags("output");
-  viewport.setVisibility("inputs", inF?.display ?? true);
-  viewport.setVisibility("outputs", outF?.display ?? true);
+  // Display flag: show ONLY the first port of the displayed node (Houdini display semantics).
+  const inDisplay = inF?.display ?? false;
+  const outDisplay = outF?.display ?? false;
+  viewport.setVisibility("inputs", inDisplay || (!inDisplay && !outDisplay));
+  viewport.setVisibility("outputs", outDisplay);
+  viewport.setDisplayFocus("inputs", inDisplay || (!inDisplay && !outDisplay) ? 0 : null);
+  viewport.setDisplayFocus("outputs", outDisplay ? 0 : null);
 
   const refs: ReferenceItem[] = [];
   if (inF?.wireframe) {
