@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-10T13:52:16.057Z",
+  "generatedAt": "2026-08-10T14:02:32.112Z",
   "totalFunctions": 240,
   "files": [
     {
@@ -1434,7 +1434,7 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 276,
+      "lineCount": 289,
       "functions": [
         {
           "name": "refreshNodeFlags",
@@ -1445,63 +1445,63 @@
         },
         {
           "name": "inputStatsText",
-          "line": 81,
+          "line": 87,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "outputStatsText",
-          "line": 90,
+          "line": 96,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderInspector",
-          "line": 99,
+          "line": 105,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "runNetwork",
-          "line": 135,
+          "line": 141,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "startHdaWatch",
-          "line": 158,
+          "line": 164,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "check",
-          "line": 160,
+          "line": 166,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "stopHdaWatch",
-          "line": 177,
+          "line": 183,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "loadSnapshotIntoStore",
-          "line": 186,
+          "line": 192,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "connect",
-          "line": 205,
+          "line": 211,
           "kind": "function",
           "exported": false,
           "calls": 4
@@ -1907,7 +1907,7 @@
     },
     {
       "file": "web/src/viewport/renderer.ts",
-      "lineCount": 352,
+      "lineCount": 372,
       "functions": [
         {
           "name": "Viewport",

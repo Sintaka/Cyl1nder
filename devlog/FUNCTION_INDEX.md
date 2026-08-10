@@ -332,20 +332,20 @@
 | `connectWs` | 97 | function | export | 1 |
 | `connect` | 102 | arrow |  | 1 |
 
-## web/src/main.ts（276 行）
+## web/src/main.ts（289 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `refreshNodeFlags` | 55 | function |  | 3 |
-| `inputStatsText` | 81 | function |  | 2 |
-| `outputStatsText` | 90 | function |  | 2 |
-| `renderInspector` | 99 | function |  | 2 |
-| `runNetwork` | 135 | function |  | 2 |
-| `startHdaWatch` | 158 | function |  | 2 |
-| `check` | 160 | arrow |  | 1 |
-| `stopHdaWatch` | 177 | function |  | 2 |
-| `loadSnapshotIntoStore` | 186 | function |  | 2 |
-| `connect` | 205 | function |  | 4 |
+| `inputStatsText` | 87 | function |  | 2 |
+| `outputStatsText` | 96 | function |  | 2 |
+| `renderInspector` | 105 | function |  | 2 |
+| `runNetwork` | 141 | function |  | 2 |
+| `startHdaWatch` | 164 | function |  | 2 |
+| `check` | 166 | arrow |  | 1 |
+| `stopHdaWatch` | 183 | function |  | 2 |
+| `loadSnapshotIntoStore` | 192 | function |  | 2 |
+| `connect` | 211 | function |  | 4 |
 
 ## web/src/nodes2/graph.ts（734 行）
 
@@ -437,7 +437,7 @@
 | `buildInputs` | 110 | function | export | 1 |
 | `buildOutputs` | 120 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（352 行）
+## web/src/viewport/renderer.ts（372 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|

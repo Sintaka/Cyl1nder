@@ -55,13 +55,19 @@ const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuf
 function refreshNodeFlags(): void {
   const inF = graph.getFlags("input");
   const outF = graph.getFlags("output");
-  // Display flag: show ONLY the first port of the displayed node (Houdini display semantics).
   const inDisplay = inF?.display ?? false;
   const outDisplay = outF?.display ?? false;
-  viewport.setVisibility("inputs", inDisplay || (!inDisplay && !outDisplay));
-  viewport.setVisibility("outputs", outDisplay);
-  viewport.setDisplayFocus("inputs", inDisplay || (!inDisplay && !outDisplay) ? 0 : null);
-  viewport.setDisplayFocus("outputs", outDisplay ? 0 : null);
+  // Display the displayed node's outputs; if it has NO out-port data (e.g. output_
+  // with an empty buffer), fall back to showing the first input port's data.
+  const hasOutputs = store.outputs.length > 0;
+  const showOutputs = outDisplay && hasOutputs;
+  const showInputs = inDisplay || (outDisplay && !hasOutputs);
+  viewport.setVisibility("inputs", showInputs);
+  viewport.setVisibility("outputs", showOutputs);
+  // Show ALL ports of the displayed node (not just the first) so every input's
+  // points/faces are visible; index=null keeps every group visible.
+  viewport.setDisplayFocus("inputs", showInputs ? null : null);
+  viewport.setDisplayFocus("outputs", showOutputs ? null : null);
 
   const refs: ReferenceItem[] = [];
   if (inF?.wireframe) {
@@ -271,6 +277,13 @@ window.addEventListener("keydown", (e) => {
   const overGraph = layout.graphContainer.matches(":hover");
   if (overGraph) graph.frameSelection();
   else viewport.frame();
+});
+// B = toggle debug reference boxes (viewport capability check)
+window.addEventListener("keydown", (e) => {
+  if (e.key.toLowerCase() !== "b" || e.repeat) return;
+  const el = document.activeElement;
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
+  viewport.toggleDebugBoxes();
 });
 
 store.pushLog(`Cyl1nder web v${APP_VERSION} · Tab=搜索 Y=剪切 右键=flags F=frame`);

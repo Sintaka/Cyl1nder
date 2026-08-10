@@ -116,3 +116,10 @@
 - **Geometry Spreadsheet 系统**：新 dockview 面板（Desk1 布局加入，graph 下方）——按 **Point / Vertex / Prim / Detail 四层级** 展示当前几何（每输入端口一个 section）：points 表（坐标 + 属性）、vertices 表（从 curves/faces 推导 vertex）、prims 表（polyline/polygon + 顶点引用）、detail 表（统计 + 属性名）。数据来自桥 payload（points/curves/faces/attributes），vertex/detail 推导。
 - **调试 hook**：`buildMeshFaces` 输出 `[mesh] points/faces/triangles/sample-face`（浏览器 console），直接看到 three 接受到的面数据。
 - **poly 面确认**：带 normal 的 sphere（normal SOP）→ HDA convert → 视口灰面正常（grey≈2188）；用户"只有点"应为旧快照/缓存（无 faces），重新 cook 推新 inputs 或从新快照恢复即可。
+
+## v0.1.00029（2026-08-10）
+- **调试参考 box**：viewport 内置两个线框 box（+X 红、+Y 青，`toggleDebugBoxes`，按 **B** 键切换）——独立于传入数据验证视口渲染能力（实测 red=185 像素 ✓，渲染链路健康）。
+- **显示逻辑调整**：
+  - display 节点**显示其全部端口**（不再 focus 隐藏第一项）——所有输入的 points/faces 都可见；
+  - **无 out 端口数据时 fallback 显示 in 端口**（如 output_ 无 buffer → 显示 inputs）。
+- **系统验证**：normal sphere 测试数据完整走通——input0: 12pt/20prim/**60 vertices**/20 prims（spreadsheet 全部正确）+ 灰面 grey≈2900 + box 渲染。用户场景"只有点/无 vertices"= 该 serial 的 inputs **未带 faces**（旧 HDA 无 convert / 旧 serializer / 旧快照），需重新加载新 HDA 并 cook。

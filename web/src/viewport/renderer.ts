@@ -35,6 +35,8 @@ export class Viewport {
 
   /** Simple material system: lit (grey Lambert + headlight) / unlit / wireframe / wireframe+face. */
   displayMode: "lit" | "unlit" | "wireframe" | "wireframe-face" = "lit";
+  /** Debug reference boxes: verify the viewport can render (independent of incoming data). */
+  private debugBoxes = new THREE.Group();
   private headLight = new THREE.DirectionalLight(0xffffff, 1.1);
   private ambient = new THREE.AmbientLight(0x404050, 0.8);
   private modeBtn: HTMLButtonElement;
@@ -63,6 +65,11 @@ export class Viewport {
 
     this.scene.background = new THREE.Color(0x1a1a1a);
     this.scene.add(new THREE.GridHelper(10, 20, 0x3a3a3a, 0x262626));
+    // debug boxes at +X and +Y offsets - prove the viewport renders geometry on its own
+    this.debugBoxes.add(this.makeBox(new THREE.Vector3(4, 0, 0), 0xff5252));
+    this.debugBoxes.add(this.makeBox(new THREE.Vector3(0, 4, 0), 0x4fc3f7));
+    this.debugBoxes.visible = false;
+    this.scene.add(this.debugBoxes);
     this.headLight.position.set(4, 6, 8);
     this.scene.add(this.headLight);
     this.scene.add(this.ambient);
@@ -138,6 +145,19 @@ export class Viewport {
     this.inputGroup.visible = kind === "inputs" ? visible : this.inputGroup.visible;
     this.outputGroup.visible = kind === "outputs" ? visible : this.outputGroup.visible;
     store.pushLogSilent(`[viewport] visibility ${kind}=${visible} (inputs=${this.inputGroup.visible} outputs=${this.outputGroup.visible})`);
+  }
+
+  private makeBox(center: THREE.Vector3, color: number): THREE.LineSegments {
+    const g = new THREE.EdgesGeometry(new THREE.BoxGeometry(0.6, 0.6, 0.6));
+    const box = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.9 }));
+    box.position.copy(center);
+    return box;
+  }
+
+  /** Toggle the debug reference boxes (view capability check). */
+  toggleDebugBoxes(): void {
+    this.debugBoxes.visible = !this.debugBoxes.visible;
+    store.pushLog(`[viewport] debug boxes ${this.debugBoxes.visible ? "shown" : "hidden"}`);
   }
 
   /** Display flag shows only the FIRST port of the displayed node (Houdini display).
