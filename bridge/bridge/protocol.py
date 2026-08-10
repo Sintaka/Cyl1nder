@@ -12,7 +12,7 @@ import time
 
 from pydantic import BaseModel, Field
 
-VERSION = "0.1.00022"
+VERSION = "0.1.00023"
 HOST = "127.0.0.1"
 PORT = 8375
 BASE_URL = f"http://{HOST}:{PORT}"
@@ -67,6 +67,7 @@ class InputPayload(BaseModel):
     primCount: int = 0
     points: list[list[float]] = Field(default_factory=list)
     curves: list[CurveData] = Field(default_factory=list)
+    faces: list[list[int]] = Field(default_factory=list)
     attributes: dict[str, AttributeData] = Field(default_factory=dict)
 
 
@@ -77,6 +78,7 @@ class OutputBuffer(BaseModel):
     primCount: int = 0
     points: list[list[float]] = Field(default_factory=list)
     curves: list[CurveData] = Field(default_factory=list)
+    faces: list[list[int]] = Field(default_factory=list)
     attributes: dict[str, AttributeData] = Field(default_factory=dict)
 
 

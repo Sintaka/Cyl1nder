@@ -39,6 +39,8 @@ export class Viewport {
     renderer: RendererLike,
   ) {
     this.renderer = renderer;
+    // preserveDrawingBuffer so compositor/drawImage captures see WebGL content (debug friendly)
+    (renderer as { preserveDrawingBuffer?: boolean }).preserveDrawingBuffer = true;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(this.renderer.domElement);
@@ -96,7 +98,7 @@ export class Viewport {
       this.inputGroup.clear();
       this.inputGroup.add(buildInputs(store.inputs));
       this.lastInputRev = store.inputRev;
-      store.pushLogSilent(`[viewport] inputs rebuilt rev=${store.inputRev} curves=${store.inputs.reduce((n, i) => n + i.curves.length, 0)}`);
+      store.pushLogSilent(`[viewport] inputs rebuilt rev=${store.inputRev} curves=${store.inputs.reduce((n, i) => n + i.curves.length, 0)} faces=${store.inputs.reduce((n, i) => n + (i.faces?.length ?? 0), 0)}`);
     }
     if (store.outputRev !== this.lastOutputRev) {
       this.outputGroup.clear();
@@ -118,7 +120,7 @@ export class Viewport {
     this.referenceGroup.clear();
     if (items) {
       for (const it of items) {
-        const sub = buildCurves(it.points, it.curves, it.color, null);
+        const sub = buildCurves(it.points, it.curves, [], it.color, null);
         sub.traverse((o) => {
           if (o instanceof THREE.Line) {
             const m = o.material as THREE.LineBasicMaterial;

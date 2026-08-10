@@ -101,3 +101,7 @@
 - 输出口映射：python SOP 的 `node.inputs()[role].geometry()` 读第 role 个输入，bridge outputs 按 index 0..3 对应 out0..3（**从 0 开始**）。
 - 验证：HDA 重建 + hython 冒烟全过（serial 不可变 / 4 输入 push / 4 输出 fallback out_i=in_i / edit out0 pull 回）。
 - HDK 多输出论坛调研：子智能体 Ohm 进行中（hdk-multi-output-forum.md 待落库）。
+
+## v0.1.00023（2026-08-10）
+- HDA 输入侧加 **4 个 Convert 节点**（`fromtype=all, totype=poly`）：程序化 prim（Sphere/Tube 等）→ polygon mesh（faces 可序列化）；开口 polyline 保持开口（hair 无损）。python SOP 输入改接 convert。
+- `_build_detail` 支持重建 faces（闭合 polygon prim）。

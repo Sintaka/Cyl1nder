@@ -14,7 +14,9 @@
 - `GET` `/api/hda/{serial}/pending` (routes.py:117)
 - `GET` `/api/hda/{serial}/logs` (routes.py:131)
 - `GET` `/api/hda/{serial}/snapshot` (routes.py:141)
-- `GET` `/api/logs` (routes.py:152)
+- `GET` `/api/ui/layout` (routes.py:152)
+- `PUT` `/api/ui/layout` (routes.py:159)
+- `GET` `/api/logs` (routes.py:167)
 - `WEBSOCKET` `/ws` (ws.py:52)
 
 ## MCP tools (bridge.mcp_server)

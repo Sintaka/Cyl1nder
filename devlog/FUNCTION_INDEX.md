@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **226** 个函数/类。
+> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **227** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -75,7 +75,7 @@
 | `cyl1nder_index_query` | 79 | def |  | 1 |
 | `run_stdio` | 102 | def |  | 2 |
 
-## bridge/bridge/protocol.py（94 行）
+## bridge/bridge/protocol.py（96 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -85,9 +85,9 @@
 | `AttributeData` | 52 | class |  | 1 |
 | `CurveData` | 58 | class |  | 1 |
 | `InputPayload` | 63 | class |  | 1 |
-| `OutputBuffer` | 73 | class |  | 1 |
-| `InputsPut` | 83 | class |  | 1 |
-| `OutputsPut` | 91 | class |  | 1 |
+| `OutputBuffer` | 74 | class |  | 1 |
+| `InputsPut` | 85 | class |  | 1 |
+| `OutputsPut` | 93 | class |  | 1 |
 
 ## bridge/bridge/registry.py（138 行）
 
@@ -208,7 +208,7 @@
 | `probe` | 205 | def |  | 1 |
 | `log_result` | 214 | def |  | 2 |
 
-## hda/scripts/build_hda.py（189 行）
+## hda/scripts/build_hda.py（200 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -247,7 +247,7 @@
 | `pending_outputs` | 87 | def |  | 1 |
 | `pull_outputs` | 102 | def |  | 1 |
 
-## hda/src/cyl1nder_hda.py（521 行）
+## hda/src/cyl1nder_hda.py（528 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -266,15 +266,15 @@
 | `_set_status` | 244 | def |  | 6 |
 | `_serialize_geo` | 253 | def |  | 3 |
 | `_build_detail` | 263 | def |  | 2 |
-| `_snapshot_parts` | 291 | def |  | 2 |
-| `_flat_signature` | 331 | def |  | 2 |
-| `_build_core_detail` | 343 | def |  | 3 |
-| `cook_core` | 367 | def |  | 2 |
-| `_same_geo` | 431 | def |  | 2 |
-| `_role_buffer` | 442 | def |  | 2 |
-| `cook` | 461 | def |  | 4 |
+| `_snapshot_parts` | 298 | def |  | 2 |
+| `_flat_signature` | 338 | def |  | 2 |
+| `_build_core_detail` | 350 | def |  | 3 |
+| `cook_core` | 374 | def |  | 2 |
+| `_same_geo` | 438 | def |  | 2 |
+| `_role_buffer` | 449 | def |  | 2 |
+| `cook` | 468 | def |  | 4 |
 
-## hda/src/cyl1nder_serializer.py（57 行）
+## hda/src/cyl1nder_serializer.py（63 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -320,7 +320,7 @@
 | `connectWs` | 97 | function | export | 1 |
 | `connect` | 102 | arrow |  | 1 |
 
-## web/src/main.ts（264 行）
+## web/src/main.ts（265 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -329,11 +329,11 @@
 | `outputStatsText` | 80 | function |  | 2 |
 | `renderInspector` | 89 | function |  | 2 |
 | `runNetwork` | 124 | function |  | 2 |
-| `startHdaWatch` | 146 | function |  | 2 |
-| `check` | 148 | arrow |  | 1 |
-| `stopHdaWatch` | 165 | function |  | 2 |
-| `loadSnapshotIntoStore` | 174 | function |  | 2 |
-| `connect` | 193 | function |  | 4 |
+| `startHdaWatch` | 147 | function |  | 2 |
+| `check` | 149 | arrow |  | 1 |
+| `stopHdaWatch` | 166 | function |  | 2 |
+| `loadSnapshotIntoStore` | 175 | function |  | 2 |
+| `connect` | 194 | function |  | 4 |
 
 ## web/src/nodes2/graph.ts（583 行）
 
@@ -367,14 +367,14 @@
 | `onUp` | 540 | arrow |  | 0 |
 | `attachDotGrid` | 558 | function |  | 2 |
 
-## web/src/protocol/compare.ts（22 行）
+## web/src/protocol/compare.ts（23 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `payloadEqual` | 3 | function |  | 2 |
-| `inputsEqual` | 14 | function | export | 1 |
+| `inputsEqual` | 15 | function | export | 1 |
 
-## web/src/protocol/types.ts（88 行）
+## web/src/protocol/types.ts（90 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -409,16 +409,17 @@
 | `up` | 60 | arrow |  | 1 |
 | `release` | 71 | arrow |  | 0 |
 
-## web/src/viewport/geometry.ts（51 行）
+## web/src/viewport/geometry.ts（77 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `toVec` | 7 | function |  | 1 |
-| `buildCurves` | 12 | function | export | 3 |
-| `buildInputs` | 33 | function | export | 1 |
-| `buildOutputs` | 43 | function | export | 1 |
+| `buildMeshFaces` | 14 | function | export | 2 |
+| `buildCurves` | 35 | function | export | 3 |
+| `buildInputs` | 59 | function | export | 1 |
+| `buildOutputs` | 69 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（268 行）
+## web/src/viewport/renderer.ts（270 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|

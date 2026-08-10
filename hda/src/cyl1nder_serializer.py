@@ -25,12 +25,17 @@ def serialize_input(geo: hou.Geometry, index: int, name: str) -> dict:
         for p in pts
     ]
     curves: list[dict] = []
+    faces: list[list[int]] = []
     for prim in geo.prims():
         tname = prim.type().name().lower()
-        if tname not in _CURVE_TYPES or (tname in ("poly", "polygon") and prim.isClosed()):
-            continue
         prim_pts = prim.points()
         idxs = [p.number() for p in prim_pts]
+        # closed poly/polygon = mesh face (e.g. a sphere); open polyline = hair curve
+        if tname in ("poly", "polygon") and prim.isClosed():
+            faces.append(idxs)
+            continue
+        if tname not in _CURVE_TYPES:
+            continue
         widths = None
         wa = geo.findPointAttrib("width")
         if wa is not None:
@@ -53,5 +58,6 @@ def serialize_input(geo: hou.Geometry, index: int, name: str) -> dict:
         "primCount": len(geo.prims()),
         "points": points,
         "curves": curves,
+        "faces": faces,
         "attributes": attributes,
     }

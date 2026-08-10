@@ -20,6 +20,7 @@ export interface InputPayload {
   primCount: number;
   points: number[][];
   curves: CurveData[];
+  faces?: number[][];
   attributes: Record<string, AttributeData>;
 }
 
@@ -30,6 +31,7 @@ export interface OutputBuffer {
   primCount: number;
   points: number[][];
   curves: CurveData[];
+  faces?: number[][];
   attributes: Record<string, AttributeData>;
 }
 

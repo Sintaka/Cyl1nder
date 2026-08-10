@@ -8,10 +8,34 @@ function toVec(p: number[]): THREE.Vector3 {
   return new THREE.Vector3(p[0], p[1], p[2]);
 }
 
-/** One polyline per curve; store curve + input index in userData for raycast selection. */
+/** Mesh faces -> wireframe mesh (fan-triangulated). EdgesGeometry is unusable here:
+ *  on smooth surfaces (e.g. a sphere) it drops nearly every edge, yielding an empty
+ *  LineSegments. A wireframe Mesh draws every triangle edge reliably. */
+export function buildMeshFaces(points: number[][], faces: number[][], color: number): THREE.Mesh | null {
+  if (faces.length === 0) return null;
+  const tri: number[] = [];
+  for (const face of faces) {
+    if (face.length < 3) continue;
+    for (let i = 1; i < face.length - 1; i++) tri.push(face[0], face[i], face[i + 1]);
+  }
+  if (tri.length === 0) return null;
+  const positions = new Float32Array(points.length * 3);
+  points.forEach((p, i) => {
+    positions[i * 3] = p[0] ?? 0;
+    positions[i * 3 + 1] = p[1] ?? 0;
+    positions[i * 3 + 2] = p[2] ?? 0;
+  });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geo.setIndex(tri);
+  return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, wireframe: true }));
+}
+
+/** One polyline per curve + wireframe for mesh faces; store curve + input index in userData. */
 export function buildCurves(
   points: number[][],
   curves: CurveData[],
+  faces: number[][],
   color: number,
   inputIndex: number | null,
 ): THREE.Group {
@@ -27,13 +51,15 @@ export function buildCurves(
     line.userData = { curve, inputIndex };
     group.add(line);
   }
+  const mesh = buildMeshFaces(points, faces, color);
+  if (mesh) group.add(mesh);
   return group;
 }
 
 export function buildInputs(inputs: InputPayload[]): THREE.Group {
   const group = new THREE.Group();
   for (const inp of inputs) {
-    const sub = buildCurves(inp.points, inp.curves, INPUT_COLORS[inp.index % INPUT_COLORS.length], inp.index);
+    const sub = buildCurves(inp.points, inp.curves, inp.faces ?? [], INPUT_COLORS[inp.index % INPUT_COLORS.length], inp.index);
     sub.name = `input${inp.index}`;
     group.add(sub);
   }
@@ -43,7 +69,7 @@ export function buildInputs(inputs: InputPayload[]): THREE.Group {
 export function buildOutputs(outputs: OutputBuffer[]): THREE.Group {
   const group = new THREE.Group();
   for (const buf of outputs) {
-    const sub = buildCurves(buf.points, buf.curves, OUTPUT_COLOR, null);
+    const sub = buildCurves(buf.points, buf.curves, buf.faces ?? [], OUTPUT_COLOR, null);
     sub.name = `output${buf.index}`;
     group.add(sub);
   }

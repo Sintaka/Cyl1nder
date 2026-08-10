@@ -6,7 +6,8 @@ function payloadEqual(a: InputPayload, b: InputPayload): boolean {
     a.pointCount === b.pointCount &&
     a.primCount === b.primCount &&
     JSON.stringify(a.points) === JSON.stringify(b.points) &&
-    JSON.stringify(a.curves) === JSON.stringify(b.curves)
+    JSON.stringify(a.curves) === JSON.stringify(b.curves) &&
+    JSON.stringify(a.faces ?? []) === JSON.stringify(b.faces ?? [])
   );
 }
 

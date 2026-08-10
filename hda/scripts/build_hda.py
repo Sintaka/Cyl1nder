@@ -123,6 +123,17 @@ def build(output_path: str = OUT) -> hou.Node:
     for i in range(INPUT_COUNT):
         ins[i].setInput(0, inds[i])
 
+    # Convert procedural prims (Sphere/... -> polygon mesh) so the serializer can
+    # carry faces; open polylines stay open (verified: Polygon type, isClosed=False),
+    # so hair curves are unaffected. Converter is a pure C++ node, cheap to cook.
+    convs = []
+    for i in range(INPUT_COUNT):
+        c = sub.createNode("convert", f"conv{i}")
+        c.setInput(0, ins[i], 0)
+        c.parm("fromtype").set("all")
+        c.parm("totype").set("poly")
+        convs.append(c)
+
     # 4 python SOPs, one per output role (0..3). Each python SOP reads ALL 4 inputs
     # (node.inputs()[role]) and pulls ITS OWN output buffer. Network traffic is
     # deduplicated by a process-wide cache in cyl1nder_hda (_role_buffer + lock):
@@ -133,7 +144,7 @@ def build(output_path: str = OUT) -> hou.Node:
         p.parm("python").set(PY_CODE.format(role=i))
         p.parm("maintainstate").set(0)  # re-run every HDA recook -> push/pull on update
         for j in range(INPUT_COUNT):
-            p.setInput(j, ins[j], 0)
+            p.setInput(j, convs[j], 0)  # feed from the convert node (polygon-ized inputs)
         pys.append(p)
 
     for i in range(INPUT_COUNT):

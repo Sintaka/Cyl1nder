@@ -130,6 +130,7 @@ async function runNetwork(): Promise<void> {
     primCount: inp.primCount,
     points: inp.points,
     curves: inp.curves,
+    faces: inp.faces ?? [],
     attributes: inp.attributes,
   }));
   try {

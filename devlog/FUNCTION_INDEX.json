@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-10T12:00:00.841Z",
-  "totalFunctions": 226,
+  "generatedAt": "2026-08-10T12:17:42.458Z",
+  "totalFunctions": 227,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -275,7 +275,7 @@
     },
     {
       "file": "bridge/bridge/protocol.py",
-      "lineCount": 94,
+      "lineCount": 96,
       "functions": [
         {
           "name": "_b36",
@@ -321,21 +321,21 @@
         },
         {
           "name": "OutputBuffer",
-          "line": 73,
+          "line": 74,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "InputsPut",
-          "line": 83,
+          "line": 85,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "OutputsPut",
-          "line": 91,
+          "line": 93,
           "kind": "class",
           "exported": false,
           "calls": 1
@@ -945,7 +945,7 @@
     },
     {
       "file": "hda/scripts/build_hda.py",
-      "lineCount": 189,
+      "lineCount": 200,
       "functions": [
         {
           "name": "_parm_group",
@@ -1102,7 +1102,7 @@
     },
     {
       "file": "hda/src/cyl1nder_hda.py",
-      "lineCount": 521,
+      "lineCount": 528,
       "functions": [
         {
           "name": "_ui_healthy",
@@ -1211,49 +1211,49 @@
         },
         {
           "name": "_snapshot_parts",
-          "line": 291,
+          "line": 298,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_flat_signature",
-          "line": 331,
+          "line": 338,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_build_core_detail",
-          "line": 343,
+          "line": 350,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "cook_core",
-          "line": 367,
+          "line": 374,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_same_geo",
-          "line": 431,
+          "line": 438,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_role_buffer",
-          "line": 442,
+          "line": 449,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "cook",
-          "line": 461,
+          "line": 468,
           "kind": "def",
           "exported": false,
           "calls": 4
@@ -1262,7 +1262,7 @@
     },
     {
       "file": "hda/src/cyl1nder_serializer.py",
-      "lineCount": 57,
+      "lineCount": 63,
       "functions": [
         {
           "name": "_norm_value",
@@ -1379,7 +1379,7 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 264,
+      "lineCount": 265,
       "functions": [
         {
           "name": "refreshNodeFlags",
@@ -1418,35 +1418,35 @@
         },
         {
           "name": "startHdaWatch",
-          "line": 146,
+          "line": 147,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "check",
-          "line": 148,
+          "line": 149,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "stopHdaWatch",
-          "line": 165,
+          "line": 166,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "loadSnapshotIntoStore",
-          "line": 174,
+          "line": 175,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "connect",
-          "line": 193,
+          "line": 194,
           "kind": "function",
           "exported": false,
           "calls": 4
@@ -1650,7 +1650,7 @@
     },
     {
       "file": "web/src/protocol/compare.ts",
-      "lineCount": 22,
+      "lineCount": 23,
       "functions": [
         {
           "name": "payloadEqual",
@@ -1661,7 +1661,7 @@
         },
         {
           "name": "inputsEqual",
-          "line": 14,
+          "line": 15,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -1670,7 +1670,7 @@
     },
     {
       "file": "web/src/protocol/types.ts",
-      "lineCount": 88,
+      "lineCount": 90,
       "functions": []
     },
     {
@@ -1769,7 +1769,7 @@
     },
     {
       "file": "web/src/viewport/geometry.ts",
-      "lineCount": 51,
+      "lineCount": 77,
       "functions": [
         {
           "name": "toVec",
@@ -1779,22 +1779,29 @@
           "calls": 1
         },
         {
+          "name": "buildMeshFaces",
+          "line": 14,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
           "name": "buildCurves",
-          "line": 12,
+          "line": 35,
           "kind": "function",
           "exported": true,
           "calls": 3
         },
         {
           "name": "buildInputs",
-          "line": 33,
+          "line": 59,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "buildOutputs",
-          "line": 43,
+          "line": 69,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -1803,7 +1810,7 @@
     },
     {
       "file": "web/src/viewport/renderer.ts",
-      "lineCount": 268,
+      "lineCount": 270,
       "functions": [
         {
           "name": "Viewport",

@@ -65,3 +65,11 @@
 - **布局 debug 输出**：每次布局变化在 Log 面板输出 `[layout] <panel>:x=,y=,w=,h=`（相对 dock 容器）+ `[layout-json] <toJSON>`，agent/用户都可读当前面板的相对位置与边界。
 - **实测**：检测到用户手动布局 = `graph:x=0,y=35,w=650,h=649 | viewport:x=650,y=35,w=630,h=193 | inspector:x=650,y=263,w=630,h=193 | log:x=650,y=491,w=630,h=193`（左列 Node Graph 全高 + 右列 Viewport/Inspector/Log 垂直堆叠）。
 - bridge 新增 `GET/PUT /api/ui/layout` + `ui_layout.py`（单文件原子写）。
+
+## v0.1.00023（2026-08-10）
+- **视口空显示根因修复（sphere 等网格输入）**：
+  1. Houdini 的 sphere 是**程序化 Sphere prim**（非 polygon），serializer 之前全部跳过 → curves/faces 空 → 视口无显示。修复：HDA 内部输入后加 **Convert（fromtype=all, totype=poly）**——sphere→20 个闭合 polygon（12 点），开口 polyline 保持开口（验证过），hair 曲线不受影响。
+  2. **协议加 `faces`**（protocol.py/types.ts/protocol.md 三处同步）：闭合 polygon 面顶点索引；HDA `_build_detail` 重建 polygon；compare.ts 内容对比含 faces。
+  3. viewport 用 **wireframe Mesh** 渲染 faces（`EdgesGeometry` 对平滑球面会丢全部边，生成空 LineSegments——坑）。
+  4. renderer `preserveDrawingBuffer: true`（构造时传，便于截图/检测；实际渲染一直正常）。
+- 验证：sphere 输入 → bridge inputs pts=12 prims=20；视口 cyan 线框像素 274（sphere 显示）。

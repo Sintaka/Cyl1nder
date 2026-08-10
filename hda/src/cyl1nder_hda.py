@@ -264,11 +264,18 @@ def _build_detail(geo: hou.Geometry, buf: dict) -> None:
     """Build output detail from an OutputBuffer dict (points + polyline curves + width)."""
     pts_data = buf.get("points") or []
     curves = buf.get("curves") or []
+    faces = buf.get("faces") or []
     created: list[hou.Point] = []
     for p in pts_data:
         pt = geo.createPoint()
         pt.setPosition(hou.Vector3(float(p[0]), float(p[1]), float(p[2])))
         created.append(pt)
+    # mesh faces (closed polygons, e.g. a sphere) -> polygon prims
+    for face in faces:
+        prim = geo.createPolygon()  # closed by default
+        for i in face:
+            if 0 <= i < len(created):
+                prim.addVertex(created[i])
     widths_attr = None
     for c in curves:
         prim = geo.createPolygon(is_closed=False)

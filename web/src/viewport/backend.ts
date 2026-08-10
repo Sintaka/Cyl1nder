@@ -26,5 +26,5 @@ export async function createRenderer(): Promise<RendererLike> {
       console.warn("WebGPU unavailable, falling back to WebGL:", e);
     }
   }
-  return new THREE.WebGLRenderer({ antialias: true });
+  return new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 }

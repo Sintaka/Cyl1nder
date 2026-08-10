@@ -28,3 +28,8 @@
 
 ## MCP（Cyl1nder 桥 MCP，stdio）
 `cyl1nder_list_serials / cyl1nder_get_status / cyl1nder_read_logs / cyl1nder_get_errors / cyl1nder_get_geometry_summary / cyl1nder_index_query / cyl1nder_ping`
+
+## faces 字段（v0.1.00023+）
+- `InputPayload`/`OutputBuffer` 新增 `faces: list[list[int]]`：闭合 polygon 面的顶点索引（mesh，如 sphere）。
+- serializer：闭合 `Polygon`(isClosed=True) → faces；开口 polyline → curves。
+- viewport：faces 以 wireframe Mesh 渲染。

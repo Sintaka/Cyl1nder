@@ -5,9 +5,13 @@
 - `app/app-config.ts`
   - three/webgpu
 - `app/dock.ts`
+  - app/layouts
+  - bridge/client
   - dockview
   - dockview/dist/styles/dockview.css
+  - stores/workspace
 - `app/layout.ts`
+- `app/layouts.ts`
 - `app/log.ts`
 - `bridge/client.ts`
   - protocol/types
