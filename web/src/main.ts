@@ -17,6 +17,8 @@ const handlers: ReteGraphHandlers = {
   onFlagsChanged: (kind, flags) => {
     store.pushLog(`node ${kind} flags -> ${JSON.stringify(flags)}`);
     refreshNodeFlags();
+    // Display flag: default to showing this node's FIRST port data in the viewport
+    if (flags.display) viewport.pickByNode(kind, 0);
   },
 };
 const graph = await createReteGraph(layout.graphContainer, handlers);

@@ -125,7 +125,7 @@ html, body, #app { height: 100%; margin: 0; }
   box-shadow: 0 4px 14px rgba(0,0,0,.45);
   font-family: system-ui, sans-serif;
   color: #cfd2d6;
-  min-width: 132px;
+  min-width: 264px;
   padding: 4px 6px 6px;
 }
 .cyl-graph .cyl-rp-node.displayed { border-color: #2f7d54; box-shadow: 0 0 0 1px #2f7d54, 0 4px 14px rgba(0,0,0,.45); }
@@ -176,3 +176,23 @@ html, body, #app { height: 100%; margin: 0; }
 }
 .cyl-hda-offline .off-icon { color: #f87171; font-size: 14px; }
 .cyl-hda-offline.hidden { display: none; }
+
+/* custom floating tooltip (dark rounded chip) */
+.cyl-tooltip {
+  position: absolute; z-index: 50; pointer-events: none;
+  background: rgba(15, 17, 20, 0.95); border: 1px solid #3a3f4a; border-radius: 6px;
+  padding: 4px 9px; color: #cfd2d6; font-size: 11px; white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0,0,0,.5);
+}
+.cyl-tooltip.hidden { display: none; }
+
+/* hover highlight: port / node / connection get bolder */
+.cyl-graph .cyl-rp-port:hover { font-weight: 700; color: #e6e9ef; }
+.cyl-graph .cyl-rp-port:hover div[title] {
+  border-width: 2.5px; box-shadow: 0 0 8px rgba(79,195,247,.75);
+}
+.cyl-graph .cyl-rp-node:hover { border-color: #6b7280; }
+.cyl-graph .cyl-rp-node.displayed:hover { border-color: #38a169; }
+.cyl-graph [data-testid="connection"]:hover path {
+  stroke: #7ce3a8 !important; stroke-width: 2.5 !important;
+}

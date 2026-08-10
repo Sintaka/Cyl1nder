@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-10T10:45:00.363Z",
-  "totalFunctions": 206,
+  "generatedAt": "2026-08-10T10:58:06.988Z",
+  "totalFunctions": 209,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -1258,67 +1258,67 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 221,
+      "lineCount": 223,
       "functions": [
         {
           "name": "refreshNodeFlags",
-          "line": 42,
+          "line": 44,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "inputStatsText",
-          "line": 63,
+          "line": 65,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "outputStatsText",
-          "line": 72,
+          "line": 74,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderInspector",
-          "line": 81,
+          "line": 83,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "runNetwork",
-          "line": 116,
+          "line": 118,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "startHdaWatch",
-          "line": 138,
+          "line": 140,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "check",
-          "line": 140,
+          "line": 142,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "stopHdaWatch",
-          "line": 157,
+          "line": 159,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "connect",
-          "line": 164,
+          "line": 166,
           "kind": "function",
           "exported": false,
           "calls": 4
@@ -1327,7 +1327,7 @@
     },
     {
       "file": "web/src/nodes2/graph.ts",
-      "lineCount": 551,
+      "lineCount": 575,
       "functions": [
         {
           "name": "log",
@@ -1394,105 +1394,126 @@
         },
         {
           "name": "buildGraph",
-          "line": 156,
+          "line": 154,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "createReteGraph",
-          "line": 213,
+          "line": 211,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "attachTabSearch",
-          "line": 296,
+          "line": 295,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "render",
-          "line": 312,
+          "line": 311,
           "kind": "arrow",
           "exported": false,
           "calls": 4
         },
         {
           "name": "create",
-          "line": 327,
+          "line": 326,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "close",
-          "line": 343,
+          "line": 342,
           "kind": "arrow",
           "exported": false,
           "calls": 6
         },
         {
           "name": "update",
-          "line": 349,
+          "line": 348,
           "kind": "arrow",
           "exported": false,
           "calls": 3
         },
         {
           "name": "attachCutMode",
-          "line": 378,
+          "line": 377,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "isTyping",
-          "line": 384,
+          "line": 383,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "attachFlagMenu",
-          "line": 429,
+          "line": 428,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "show",
-          "line": 441,
+          "line": 440,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
+          "name": "initTooltip",
+          "line": 494,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "showTooltip",
+          "line": 500,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "hideTooltip",
+          "line": 513,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
           "name": "attachMMBPan",
-          "line": 497,
+          "line": 521,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "onMove",
-          "line": 505,
+          "line": 529,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "onUp",
-          "line": 508,
+          "line": 532,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "attachDotGrid",
-          "line": 526,
+          "line": 550,
           "kind": "function",
           "exported": false,
           "calls": 2
@@ -1531,7 +1552,7 @@
     },
     {
       "file": "web/src/stores/workspace.ts",
-      "lineCount": 77,
+      "lineCount": 83,
       "functions": [
         {
           "name": "WorkspaceStore",
@@ -1591,7 +1612,7 @@
     },
     {
       "file": "web/src/viewport/controls.ts",
-      "lineCount": 41,
+      "lineCount": 48,
       "functions": [
         {
           "name": "HoudiniControls",
@@ -1602,7 +1623,7 @@
         },
         {
           "name": "release",
-          "line": 30,
+          "line": 37,
           "kind": "arrow",
           "exported": false,
           "calls": 0
@@ -1645,7 +1666,7 @@
     },
     {
       "file": "web/src/viewport/renderer.ts",
-      "lineCount": 229,
+      "lineCount": 232,
       "functions": [
         {
           "name": "Viewport",

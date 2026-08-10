@@ -14,6 +14,7 @@ import { Presets } from "rete-react-plugin";
 const { RefSocket } = Presets.classic;
 import type { ClassicScheme, RenderEmit, ReactArea2D } from "rete-react-plugin";
 import type { NodeId } from "rete";
+import { hideTooltip, showTooltip } from "./graph";
 import type { CylNode } from "./graph";
 
 /** Module-level display handler registered by createReteGraph. */
@@ -64,7 +65,14 @@ export function NodeView({ data, emit }: Props) {
     socket: ClassicPreset.Socket,
     label: string,
   ) => (
-    <div className={`cyl-rp-port ${side}`} key={key} data-port-id={key} title={label}>
+    <div
+      className={`cyl-rp-port ${side}`}
+      key={key}
+      data-port-id={key}
+      onMouseEnter={(e) => showTooltip(e.clientX, e.clientY, `${side} · ${label} (${socket.name})`)}
+      onMouseMove={(e) => showTooltip(e.clientX, e.clientY, `${side} · ${label} (${socket.name})`)}
+      onMouseLeave={() => hideTooltip()}
+    >
       {side === "input" && <RefSocket name="input" side="input" emit={emit} nodeId={node.id as NodeId} socketKey={key} payload={socket} />}
       <span className="cyl-rp-port-label">{label}</span>
       {side === "output" && <RefSocket name="output" side="output" emit={emit} nodeId={node.id as NodeId} socketKey={key} payload={socket} />}
@@ -88,7 +96,9 @@ export function NodeView({ data, emit }: Props) {
           ref={btnRef}
           type="button"
           className={`cyl-rp-display ${flags.display ? "on" : ""}`}
-          title="Houdini display: show this node's output in the viewport (one per network)"
+          onMouseEnter={(e) => showTooltip(e.clientX, e.clientY, "Display: show this node's output (one per network)")}
+          onMouseMove={(e) => showTooltip(e.clientX, e.clientY, "Display: show this node's output (one per network)")}
+          onMouseLeave={() => hideTooltip()}
         >
           D
         </button>

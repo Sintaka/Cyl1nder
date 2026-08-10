@@ -96,11 +96,13 @@ export class Viewport {
       this.inputGroup.clear();
       this.inputGroup.add(buildInputs(store.inputs));
       this.lastInputRev = store.inputRev;
+      store.pushLogSilent(`[viewport] inputs rebuilt rev=${store.inputRev} curves=${store.inputs.reduce((n, i) => n + i.curves.length, 0)}`);
     }
     if (store.outputRev !== this.lastOutputRev) {
       this.outputGroup.clear();
       this.outputGroup.add(buildOutputs(store.outputs));
       this.lastOutputRev = store.outputRev;
+      store.pushLogSilent(`[viewport] outputs rebuilt rev=${store.outputRev} buffers=${store.outputs.length}`);
     }
   }
 
@@ -108,6 +110,7 @@ export class Viewport {
   setVisibility(kind: "inputs" | "outputs", visible: boolean): void {
     this.inputGroup.visible = kind === "inputs" ? visible : this.inputGroup.visible;
     this.outputGroup.visible = kind === "outputs" ? visible : this.outputGroup.visible;
+    store.pushLogSilent(`[viewport] visibility ${kind}=${visible} (inputs=${this.inputGroup.visible} outputs=${this.outputGroup.visible})`);
   }
 
   /** Wireframe reference overlays driven by node "wireframe" flags. */

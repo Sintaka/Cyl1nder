@@ -68,6 +68,12 @@ export class WorkspaceStore {
     this.emit();
   }
 
+  /** Write to the log WITHOUT notifying subscribers - safe inside viewport refresh paths. */
+  pushLogSilent(msg: string): void {
+    this.logs.push(msg);
+    if (this.logs.length > 300) this.logs.shift();
+  }
+
   setSelectedInput(index: number | null): void {
     this.selectedInputIndex = index;
     this.emit();

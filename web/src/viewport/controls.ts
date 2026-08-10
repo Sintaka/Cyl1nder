@@ -24,9 +24,16 @@ export class HoudiniControls {
     };
     this.controls.enabled = false;
 
-    dom.addEventListener("pointerdown", (e) => {
-      if (e.altKey) this.controls.enabled = true;
-    });
+    // Capture phase: must enable BEFORE OrbitControls' bubble-phase pointerdown,
+    // otherwise OrbitControls skips the down event while disabled and loses the
+    // drag start (Alt navigation silently does nothing).
+    dom.addEventListener(
+      "pointerdown",
+      (e) => {
+        if (e.altKey) this.controls.enabled = true;
+      },
+      true,
+    );
     const release = () => {
       this.controls.enabled = false;
     };

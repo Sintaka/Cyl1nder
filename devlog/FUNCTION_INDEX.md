@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **206** 个函数/类。
+> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **209** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -286,21 +286,21 @@
 | `connectWs` | 77 | function | export | 1 |
 | `connect` | 82 | arrow |  | 1 |
 
-## web/src/main.ts（221 行）
+## web/src/main.ts（223 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `refreshNodeFlags` | 42 | function |  | 3 |
-| `inputStatsText` | 63 | function |  | 2 |
-| `outputStatsText` | 72 | function |  | 2 |
-| `renderInspector` | 81 | function |  | 2 |
-| `runNetwork` | 116 | function |  | 2 |
-| `startHdaWatch` | 138 | function |  | 2 |
-| `check` | 140 | arrow |  | 1 |
-| `stopHdaWatch` | 157 | function |  | 2 |
-| `connect` | 164 | function |  | 4 |
+| `refreshNodeFlags` | 44 | function |  | 3 |
+| `inputStatsText` | 65 | function |  | 2 |
+| `outputStatsText` | 74 | function |  | 2 |
+| `renderInspector` | 83 | function |  | 2 |
+| `runNetwork` | 118 | function |  | 2 |
+| `startHdaWatch` | 140 | function |  | 2 |
+| `check` | 142 | arrow |  | 1 |
+| `stopHdaWatch` | 159 | function |  | 2 |
+| `connect` | 166 | function |  | 4 |
 
-## web/src/nodes2/graph.ts（551 行）
+## web/src/nodes2/graph.ts（575 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -313,21 +313,24 @@
 | `makeInputNode` | 133 | function |  | 2 |
 | `makeOutputNode` | 138 | function |  | 2 |
 | `makeNullNode` | 143 | function | export | 2 |
-| `buildGraph` | 156 | function |  | 2 |
-| `createReteGraph` | 213 | function | export | 1 |
-| `attachTabSearch` | 296 | function |  | 2 |
-| `render` | 312 | arrow |  | 4 |
-| `create` | 327 | arrow |  | 2 |
-| `close` | 343 | arrow |  | 6 |
-| `update` | 349 | arrow |  | 3 |
-| `attachCutMode` | 378 | function |  | 2 |
-| `isTyping` | 384 | arrow |  | 1 |
-| `attachFlagMenu` | 429 | function |  | 2 |
-| `show` | 441 | arrow |  | 2 |
-| `attachMMBPan` | 497 | function |  | 2 |
-| `onMove` | 505 | arrow |  | 0 |
-| `onUp` | 508 | arrow |  | 0 |
-| `attachDotGrid` | 526 | function |  | 2 |
+| `buildGraph` | 154 | function |  | 2 |
+| `createReteGraph` | 211 | function | export | 1 |
+| `attachTabSearch` | 295 | function |  | 2 |
+| `render` | 311 | arrow |  | 4 |
+| `create` | 326 | arrow |  | 2 |
+| `close` | 342 | arrow |  | 6 |
+| `update` | 348 | arrow |  | 3 |
+| `attachCutMode` | 377 | function |  | 2 |
+| `isTyping` | 383 | arrow |  | 1 |
+| `attachFlagMenu` | 428 | function |  | 2 |
+| `show` | 440 | arrow |  | 2 |
+| `initTooltip` | 494 | function | export | 2 |
+| `showTooltip` | 500 | function | export | 1 |
+| `hideTooltip` | 513 | function | export | 1 |
+| `attachMMBPan` | 521 | function |  | 2 |
+| `onMove` | 529 | arrow |  | 0 |
+| `onUp` | 532 | arrow |  | 0 |
+| `attachDotGrid` | 550 | function |  | 2 |
 
 ## web/src/proto/main.ts（5 行）
 
@@ -346,7 +349,7 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/stores/workspace.ts（77 行）
+## web/src/stores/workspace.ts（83 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -367,12 +370,12 @@
 |---|---|---|---|---|
 | `createRenderer` | 18 | function | export | 1 |
 
-## web/src/viewport/controls.ts（41 行）
+## web/src/viewport/controls.ts（48 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `HoudiniControls` | 11 | class | export | 0 |
-| `release` | 30 | arrow |  | 0 |
+| `release` | 37 | arrow |  | 0 |
 
 ## web/src/viewport/geometry.ts（51 行）
 
@@ -383,7 +386,7 @@
 | `buildInputs` | 33 | function | export | 1 |
 | `buildOutputs` | 43 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（229 行）
+## web/src/viewport/renderer.ts（232 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|

@@ -54,7 +54,7 @@ const GEO = "geo";
 const log = (m: string) => store.pushLog(`[node] ${m}`);
 
 /** Cached per-kind labels so setStats can restore the base title. */
-const BASE_LABEL: Record<string, string> = { input_: "input_", output_: "output_", null: "null" };
+const BASE_LABEL: Record<string, string> = { _input_: "_input_", _output_: "_output_", null: "null" };
 
 function nodeByKind(editor: NodeEditor<Schemes>, kind: NodeKind): CylNode | undefined {
   return editor.getNodes().find((x) => (x as CylNode).kind === kind) as CylNode | undefined;
@@ -131,21 +131,19 @@ export class CylNode extends ClassicPreset.Node {
 }
 
 function makeInputNode(): CylNode {
-  const n = new CylNode("input_", "input");
+  const n = new CylNode("_input_", "input");
   for (let i = 0; i < 4; i++) n.addOutput(`in${i}`, new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
   return n;
 }
 function makeOutputNode(): CylNode {
-  const n = new CylNode("output_", "output");
+  const n = new CylNode("_output_", "output");
   for (let i = 0; i < 4; i++) n.addInput(`out${i}`, new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
   return n;
 }
 export function makeNullNode(): CylNode {
   const n = new CylNode("null", "null");
-  for (let i = 0; i < 4; i++) {
-    n.addInput(`in${i}`, new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
-    n.addOutput(`out${i}`, new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
-  }
+  n.addInput("in0", new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
+  n.addOutput("out0", new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
   return n;
 }
 
@@ -221,6 +219,7 @@ export async function createReteGraph(
   attachFlagMenu(g.editor, g.area, container, (n) => handlers.onFlagsChanged?.(n.kind, { ...n.flags }));
   attachMMBPan(g.area, container);
   attachDotGrid(g.area, container);
+  initTooltip(container);
 
   // Houdini display semantics: only ONE node per network may be displayed.
   // Clicking a node's display chip clears all others and lights this one.
@@ -488,6 +487,31 @@ function attachFlagMenu(
     }
   });
   container.addEventListener("pointerdown", () => close());
+}
+
+/** Custom floating tooltip (dark rounded chip) replacing the native title tooltip. */
+let tooltipEl: HTMLDivElement | null = null;
+export function initTooltip(container: HTMLElement): void {
+  if (tooltipEl) return;
+  tooltipEl = document.createElement("div");
+  tooltipEl.className = "cyl-tooltip hidden";
+  container.appendChild(tooltipEl);
+}
+export function showTooltip(x: number, y: number, text: string): void {
+  if (!tooltipEl) return;
+  tooltipEl.textContent = text;
+  tooltipEl.classList.remove("hidden");
+  const parent = tooltipEl.parentElement;
+  const rect = parent?.getBoundingClientRect();
+  if (rect) {
+    const w = tooltipEl.offsetWidth;
+    const h = tooltipEl.offsetHeight;
+    tooltipEl.style.left = `${Math.min(x - rect.left + 12, rect.width - w - 8)}px`;
+    tooltipEl.style.top = `${Math.min(y - rect.top + 16, rect.height - h - 8)}px`;
+  }
+}
+export function hideTooltip(): void {
+  tooltipEl?.classList.add("hidden");
 }
 
 // ---------------------------------------------------------------------------
