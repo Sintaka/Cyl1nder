@@ -12,7 +12,7 @@ import time
 
 from pydantic import BaseModel, Field
 
-VERSION = "0.1.00007"
+VERSION = "0.1.00008"
 HOST = "127.0.0.1"
 PORT = 8375
 BASE_URL = f"http://{HOST}:{PORT}"
