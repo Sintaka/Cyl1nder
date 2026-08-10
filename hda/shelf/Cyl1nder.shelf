@@ -1,9 +1,11 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <shelfDocument>
   <!-- Cyl1nder shelf: hot-reload tools for the Houdini <-> WebGL bridge.
        Install: copy this file to %USERPROFILE%\Documents\houdini22.0\toolbar\
        (new buttons appear on next Houdini start / shelf refresh; the tool
-       scripts exec() files from disk on click, so their logic is hot-reload). -->
+       scripts exec() files from disk on click, so their logic is hot-reload).
+       Toggle/Reload Bridge run on a background thread: Houdini's main thread
+       is never blocked; results land in the status bar + bridge_control.log. -->
   <toolshelf name="Cyl1nder" label="Cyl1nder">
     <memberTool name="cyl1nder::reload_hda"/>
     <memberTool name="cyl1nder::reload_bridge"/>
@@ -23,26 +25,67 @@ hou.ui.displayMessage("Cyl1nder HDA reloaded", title="Cyl1nder")
   </tool>
 
   <tool name="cyl1nder::reload_bridge" label="Reload Bridge" icon="MISC_python">
-    <helpText><![CDATA[Restart the Cyl1nder bridge process (127.0.0.1:8375). Pure Python (netstat/taskkill + Popen), no PowerShell.
-HDA keeps working offline; next recook re-pushes inputs.]]></helpText>
+    <helpText><![CDATA[Restart the Cyl1nder bridge (127.0.0.1:8375) in its own visible console window.
+Runs in a background thread: Houdini is NOT blocked. Result: status bar + bridge_control.log.]]></helpText>
     <script scriptType="python"><![CDATA[
 import hou
+import threading
 exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/bridge_control.py", encoding="utf-8-sig").read())
-hou.ui.displayMessage(restart_bridge(), title="Cyl1nder Bridge")
+
+def _run():
+    msg = restart_bridge()
+    log_result("[shelf:reload] " + msg)
+    try:
+        import hdefereval
+        def _post():
+            try:
+                hou.ui.setStatusMessage("Cyl1nder bridge: " + msg, severity=hou.severityType.Message)
+            except Exception:
+                pass
+        hdefereval.executeInMainThread(_post)
+    except Exception:
+        pass
+
+threading.Thread(target=_run, daemon=True).start()
+try:
+    hou.ui.setStatusMessage("Cyl1nder: bridge restart running in background...", severity=hou.severityType.Message)
+except Exception:
+    pass
 ]]></script>
   </tool>
 
   <tool name="cyl1nder::toggle_bridge" label="Toggle Bridge" icon="MISC_python">
-    <helpText><![CDATA[Start the bridge if it is offline, stop it if it is online (127.0.0.1:8375). Pure Python.]]></helpText>
+    <helpText><![CDATA[Start the bridge (own visible console) if offline, stop it (closes the console) if online.
+Runs in a background thread: Houdini is NOT blocked. Result: status bar + bridge_control.log.]]></helpText>
     <script scriptType="python"><![CDATA[
 import hou
+import threading
 exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/bridge_control.py", encoding="utf-8-sig").read())
-hou.ui.displayMessage(toggle_bridge(), title="Cyl1nder Bridge")
+
+def _run():
+    msg = toggle_bridge()
+    log_result("[shelf:toggle] " + msg)
+    try:
+        import hdefereval
+        def _post():
+            try:
+                hou.ui.setStatusMessage("Cyl1nder bridge: " + msg, severity=hou.severityType.Message)
+            except Exception:
+                pass
+        hdefereval.executeInMainThread(_post)
+    except Exception:
+        pass
+
+threading.Thread(target=_run, daemon=True).start()
+try:
+    hou.ui.setStatusMessage("Cyl1nder: bridge toggle running in background...", severity=hou.severityType.Message)
+except Exception:
+    pass
 ]]></script>
   </tool>
 
   <tool name="cyl1nder::status_bridge" label="Status Bridge" icon="MISC_python">
-    <helpText><![CDATA[Show bridge status: /api/health version + serial count, or offline / port-occupied report. Pure Python.]]></helpText>
+    <helpText><![CDATA[Show bridge status: /api/health version + serial count, or offline / port-occupied report. Pure Python, fast.]]></helpText>
     <script scriptType="python"><![CDATA[
 import hou
 exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/bridge_control.py", encoding="utf-8-sig").read())

@@ -6,6 +6,7 @@ is hot-reload friendly - no HDA rebuild needed (Houdini reloads the module).
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import threading
 import time
@@ -51,6 +52,7 @@ def _ensure_bridge(root: hou.Node) -> None:
         subprocess.Popen(
             [BRIDGE_PY, "-m", "bridge"],
             cwd=BRIDGE_CWD,
+            env={k: v for k, v in os.environ.items() if not k.upper().startswith("PYTHON")},
             creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW,
         )
         _set_status(root, "starting bridge...")

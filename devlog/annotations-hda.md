@@ -49,3 +49,15 @@
 - **reload_hda 输出去中文**：docstring + `[reload_hda] done...` 改为纯英文（bridge 重启提示：`cd bridge; .venv\Scripts\python -m bridge`）；reload_hda.py 现为 ASCII-only。
 - **验证**：模拟 shelf exec（`encoding="utf-8-sig"`）→ `status_bridge()` 正常返回 ONLINE；`reload_hda.py` py_compile 通过；bridge pytest 19 passed；shelf XML 合法且已同步到 Houdini toolbar。
 - **fxhoudinimcp HTTP 直连验证**（官方 bridge 后门）：`mcp.health` OK（pid 56768, Houdini 22.0.368, 188 commands），发现 `shelf.run_shelf_tool` 可触发按钮；但 Houdini 主线程对 HOM 调用（execute_python / scene_info）超时——疑似有模态对话框（先前点按钮的错误弹窗/displayMessage）或正在 cook 阻塞主线程，等用户确认空闲后可再触发。
+
+## v0.1.00010（2026-08-10）
+- **根因修复：从 Houdini 拉不起桥 = PYTHONHOME/PYTHONPATH 污染**。
+  - Houdini 环境导出 `PYTHONHOME=C:/PROGRA~1/SIDEEF~1/HOUDIN~1.368/python311`、`PYTHONPATH=<另一venv>;D:/code/dev/Cyl1nder/hda/src`。
+  - 被拉起的 venv Python 3.12 继承后，site 初始化从 **Houdini 的 3.11 stdlib** 导入 pathlib/re → `SRE module mismatch` → 进程启动即崩（exit code 1）。shelf 里 `bridge_healthy` 轮询永远失败 → "failed to start"。
+  - 修复：`start_bridge()` 与 HDA `_ensure_bridge()` spawn 时 `env={k:v for k,v in os.environ.items() if not k.upper().startswith("PYTHON")}`（剥离 PYTHONHOME/PYTHONPATH）。
+- **桥改为独立可见控制台**：`subprocess.CREATE_NEW_CONSOLE`（不再是隐藏窗口）——与你手动 `cd bridge; python -m bridge` 的体验一致；kill 时窗口随之关闭。
+- **shelf 非阻塞**：Toggle/Reload Bridge 在后台线程执行（Houdini 主线程立即返回），结果写 `bridge/bridge_control.log` + 状态栏（`hou.severityType.Message`；注意 Houdini 枚举**没有** `Info`，用 `Message`）+ `hdefereval.executeInMainThread` 安全投递。
+- **失败可诊断**：start_bridge 区分 "spawn 异常" / "进程提前退出(code N)" / "10s 未健康"，并返回 pid；窗口本身可见可查。
+- **验证（fxhoudinimcp HTTP 直连 Houdini）**：`shelf.run_shelf_tool cyl1nder::toggle_bridge` 从 Houdini 内触发——stop→DOWN ✓、start→2s ok ✓；新版脚本（severityType.Message）在 Houdini 内执行无错 ✓。
+- ⚠️ 当前 Houdini 会话内存里的 shelf 仍是旧脚本（主线程那行 severityType.Info 会报一次 Python 错，但不影响 toggle 逻辑）；**重启 Houdini（或刷新 shelf）后彻底干净**。
+- 坑记录：`cmd /c start` 在本环境无法启动新进程（所有变体 NOT RUN）；`CREATE_NEW_CONSOLE` 直接 Popen 才有效。
