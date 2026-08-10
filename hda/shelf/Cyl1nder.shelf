@@ -16,7 +16,7 @@
 For definition-level reload (network/parms/buttons) use reload_cyl1nder(definition=True) in the Python Shell.]]></helpText>
     <script scriptType="python"><![CDATA[
 import hou
-exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/reload_hda.py").read())
+exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/reload_hda.py", encoding="utf-8-sig").read())
 reload_cyl1nder()
 hou.ui.displayMessage("Cyl1nder HDA reloaded", title="Cyl1nder")
 ]]></script>
@@ -27,7 +27,7 @@ hou.ui.displayMessage("Cyl1nder HDA reloaded", title="Cyl1nder")
 HDA keeps working offline; next recook re-pushes inputs.]]></helpText>
     <script scriptType="python"><![CDATA[
 import hou
-exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/bridge_control.py", encoding="utf-8").read())
+exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/bridge_control.py", encoding="utf-8-sig").read())
 hou.ui.displayMessage(restart_bridge(), title="Cyl1nder Bridge")
 ]]></script>
   </tool>
@@ -36,7 +36,7 @@ hou.ui.displayMessage(restart_bridge(), title="Cyl1nder Bridge")
     <helpText><![CDATA[Start the bridge if it is offline, stop it if it is online (127.0.0.1:8375). Pure Python.]]></helpText>
     <script scriptType="python"><![CDATA[
 import hou
-exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/bridge_control.py", encoding="utf-8").read())
+exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/bridge_control.py", encoding="utf-8-sig").read())
 hou.ui.displayMessage(toggle_bridge(), title="Cyl1nder Bridge")
 ]]></script>
   </tool>
@@ -45,7 +45,7 @@ hou.ui.displayMessage(toggle_bridge(), title="Cyl1nder Bridge")
     <helpText><![CDATA[Show bridge status: /api/health version + serial count, or offline / port-occupied report. Pure Python.]]></helpText>
     <script scriptType="python"><![CDATA[
 import hou
-exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/bridge_control.py", encoding="utf-8").read())
+exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/bridge_control.py", encoding="utf-8-sig").read())
 hou.ui.displayMessage(status_bridge(), title="Cyl1nder Bridge")
 ]]></script>
   </tool>

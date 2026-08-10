@@ -1,4 +1,4 @@
-﻿"""Compute executor interface - reserved for JS/Python/DLL backends.
+"""Compute executor interface - reserved for JS/Python/DLL backends.
 
 v1 ships a passthrough executor + a ctypes demo stub showing how a native
 pyd/dll backend plugs in later. The bridge does NOT run compute in v1

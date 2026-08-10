@@ -1,4 +1,4 @@
-﻿from bridge.protocol import InputPayload, OutputBuffer
+from bridge.protocol import InputPayload, OutputBuffer
 from bridge.workspace import WorkspaceStore
 
 SERIAL = "C1-aaaaaaaa-bbbb"

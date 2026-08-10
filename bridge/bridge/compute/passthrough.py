@@ -1,4 +1,4 @@
-﻿"""passthrough executor: each input index becomes an output index with same geometry."""
+"""passthrough executor: each input index becomes an output index with same geometry."""
 from __future__ import annotations
 
 from ..protocol import InputPayload, OutputBuffer

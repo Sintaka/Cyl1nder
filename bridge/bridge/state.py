@@ -1,4 +1,4 @@
-﻿"""Shared bridge state singleton used by REST / WS / MCP."""
+"""Shared bridge state singleton used by REST / WS / MCP."""
 from __future__ import annotations
 
 import os

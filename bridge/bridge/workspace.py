@@ -1,4 +1,4 @@
-﻿"""Per-serial workspace: latest inputs + revisioned output buffers."""
+"""Per-serial workspace: latest inputs + revisioned output buffers."""
 from __future__ import annotations
 
 import threading

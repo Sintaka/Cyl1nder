@@ -1,4 +1,4 @@
-﻿"""WebSocket endpoint: per-serial channel (ws://127.0.0.1:8375/ws?serial=...)."""
+"""WebSocket endpoint: per-serial channel (ws://127.0.0.1:8375/ws?serial=...)."""
 from __future__ import annotations
 
 import threading

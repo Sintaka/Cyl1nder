@@ -1,4 +1,4 @@
-﻿"""Cyl1nder bridge MCP (stdio).
+"""Cyl1nder bridge MCP (stdio).
 
 Run:  python -m bridge.mcp_server
 Codex config example (config.toml):

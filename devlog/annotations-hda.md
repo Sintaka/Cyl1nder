@@ -41,3 +41,11 @@
   - shelf 已同步到 `%USERPROFILE%\Documents\houdini22.0\toolbar\Cyl1nder.shelf`。按钮逻辑 exec 磁盘文件→热更；**新按钮需 Houdini 重启/shelf 刷新一次才出现**。
 - **实测**：status→OFFLINE、toggle 起→ONLINE v0.1.00006 serials=26、toggle 停→OFFLINE、restart→healthy；桥最终由 restart 拉起（HDA autostart 兜底）。
 - **决策（Q4）**：前端 vite **不需要** Toggle/Status 按钮——桥生命周期由 Houdini 侧独占（HDA `bridge_autostart` + shelf），web 是被动消费者（状态点 + WS 重连 + 离线提示已覆盖"看状态"）；两方争抢启停同一进程会制造竞态。
+
+## v0.1.00009（2026-08-10）
+- **修复 shelf BOM 崩溃**：`bridge_control.py` 曾被 PowerShell `Set-Content -Encoding UTF8`（5.1）写入 UTF-8 BOM，shelf 按钮 `exec(open(...).read())` 报 `SyntaxError: invalid non-printable character U+FEFF`。
+  - 已字节级剥离全部 `.py` 的 BOM（bridge/ 18 个 + hda/scripts），统一 UTF-8 no BOM。
+  - **经验**：shelf/exec 脚本一律 `exec(open(path, encoding="utf-8-sig").read())`——`utf-8-sig` 自动剥 BOM，杜绝复发。
+- **reload_hda 输出去中文**：docstring + `[reload_hda] done...` 改为纯英文（bridge 重启提示：`cd bridge; .venv\Scripts\python -m bridge`）；reload_hda.py 现为 ASCII-only。
+- **验证**：模拟 shelf exec（`encoding="utf-8-sig"`）→ `status_bridge()` 正常返回 ONLINE；`reload_hda.py` py_compile 通过；bridge pytest 19 passed；shelf XML 合法且已同步到 Houdini toolbar。
+- **fxhoudinimcp HTTP 直连验证**（官方 bridge 后门）：`mcp.health` OK（pid 56768, Houdini 22.0.368, 188 commands），发现 `shelf.run_shelf_tool` 可触发按钮；但 Houdini 主线程对 HOM 调用（execute_python / scene_info）超时——疑似有模态对话框（先前点按钮的错误弹窗/displayMessage）或正在 cook 阻塞主线程，等用户确认空闲后可再触发。

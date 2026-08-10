@@ -1,14 +1,15 @@
-"""Cyl1nder 免重启热重载（在 Houdini Python Shell 里执行）。
+"""Cyl1nder restart-free hot reload (run inside the Houdini Python Shell).
 
-用法:
+Usage:
     exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/reload_hda.py").read())
-    reload_cyl1nder()                  # 1) 重载 hda/src 运行时模块 + 强制所有实例重跑（最快路径）
-    reload_cyl1nder(definition=True)   # 2) 额外：重建并热重载 .hda 定义（改了内部网络/参数/按钮）
+    reload_cyl1nder()                  # 1) reload hda/src runtime modules + force recook all instances (fastest)
+    reload_cyl1nder(definition=True)   # 2) also rebuild + hot-reload the .hda definition (network/parms/buttons)
 
-要点:
-- python SOP 默认缓存，普通 cook() 不重跑脚本 -> 用 cook(force=True) 强制。
-- 实例已设 maintainstate=0：之后每次 HDA recook（改参数/输入/Pull Now）都会自动重跑新代码。
-- 改 bridge 进程的代码不在此列：重启 bridge 进程即可（与 Houdini 无关）。
+Notes:
+- Python SOPs cache by default; a plain cook() does NOT rerun the script -> use cook(force=True).
+- Instances already have maintainstate=0: every later HDA recook (parm change / input / Pull Now)
+  reruns the new code automatically.
+- Bridge process code is NOT covered here: restart the bridge process (cd bridge; .venv\\Scripts\\python -m bridge).
 """
 from __future__ import annotations
 
@@ -84,4 +85,4 @@ def reload_cyl1nder(definition: bool = False) -> None:
         _rebuild_hda()
         _reload_definition()
         _force_recook_all()
-    print("[reload_hda] done. bridge 进程代码改动请重启 bridge（cd bridge; .venv\\Scripts\\python -m bridge）")
+    print("[reload_hda] done. Bridge process code changes need a bridge restart (cd bridge; .venv\\Scripts\\python -m bridge)")

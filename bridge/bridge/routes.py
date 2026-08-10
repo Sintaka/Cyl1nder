@@ -1,4 +1,4 @@
-﻿"""REST routes: health / serials / per-serial inputs / outputs / logs."""
+"""REST routes: health / serials / per-serial inputs / outputs / logs."""
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query

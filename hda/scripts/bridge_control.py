@@ -1,4 +1,4 @@
-﻿"""Bridge process control for Cyl1nder shelf tools (pure Python, no PowerShell).
+"""Bridge process control for Cyl1nder shelf tools (pure Python, no PowerShell).
 
 Runs in Houdini's Python 3.11 (stdlib only).
 - find PID: netstat -ano (terminal util)

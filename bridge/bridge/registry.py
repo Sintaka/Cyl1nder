@@ -1,4 +1,4 @@
-﻿"""Per-HDA serial registry.
+"""Per-HDA serial registry.
 
 Rules (see devlog/decisions.md):
 - serial is created ONCE on the HDA node (hidden parm cyl1nder_serial) and never changes.

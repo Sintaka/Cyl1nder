@@ -1,4 +1,4 @@
-﻿"""FastAPI app factory + module-level app for uvicorn."""
+"""FastAPI app factory + module-level app for uvicorn."""
 from __future__ import annotations
 
 from fastapi import FastAPI

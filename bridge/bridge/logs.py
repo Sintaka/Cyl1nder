@@ -1,4 +1,4 @@
-﻿"""Ring-buffer logs shared by REST/WS/MCP."""
+"""Ring-buffer logs shared by REST/WS/MCP."""
 from __future__ import annotations
 
 import threading

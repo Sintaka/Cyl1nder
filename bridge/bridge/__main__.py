@@ -1,4 +1,4 @@
-﻿"""python -m bridge : start REST + WebSocket server on 127.0.0.1:8375."""
+"""python -m bridge : start REST + WebSocket server on 127.0.0.1:8375."""
 import uvicorn
 
 from .protocol import HOST, PORT
