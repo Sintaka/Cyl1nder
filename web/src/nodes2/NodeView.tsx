@@ -2,20 +2,19 @@
  * Custom React node view for the Cyl1nder rete graph (Houdini-SOP style).
  * Rendered via Presets.classic.setup({ customize: { node: NodeView } }).
  *
- * - Houdini display button (blue rounded chip, top-right, one per network):
- *   clicking it makes THIS node the only display node.
- * - ports rendered with RefSocket (real sockets, no big blue container);
- *   each port div carries data-port-id for viewport linkage.
- * - stats line + flag badges (bypass/freeze/wireframe).
+ * - Node header: name top-left (double-click to rename), 4 state chips top-right
+ *   (from right to left): Display (light blue, one per network) / Reference (pink) /
+ *   Bypass (yellow) / Freeze (icy blue). Reference/Bypass/Freeze are per-node toggles.
+ * - ports rendered with RefSocket; each port div carries data-port-id for linkage.
  */
-import React, { useEffect, useReducer, useRef } from "react";
+import React, { useEffect, useReducer, useRef, useState } from "react";
 import { ClassicPreset } from "rete";
 import { Presets } from "rete-react-plugin";
-const { RefSocket } = Presets.classic;
-import type { ClassicScheme, RenderEmit, ReactArea2D } from "rete-react-plugin";
-import type { NodeId } from "rete";
-import { hideTooltip, showTooltip } from "./graph";
+import type { ClassicScheme, ReactArea2D, RenderEmit } from "rete-react-plugin";
+import { fireNodeState, showTooltip, hideTooltip } from "./graph";
 import type { CylNode } from "./graph";
+
+const { RefSocket } = Presets.classic;
 
 /** Module-level display handler registered by createReteGraph. */
 let displayHandler: ((nodeId: string) => void) | null = null;
@@ -43,20 +42,44 @@ export function NodeView({ data, emit }: Props) {
   const [, force] = useReducer((x: number) => x + 1, 0);
   useEffect(() => subscribeNodeChanged(() => force()), []);
   const btnRef = useRef<HTMLButtonElement>(null);
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(node.label);
+  const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    const el = btnRef.current;
-    if (!el) return;
-    // native capture listener: area-plugin stops bubbling of React synthetic events
-    const onDown = (e: PointerEvent) => {
-      e.stopPropagation();
-      displayHandler?.(node.id as string);
-    };
-    el.addEventListener("pointerdown", onDown, true);
-    return () => el.removeEventListener("pointerdown", onDown, true);
-  }, [node.id]);
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
   const inputs = Object.entries(node.inputs);
   const outputs = Object.entries(node.outputs);
-  const flags = node.flags ?? { display: false, bypass: false, freeze: false, wireframe: false };
+  const flags = node.flags ?? { display: false, bypass: false, freeze: false, reference: false };
+
+  const commitName = () => {
+    const v = name.trim();
+    if (v && v !== node.label) {
+      node.label = v;
+      node.baseLabel = v;
+      notifyNodeChanged();
+    }
+    setEditing(false);
+  };
+
+  const chip = (
+    key: "display" | "reference" | "bypass" | "freeze",
+    label: string,
+    active: boolean,
+    title: string,
+  ) => (
+    <button
+      type="button"
+      className={`cyl-ns ${key} ${active ? "on" : ""}`}
+      title={title}
+      onPointerDownCapture={(e) => {
+        e.stopPropagation();
+        fireNodeState(node.id as string, key);
+      }}
+    >
+      {label}
+    </button>
+  );
 
   const port = (
     side: "input" | "output",
@@ -73,35 +96,53 @@ export function NodeView({ data, emit }: Props) {
       onMouseMove={(e) => showTooltip(e.clientX, e.clientY, `${side} · ${label} (${socket.name})`)}
       onMouseLeave={() => hideTooltip()}
     >
-      {side === "input" && <RefSocket name="input" side="input" emit={emit} nodeId={node.id as NodeId} socketKey={key} payload={socket} />}
+      {side === "input" && <RefSocket name="input" side="input" emit={emit} nodeId={node.id as string as never} socketKey={key} payload={socket} />}
       <span className="cyl-rp-port-label">{label}</span>
-      {side === "output" && <RefSocket name="output" side="output" emit={emit} nodeId={node.id as NodeId} socketKey={key} payload={socket} />}
+      {side === "output" && <RefSocket name="output" side="output" emit={emit} nodeId={node.id as string as never} socketKey={key} payload={socket} />}
     </div>
   );
 
   return (
     <div
       className={`cyl-rp-node ${flags.bypass ? "bypass" : ""} ${flags.freeze ? "freeze" : ""} ${
-        flags.wireframe ? "wireframe" : ""
-      } ${flags.display ? "displayed" : ""}`}
+        flags.reference ? "reference" : ""
+      } ${flags.display ? "displayed" : ""} ${node.selected ? "selected" : ""}`}
     >
       <div className="cyl-rp-head">
-        <span className="cyl-rp-title">{node.label}</span>
-        <span className="cyl-rp-badges">
-          {flags.bypass ? "⏭" : ""}
-          {flags.freeze ? "🔒" : ""}
-          {flags.wireframe ? "⛶" : ""}
-        </span>
-        <button
-          ref={btnRef}
-          type="button"
-          className={`cyl-rp-display ${flags.display ? "on" : ""}`}
-          onMouseEnter={(e) => showTooltip(e.clientX, e.clientY, "Display: show this node's output (one per network)")}
-          onMouseMove={(e) => showTooltip(e.clientX, e.clientY, "Display: show this node's output (one per network)")}
-          onMouseLeave={() => hideTooltip()}
-        >
-          D
-        </button>
+        {editing ? (
+          <input
+            ref={inputRef}
+            className="cyl-rp-rename"
+            value={name}
+            spellCheck={false}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitName();
+              if (e.key === "Escape") setEditing(false);
+              e.stopPropagation();
+            }}
+            onBlur={commitName}
+            onPointerDownCapture={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span
+            className="cyl-rp-title"
+            title="double-click to rename"
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setName(node.label);
+              setEditing(true);
+            }}
+          >
+            {node.label}
+          </span>
+        )}
+        <div className="cyl-rp-chips">
+          {chip("display", "D", flags.display, "Display (one per network, light blue)")}
+          {chip("reference", "R", flags.reference, "Reference (pink, no logic yet)")}
+          {chip("bypass", "B", flags.bypass, "Bypass (yellow, no logic yet)")}
+          {chip("freeze", "F", flags.freeze, "Freeze (icy blue, no logic yet)")}
+        </div>
       </div>
       {node.stats ? <div className="cyl-rp-stats">{node.stats}</div> : null}
       <div className="cyl-rp-ports">

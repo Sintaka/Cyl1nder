@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { CurveData, InputPayload, OutputBuffer } from "../protocol/types";
 
-export const INPUT_COLORS = [0x4fc3f7, 0xffb74d, 0x81c784, 0xba68c8];
+export const INPUT_COLORS = [0x666666, 0x666666, 0x666666, 0x666666]; // default 0.4 grey (no per-port colors)
 export const OUTPUT_COLOR = 0xff5252;
 
 function toVec(p: number[]): THREE.Vector3 {
@@ -55,8 +55,8 @@ export function buildMeshFaces(points: number[][], faces: number[][], color: num
   geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geo.setIndex(tri);
   geo.computeVertexNormals(); // MeshLambertMaterial requires normals; without them faces don't shade
-  const face = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x9aa0a6, side: THREE.DoubleSide }));
-  const wire = buildWireSegments(points, faces, color);
+  const face = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x666666, side: THREE.DoubleSide }));
+  const wire = buildWireSegments(points, faces, 0x000000); // wireframe = black
   if (wire) wire.visible = false;
   const group = new THREE.Group();
   group.add(face);

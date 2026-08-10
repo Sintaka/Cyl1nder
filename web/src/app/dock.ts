@@ -124,9 +124,27 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
   });
 
   // NOTE: dockview 7 fromJSON drops content renderers on 5-panel layouts (observed
-  // with the Log panel: the tab survives but .cyl-log leaves the DOM). Layout restore
-  // via fromJSON is therefore disabled; we always start from the programmatic default
-  // below and keep saving the user's arrangement for future restore-once the bug is
-  // understood or worked around.
+  // with the Log panel: the tab survives but .cyl-log leaves the DOM). applyLayout
+  // uses fromJSON (best effort) and re-attaches any orphaned content afterwards.
   return dv;
+}
+
+/** Apply a saved layout JSON (best effort); re-attach orphaned content elements. */
+export function applyLayout(dv: DockviewComponent, json: unknown, content: DockContent): void {
+  try {
+    (dv as unknown as { fromJSON(d: unknown, o: { reuseExistingPanels: boolean }): void }).fromJSON(
+      json as Parameters<DockviewComponent["fromJSON"]>[0],
+      { reuseExistingPanels: true },
+    );
+  } catch {
+    /* fall through to re-attach */
+  }
+  setTimeout(() => {
+    for (const [id, el] of Object.entries(content)) {
+      if (el.isConnected) continue;
+      const panel = dv.getPanel(id) as { view?: { content?: { element?: HTMLElement } } } | undefined;
+      const contentEl = panel?.view?.content?.element;
+      if (contentEl && !el.isConnected) contentEl.appendChild(el);
+    }
+  }, 250);
 }

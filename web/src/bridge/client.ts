@@ -97,6 +97,21 @@ export class BridgeClient {
     );
   }
 
+  /** Named desktop layouts (Documents/Cyl1nder/Layouts). */
+  async listLayouts(): Promise<string[]> {
+    return json<{ layouts: string[] }>(await fetch(`${this.base}/api/ui/layouts`)).then((r) => r.layouts);
+  }
+  async saveLayout(name: string, layout: unknown): Promise<{ ok: boolean; name: string }> {
+    return json(await fetch(`${this.base}/api/ui/layouts/${encodeURIComponent(name)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ layout }),
+    }));
+  }
+  async loadLayout(name: string): Promise<{ name: string; layout: unknown | null }> {
+    return json(await fetch(`${this.base}/api/ui/layouts/${encodeURIComponent(name)}`));
+  }
+
   async getLogs(serial?: string, level?: string, limit = 200): Promise<LogEntry[]> {
     const q = new URLSearchParams({ limit: String(limit) });
     if (serial) q.set("serial", serial);

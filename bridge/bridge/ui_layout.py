@@ -31,3 +31,44 @@ class UiLayoutStore:
             tmp.replace(self._path)
         except OSError:
             pass
+
+import os
+
+# Named layouts live in the user Documents folder (shared across browsers).
+_LAYOUT_DIR = Path(os.environ.get("CYL1NDER_LAYOUTS_DIR", str(Path.home() / "Documents" / "Cyl1nder" / "Layouts")))
+
+
+def list_layouts() -> list[str]:
+    """List named layouts (sorted by name)."""
+    if not _LAYOUT_DIR.exists():
+        return []
+    return sorted(p.stem for p in _LAYOUT_DIR.glob("*.json"))
+
+
+def save_layout(name: str, layout: Any) -> bool:
+    """Save a named layout (overwrites same-name file). Returns True on success."""
+    if not name or not name.strip():
+        return False
+    safe = "".join(c for c in name.strip() if c not in "/\\:*?\"<>|")
+    if not safe:
+        return False
+    try:
+        _LAYOUT_DIR.mkdir(parents=True, exist_ok=True)
+        target = _LAYOUT_DIR / f"{safe}.json"
+        tmp = target.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(layout, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.replace(target)
+        return True
+    except OSError:
+        return False
+
+
+def load_layout(name: str) -> Any | None:
+    """Load a named layout; returns None when missing."""
+    target = _LAYOUT_DIR / f"{name.strip()}.json"
+    if not target.exists():
+        return None
+    try:
+        return json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None

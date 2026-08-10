@@ -1,6 +1,6 @@
 import "./styles.css";
 import { buildLayout } from "./app/layout";
-import { setupDock } from "./app/dock";
+import { applyLayout, setupDock } from "./app/dock";
 import { renderSpreadsheet } from "./app/spreadsheet";
 import { store } from "./stores/workspace";
 import { BridgeClient, connectWs } from "./bridge/client";
@@ -10,19 +10,155 @@ import { APP_VERSION } from "./app/app-config";
 import { inputsEqual } from "./protocol/compare";
 import type { OutputBuffer } from "./protocol/types";
 
+/** Log categories: geo data / viewport / ui / bridge(python runtime). */
+let logFilter = "all";
+const logCategories: [string, string][] = [
+  ["all", "All"],
+  ["geo", "Geo"],
+  ["viewport", "Viewport"],
+  ["ui", "UI"],
+  ["bridge", "Bridge"],
+];
+const categorize = (m: string): string => {
+  if (/\[viewport\]/.test(m)) return "viewport";
+  if (/inputs rev=|outputs|\[mesh\]|\[path\]|pushed|rev=/i.test(m)) return "geo";
+  if (/\[layout\]|\[node\]|\[file\]|display|visibility/i.test(m)) return "ui";
+  if (/\[bridge\]|python|runtime/i.test(m)) return "bridge";
+  return "ui";
+};
+const matchLogFilter = (m: string) => logFilter === "all" || categorize(m) === logFilter;
+const renderLog = () => {
+  const body = layout.logEl.querySelector(".cyl-log-body");
+  if (body) body.textContent = store.logs.filter(matchLogFilter).slice(-40).join("\n");
+};
+
 const layout = buildLayout(document.getElementById("app")!);
+const client = new BridgeClient();
+// log filter bar (inserted above the log content inside the dock panel)
+const logFilterBar = document.createElement("div");
+logFilterBar.className = "cyl-log-filter";
+logFilterBar.innerHTML = logCategories
+  .map(([k, label]) => `<button data-filter="${k}" class="${k === "all" ? "active" : ""}">${label}</button>`)
+  .join("");
+logFilterBar.addEventListener("click", (e) => {
+  const btn = (e.target as HTMLElement).closest?.("button");
+  if (!btn) return;
+  logFilter = (btn as HTMLElement).dataset.filter ?? "all";
+  logFilterBar.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === btn));
+  renderLog();
+});
+layout.logEl.classList.add("cyl-log-panel");
+layout.logEl.innerHTML = "";
+const logBody = document.createElement("pre");
+logBody.className = "cyl-log-body";
+layout.logEl.appendChild(logFilterBar);
+layout.logEl.appendChild(logBody);
 const spreadsheetEl = document.createElement("div");
 spreadsheetEl.id = "cyl-spreadsheet";
 spreadsheetEl.className = "cyl-spreadsheet";
-setupDock(layout.dockContainer, {
+const dv = setupDock(layout.dockContainer, {
   graph: layout.graphContainer,
   viewport: layout.viewportContainer,
   inspector: layout.inspectorEl,
   log: layout.logEl,
   spreadsheet: spreadsheetEl,
 });
-const client = new BridgeClient();
 
+// ---------------- menu bar (File / Layout) ----------------
+layout.root.querySelectorAll(".cyl-menu").forEach((menu) => {
+  const label = menu.querySelector(".cyl-menu-label") as HTMLElement;
+  const drop = menu.querySelector(".cyl-menu-drop") as HTMLElement;
+  const toggle = (open?: boolean) => {
+    drop.classList.toggle("open", open ?? !drop.classList.contains("open"));
+  };
+  label.addEventListener("pointerdown", (e) => {
+    e.stopPropagation();
+    toggle();
+  });
+  // close other menus when one opens
+  document.addEventListener("pointerdown", (ev) => {
+    if (!drop.contains(ev.target as Node)) toggle(false);
+  }, { capture: true });
+});
+
+let currentLayoutName = "Desk1";
+const getDockJson = () => (dv as unknown as { toJSON(): unknown }).toJSON();
+const saveCurrentLayout = (name: string) => {
+  void client.saveLayout(name, getDockJson()).then((r) => {
+    if (r.ok) {
+      currentLayoutName = name;
+      store.pushLog(`[layout] saved "${name}"`);
+    }
+  });
+};
+const refreshLayoutPresets = () => {
+  void client.listLayouts().then((names) => {
+    layout.layoutPresets.innerHTML = names.length
+      ? names.map((n) => `<button class="cyl-layout-preset" data-name="${n}">${n}</button>`).join("")
+      : `<div class="cyl-menu-empty">no saved layouts</div>`;
+    layout.layoutPresets.querySelectorAll(".cyl-layout-preset").forEach((b) => {
+      b.addEventListener("click", () => {
+        const name = (b as HTMLElement).dataset.name ?? "";
+        void client.loadLayout(name).then((r) => {
+          if (r.layout) {
+            applyLayout(dv, r.layout, {
+              graph: layout.graphContainer,
+              viewport: layout.viewportContainer,
+              inspector: layout.inspectorEl,
+              log: layout.logEl,
+              spreadsheet: spreadsheetEl,
+            });
+            currentLayoutName = name;
+            store.pushLog(`[layout] loaded "${name}"`);
+          }
+        });
+      });
+    });
+  });
+};
+void refreshLayoutPresets();
+
+layout.menuFile.querySelectorAll("button").forEach((b) => {
+  b.addEventListener("click", () => {
+    const act = (b as HTMLElement).dataset.act;
+    if (act === "save") {
+      if (!store.serial) return;
+      void client.putSnapshot(store.serial, { graph: graph.serializeGraph(), docking: getDockJson() });
+      store.pushLog("[file] scene saved");
+    } else if (act === "open") {
+      if (!store.serial) return;
+      void loadSnapshotIntoStore(store.serial);
+    } else if (act === "saveas") {
+      if (!store.serial) return;
+      void client.putSnapshot(store.serial, { graph: graph.serializeGraph(), docking: getDockJson() });
+      store.pushLog("[file] scene saved as current");
+    }
+  });
+});
+layout.menuLayout.querySelectorAll("button").forEach((b) => {
+  b.addEventListener("click", () => {
+    const act = (b as HTMLElement).dataset.act;
+    if (act === "save-layout") saveCurrentLayout(currentLayoutName);
+    else if (act === "save-layout-as") {
+      const name = window.prompt("Layout name (same name overwrites):", currentLayoutName);
+      if (name) saveCurrentLayout(name.trim());
+    } else if (act === "reload-layout") {
+      // re-apply the saved layout, else fall back to the programmatic Desk1
+      void client.loadLayout(currentLayoutName).then((r) => {
+        if (r.layout) {
+          applyLayout(dv, r.layout, {
+            graph: layout.graphContainer,
+            viewport: layout.viewportContainer,
+            inspector: layout.inspectorEl,
+            log: layout.logEl,
+            spreadsheet: spreadsheetEl,
+          });
+          store.pushLog(`[layout] reloaded "${currentLayoutName}"`);
+        }
+      });
+    }
+  });
+});
 const handlers: ReteGraphHandlers = {
   onNodePick: (kind, index, _nodeId) => viewport.pickByNode(kind, index),
   onFlagsChanged: (kind, flags) => {
@@ -51,7 +187,7 @@ const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuf
     .catch((e) => store.pushLog(`edit failed: ${String(e)}`));
 });
 
-/** Node flags -> viewport: display visibility + wireframe reference overlays. */
+/** Node flags -> viewport: display visibility + reference reference overlays. */
 function refreshNodeFlags(): void {
   // Viewport follows the node-view display flag of WHATEVER node is displayed,
   // at PORT level (not just node kind):
@@ -78,12 +214,12 @@ function refreshNodeFlags(): void {
   const inFlags = graph.getFlags("input");
   const outFlags = graph.getFlags("output");
   const refs: ReferenceItem[] = [];
-  if (inFlags?.wireframe) {
+  if (inFlags?.reference) {
     for (const inp of store.inputs) {
       if (inp.curves.length > 0) refs.push({ points: inp.points, curves: inp.curves, color: 0x4fc3f7 });
     }
   }
-  if (outFlags?.wireframe) {
+  if (outFlags?.reference) {
     const outRefs = store.outputs.flatMap((o) =>
       o.curves.length > 0 ? [{ points: o.points, curves: o.curves, color: 0xff5252 }] : [],
     );
@@ -131,7 +267,7 @@ store.subscribe(() => {
   graph.setStats("input", inputStatsText());
   graph.setStats("output", outputStatsText());
   renderInspector();
-  layout.logEl.textContent = store.logs.slice(-40).join("\n");
+  renderLog();
   layout.statusDot.className = `cyl-status ${store.status}`;
   viewport.refresh();
   refreshNodeFlags();

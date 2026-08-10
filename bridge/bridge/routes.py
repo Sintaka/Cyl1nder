@@ -6,6 +6,7 @@ from fastapi.responses import RedirectResponse
 
 from .protocol import InputsPut, OutputsPut, VERSION, WEB_UI_URL, is_valid_serial
 from .snapshot import build_meta, read_snapshot, write_snapshot
+from .ui_layout import UiLayoutStore, list_layouts, load_layout, save_layout
 from .state import get_state
 from .ws import manager
 
@@ -179,6 +180,26 @@ async def put_snapshot(serial: str, payload: dict) -> dict:
         docking=payload.get("docking"),
     )
     return {"ok": True, "serial": serial}
+
+
+@router.get("/api/ui/layouts")
+async def ui_layouts() -> dict:
+    """List named desktop layouts (Documents/Cyl1nder/Layouts)."""
+    return {"layouts": list_layouts()}
+
+
+@router.put("/api/ui/layouts/{name}")
+async def ui_layout_save(name: str, payload: dict) -> dict:
+    """Save (or overwrite) a named layout."""
+    ok = save_layout(name, payload.get("layout"))
+    return {"ok": ok, "name": name}
+
+
+@router.get("/api/ui/layouts/{name}")
+async def ui_layout_load(name: str) -> dict:
+    """Load a named layout."""
+    data = load_layout(name)
+    return {"name": name, "layout": data}
 
 
 @router.get("/api/logs")

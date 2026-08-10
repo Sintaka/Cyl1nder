@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **242** 个函数/类。
+> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **257** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -110,26 +110,29 @@
 | `_save` | 120 | def |  | 2 |
 | `_load` | 129 | def |  | 2 |
 
-## bridge/bridge/routes.py（190 行）
+## bridge/bridge/routes.py（211 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_maybe_snapshot` | 19 | def |  | 3 |
-| `root` | 40 | def |  | 1 |
-| `_check_serial` | 47 | def |  | 9 |
-| `health` | 53 | def |  | 1 |
-| `list_serials` | 59 | def |  | 1 |
-| `status` | 64 | def |  | 2 |
-| `put_inputs` | 76 | def |  | 1 |
-| `get_outputs` | 93 | def |  | 1 |
-| `put_outputs` | 102 | def |  | 2 |
-| `pending` | 118 | def |  | 1 |
-| `serial_logs` | 132 | def |  | 1 |
-| `get_snapshot` | 142 | def |  | 1 |
-| `get_ui_layout` | 153 | def |  | 1 |
-| `put_ui_layout` | 160 | def |  | 1 |
-| `put_snapshot` | 168 | def |  | 1 |
-| `global_logs` | 185 | def |  | 1 |
+| `_maybe_snapshot` | 20 | def |  | 3 |
+| `root` | 41 | def |  | 1 |
+| `_check_serial` | 48 | def |  | 9 |
+| `health` | 54 | def |  | 1 |
+| `list_serials` | 60 | def |  | 1 |
+| `status` | 65 | def |  | 2 |
+| `put_inputs` | 77 | def |  | 1 |
+| `get_outputs` | 94 | def |  | 1 |
+| `put_outputs` | 103 | def |  | 2 |
+| `pending` | 119 | def |  | 1 |
+| `serial_logs` | 133 | def |  | 1 |
+| `get_snapshot` | 143 | def |  | 1 |
+| `get_ui_layout` | 154 | def |  | 1 |
+| `put_ui_layout` | 161 | def |  | 1 |
+| `put_snapshot` | 169 | def |  | 1 |
+| `ui_layouts` | 186 | def |  | 1 |
+| `ui_layout_save` | 192 | def |  | 1 |
+| `ui_layout_load` | 199 | def |  | 1 |
+| `global_logs` | 206 | def |  | 1 |
 
 ## bridge/bridge/snapshot.py（135 行）
 
@@ -151,7 +154,7 @@
 | `get_state` | 32 | def |  | 1 |
 | `reset_state` | 39 | def |  | 1 |
 
-## bridge/bridge/ui_layout.py（33 行）
+## bridge/bridge/ui_layout.py（75 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -159,6 +162,9 @@
 | `__init__` | 13 | def |  | 1 |
 | `read` | 16 | def |  | 1 |
 | `write` | 24 | def |  | 1 |
+| `list_layouts` | 41 | def |  | 1 |
+| `save_layout` | 48 | def |  | 1 |
+| `load_layout` | 66 | def |  | 1 |
 
 ## bridge/bridge/workspace.py（124 行）
 
@@ -290,19 +296,20 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/dock.ts（133 行）
+## web/src/app/dock.ts（151 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `layoutDebug` | 28 | function |  | 2 |
 | `setupDock` | 38 | function | export | 1 |
+| `applyLayout` | 133 | function | export | 1 |
 
-## web/src/app/layout.ts（123 行）
+## web/src/app/layout.ts（172 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `buildLayout` | 17 | function | export | 1 |
-| `buildLayoutLegacy` | 73 | function | export | 1 |
+| `buildLayout` | 20 | function | export | 1 |
+| `buildLayoutLegacy` | 99 | function | export | 1 |
 
 ## web/src/app/layouts.ts（119 行）
 
@@ -325,35 +332,41 @@
 | `addVerts` | 56 | arrow |  | 2 |
 | `renderSpreadsheet` | 91 | function | export | 1 |
 
-## web/src/bridge/client.ts（147 行）
+## web/src/bridge/client.ts（162 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `BridgeClient` | 23 | class | export | 0 |
-| `connectWs` | 111 | function | export | 1 |
-| `connect` | 116 | arrow |  | 1 |
+| `connectWs` | 126 | function | export | 1 |
+| `connect` | 131 | arrow |  | 1 |
 
-## web/src/main.ts（321 行）
-
-| 函数 | 行号 | 类型 | 导出 | calls |
-|---|---|---|---|---|
-| `refreshNodeFlags` | 55 | function |  | 3 |
-| `inputStatsText` | 95 | function |  | 2 |
-| `outputStatsText` | 104 | function |  | 2 |
-| `renderInspector` | 113 | function |  | 2 |
-| `runNetwork` | 150 | function |  | 2 |
-| `startHdaWatch` | 173 | function |  | 2 |
-| `check` | 175 | arrow |  | 1 |
-| `stopHdaWatch` | 192 | function |  | 2 |
-| `loadSnapshotIntoStore` | 201 | function |  | 2 |
-| `connect` | 229 | function |  | 4 |
-| `scheduleSaveGraph` | 309 | function |  | 2 |
-
-## web/src/nodes2/graph.ts（819 行）
+## web/src/main.ts（457 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `log` | 60 | arrow |  | 5 |
+| `matchLogFilter` | 29 | arrow |  | 0 |
+| `renderLog` | 30 | arrow |  | 2 |
+| `toggle` | 71 | arrow |  | 6 |
+| `getDockJson` | 85 | arrow |  | 3 |
+| `saveCurrentLayout` | 86 | arrow |  | 2 |
+| `refreshLayoutPresets` | 94 | arrow |  | 1 |
+| `refreshNodeFlags` | 191 | function |  | 3 |
+| `inputStatsText` | 231 | function |  | 2 |
+| `outputStatsText` | 240 | function |  | 2 |
+| `renderInspector` | 249 | function |  | 2 |
+| `runNetwork` | 286 | function |  | 2 |
+| `startHdaWatch` | 309 | function |  | 2 |
+| `check` | 311 | arrow |  | 1 |
+| `stopHdaWatch` | 328 | function |  | 2 |
+| `loadSnapshotIntoStore` | 337 | function |  | 3 |
+| `connect` | 365 | function |  | 4 |
+| `scheduleSaveGraph` | 445 | function |  | 2 |
+
+## web/src/nodes2/graph.ts（851 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `log` | 60 | arrow |  | 6 |
 | `nodeByKind` | 65 | function |  | 4 |
 | `nodeFromTarget` | 70 | function |  | 5 |
 | `renderNode` | 86 | function |  | 1 |
@@ -364,26 +377,28 @@
 | `makeNullNode` | 154 | function | export | 4 |
 | `buildGraph` | 168 | function |  | 2 |
 | `createReteGraph` | 225 | function | export | 1 |
-| `attachTabSearch` | 379 | function |  | 2 |
-| `render` | 395 | arrow |  | 4 |
-| `create` | 410 | arrow |  | 2 |
-| `close` | 427 | arrow |  | 6 |
-| `update` | 433 | arrow |  | 3 |
-| `attachCutMode` | 462 | function |  | 2 |
-| `isTyping` | 468 | arrow |  | 1 |
-| `attachFlagMenu` | 513 | function |  | 2 |
-| `show` | 525 | arrow |  | 2 |
-| `initTooltip` | 579 | function | export | 2 |
-| `showTooltip` | 585 | function | export | 1 |
-| `hideTooltip` | 598 | function | export | 1 |
-| `attachMMBPan` | 606 | function |  | 2 |
-| `onMove` | 614 | arrow |  | 0 |
-| `onUp` | 617 | arrow |  | 0 |
-| `attachDotGrid` | 635 | function |  | 2 |
-| `hitTestConnection` | 666 | function |  | 2 |
-| `attachInsertion` | 694 | function |  | 2 |
-| `setHover` | 717 | arrow |  | 2 |
-| `up` | 778 | arrow |  | 0 |
+| `attachTabSearch` | 390 | function |  | 2 |
+| `render` | 406 | arrow |  | 4 |
+| `create` | 421 | arrow |  | 2 |
+| `close` | 449 | arrow |  | 6 |
+| `update` | 455 | arrow |  | 3 |
+| `attachCutMode` | 484 | function |  | 2 |
+| `isTyping` | 490 | arrow |  | 1 |
+| `attachFlagMenu` | 535 | function |  | 2 |
+| `show` | 547 | arrow |  | 2 |
+| `setNodeStateHandler` | 601 | function | export | 2 |
+| `fireNodeState` | 604 | function | export | 1 |
+| `initTooltip` | 610 | function | export | 2 |
+| `showTooltip` | 616 | function | export | 1 |
+| `hideTooltip` | 629 | function | export | 1 |
+| `attachMMBPan` | 637 | function |  | 2 |
+| `onMove` | 645 | arrow |  | 0 |
+| `onUp` | 648 | arrow |  | 0 |
+| `attachDotGrid` | 666 | function |  | 2 |
+| `hitTestConnection` | 697 | function |  | 2 |
+| `attachInsertion` | 725 | function |  | 2 |
+| `setHover` | 748 | arrow |  | 2 |
+| `up` | 810 | arrow |  | 0 |
 
 ## web/src/protocol/compare.ts（23 行）
 

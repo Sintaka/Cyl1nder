@@ -29,10 +29,10 @@ export interface NodeFlags {
   display: boolean;
   bypass: boolean;
   freeze: boolean;
-  wireframe: boolean;
+  reference: boolean; // reference flag (pink chip); viewport reference overlay
 }
 
-export const DEFAULT_FLAGS: NodeFlags = { display: false, bypass: false, freeze: false, wireframe: false };
+export const DEFAULT_FLAGS: NodeFlags = { display: false, bypass: false, freeze: false, reference: false };
 
 export interface ReteGraphHandlers {
   onNodePick?: (kind: NodeKind, port: number | null, nodeId: string) => void;
@@ -134,7 +134,7 @@ export class CylNode extends ClassicPreset.Node {
     return (
       (f.bypass ? "⏭" : "") +
       (f.freeze ? "🔒" : "") +
-      (f.wireframe ? "⛶" : "")
+      (f.reference ? "⛶" : "")
     );
   }
 }
@@ -238,6 +238,15 @@ export async function createReteGraph(
 
   // Houdini display semantics: only ONE node per network may be displayed.
   // Clicking a node's display chip clears all others and lights this one.
+  setNodeStateHandler((nodeId, key) => {
+    if (key === "display") return; // display handled by setDisplayHandler (uniqueness)
+    const n = g.editor.getNode(nodeId) as CylNode | undefined;
+    if (!n) return;
+    n.flags = { ...n.flags, [key]: !n.flags[key] };
+    notifyNodeChanged();
+    log(`node ${n.kind} ${key}=${n.flags[key]}`);
+    handlers.onFlagsChanged?.(n.kind, { ...n.flags });
+  });
   setDisplayHandler((nodeId) => {
     let changed: CylNode[] = [];
     for (const n of g.editor.getNodes() as CylNode[]) {
@@ -376,6 +385,8 @@ const fuse = new Fuse(PALETTE, {
   ignoreLocation: true,
 });
 
+let lastGraphMouse = { x: 0, y: 0 };
+
 function attachTabSearch(
   editor: NodeEditor<Schemes>,
   area: AreaPlugin<Schemes, AreaExtra>,
@@ -410,7 +421,18 @@ function attachTabSearch(
   const create = async () => {
     const entry = results[index];
     if (!entry) return;
-    const center = { x: 240, y: 120 };
+    // place near the mouse if it is inside the graph, else a default spot
+    const rect = container.getBoundingClientRect();
+    const inside =
+      lastGraphMouse.x >= rect.left && lastGraphMouse.x <= rect.right && lastGraphMouse.y >= rect.top && lastGraphMouse.y <= rect.bottom;
+    let center = { x: 240, y: 120 };
+    if (inside) {
+      const t = area.area.transform; // screen -> area-local: (client - rect - translate) / zoom
+      center = {
+        x: (lastGraphMouse.x - rect.left - t.x) / t.k,
+        y: (lastGraphMouse.y - rect.top - t.y) / t.k,
+      };
+    }
     if (entry.kind === "null") {
       let n = makeNullNode();
       while (editor.getNodes().some((x) => (x as CylNode).label === n.label)) n = makeNullNode();
@@ -529,7 +551,7 @@ function attachFlagMenu(
       ["display", "Display"],
       ["bypass", "Bypass"],
       ["freeze", "Freeze"],
-      ["wireframe", "Wireframe"],
+      ["reference", "Wireframe"],
     ];
     for (const [key, label] of labels) {
       const row = document.createElement("div");
@@ -572,6 +594,15 @@ function attachFlagMenu(
     }
   });
   container.addEventListener("pointerdown", () => close());
+}
+
+/** Node state chips handler: toggles reference/bypass/freeze per node; display is unique via setDisplayHandler. */
+let nodeStateHandler: ((nodeId: string, key: "display" | "reference" | "bypass" | "freeze") => void) | null = null;
+export function setNodeStateHandler(fn: ((nodeId: string, key: "display" | "reference" | "bypass" | "freeze") => void) | null): void {
+  nodeStateHandler = fn;
+}
+export function fireNodeState(nodeId: string, key: "display" | "reference" | "bypass" | "freeze"): void {
+  nodeStateHandler?.(nodeId, key);
 }
 
 /** Custom floating tooltip (dark rounded chip) replacing the native title tooltip. */
@@ -768,6 +799,7 @@ function attachInsertion(
   container.addEventListener(
     "pointermove",
     (e) => {
+      lastGraphMouse = { x: e.clientX, y: e.clientY };
       if (!draggingNullId) return;
       const connId = hitTestConnection(area, e.clientX, e.clientY);
       if (connId !== hoverConn) setHover(connId, e.clientX, e.clientY);

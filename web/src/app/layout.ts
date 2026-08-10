@@ -4,6 +4,9 @@
   connectBtn: HTMLButtonElement;
   statusDot: HTMLSpanElement;
   autoRunCheck: HTMLInputElement;
+  menuFile: HTMLElement;
+  menuLayout: HTMLElement;
+  layoutPresets: HTMLElement;
   dockContainer: HTMLElement;
   graphContainer: HTMLElement;
   viewportContainer: HTMLElement;
@@ -19,6 +22,26 @@ export function buildLayout(app: HTMLElement): Layout {
     <div class="cyl-app">
       <header class="cyl-header">
         <span class="cyl-brand">Cyl1nder <small>0.1</small></span>
+        <div class="cyl-menubar">
+          <div class="cyl-menu" data-menu="file">
+            <span class="cyl-menu-label">File</span>
+            <div class="cyl-menu-drop" id="cyl-menu-file">
+              <button data-act="open">Open Scene…</button>
+              <button data-act="save">Save Scene</button>
+              <button data-act="saveas">Save Scene As…</button>
+            </div>
+          </div>
+          <div class="cyl-menu" data-menu="layout">
+            <span class="cyl-menu-label">Layout</span>
+            <div class="cyl-menu-drop" id="cyl-menu-layout">
+              <div class="cyl-menu-presets" id="cyl-menu-presets"></div>
+              <div class="cyl-menu-sep"></div>
+              <button data-act="save-layout">Save current layout</button>
+              <button data-act="save-layout-as">Save current layout as…</button>
+              <button data-act="reload-layout">Reload current layout</button>
+            </div>
+          </div>
+        </div>
         <input id="cyl-serial" class="cyl-serial-input" placeholder="C1-xxxxxxxx-xxxx" spellcheck="false" />
         <button id="cyl-connect" class="cyl-connect" type="button">Connect</button>
         <label class="cyl-autorun" title="Houdini 更新输入后自动跑网络并推回结果">
@@ -59,6 +82,9 @@ export function buildLayout(app: HTMLElement): Layout {
     connectBtn: $("#cyl-connect"),
     statusDot: $("#cyl-status"),
     autoRunCheck: $("#cyl-autorun"),
+    menuFile: $("#cyl-menu-file"),
+    menuLayout: $("#cyl-menu-layout"),
+    layoutPresets: $("#cyl-menu-presets"),
     dockContainer: $("#cyl-dock"),
     graphContainer,
     viewportContainer,
@@ -75,6 +101,26 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
     <div class="cyl-app">
       <header class="cyl-header">
         <span class="cyl-brand">Cyl1nder <small>0.1</small></span>
+        <div class="cyl-menubar">
+          <div class="cyl-menu" data-menu="file">
+            <span class="cyl-menu-label">File</span>
+            <div class="cyl-menu-drop" id="cyl-menu-file">
+              <button data-act="open">Open Scene…</button>
+              <button data-act="save">Save Scene</button>
+              <button data-act="saveas">Save Scene As…</button>
+            </div>
+          </div>
+          <div class="cyl-menu" data-menu="layout">
+            <span class="cyl-menu-label">Layout</span>
+            <div class="cyl-menu-drop" id="cyl-menu-layout">
+              <div class="cyl-menu-presets" id="cyl-menu-presets"></div>
+              <div class="cyl-menu-sep"></div>
+              <button data-act="save-layout">Save current layout</button>
+              <button data-act="save-layout-as">Save current layout as…</button>
+              <button data-act="reload-layout">Reload current layout</button>
+            </div>
+          </div>
+        </div>
         <input id="cyl-serial" class="cyl-serial-input" placeholder="C1-xxxxxxxx-xxxx" spellcheck="false" />
         <button id="cyl-connect" class="cyl-connect" type="button">Connect</button>
         <label class="cyl-autorun" title="Houdini 更新输入后自动跑网络并推回结果">
@@ -110,6 +156,9 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
     connectBtn: $("#cyl-connect"),
     statusDot: $("#cyl-status"),
     autoRunCheck: $("#cyl-autorun"),
+    menuFile: app,
+    menuLayout: app,
+    layoutPresets: app,
     dockContainer: app,
     graphContainer: $("#cyl-graph"),
     viewportContainer: $("#cyl-viewport"),

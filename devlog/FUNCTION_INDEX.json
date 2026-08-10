@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-10T15:25:41.527Z",
-  "totalFunctions": 242,
+  "generatedAt": "2026-08-10T15:53:45.519Z",
+  "totalFunctions": 257,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -462,116 +462,137 @@
     },
     {
       "file": "bridge/bridge/routes.py",
-      "lineCount": 190,
+      "lineCount": 211,
       "functions": [
         {
           "name": "_maybe_snapshot",
-          "line": 19,
+          "line": 20,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "root",
-          "line": 40,
+          "line": 41,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_check_serial",
-          "line": 47,
+          "line": 48,
           "kind": "def",
           "exported": false,
           "calls": 9
         },
         {
           "name": "health",
-          "line": 53,
+          "line": 54,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "list_serials",
-          "line": 59,
+          "line": 60,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "status",
-          "line": 64,
+          "line": 65,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "put_inputs",
-          "line": 76,
+          "line": 77,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get_outputs",
-          "line": 93,
+          "line": 94,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_outputs",
-          "line": 102,
+          "line": 103,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "pending",
-          "line": 118,
+          "line": 119,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "serial_logs",
-          "line": 132,
+          "line": 133,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get_snapshot",
-          "line": 142,
+          "line": 143,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get_ui_layout",
-          "line": 153,
+          "line": 154,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_ui_layout",
-          "line": 160,
+          "line": 161,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_snapshot",
-          "line": 168,
+          "line": 169,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "ui_layouts",
+          "line": 186,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "ui_layout_save",
+          "line": 192,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "ui_layout_load",
+          "line": 199,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "global_logs",
-          "line": 185,
+          "line": 206,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -662,7 +683,7 @@
     },
     {
       "file": "bridge/bridge/ui_layout.py",
-      "lineCount": 33,
+      "lineCount": 75,
       "functions": [
         {
           "name": "UiLayoutStore",
@@ -688,6 +709,27 @@
         {
           "name": "write",
           "line": 24,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "list_layouts",
+          "line": 41,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "save_layout",
+          "line": 48,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "load_layout",
+          "line": 66,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -1315,7 +1357,7 @@
     },
     {
       "file": "web/src/app/dock.ts",
-      "lineCount": 133,
+      "lineCount": 151,
       "functions": [
         {
           "name": "layoutDebug",
@@ -1330,23 +1372,30 @@
           "kind": "function",
           "exported": true,
           "calls": 1
+        },
+        {
+          "name": "applyLayout",
+          "line": 133,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
         }
       ]
     },
     {
       "file": "web/src/app/layout.ts",
-      "lineCount": 123,
+      "lineCount": 172,
       "functions": [
         {
           "name": "buildLayout",
-          "line": 17,
+          "line": 20,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "buildLayoutLegacy",
-          "line": 73,
+          "line": 99,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -1414,7 +1463,7 @@
     },
     {
       "file": "web/src/bridge/client.ts",
-      "lineCount": 147,
+      "lineCount": 162,
       "functions": [
         {
           "name": "BridgeClient",
@@ -1425,14 +1474,14 @@
         },
         {
           "name": "connectWs",
-          "line": 111,
+          "line": 126,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "connect",
-          "line": 116,
+          "line": 131,
           "kind": "arrow",
           "exported": false,
           "calls": 1
@@ -1441,81 +1490,123 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 321,
+      "lineCount": 457,
       "functions": [
         {
+          "name": "matchLogFilter",
+          "line": 29,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 0
+        },
+        {
+          "name": "renderLog",
+          "line": 30,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "toggle",
+          "line": 71,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 6
+        },
+        {
+          "name": "getDockJson",
+          "line": 85,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "saveCurrentLayout",
+          "line": 86,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "refreshLayoutPresets",
+          "line": 94,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 1
+        },
+        {
           "name": "refreshNodeFlags",
-          "line": 55,
+          "line": 191,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "inputStatsText",
-          "line": 95,
+          "line": 231,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "outputStatsText",
-          "line": 104,
+          "line": 240,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderInspector",
-          "line": 113,
+          "line": 249,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "runNetwork",
-          "line": 150,
+          "line": 286,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "startHdaWatch",
-          "line": 173,
+          "line": 309,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "check",
-          "line": 175,
+          "line": 311,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "stopHdaWatch",
-          "line": 192,
+          "line": 328,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "loadSnapshotIntoStore",
-          "line": 201,
+          "line": 337,
           "kind": "function",
           "exported": false,
-          "calls": 2
+          "calls": 3
         },
         {
           "name": "connect",
-          "line": 229,
+          "line": 365,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "scheduleSaveGraph",
-          "line": 309,
+          "line": 445,
           "kind": "function",
           "exported": false,
           "calls": 2
@@ -1524,14 +1615,14 @@
     },
     {
       "file": "web/src/nodes2/graph.ts",
-      "lineCount": 819,
+      "lineCount": 851,
       "functions": [
         {
           "name": "log",
           "line": 60,
           "kind": "arrow",
           "exported": false,
-          "calls": 5
+          "calls": 6
         },
         {
           "name": "nodeByKind",
@@ -1605,140 +1696,154 @@
         },
         {
           "name": "attachTabSearch",
-          "line": 379,
+          "line": 390,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "render",
-          "line": 395,
+          "line": 406,
           "kind": "arrow",
           "exported": false,
           "calls": 4
         },
         {
           "name": "create",
-          "line": 410,
+          "line": 421,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "close",
-          "line": 427,
+          "line": 449,
           "kind": "arrow",
           "exported": false,
           "calls": 6
         },
         {
           "name": "update",
-          "line": 433,
+          "line": 455,
           "kind": "arrow",
           "exported": false,
           "calls": 3
         },
         {
           "name": "attachCutMode",
-          "line": 462,
+          "line": 484,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "isTyping",
-          "line": 468,
+          "line": 490,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "attachFlagMenu",
-          "line": 513,
+          "line": 535,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "show",
-          "line": 525,
+          "line": 547,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
+          "name": "setNodeStateHandler",
+          "line": 601,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "fireNodeState",
+          "line": 604,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
           "name": "initTooltip",
-          "line": 579,
+          "line": 610,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "showTooltip",
-          "line": 585,
+          "line": 616,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "hideTooltip",
-          "line": 598,
+          "line": 629,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "attachMMBPan",
-          "line": 606,
+          "line": 637,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "onMove",
-          "line": 614,
+          "line": 645,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "onUp",
-          "line": 617,
+          "line": 648,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "attachDotGrid",
-          "line": 635,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "hitTestConnection",
           "line": 666,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
+          "name": "hitTestConnection",
+          "line": 697,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "attachInsertion",
-          "line": 694,
+          "line": 725,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "setHover",
-          "line": 717,
+          "line": 748,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "up",
-          "line": 778,
+          "line": 810,
           "kind": "arrow",
           "exported": false,
           "calls": 0

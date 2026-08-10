@@ -154,3 +154,12 @@
   - 实测 4 线段矩阵：in0/in1/in2/in3 各自 display 均只显示对应段。reference wireframe 条件性双画伪影见报告建议。
 - **debug 访问流程（python）**：`scripts/cyl_debug.py`——`status` / `layout`（读 docking-layout.json）/ `snapshot <serial>` / `browser`（CDP 9222，需 Chrome `--remote-debugging-port`）/ `probe`。铁律：UI 状态一律从 bridge 文件读，不用 headless 浏览器当真相。
 - **MCP debug 工具**：`cyl1nder_read_snapshot`（快照摘要+目录）、`cyl1nder_read_layout`（docking 分组）。
+
+## v0.1.00035（2026-08-10）
+- **菜单栏**：顶部 File / Layout 下拉。File：Open Scene（读快照恢复）、Save Scene（graph+docking 到快照）、Save As。Layout：预设列表（Documents/Cyl1nder/Layouts）、Save current layout、Save as（同名覆盖）、Reload current layout。布局文件保存到 `%USERPROFILE%\Documents\Cyl1nder\Layouts\<name>.json`（bridge REST /api/ui/layouts）。
+- **Log 面板过滤**：All / Geo（inputs/outputs/[mesh]/[path]）/ Viewport（[viewport]）/ UI（[layout]/[node]/display…）/ Bridge（python runtime）五档；过滤条内置 logEl（dockview 只移动 logEl 本体，兄弟元素会被丢——坑）。
+- **Tab 创建节点在鼠标附近**：palette create 用容器内最近鼠标位置（area transform 反推）；鼠标不在图内则默认位置。
+- **悬停/选中色**：hover 淡黄 `#fde68a`、selected 黄 `#fde047`（Houdini 风格）；displayed（display flag）浅蓝边框。
+- **节点状态重构**：去掉右键菜单（留给别的用）；头部左上名称**双击改名**（inline input，Enter 提交）；右上 4 个等距矩形 chip（从右往左）：Display（浅蓝，net 唯一）/ Reference（粉，原 wireframe 改名，暂无语义）/ Bypass（黄）/ Freeze（冰蓝白），后三者每节点独立 toggle；移除突出 D 按钮。
+- **viewport 显示**：所有输入统一 0.4 灰（不再四端口各色）；poly 面默认 0.4 灰 Lambert；wire 黑色 LineSegments。
+- **node view 无头线段**：恢复快照 graph 后连接端点正常（经 TDZ 修复 + restoreGraph 校验）；client TDZ 修复（菜单逻辑提前声明）。
