@@ -1,13 +1,18 @@
-# 临时开发场景日志 / Temp scene log
-
-> ⚠️ 本文件记录**临时**信息：临时 dev 项目/文件名可能随时间换名、迁移或失效。
-> 新会话先读这里确认当前现场，但**不要把这些路径当永久事实**——以 fxhoudinimcp 的
-> `get_scene_info` / `houdini_health` 实时值为准。
-
-## 2026-08-10
-- Houdini hip：`D:/Animation_Project/Houdini/Test/Cyl1nder/dev/beginTest-1/beginTest-1.hip`
-- Cyl1nder HDA 实例：`/obj/geo1/Cyl1nder1`，serial `C1-msm006pg-8fz7`
-- 输入：null1-4 → HDA 4 输入（点数随场景变化）
-- bridge：`http://127.0.0.1:8375`（REST/WS，数据桥，不是网页）
-- Web UI：`http://127.0.0.1:8376/?serial=<serial>`
+# 临时开发场景日志 / Temp scene log
+
+> ⚠️ 本文件记录**临时**信息：临时 dev 项目/文件名可能随时间换名、迁移或失效。
+> 新会话先读这里确认当前现场，但**不要把这些路径当永久事实**——以 fxhoudinimcp 的
+> `get_scene_info` / `houdini_health` 实时值为准。
+
+## 2026-08-10
+- Houdini hip：`D:/Animation_Project/Houdini/Test/Cyl1nder/dev/beginTest-1/beginTest-1.hip`
+- Cyl1nder HDA 实例：`/obj/geo1/Cyl1nder1`，serial `C1-msm006pg-8fz7`
+- 输入：null1-4 → HDA 4 输入（点数随场景变化）
+- bridge：`http://127.0.0.1:8375`（REST/WS，数据桥，不是网页）
+- Web UI：`http://127.0.0.1:8376/?serial=<serial>`
 - fxhoudinimcp：`http://127.0.0.1:8100`（Houdini 内 HTTP MCP，被占自动 8101+）
+## 2026-08-11?????serial ???
+- ?? ? serial `C1-msm006pg-8fz7` ????lastSeen 2026-08-10 02:32???????????? `_input_` ???????? 00037 ???"??"?????????
+- **??** Cyl1nder HDA ???`/obj/geo1/Cyl1nder1`?serial **`C1-msm6dsp7-ob6t`**?lastSeen 2026-08-11 01:49??? node path ?????nodeview 5 ??/7 ???`_input_`?`_output_`?null1[D]?null2?null3??
+- ?????`D:/Animation_Project/Houdini/Test/Cyl1nder/dev/beginTest-1/Cyl1nder/C1-msm6dsp7-ob6t/`?scene/node-graph.json ???
+- ??"?? serial"??????? `bridge/data/registry.json` ? `lastSeen` ???? nodePath ??????**??**??? devlog ??? serial?
