@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-10T14:09:42.843Z",
+  "generatedAt": "2026-08-10T14:21:27.984Z",
   "totalFunctions": 237,
   "files": [
     {
@@ -1413,7 +1413,7 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 289,
+      "lineCount": 288,
       "functions": [
         {
           "name": "refreshNodeFlags",
@@ -1424,63 +1424,63 @@
         },
         {
           "name": "inputStatsText",
-          "line": 87,
+          "line": 86,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "outputStatsText",
-          "line": 96,
+          "line": 95,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderInspector",
-          "line": 105,
+          "line": 104,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "runNetwork",
-          "line": 141,
+          "line": 140,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "startHdaWatch",
-          "line": 164,
+          "line": 163,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "check",
-          "line": 166,
+          "line": 165,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "stopHdaWatch",
-          "line": 183,
+          "line": 182,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "loadSnapshotIntoStore",
-          "line": 192,
+          "line": 191,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "connect",
-          "line": 211,
+          "line": 210,
           "kind": "function",
           "exported": false,
           "calls": 4
@@ -1489,7 +1489,7 @@
     },
     {
       "file": "web/src/nodes2/graph.ts",
-      "lineCount": 734,
+      "lineCount": 751,
       "functions": [
         {
           "name": "log",
@@ -1535,175 +1535,175 @@
         },
         {
           "name": "makeInputNode",
-          "line": 134,
+          "line": 137,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "makeOutputNode",
-          "line": 139,
+          "line": 142,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "makeNullNode",
-          "line": 144,
+          "line": 149,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "buildGraph",
-          "line": 155,
+          "line": 163,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "createReteGraph",
-          "line": 212,
+          "line": 220,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "attachTabSearch",
-          "line": 304,
+          "line": 312,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "render",
-          "line": 320,
+          "line": 328,
           "kind": "arrow",
           "exported": false,
           "calls": 4
         },
         {
           "name": "create",
-          "line": 335,
+          "line": 343,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "close",
-          "line": 351,
+          "line": 359,
           "kind": "arrow",
           "exported": false,
           "calls": 6
         },
         {
           "name": "update",
-          "line": 357,
+          "line": 365,
           "kind": "arrow",
           "exported": false,
           "calls": 3
         },
         {
           "name": "attachCutMode",
-          "line": 386,
+          "line": 394,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "isTyping",
-          "line": 392,
+          "line": 400,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "attachFlagMenu",
-          "line": 437,
+          "line": 445,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "show",
-          "line": 449,
+          "line": 457,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "initTooltip",
-          "line": 503,
+          "line": 511,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "showTooltip",
-          "line": 509,
+          "line": 517,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "hideTooltip",
-          "line": 522,
+          "line": 530,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "attachMMBPan",
-          "line": 530,
+          "line": 538,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "onMove",
-          "line": 538,
+          "line": 546,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "onUp",
-          "line": 541,
+          "line": 549,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "attachDotGrid",
-          "line": 559,
+          "line": 567,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "hitTestConnection",
-          "line": 590,
+          "line": 598,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "attachInsertion",
-          "line": 618,
+          "line": 626,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "setHover",
-          "line": 640,
+          "line": 649,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "up",
-          "line": 698,
+          "line": 710,
           "kind": "arrow",
           "exported": false,
           "calls": 0

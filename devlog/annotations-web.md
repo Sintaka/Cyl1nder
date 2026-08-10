@@ -128,3 +128,10 @@
 - **Log 面板内容丢失修复**：dockview 7 的 `fromJSON` 在 5 面板布局下会丢弃 content renderer（Log tab 存活但 `.cyl-log` 离开 DOM——createComponent 直返元素/wrapper/init 挂载/reuseExistingPanels 均无效）。**决定：禁用 fromJSON 布局恢复**，始终用程序化默认布局（5 panel addPanel），拖拽保存（toJSON 到 bridge）保留。恢复功能待理解 dockview bug 后再开。
 - **调试参考 box**（B 键）：viewport 两个线框 box（+X 红 / +Y 青）验证渲染能力（red=185px ✓）。
 - **显示逻辑**：display 节点显示全部端口（不再 focus 隐藏第一项）+ 无 out 数据 fallback 显示输入。
+
+## v0.1.00031（2026-08-10）踩坑记录
+- **dockview 7 `fromJSON` 5 面板布局丢 content（Log 面板）**：tab 存活但 `.cyl-log` 离开 DOM；createComponent 直返元素 / wrapper / init 挂载 / `reuseExistingPanels` 四种方案均无效 → **禁用 fromJSON 布局恢复**，改程序化 addPanel 默认布局（正常），拖拽保存（toJSON→bridge）保留。布局精确恢复待深挖 dockview bug 或升级后再开。
+- **null 节点同名 → 插入连到第一个 null**：`attachInsertion` 用 `editor.getNodes().find(kind==="null")` 永远取第一个 → 第二个 null 插入时线连错。修复：pointerdown 记录**拖动中的 null 引用**；null 节点 Houdini 式唯一命名（null / null1 / null2，全局递增不复用）。
+- **in 端口多连接**：插入前未检查 null.in0 已有连接 → 重复连。修复：插入时先移除该 in0 的旧连接（`one-input` 约束）。
+- **Tab palette 输入残留**：重新打开 palette 时 `input.value` 保留上次 → open 时清空。
+- **display flag 驱动**：视口跟随节点 display（_input_ 默认点亮 → 显示 inputs；_output_ 无 buffer → fallback 显示 inputs）。

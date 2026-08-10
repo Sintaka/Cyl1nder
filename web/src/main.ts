@@ -55,19 +55,18 @@ const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuf
 function refreshNodeFlags(): void {
   const inF = graph.getFlags("input");
   const outF = graph.getFlags("output");
-  const inDisplay = inF?.display ?? false;
+  const inDisplay = inF?.display ?? true; // default: _input_ displayed
   const outDisplay = outF?.display ?? false;
-  // Display the displayed node's outputs; if it has NO out-port data (e.g. output_
-  // with an empty buffer), fall back to showing the first input port's data.
+  // Viewport follows the node-view display flag: the displayed node's data shows.
+  // output_ with an empty buffer falls back to the first input port's data.
   const hasOutputs = store.outputs.length > 0;
   const showOutputs = outDisplay && hasOutputs;
   const showInputs = inDisplay || (outDisplay && !hasOutputs);
   viewport.setVisibility("inputs", showInputs);
   viewport.setVisibility("outputs", showOutputs);
-  // Show ALL ports of the displayed node (not just the first) so every input's
-  // points/faces are visible; index=null keeps every group visible.
-  viewport.setDisplayFocus("inputs", showInputs ? null : null);
-  viewport.setDisplayFocus("outputs", showOutputs ? null : null);
+  // show every port of the displayed node (index=null keeps all groups visible)
+  viewport.setDisplayFocus("inputs", null);
+  viewport.setDisplayFocus("outputs", null);
 
   const refs: ReferenceItem[] = [];
   if (inF?.wireframe) {

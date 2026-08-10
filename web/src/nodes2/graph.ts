@@ -109,9 +109,12 @@ export class CylNode extends ClassicPreset.Node {
   flags: NodeFlags = { ...DEFAULT_FLAGS };
   stats = "";
   kind: NodeKind = "null";
+  /** stable base name (e.g. "null"); label may carry a unique suffix (null1, null2…). */
+  baseLabel = "";
   constructor(label: string, kind: NodeKind) {
     super(label);
     this.kind = kind;
+    this.baseLabel = label;
     BASE_LABEL[label] = label;
   }
   /** Rete dataflow: v1 just passes placeholder markers (stats view only). */
@@ -141,8 +144,13 @@ function makeOutputNode(): CylNode {
   for (let i = 0; i < 4; i++) n.addInput(`out${i}`, new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
   return n;
 }
+/** Houdini-style unique naming: null, null1, null2… (never reuse a deleted suffix). */
+let nullSeq = 0;
 export function makeNullNode(): CylNode {
-  const n = new CylNode("null", "null");
+  const name = nullSeq === 0 ? "null" : `null${nullSeq}`;
+  nullSeq += 1;
+  const n = new CylNode(name, "null");
+  n.baseLabel = "null";
   n.addInput("in0", new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
   n.addOutput("out0", new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
   return n;
@@ -374,7 +382,7 @@ function attachTabSearch(
     if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
     e.preventDefault();
     open = !open;
-    if (open) { overlay.classList.remove("hidden"); update(""); input.focus(); }
+    if (open) { overlay.classList.remove("hidden"); input.value = ""; update(""); input.focus(); }
     else close();
   });
 }
@@ -620,7 +628,8 @@ function attachInsertion(
   area: AreaPlugin<Schemes, AreaExtra>,
   container: HTMLElement,
 ): void {
-  let draggingNull: string | null = null;
+  let draggingNullId: string | null = null;
+  let draggingNullNode: CylNode | null = null;
   let hoverConn: string | null = null;
 
   // Insertion preview overlay: two dashed lines showing A->mouse->B before release.
@@ -680,7 +689,10 @@ function attachInsertion(
     "pointerdown",
     (e) => {
       const hit = nodeFromTarget(editor, area, e.target as Element);
-      if (hit && hit.node.kind === "null") draggingNull = hit.id;
+      if (hit && hit.node.kind === "null") {
+        draggingNullId = hit.id;
+        draggingNullNode = hit.node;
+      }
     },
     true,
   );
@@ -688,7 +700,7 @@ function attachInsertion(
   container.addEventListener(
     "pointermove",
     (e) => {
-      if (!draggingNull) return;
+      if (!draggingNullId) return;
       const connId = hitTestConnection(area, e.clientX, e.clientY);
       if (connId !== hoverConn) setHover(connId, e.clientX, e.clientY);
     },
@@ -696,19 +708,24 @@ function attachInsertion(
   );
 
   const up = () => {
-    if (!draggingNull) return;
-    draggingNull = null;
+    if (!draggingNullId) return;
+    draggingNullId = null;
+    const nullNode = draggingNullNode;
+    draggingNullNode = null;
     const connId = hoverConn;
     setHover(null);
-    if (!connId) return;
-    const nullNode = editor.getNodes().find((n) => (n as CylNode).kind === "null") as CylNode | undefined;
-    if (!nullNode) return;
+    if (!connId || !nullNode) return;
     const conn = editor.getConnection(connId) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
     if (!conn) return;
     const srcNode = editor.getNode(conn.source as string) as CylNode | undefined;
     const tgtNode = editor.getNode(conn.target as string) as CylNode | undefined;
     if (!srcNode || !tgtNode) return;
     void (async () => {
+      // one-input constraint: drop any existing connection into this null's in0 first
+      const existing = editor.getConnections().find(
+        (c) => c.target === nullNode.id && c.targetInput === "in0",
+      ) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
+      if (existing) await editor.removeConnection(existing.id);
       await editor.removeConnection(connId);
       await editor.addConnection(
         new ClassicPreset.Connection(srcNode, conn.sourceOutput as string, nullNode, "in0") as unknown as Schemes["Connection"],
@@ -716,7 +733,7 @@ function attachInsertion(
       await editor.addConnection(
         new ClassicPreset.Connection(nullNode, "out0", tgtNode, conn.targetInput as string) as unknown as Schemes["Connection"],
       );
-      store.pushLog(`[node] inserted null into ${srcNode.label} -> ${tgtNode.label}`);
+      store.pushLog(`[node] inserted ${nullNode.label} into ${srcNode.label} -> ${tgtNode.label}`);
       // spread the layout: shift every node to the right of the inserted null
       const nullPos = area.nodeViews.get(nullNode.id)?.position;
       if (nullPos) {

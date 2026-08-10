@@ -329,22 +329,22 @@
 | `connectWs` | 97 | function | export | 1 |
 | `connect` | 102 | arrow |  | 1 |
 
-## web/src/main.ts（289 行）
+## web/src/main.ts（288 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `refreshNodeFlags` | 55 | function |  | 3 |
-| `inputStatsText` | 87 | function |  | 2 |
-| `outputStatsText` | 96 | function |  | 2 |
-| `renderInspector` | 105 | function |  | 2 |
-| `runNetwork` | 141 | function |  | 2 |
-| `startHdaWatch` | 164 | function |  | 2 |
-| `check` | 166 | arrow |  | 1 |
-| `stopHdaWatch` | 183 | function |  | 2 |
-| `loadSnapshotIntoStore` | 192 | function |  | 2 |
-| `connect` | 211 | function |  | 4 |
+| `inputStatsText` | 86 | function |  | 2 |
+| `outputStatsText` | 95 | function |  | 2 |
+| `renderInspector` | 104 | function |  | 2 |
+| `runNetwork` | 140 | function |  | 2 |
+| `startHdaWatch` | 163 | function |  | 2 |
+| `check` | 165 | arrow |  | 1 |
+| `stopHdaWatch` | 182 | function |  | 2 |
+| `loadSnapshotIntoStore` | 191 | function |  | 2 |
+| `connect` | 210 | function |  | 4 |
 
-## web/src/nodes2/graph.ts（734 行）
+## web/src/nodes2/graph.ts（751 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -354,31 +354,31 @@
 | `renderNode` | 81 | function |  | 1 |
 | `portIndexFromTarget` | 96 | function |  | 2 |
 | `CylNode` | 108 | class | export | 3 |
-| `makeInputNode` | 134 | function |  | 2 |
-| `makeOutputNode` | 139 | function |  | 2 |
-| `makeNullNode` | 144 | function | export | 2 |
-| `buildGraph` | 155 | function |  | 2 |
-| `createReteGraph` | 212 | function | export | 1 |
-| `attachTabSearch` | 304 | function |  | 2 |
-| `render` | 320 | arrow |  | 4 |
-| `create` | 335 | arrow |  | 2 |
-| `close` | 351 | arrow |  | 6 |
-| `update` | 357 | arrow |  | 3 |
-| `attachCutMode` | 386 | function |  | 2 |
-| `isTyping` | 392 | arrow |  | 1 |
-| `attachFlagMenu` | 437 | function |  | 2 |
-| `show` | 449 | arrow |  | 2 |
-| `initTooltip` | 503 | function | export | 2 |
-| `showTooltip` | 509 | function | export | 1 |
-| `hideTooltip` | 522 | function | export | 1 |
-| `attachMMBPan` | 530 | function |  | 2 |
-| `onMove` | 538 | arrow |  | 0 |
-| `onUp` | 541 | arrow |  | 0 |
-| `attachDotGrid` | 559 | function |  | 2 |
-| `hitTestConnection` | 590 | function |  | 2 |
-| `attachInsertion` | 618 | function |  | 2 |
-| `setHover` | 640 | arrow |  | 2 |
-| `up` | 698 | arrow |  | 0 |
+| `makeInputNode` | 137 | function |  | 2 |
+| `makeOutputNode` | 142 | function |  | 2 |
+| `makeNullNode` | 149 | function | export | 2 |
+| `buildGraph` | 163 | function |  | 2 |
+| `createReteGraph` | 220 | function | export | 1 |
+| `attachTabSearch` | 312 | function |  | 2 |
+| `render` | 328 | arrow |  | 4 |
+| `create` | 343 | arrow |  | 2 |
+| `close` | 359 | arrow |  | 6 |
+| `update` | 365 | arrow |  | 3 |
+| `attachCutMode` | 394 | function |  | 2 |
+| `isTyping` | 400 | arrow |  | 1 |
+| `attachFlagMenu` | 445 | function |  | 2 |
+| `show` | 457 | arrow |  | 2 |
+| `initTooltip` | 511 | function | export | 2 |
+| `showTooltip` | 517 | function | export | 1 |
+| `hideTooltip` | 530 | function | export | 1 |
+| `attachMMBPan` | 538 | function |  | 2 |
+| `onMove` | 546 | arrow |  | 0 |
+| `onUp` | 549 | arrow |  | 0 |
+| `attachDotGrid` | 567 | function |  | 2 |
+| `hitTestConnection` | 598 | function |  | 2 |
+| `attachInsertion` | 626 | function |  | 2 |
+| `setHover` | 649 | arrow |  | 2 |
+| `up` | 710 | arrow |  | 0 |
 
 ## web/src/protocol/compare.ts（23 行）
 
