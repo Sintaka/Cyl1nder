@@ -1,4 +1,4 @@
-﻿# 关键决策 / Decisions & Why
+# 关键决策 / Decisions & Why
 
 | 决策 | 内容 | 为什么 |
 |---|---|---|
@@ -13,3 +13,5 @@
 | 前端地基 | Vite + TypeScript，无 UI 框架；X6 节点图；Three 视口 | 类型即文档省 token；X6 可自定义 Houdini 竖排样式 |
 
 | Houdini MCP | 直接用官方 fxhoudinimcp（pip 包，`python -m fxhoudinimcp`，默认端口 8100/8101+）；不用自己写的桥、不用 oculairmedia fork / rpyc 18811 | 官方维护、工具齐全（约 188 个）、自动探测端口；自写桥重复造轮子且易过时 |
+| 前端/桥生命周期 | 前端(8376 vite) 生命绑定到桥(8375)：shelf 工具与 HDA autostart 一起起停双进程；`Open in Browser` 先确保 UI 起来再打开 | 避免"桥开着但 UI 没起"；单入口管理，不再依赖用户手动起 vite |
+| 端口占用 | 应用数据路径只有 8375(桥) + 8376(web dev)；8100 是 agent↔Houdini 控制通道（fxhoudinimcp），不是应用数据路径 | dev 需要 vite HMR 不能合并；发行版可让桥托管 `web/dist` 静态文件合并为单端口（v0.2 再做） |

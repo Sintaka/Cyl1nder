@@ -28,10 +28,23 @@ FORCE_COOK_CALLBACK = (
 
 OPEN_WEB_CALLBACK = (
     "import webbrowser\n"
+    "import threading\n"
+    "import urllib.request\n"
     "node = hou.pwd()\n"
     "base = node.parm('web_url').eval().rstrip('/')\n"
     "serial = node.parm('cyl1nder_serial').eval()\n"
-    "webbrowser.open(base + '/?serial=' + serial)\n"
+    "def _ui_up():\n"
+    "    try:\n"
+    "        urllib.request.urlopen('http://127.0.0.1:8376/', timeout=0.5)\n"
+    "        return True\n"
+    "    except Exception:\n"
+    "        return False\n"
+    "def _open():\n"
+    "    if not _ui_up():\n"
+    "        exec(open(r'D:/code/dev/Cyl1nder/hda/scripts/bridge_control.py', encoding='utf-8-sig').read())\n"
+    "        ensure_frontend()\n"
+    "    webbrowser.open(base + '/?serial=' + serial)\n"
+    "threading.Thread(target=_open, daemon=True).start()\n"
 )
 
 REGEN_CALLBACK = (

@@ -1,19 +1,18 @@
-"""Bridge process control for Cyl1nder shelf tools (pure Python, no PowerShell).
+"""Bridge + Web frontend process control for Cyl1nder shelf tools (pure Python).
 
 Runs in Houdini's Python 3.11 (stdlib only) or standalone.
+Lifecycle binding: the frontend (vite on 8376) is bound to the bridge (8375) -
+start/stop/toggle/restart/status manage BOTH. Starting the bridge also starts
+the frontend if it is down; stopping the bridge also stops the frontend.
+
 - find PID: netstat -ano (terminal util)
 - kill PID: taskkill /F (terminal util)
-- start: subprocess.Popen(CREATE_NEW_CONSOLE) -> opens an INDEPENDENT VISIBLE
-  console window running the bridge (same as the user's manual
-  `cd bridge; .venv\\Scripts\\python -m bridge` workflow).
-Non-blocking usage from Houdini: callers run start/stop/restart/toggle on a
-background thread (see shelf scripts) so Houdini's main thread never waits;
-results are appended to bridge_control.log.
-
+- start bridge: subprocess.Popen(CREATE_NEW_CONSOLE) -> INDEPENDENT VISIBLE
+  console window (same as manual `cd bridge; python -m bridge`).
+- start frontend: node vite in an independent console window.
 CRITICAL: Houdini exports PYTHONHOME/PYTHONPATH pointing at ITS Python 3.11
-stdlib. A spawned venv Python 3.12 inherits them and dies at startup
-("Fatal Python error: init_import_site ... SRE module mismatch"). Always spawn
-with PYTHON* env vars stripped (see _clean_env).
+stdlib; a spawned venv Python 3.12 inherits them and dies at startup
+("SRE module mismatch"). Always spawn with PYTHON* stripped (see _clean_env).
 Keep ASCII-only: this file is exec()'d by Houdini shelf scripts.
 """
 from __future__ import annotations
@@ -26,26 +25,48 @@ import urllib.request
 
 BRIDGE_URL = "http://127.0.0.1:8375"
 PORT = 8375
+UI_URL = "http://127.0.0.1:8376"
+UI_PORT = 8376
 BRIDGE_PY = r"D:\code\dev\Cyl1nder\bridge\.venv\Scripts\python.exe"
 BRIDGE_CWD = r"D:\code\dev\Cyl1nder\bridge"
+NODE = r"C:\Program Files\nodejs\node.exe"
+VITE_JS = r"D:\code\dev\Cyl1nder\web\node_modules\vite\bin\vite.js"
+WEB_CWD = r"D:\code\dev\Cyl1nder\web"
 RESULT_LOG = os.path.join(BRIDGE_CWD, "bridge_control.log")
 
 
-def _clean_env():
+def _clean_env(extra=None):
     """Child env without Houdini's PYTHONHOME/PYTHONPATH (they corrupt a venv 3.12)."""
-    return {k: v for k, v in os.environ.items() if not k.upper().startswith("PYTHON")}
+    env = {k: v for k, v in os.environ.items() if not k.upper().startswith("PYTHON")}
+    if extra:
+        env.update(extra)
+    return env
 
 
-def bridge_healthy(url: str = BRIDGE_URL, timeout: float = 0.5):
-    """Return /api/health JSON dict, or None when unreachable."""
+def _get(url, timeout=0.5):
     try:
-        with urllib.request.urlopen(url.rstrip("/") + "/api/health", timeout=timeout) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
+            return resp.read().decode("utf-8", "replace")
     except Exception:
         return None
 
 
-def find_pids(port: int = PORT):
+def bridge_healthy(url: str = BRIDGE_URL, timeout: float = 0.5):
+    body = _get(url.rstrip("/") + "/api/health", timeout)
+    if body is None:
+        return None
+    try:
+        return json.loads(body)
+    except Exception:
+        return None
+
+
+def frontend_healthy(url: str = UI_URL, timeout: float = 0.5) -> bool:
+    """True when the web UI (vite) answers on 8376."""
+    return _get(url + "/", timeout) is not None
+
+
+def find_pids(port: int):
     """PIDs listening on the port via netstat -ano."""
     try:
         out = subprocess.run(
@@ -66,8 +87,7 @@ def find_pids(port: int = PORT):
     return pids
 
 
-def _wait_port_free(port: int = PORT, seconds: float = 3.0) -> bool:
-    """Wait until nothing LISTENING on the port (release after taskkill)."""
+def _wait_port_free(port: int, seconds: float = 3.0) -> bool:
     deadline = time.time() + seconds
     while time.time() < deadline:
         if not find_pids(port):
@@ -76,8 +96,7 @@ def _wait_port_free(port: int = PORT, seconds: float = 3.0) -> bool:
     return not find_pids(port)
 
 
-def stop_bridge(port: int = PORT):
-    """Kill all PIDs on the port via taskkill /F. Returns count killed."""
+def _kill_port(port: int) -> int:
     killed = 0
     for pid in find_pids(port):
         try:
@@ -90,60 +109,80 @@ def stop_bridge(port: int = PORT):
     return killed
 
 
-def start_bridge(url: str = BRIDGE_URL):
-    """Open an independent visible console window running the bridge.
+def ensure_frontend(url: str = UI_URL, wait_seconds: float = 10.0) -> str:
+    """Start vite on 8376 if it is down (independent console). Returns status string."""
+    if frontend_healthy(url):
+        return "ui OK (already up)"
+    _wait_port_free(UI_PORT, 2.0)
+    try:
+        subprocess.Popen(
+            [NODE, VITE_JS],
+            cwd=WEB_CWD,
+            env=_clean_env(),
+            creationflags=subprocess.CREATE_NEW_CONSOLE,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return "ui FAILED to spawn: %s" % exc
+    deadline = time.time() + wait_seconds
+    while time.time() < deadline:
+        time.sleep(0.3)
+        if frontend_healthy(url):
+            return "ui OK (spawned vite on 8376)"
+    return "ui spawned but not ready in %.0fs - check the vite console window" % wait_seconds
 
-    CREATE_NEW_CONSOLE gives the bridge its own window (the user's manual
-    workflow). Returns 'OK <version>' or a reason on failure.
-    """
+
+def start_bridge(url: str = BRIDGE_URL):
+    """Open an independent visible console window running the bridge, then ensure the UI."""
     _wait_port_free(PORT)
     try:
         proc = subprocess.Popen(
             [BRIDGE_PY, "-m", "bridge"],
             cwd=BRIDGE_CWD,
-            env=_clean_env(),  # strip PYTHONHOME/PYTHONPATH from Houdini
+            env=_clean_env(),
             creationflags=subprocess.CREATE_NEW_CONSOLE,
         )
     except Exception as exc:  # noqa: BLE001
-        return "FAILED to spawn: %s" % exc
+        return "FAILED to spawn bridge: %s" % exc
 
-    # confirm health for up to ~10s (background thread in the shelf, so Houdini
-    # is never blocked by this poll)
-    for i in range(50):
+    bridge_msg = "bridge not healthy in 10s - check console"
+    for _ in range(50):  # up to ~10s
         time.sleep(0.2)
         h = bridge_healthy(url)
         if h:
-            return "OK v%s serials=%s (independent console, pid=%s)" % (
-                h.get("version", "?"), h.get("serials", "?"), proc.pid)
+            bridge_msg = "bridge OK v%s (pid=%s)" % (h.get("version", "?"), proc.pid)
+            break
         if proc.poll() is not None:
-            return "FAILED: bridge process exited early (code %s) - see console window / bridge.err.log" % proc.returncode
-    return "spawned console (pid=%s) but bridge not healthy in 10s - check the console window" % proc.pid
+            return "FAILED: bridge exited early (code %s) - see console" % proc.returncode
+
+    ui_msg = ensure_frontend()
+    return "%s; %s" % (bridge_msg, ui_msg)
 
 
 def restart_bridge(url: str = BRIDGE_URL):
-    killed = stop_bridge()
-    return "restart: killed %d pid(s); %s" % (killed, start_bridge(url))
+    killed = _kill_port(PORT) + _kill_port(UI_PORT)
+    return "restart: stopped %d pid(s) on 8375/8376; %s" % (killed, start_bridge(url))
 
 
 def toggle_bridge(url: str = BRIDGE_URL):
     if bridge_healthy(url):
-        n = stop_bridge()
-        return "stopped (killed %d pid(s)); console window closed" % n
+        n = _kill_port(PORT) + _kill_port(UI_PORT)
+        return "stopped %d pid(s) on 8375/8376; console windows closed" % n
     return "start: " + start_bridge(url)
 
 
 def status_bridge(url: str = BRIDGE_URL):
     h = bridge_healthy(url, timeout=1.0)
+    ui = frontend_healthy()
     if not h:
-        pids = find_pids()
-        if pids:
-            return "port 8375 occupied by pid(s) %s but /api/health unreachable" % pids
-        return "OFFLINE (nothing on 8375)"
-    return "ONLINE v%s serials=%s" % (h.get("version", "?"), h.get("serials", "?"))
+        pids = find_pids(PORT)
+        bridge_txt = "port 8375 occupied by %s but health unreachable" % pids if pids else "bridge OFFLINE"
+    else:
+        bridge_txt = "bridge ONLINE v%s serials=%s" % (h.get("version", "?"), h.get("serials", "?"))
+    ui_txt = "ui ONLINE" if ui else "ui OFFLINE"
+    return "%s | %s" % (bridge_txt, ui_txt)
 
 
 def log_result(msg: str) -> None:
-    """Append a timestamped result line (called from the background thread)."""
     try:
         with open(RESULT_LOG, "a", encoding="utf-8") as fh:
             fh.write("%s %s\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), msg))

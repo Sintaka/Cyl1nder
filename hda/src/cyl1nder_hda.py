@@ -26,7 +26,40 @@ _SYNC: dict[str, dict] = {}
 # HDA owns bridge startup: if unreachable, spawn it (one attempt / 5s)
 BRIDGE_PY = r"D:\code\dev\Cyl1nder\bridge\.venv\Scripts\python.exe"
 BRIDGE_CWD = r"D:\code\dev\Cyl1nder\bridge"
+NODE = r"C:\Program Files\nodejs\node.exe"
+VITE_JS = r"D:\code\dev\Cyl1nder\web\node_modules\vite\bin\vite.js"
+WEB_CWD = r"D:\code\dev\Cyl1nder\web"
 _BRIDGE_LAST_SPAWN = 0.0
+_UI_LAST_SPAWN = 0.0
+
+def _ui_healthy() -> bool:
+    """True when the web UI (vite on 8376) answers."""
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:8376/", timeout=0.4):
+            return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _ensure_frontend(root: hou.Node) -> None:
+    """Bind the web UI lifecycle to the bridge: if 8376 is down, start vite (1 attempt / 10s)."""
+    global _UI_LAST_SPAWN
+    if not bool(_parm(root, "bridge_autostart", 1)):
+        return
+    if _ui_healthy():
+        return
+    if time.time() - _UI_LAST_SPAWN < 10.0:
+        return
+    _UI_LAST_SPAWN = time.time()
+    try:
+        subprocess.Popen(
+            [NODE, VITE_JS],
+            cwd=WEB_CWD,
+            env={k: v for k, v in os.environ.items() if not k.upper().startswith("PYTHON")},
+            creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW,
+        )
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _bridge_healthy(bridge_url: str) -> bool:
@@ -234,6 +267,7 @@ def cook(role: int) -> None:
 
     client = BridgeClient(serial, bridge_url=bridge_url, node_path=root.path(), label="Cyl1nder")
     _ensure_bridge(root)
+    _ensure_frontend(root)
 
     if role == ROLE_PUSH and auto_push:
         srcs = node.inputs()

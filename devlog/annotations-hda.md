@@ -67,3 +67,12 @@
 - **确认桥单实例**：netstat 8375 仅一个 LISTENING（venv 启动器 + 基础 python 属同一逻辑桥）；此前多次验证测试会短暂出现多个控制台窗口属正常测试现象。
 - **弹窗来源说明**：用户看到的 "Windows cannot find ..." 弹窗来自调试阶段 `cmd /c start` 引号错误（会触发 Windows 错误框），已彻底移除该启动方式（改 `CREATE_NEW_CONSOLE`），并写入规范：禁止用会弹 Windows 消息框的方式调试，调试输出走文件/日志。
 - **规范补充**：使用 fxhoudinimcp 前必须读官方手册；记录工具参数坑（run_shelf_tool 用 tool_name、execute_python 无顶层 return、severityType 无 Info、HTTP 直连 body 格式）。
+
+## v0.1.00012（2026-08-10）
+- **前端生命周期绑定到桥（8375+8376 双端口统一管理）**：
+  - `bridge_control.py` 升级为双进程管理器：`start/toggle/restart/status` 同时管理桥(8375) 与 vite(8376)。启动桥后自动确保 UI（8376 没监听则 `node vite` 独立控制台拉起）；停桥同时杀 8376；status 同时显示两者。
+  - HDA autostart（`cyl1nder_hda.py _ensure_frontend`）：cook 时若 8376 没起则静默拉起 vite（DETACHED|NO_WINDOW，10s 节流），与 `_ensure_bridge` 同步。
+  - `Open in Browser` 回调（build_hda.py）改为：后台线程先 `ensure_frontend()` 再 `webbrowser.open`——不再直接跳到死链接。
+  - 已通过 fxhoudinimcp 在 Houdini 内重建 HDA（`reload_cyl1nder(definition=True)`），实例 `/obj/geo1/Cyl1nder1` serial `C1-msm6dsp7-ob6t` 保留，`open_web` 回调已更新。
+- **实测**：status 双显（bridge ONLINE | ui ONLINE）；toggle stop 双关（8375+8376 各杀）；toggle start → bridge OK + "ui OK (spawned vite on 8376)"；8376 返回 200。桥版本已到 v0.1.00011。
+- **端口决策**：应用数据路径仅 8375+8376；8100 是 fxhoudinimcp 控制通道非数据路径；dev 不合并端口（vite HMR 需要），发行版可让桥托管 dist 静态文件合并为单端口（见 decisions.md）。
