@@ -14,6 +14,7 @@ from pathlib import Path
 from fastmcp import FastMCP
 
 from .protocol import VERSION
+from .snapshot import read_snapshot, snapshot_root
 from .state import get_state
 
 mcp = FastMCP("cyl1nder")
@@ -51,6 +52,50 @@ def cyl1nder_get_status(serial: str) -> dict:
         "registry": rec.to_dict() if rec is not None else None,
         "workspace": st.workspaces.status(serial),
     }
+
+
+@mcp.tool()
+def cyl1nder_read_snapshot(serial: str) -> dict:
+    """Debug: unified path system - snapshot summary + parts (io/scene/docking-layout)."""
+    st = get_state()
+    rec = st.registry.get(serial)
+    hip = rec.hip if rec else ""
+    snap = read_snapshot(hip, serial)
+    if not snap:
+        return {"serial": serial, "snapshot": None, "root": str(snapshot_root(hip, serial))}
+    summary = {
+        "parts": list(snap.keys()),
+        "inputs": len(snap.get("inputs", [])),
+        "outputs": len(snap.get("outputs", [])),
+        "graphNodes": len(snap.get("graph", {}).get("nodes", [])) if snap.get("graph") else 0,
+        "graphConns": len(snap.get("graph", {}).get("connections", [])) if snap.get("graph") else 0,
+        "hasDocking": "docking" in snap,
+        "root": str(snapshot_root(hip, serial)),
+    }
+    return {"serial": serial, "summary": summary}
+
+
+@mcp.tool()
+def cyl1nder_read_layout() -> dict:
+    """Debug: current docking layout (docking-layout.json from the bridge file)."""
+    from .ui_layout import UiLayoutStore
+    store = UiLayoutStore(_REPO_ROOT / "bridge" / "data" / "ui-layout.json")
+    data = store.read()
+    if not data:
+        return {"layout": None, "note": "no ui-layout.json - programmatic Desk1 in use"}
+    grid = data.get("grid", {})
+    leaves: list[str] = []
+
+    def walk(n):
+        if not isinstance(n, dict):
+            return
+        if n.get("type") == "leaf":
+            leaves.append(",".join(n.get("data", {}).get("views", [])))
+        for c in n.get("data", []) or []:
+            walk(c)
+
+    walk(grid.get("root"))
+    return {"groups": leaves, "width": grid.get("width"), "height": grid.get("height")}
 
 
 @mcp.tool()

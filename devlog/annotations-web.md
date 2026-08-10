@@ -146,3 +146,11 @@
 - **节点图序列化 round-trip（scene-snapshot-research P0）**：`graph.serializeGraph()`（nodes 含 id/kind/label/flags/位置 + connections + viewport transform）→ `restoreGraph()`（清空重建节点+连接+视口，null 命名恢复）；连接时从快照恢复 node-graph；store 变化防抖 1.5s 保存 graph。
 - **dock 布局保存**：dockview 布局变化 → `PUT snapshot {docking}`（docking-layout.json）+ localStorage；恢复暂用程序化 Desk1（fromJSON bug 未解，记录）。
 - **node-parm.json 预留**：绝对地址键（如 `/obj/geo1/Cyl1nder1/cyl1nder_py0`）存节点参数，参数系统设计后填充。
+
+## v0.1.00034（2026-08-10）
+- **viewport 显示 bug 修复（子智能体 Goodall，报告 devlog/viewport-bug-report.md）**：
+  - 根因：`refreshNodeFlags` 只按节点类型整组显隐——null display 永远把 4 路输入全显示（**重叠伪影主因**）；output 无数据时错误回退显示 inputs；按端口能力是死代码。
+  - 修复：`graph.getDisplayPortIndex()`（null.in0 上游连接的 `in0..in3`）→ null display 只显示穿过该 null 的**那一段**（日志 `display focus inputs index=0..3`）；output display 无数据**不再回退** inputs；debug box 默认隐藏不干扰。
+  - 实测 4 线段矩阵：in0/in1/in2/in3 各自 display 均只显示对应段。reference wireframe 条件性双画伪影见报告建议。
+- **debug 访问流程（python）**：`scripts/cyl_debug.py`——`status` / `layout`（读 docking-layout.json）/ `snapshot <serial>` / `browser`（CDP 9222，需 Chrome `--remote-debugging-port`）/ `probe`。铁律：UI 状态一律从 bridge 文件读，不用 headless 浏览器当真相。
+- **MCP debug 工具**：`cyl1nder_read_snapshot`（快照摘要+目录）、`cyl1nder_read_layout`（docking 分组）。

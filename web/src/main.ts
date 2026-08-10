@@ -53,19 +53,26 @@ const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuf
 
 /** Node flags -> viewport: display visibility + wireframe reference overlays. */
 function refreshNodeFlags(): void {
-  // Viewport follows the node-view display flag of WHATEVER node is displayed
-  // (input_ / output_ / null). null's output is a passthrough of its input, so
-  // showing a null node displays the inputs. Default: _input_.
+  // Viewport follows the node-view display flag of WHATEVER node is displayed,
+  // at PORT level (not just node kind):
+  //   _input_  -> show all 4 source inputs (in0..in3)
+  //   null     -> passthrough: show ONLY the input segment wired through it
+  //               (graph.getDisplayPortIndex() resolves in0..in3 from the graph)
+  //   _output_ -> show result buffers (outputs); nothing when Houdini hasn't pushed
+  //   no display node -> keep showing inputs (safe source view)
   const disp = graph.getDisplayNode();
-  const inDisplay = disp?.kind === "input";
-  const outDisplay = disp?.kind === "output";
-  const nullDisplay = disp?.kind === "null";
+  const kind = disp?.kind ?? null;
   const hasOutputs = store.outputs.length > 0;
-  const showOutputs = outDisplay && hasOutputs;
-  const showInputs = inDisplay || nullDisplay || (outDisplay && !hasOutputs);
-  viewport.setVisibility("inputs", showInputs || disp === null);
+  const showOutputs = kind === "output" && hasOutputs;
+  const showInputs = kind === "input" || kind === "null" || kind === null;
+  viewport.setVisibility("inputs", showInputs);
   viewport.setVisibility("outputs", showOutputs);
-  viewport.setDisplayFocus("inputs", null);
+  if (kind === "null") {
+    // display only the input segment routed through this null node
+    viewport.setDisplayFocus("inputs", graph.getDisplayPortIndex());
+  } else {
+    viewport.setDisplayFocus("inputs", null);
+  }
   viewport.setDisplayFocus("outputs", null);
 
   const inFlags = graph.getFlags("input");

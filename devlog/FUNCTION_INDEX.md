@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **239** 个函数/类。
+> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **242** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -61,19 +61,22 @@
 |---|---|---|---|---|
 | `create_app` | 14 | def |  | 2 |
 
-## bridge/bridge/mcp_server.py（108 行）
+## bridge/bridge/mcp_server.py（153 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_index_files` | 24 | def |  | 2 |
-| `cyl1nder_ping` | 32 | def |  | 1 |
-| `cyl1nder_list_serials` | 39 | def |  | 1 |
-| `cyl1nder_get_status` | 45 | def |  | 1 |
-| `cyl1nder_read_logs` | 57 | def |  | 1 |
-| `cyl1nder_get_errors` | 63 | def |  | 1 |
-| `cyl1nder_get_geometry_summary` | 69 | def |  | 1 |
-| `cyl1nder_index_query` | 79 | def |  | 1 |
-| `run_stdio` | 102 | def |  | 2 |
+| `_index_files` | 25 | def |  | 2 |
+| `cyl1nder_ping` | 33 | def |  | 1 |
+| `cyl1nder_list_serials` | 40 | def |  | 1 |
+| `cyl1nder_get_status` | 46 | def |  | 1 |
+| `cyl1nder_read_snapshot` | 58 | def |  | 1 |
+| `cyl1nder_read_layout` | 79 | def |  | 1 |
+| `walk` | 89 | def |  | 3 |
+| `cyl1nder_read_logs` | 102 | def |  | 1 |
+| `cyl1nder_get_errors` | 108 | def |  | 1 |
+| `cyl1nder_get_geometry_summary` | 114 | def |  | 1 |
+| `cyl1nder_index_query` | 124 | def |  | 1 |
+| `run_stdio` | 147 | def |  | 2 |
 
 ## bridge/bridge/protocol.py（96 行）
 
@@ -330,57 +333,57 @@
 | `connectWs` | 111 | function | export | 1 |
 | `connect` | 116 | arrow |  | 1 |
 
-## web/src/main.ts（314 行）
+## web/src/main.ts（321 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `refreshNodeFlags` | 55 | function |  | 3 |
-| `inputStatsText` | 88 | function |  | 2 |
-| `outputStatsText` | 97 | function |  | 2 |
-| `renderInspector` | 106 | function |  | 2 |
-| `runNetwork` | 143 | function |  | 2 |
-| `startHdaWatch` | 166 | function |  | 2 |
-| `check` | 168 | arrow |  | 1 |
-| `stopHdaWatch` | 185 | function |  | 2 |
-| `loadSnapshotIntoStore` | 194 | function |  | 2 |
-| `connect` | 222 | function |  | 4 |
-| `scheduleSaveGraph` | 302 | function |  | 2 |
+| `inputStatsText` | 95 | function |  | 2 |
+| `outputStatsText` | 104 | function |  | 2 |
+| `renderInspector` | 113 | function |  | 2 |
+| `runNetwork` | 150 | function |  | 2 |
+| `startHdaWatch` | 173 | function |  | 2 |
+| `check` | 175 | arrow |  | 1 |
+| `stopHdaWatch` | 192 | function |  | 2 |
+| `loadSnapshotIntoStore` | 201 | function |  | 2 |
+| `connect` | 229 | function |  | 4 |
+| `scheduleSaveGraph` | 309 | function |  | 2 |
 
-## web/src/nodes2/graph.ts（808 行）
+## web/src/nodes2/graph.ts（819 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `log` | 58 | arrow |  | 5 |
-| `nodeByKind` | 63 | function |  | 4 |
-| `nodeFromTarget` | 68 | function |  | 5 |
-| `renderNode` | 84 | function |  | 1 |
-| `portIndexFromTarget` | 99 | function |  | 2 |
-| `CylNode` | 111 | class | export | 3 |
-| `makeInputNode` | 140 | function |  | 3 |
-| `makeOutputNode` | 145 | function |  | 3 |
-| `makeNullNode` | 152 | function | export | 4 |
-| `buildGraph` | 166 | function |  | 2 |
-| `createReteGraph` | 223 | function | export | 1 |
-| `attachTabSearch` | 368 | function |  | 2 |
-| `render` | 384 | arrow |  | 4 |
-| `create` | 399 | arrow |  | 2 |
-| `close` | 416 | arrow |  | 6 |
-| `update` | 422 | arrow |  | 3 |
-| `attachCutMode` | 451 | function |  | 2 |
-| `isTyping` | 457 | arrow |  | 1 |
-| `attachFlagMenu` | 502 | function |  | 2 |
-| `show` | 514 | arrow |  | 2 |
-| `initTooltip` | 568 | function | export | 2 |
-| `showTooltip` | 574 | function | export | 1 |
-| `hideTooltip` | 587 | function | export | 1 |
-| `attachMMBPan` | 595 | function |  | 2 |
-| `onMove` | 603 | arrow |  | 0 |
-| `onUp` | 606 | arrow |  | 0 |
-| `attachDotGrid` | 624 | function |  | 2 |
-| `hitTestConnection` | 655 | function |  | 2 |
-| `attachInsertion` | 683 | function |  | 2 |
-| `setHover` | 706 | arrow |  | 2 |
-| `up` | 767 | arrow |  | 0 |
+| `log` | 60 | arrow |  | 5 |
+| `nodeByKind` | 65 | function |  | 4 |
+| `nodeFromTarget` | 70 | function |  | 5 |
+| `renderNode` | 86 | function |  | 1 |
+| `portIndexFromTarget` | 101 | function |  | 2 |
+| `CylNode` | 113 | class | export | 3 |
+| `makeInputNode` | 142 | function |  | 3 |
+| `makeOutputNode` | 147 | function |  | 3 |
+| `makeNullNode` | 154 | function | export | 4 |
+| `buildGraph` | 168 | function |  | 2 |
+| `createReteGraph` | 225 | function | export | 1 |
+| `attachTabSearch` | 379 | function |  | 2 |
+| `render` | 395 | arrow |  | 4 |
+| `create` | 410 | arrow |  | 2 |
+| `close` | 427 | arrow |  | 6 |
+| `update` | 433 | arrow |  | 3 |
+| `attachCutMode` | 462 | function |  | 2 |
+| `isTyping` | 468 | arrow |  | 1 |
+| `attachFlagMenu` | 513 | function |  | 2 |
+| `show` | 525 | arrow |  | 2 |
+| `initTooltip` | 579 | function | export | 2 |
+| `showTooltip` | 585 | function | export | 1 |
+| `hideTooltip` | 598 | function | export | 1 |
+| `attachMMBPan` | 606 | function |  | 2 |
+| `onMove` | 614 | arrow |  | 0 |
+| `onUp` | 617 | arrow |  | 0 |
+| `attachDotGrid` | 635 | function |  | 2 |
+| `hitTestConnection` | 666 | function |  | 2 |
+| `attachInsertion` | 694 | function |  | 2 |
+| `setHover` | 717 | arrow |  | 2 |
+| `up` | 778 | arrow |  | 0 |
 
 ## web/src/protocol/compare.ts（23 行）
 

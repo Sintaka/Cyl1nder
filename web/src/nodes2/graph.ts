@@ -49,6 +49,8 @@ export interface ReteGraph {
   getFlags(kind: NodeKind): NodeFlags | undefined;
   setFlag(kind: NodeKind, key: keyof NodeFlags, value: boolean): NodeFlags | undefined;
   getDisplayNode(): { kind: NodeKind; flags: NodeFlags } | null;
+  /** For a displayed null node: the _input_ source port (in0..in3) feeding its in0. */
+  getDisplayPortIndex(): number | null;
   frameSelection(): void;
   serializeGraph(): unknown;
   restoreGraph(data: unknown): Promise<void>;
@@ -278,6 +280,15 @@ export async function createReteGraph(
     getDisplayNode: () => {
       const n = g.editor.getNodes().find((x) => (x as CylNode).flags.display) as CylNode | undefined;
       return n ? { kind: n.kind, flags: { ...n.flags } } : null;
+    },
+    getDisplayPortIndex: () => {
+      const disp = g.editor.getNodes().find((x) => (x as CylNode).flags.display) as CylNode | undefined;
+      if (!disp || disp.kind !== "null") return null;
+      const conn = g.editor.getConnections().find(
+        (c) => c.target === disp.id && c.targetInput === "in0",
+      ) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
+      const m = /^in(\d)$/.exec(String(conn?.sourceOutput ?? ""));
+      return m ? Number(m[1]) : null;
     },
     frameSelection: () => {
       const all = g.editor.getNodes();
