@@ -25,71 +25,77 @@
   margin: 3px 4px 0; /* horizontal gap (4px/side -> 8px between inactive tabs); bottom flush so tabs sit on the panel */
 }
 /* Active tab: Chrome-style silhouette — top corners convex (7px), bottom edge
-   straight and flush with the panel below (no carved-in bottom corners). The
-   bottom corners are painted as convex quarter-circles (::before/::after) that
-   flare OUT over the adjacent tabs, so they read as outward bumps. Each quarter's
-   arc sits in the LOWER half of the corner (below the corner diagonal), hugging
-   the tab bottom edge like a Chrome open-tab corner. */
+   straight and flush with the panel below. The bottom corners are painted with
+   ::before/::after as CONCAVE (inward) rounded corners: the boundary arc is the
+   mirror of the old convex arc across the diagonal that joins its two endpoints
+   (the diagonal of the 4px corner square), so the arc keeps the SAME start/end
+   points (on the bottom edge and on the side edge) but now bulges TOWARD the tab
+   corner instead of flaring OUT over the neighbours. Only the small corner region
+   enclosed by the new arc + the two edges is painted (much less than the old
+   quarter-disc bump). */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab {
   position: relative;
   z-index: 10;            /* overlap adjacent inactive tabs */
   border-radius: 7px 7px 0 0;  /* top corners convex, bottom straight */
   margin: 3px -2px 0;     /* flush with the content bottom + slight side overlap; net 2px gap to each neighbour */
 }
-/* bottom-LEFT convex corner: SMALL blue foot hugging the bottom edge (Round 5).
-   Direction flipped back: circle centred ON the tab's bottom-left corner point
-   (100% 100%), radius 4. The 4px-tall box + small radius show only the small bottom
-   segment of the quarter arc, BELOW the corner diagonal: a compact triangle whose
-   wide base sits on the bottom edge, tapering up, arc bulging outward-down over the
-   previous tab — NOT the big disc that filled the whole corner before. */
+/* bottom-LEFT CONCAVE corner (Round 6): the boundary arc is the mirror of the
+   old convex arc across the diagonal joining its endpoints, so it keeps the SAME
+   start/end points — A on the bottom edge (4px left of the corner) and B on the
+   left edge (4px up) — but now bulges TOWARD the tab corner (through ~(-1.5,-1.5))
+   instead of flaring outward-down over the previous tab. The 4x4 box spans the
+   corner square; the radial gradient is centred on the FAR corner (box top-left,
+   0% 0%) with a transparent disc (solid edge ~3.5px) that carves the far-corner
+   quarter out, leaving only the small corner region enclosed by the concave arc +
+   both edges (about half of the old quarter-disc fill). */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab::before {
   content: "";
   position: absolute;
   top: auto;              /* neutralize dockview's :not(:first-child) divider rule */
-  right: auto;
-  left: -7px;           /* box ends exactly at the tab corner; small foot flares down-left */
+  right: 100%; /* box right edge = tab left edge; extends 4px left */
+  left: auto;           /* neutralize dockview :not(:first-child) divider rule */
   bottom: 0;
-  width: 7px;
-  height: 4px;          /* short box => only the bottom sliver of the circle is visible */
-  /* circle centred at the box's bottom-RIGHT corner (the tab's bottom-left corner
-     point), radius 4 => visible fill is the SMALL arc segment below the corner
-     diagonal: wide at the bottom edge, tapering up, arc bulging outward-down. */
-  background: radial-gradient(circle at 100% 100%, #2e4f7d 0 4px, transparent 4.5px);
+  width: 4px;
+  height: 4px;
+  /* transparent disc (solid edge ~3.5px) centred on the FAR corner (0% 0%) cuts the corner
+     square; #2e4f7d outside the disc => the concave arc from A to B with the same
+     endpoints as before, bulging toward the tab corner. */
+  background: radial-gradient(circle at 0% 0%, transparent 0 3.4px, #2e4f7d 3.5px);
   pointer-events: none;
 }
-/* bottom-RIGHT convex corner: SMALL blue foot hugging the bottom edge (Round 5).
-   Symmetric to ::before: circle centred ON the tab's bottom-right corner point
-   (0 100%), radius 4, 4px-tall box => only the small bottom segment of the quarter
-   arc shows, below the corner diagonal: wide base on the bottom edge, tapering up,
-   arc bulging outward-down over the next tab. */
+/* bottom-RIGHT CONCAVE corner (Round 6): symmetric mirror of ::before — same
+   start/end points (A' on the bottom edge 4px right of the corner, B' on the right
+   edge 4px up), but the arc now bulges TOWARD the tab corner. 4x4 box at the
+   corner; gradient centred on the FAR corner (box top-right, 100% 0%) carves the
+   far-corner quarter out, leaving the small concave-corner region. */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab::after {
   content: "";
   position: absolute;
   top: auto;              /* neutralize dockview's focus/divider pseudo-element rules */
-  left: auto;
-  right: -7px;          /* box starts exactly at the tab corner; small foot flares down-right */
+  left: 100%; /* box left edge = tab right edge; extends 4px right */
+  right: auto;          /* neutralize dockview focus/divider pseudo rules */
   bottom: 0;
-  width: 7px;
-  height: 4px;          /* short box => only the bottom sliver of the circle is visible */
-  /* circle centred at the box's bottom-LEFT corner (the tab's bottom-right corner
-     point), radius 4 => visible fill is the SMALL arc segment below the corner
-     diagonal: wide at the bottom edge, tapering up, arc bulging outward-down. */
-  background: radial-gradient(circle at 0 100%, #2e4f7d 0 4px, transparent 4.5px);
+  width: 4px;
+  height: 4px;
+  /* transparent disc (solid edge ~3.5px) centred on the FAR corner (100% 0%) cuts the corner
+     square; #2e4f7d outside the disc => concave arc A'->B' with the same endpoints
+     as before, bulging toward the tab corner. */
+  background: radial-gradient(circle at 100% 0%, transparent 0 3.4px, #2e4f7d 3.5px);
   pointer-events: none;
 }
-/* Active tab is the FIRST tab: extra left margin keeps the bottom-left convex
+/* Active tab is the FIRST tab: extra left margin keeps the bottom-left
    corner visible instead of being clipped by the scrollable's left edge. */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab:first-child {
   margin-left: 9px;
 }
 /* Active tab is the LAST tab (its next sibling is the "+" button): keep the
-   bottom-right convex corner clear of the button. */
+   bottom-right corner clear of the button. */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab:has(+ .cyl-dock-add) {
   margin-right: 4px;
 }
 /* Inactive tab immediately BEFORE the active tab: concave (inward) notch at its
    bottom-RIGHT corner (the side the active tab overlaps). Painted with the TAB-BAR
-   background (#1c1e22) so the active tab's convex rounded corner looks nested in. */
+   background (#1c1e22) so the active tab's rounded corner looks nested in. */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab:has(+ .dv-active-tab) {
   position: relative; /* anchor for the notch */
 }

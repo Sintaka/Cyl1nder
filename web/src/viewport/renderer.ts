@@ -62,6 +62,8 @@ export class Viewport {
   private gizmoModeIdx = 0;
   /** Enter-edit activation (left toolbar): transform node tx/ty/tz <-> translate gizmo. */
   private enterActive = false;
+  /** True while the pointer hovers the viewport canvas (Enter-key gating in main.ts). */
+  private hovered = false;
   private enterEditHandler: (() => void) | null = null;
   private toolbar: HTMLDivElement;
   private enterBtn: HTMLButtonElement;
@@ -103,6 +105,8 @@ export class Viewport {
     canvas.addEventListener("dragstart", (e) => e.preventDefault());
     canvas.style.touchAction = "none";
     canvas.style.userSelect = "none";
+    canvas.addEventListener("pointerenter", () => { this.hovered = true; });
+    canvas.addEventListener("pointerleave", () => { this.hovered = false; });
 
     this.scene.background = new THREE.Color(0x1a1a1a);
     this.scene.add(new THREE.GridHelper(10, 20, 0x3a3a3a, 0x262626));
@@ -495,6 +499,11 @@ export class Viewport {
   /** True while Enter edit mode is active (transform gizmo attached). */
   isEnterActive(): boolean {
     return this.enterActive;
+  }
+
+  /** True while the pointer hovers the viewport canvas (Enter-key gating in main.ts). */
+  isHovered(): boolean {
+    return this.hovered;
   }
 
   /** Enter edit mode for a transform node: attach the translate gizmo to a temp

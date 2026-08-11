@@ -2,12 +2,13 @@ import { expect, test } from "@playwright/test";
 import { BridgeClient } from "../src/bridge/client";
 
 /**
- * Round 4 (viewport write-set): left icon toolbar + Enter node-edit activation.
- * - the toolbar renders on the viewport's left edge; its first icon is the Enter
- *   arrow that toggles "node viewport edit" mode.
- * - with a transform node selected, Enter attaches the translate gizmo at
- *   tx/ty/tz; a simulated gizmo drag updates the node params and pushes the
- *   translated outputs to the bridge; re-click / Esc exits the mode.
+ * Round 6 (viewport write-set): Enter-edit mode persists across node selection
+ * changes, and the Enter KEY only toggles while the pointer hovers the viewport.
+ * - Case 1: entering Enter mode then selecting a different node keeps the mode
+ *   active; the gizmo stays bound to the node it was entered on, and dragging it
+ *   still updates THAT node's tx/ty/tz + pushes translated bridge outputs. Esc exits.
+ * - Case 2: hover viewport + Enter = enter; mouse out + Enter = no toggle;
+ *   hover again + Enter = exit (toggle); Esc also exits.
  * Self-contained: beforeAll pushes the canonical fixture; afterAll restores it.
  */
 const client = new BridgeClient();
@@ -89,49 +90,25 @@ async function poll<T>(fn: () => Promise<T>, pred: (v: T) => boolean, ms = 8000,
   throw new Error(`timeout waiting for ${label}`);
 }
 
-test("viewport toolbar: Enter icon renders on the left edge and toggles enter-edit", async ({ page }) => {
+test("Enter edit persists across node selection change; gizmo drag still updates the entered transform node", async ({ page }) => {
   await openGraph(page);
   await restoreTransformGraph(page);
 
-  // toolbar + first icon (Enter arrow)
-  const toolbar = page.locator(".cyl-viewport-toolbar");
-  await expect(toolbar).toBeVisible({ timeout: 15000 });
-  const enterBtn = toolbar.locator(".cyl-tool-btn").first();
-  await expect(enterBtn).toHaveAttribute("title", "Enter node viewport edit");
-  await expect(enterBtn.locator("svg")).toBeVisible();
-
-  // no transform selected -> stays off
-  await enterBtn.click();
-  const logText = await page.locator(".cyl-log-body").textContent({ timeout: 1500 }).catch(() => "");
-  if (logText) expect(logText).toContain("select a transform node first");
-  expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(false);
-
-  // select the transform node -> Enter icon activates the mode
+  // select the transform node, then activate Enter edit via the toolbar icon
   await page.locator(".cyl-rp-title", { hasText: /^transform\d+$/ }).first().click({ timeout: 15000 });
-  await enterBtn.click();
+  await page.locator(".cyl-viewport-toolbar .cyl-tool-btn").first().click();
   expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(true);
-  await expect(enterBtn).toHaveClass(/cyl-enter-on/);
-  const gizmo = await page.evaluate(() => (window as any).__cylViewport.scene.getObjectByName("cyl-enter-gizmo"));
+  let gizmo = await page.evaluate(() => (window as any).__cylViewport.scene.getObjectByName("cyl-enter-gizmo"));
   expect(gizmo).not.toBeNull();
 
-  // re-click exits the mode
-  await enterBtn.click();
-  expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(false);
-  await expect(enterBtn).not.toHaveClass(/cyl-enter-on/);
-});
-
-test("Enter edit: gizmo drag updates tx/ty/tz and pushes translated bridge outputs", async ({ page }) => {
-  await openGraph(page);
-  await restoreTransformGraph(page);
-
-  // select the transform node, then activate with the Enter KEY
-  // (Enter only responds while hovering the viewport - Round 6)
-  await page.locator(".cyl-rp-title", { hasText: /^transform\d+$/ }).first().click({ timeout: 15000 });
-  await page.locator(".cyl-viewport canvas").hover();
-  await page.keyboard.press("Enter");
+  // select a DIFFERENT node (_input_) -> Enter state + gizmo must survive
+  await page.locator(".cyl-rp-title", { hasText: "_input_" }).first().click({ timeout: 15000 });
+  expect(await page.evaluate(() => (window as any).__cylGraph.getSelectedNode()?.kind)).toBe("input");
   expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(true);
+  gizmo = await page.evaluate(() => (window as any).__cylViewport.scene.getObjectByName("cyl-enter-gizmo"));
+  expect(gizmo).not.toBeNull();
 
-  // simulate a translate drag: move the temp gizmo object, emit objectChange
+  // simulate a translate drag -> still updates the ENTERED transform node's tx/ty/tz
   await page.evaluate(() => {
     const v: any = (window as any).__cylViewport;
     const obj = v.scene.getObjectByName("cyl-enter-gizmo");
@@ -139,8 +116,6 @@ test("Enter edit: gizmo drag updates tx/ty/tz and pushes translated bridge outpu
     obj.position.set(1.5, -0.25, 0.5);
     v.transform.dispatchEvent({ type: "objectChange" });
   });
-
-  // transform node params follow the drag
   await expect
     .poll(
       () =>
@@ -172,6 +147,39 @@ test("Enter edit: gizmo drag updates tx/ty/tz and pushes translated bridge outpu
   expect(out0.points[3]).toEqual([1.5, 0.75, 0.5]);
 
   // Esc exits the mode
+  await page.keyboard.press("Escape");
+  expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(false);
+});
+
+test("Enter key toggles only while the mouse hovers the viewport", async ({ page }) => {
+  await openGraph(page);
+  await restoreTransformGraph(page);
+
+  // select the transform node (mouse now over the GRAPH, not the viewport)
+  await page.locator(".cyl-rp-title", { hasText: /^transform\d+$/ }).first().click({ timeout: 15000 });
+
+  // not hovering the viewport -> Enter does NOT enter
+  await page.keyboard.press("Enter");
+  expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(false);
+
+  // hover the viewport canvas -> Enter enters
+  await page.locator(".cyl-viewport canvas").hover();
+  await page.keyboard.press("Enter");
+  expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(true);
+
+  // move the mouse OUT of the viewport -> Enter does NOT exit
+  await page.locator(".cyl-rp-title", { hasText: "_input_" }).first().hover();
+  await page.keyboard.press("Enter");
+  expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(true);
+
+  // hover again -> Enter toggles OFF
+  await page.locator(".cyl-viewport canvas").hover();
+  await page.keyboard.press("Enter");
+  expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(false);
+
+  // re-enter while hovering, then Esc also exits
+  await page.keyboard.press("Enter");
+  expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(true);
   await page.keyboard.press("Escape");
   expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(false);
 });

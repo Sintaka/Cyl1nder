@@ -318,3 +318,22 @@
 ### 验证
 - tsc 0 错误；vitest 7 文件 68 通过；bridge pytest 20 通过；Playwright 全量 **23/23**（round2 5 + round3 4 + round4-nodeview 4 + round4-viewport 2 + round5-nodeview 5 + round5-viewport 2 + smoke 1）。
 - round5-nodeview：预览端点=端口圆圈中心、慢甩弹出+单向慢拖不误伤、自连被阻断、端口拖线不触发预览、graph 不可选中。round5-viewport：pivot 标记在 (px,py,pz)、gizmo 拖动只改 tx/ty/tz 且桥 outputs 平移；断开 display 节点后所有输入端口隐藏、重连恢复。
+
+## v0.1.00048（2026-08-11）
+**3 路并行**（Mill=dock / Hooke=nodeview / Aquinas=viewport+main）。
+
+### UI（styles/dock.css）
+- **tab 底部圆角边界曲线镜像到对角线另一侧**：起点/终点不变（底边 4px、侧边 4px），把外凸圆弧（圆心在角点）镜像成**内凹弧**（透明盘圆心移到远角 0%/100%，挖掉远角 1/4，剩凹弧 A→B），填充面积 -49%/-59%（对应减小）。像素验证：起点/终点坐标不变（±1px）、旧弧中点不再蓝、新凹弧中点蓝。
+
+### 节点视图（nodes2/）
+- **transform display 看不见 box 彻底排查**：根因 = `getDisplayPortIndex()` 只解析**直接**由 `_input_` 喂入的连接（`sourceOutput` 匹配 `in\d`）；transform 的 in0 由另一个 null/transform 的 out0（链条）喂入时返回 null → `setDisplayFocus('inputs', -1)` 隐藏全部输入 → 看不见 box。修复：新增 `resolveInputSourcePort(editor, nodeId)` **链式解析**（in0 往回追：input → in\d；null/transform passthrough → 递归追其 in0；visited 防环），`getDisplayPortIndex()` 与 `getSelectedNode()` 统一改用它（null 与 transform 共用一套）。E2E 覆盖直接喂/链条喂/断开/input 回归四场景。
+- **重命名双击命中区收缩 + 超长省略**：`.cyl-rp-title` `flex:1 → flex:0 1 auto; min-width:0`（不再占满顶部，头部空白双击不触发 rename）+ `max-width:20ch; overflow:hidden; text-overflow:ellipsis`（超 20 字符省略号）；改名输入框保持可输入完整名。
+- **shake 参数定稿（用户确认刚好，计入 devlog）**：`attachShakeDisconnect` 阈值 = 缓冲 24 点 / 窗口 1000ms / 最少 4 点 / 单段 >4px / 方向反向 ≥3 次；普通单方向慢拖不误伤。
+
+### Viewport / main
+- **Enter 状态保持**：`graph.onSelectionChanged` 不再退出 enter 状态（点节点不变化）；gizmo 保持绑定进入时的节点，onChange 改用 `getNetworkSnapshot()` 按进入时 nodeId 更新 tx/ty/tz（不再依赖当前选中）。
+- **Enter 键绑定 viewport 悬停**：renderer 增加 `hovered` 标志（canvas pointerenter/leave）与 `isHovered()`；main.ts 的 Enter 键 handler 仅悬停 viewport 时 toggle（回车进入/再按取消）；Esc 退出与工具栏按钮 toggle 保持不变。
+
+### 验证
+- tsc 0 错误；vitest 7 文件 68 通过；bridge pytest 20 通过；Playwright 全量 **30/30**（round2 5 + round3 4 + round4-nodeview 4 + round4-viewport 2 + round5-nodeview 5 + round5-viewport 2 + round6-nodeview 5 + round6-viewport 2 + smoke 1）。
+- round6-nodeview：transform 直连/链条 display 都显示对应输入、断开隐藏、input 回归、重命名收缩+省略。round6-viewport：点节点后 enter 状态保持且 gizmo 仍更新进入时节点；Enter 键只在悬停 viewport 时进入/取消。注：round4/round5-viewport 两个旧用例因「Enter 需悬停 viewport」行为变更补了 `hover()` 后恢复通过。

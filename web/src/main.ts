@@ -318,11 +318,13 @@ function toggleEnterEdit(): void {
   }
   const v = readParamFloats(sel.params ?? []);
   viewport.beginTransformGizmo(sel.id, v.tx ?? 0, v.ty ?? 0, v.tz ?? 0, v.px ?? 0, v.py ?? 0, v.pz ?? 0, (x, y, z) => {
-    const cur = graph.getSelectedNode();
-    if (!cur || cur.id !== sel.id) return;
+    // Gizmo stays bound to the node Enter was pressed on: read its CURRENT params
+    // from the network snapshot (selection may have moved to another node since).
+    const node = graph.getNetworkSnapshot().nodes.find((n) => n.id === sel.id);
+    if (!node) return; // node deleted mid-edit
     graph.setNodeParams(
       sel.id,
-      (cur.params ?? []).map((q) =>
+      (node.params ?? []).map((q) =>
         q.name === "tx" ? { ...q, value: x } : q.name === "ty" ? { ...q, value: y } : q.name === "tz" ? { ...q, value: z } : q,
       ),
     );
@@ -334,7 +336,8 @@ function toggleEnterEdit(): void {
 // (store.subscribe alone does not fire when only the graph selection changes)
 graph.onSelectionChanged(() => {
   refreshSelectionPanels();
-  if (viewport.isEnterActive()) viewport.endTransformGizmo();
+  // Enter edit survives selection changes (gizmo stays on the entered node);
+  // exit only via Esc / toolbar click / Enter-while-hovering.
 });
 
 /** Node flags -> viewport: display visibility + reference reference overlays. */
@@ -592,12 +595,14 @@ window.addEventListener("keydown", (e) => {
   viewport.toggleDebugBoxes();
 });
 // Enter = node viewport edit activation (same handler as the toolbar icon).
-// Skipped while typing in inputs or when a button is focused (Enter clicks it natively).
+// Only responds while the pointer hovers the viewport (Enter toggles in/out there);
+// skipped while typing in inputs or when a button is focused (Enter clicks it natively).
 window.addEventListener("keydown", (e) => {
   if (e.key !== "Enter" || e.repeat) return;
   const el = document.activeElement;
   if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
   if (el instanceof HTMLButtonElement) return;
+  if (!viewport.isHovered()) return;
   e.preventDefault();
   toggleEnterEdit();
 });

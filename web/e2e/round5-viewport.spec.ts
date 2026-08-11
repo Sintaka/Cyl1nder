@@ -227,7 +227,9 @@ test("pivot translate: gizmo at tx/ty/tz, marker at pivot; drag moves tx/ty/tz o
   await restoreGraph(page, PIVOT_GRAPH, 2);
 
   // select the transform node, then activate with the Enter KEY
+  // (Enter only responds while hovering the viewport - Round 6)
   await page.locator(".cyl-rp-title", { hasText: /^transform\d+$/ }).first().click({ timeout: 15000 });
+  await page.locator(".cyl-viewport canvas").hover();
   await page.keyboard.press("Enter");
   expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(true);
 

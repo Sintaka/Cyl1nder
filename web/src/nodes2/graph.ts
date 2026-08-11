@@ -102,6 +102,36 @@ function nodeByKind(editor: NodeEditor<Schemes>, kind: NodeKind): CylNode | unde
   return editor.getNodes().find((x) => (x as CylNode).kind === kind) as CylNode | undefined;
 }
 
+/**
+ * Resolve the _input_ source port (in0..in3) feeding a null/transform node's in0,
+ * following passthrough chains (null/transform out0 -> next in0). _input_ source
+ * -> its in\d port; null/transform source -> recurse into its in0 (visited-set
+ * guards cycles); output/unknown/no connection -> null. Shared by display focus
+ * and selection panels so null and transform resolve identically.
+ */
+function resolveInputSourcePort(
+  editor: NodeEditor<Schemes>,
+  nodeId: string,
+  visited: Set<string> = new Set(),
+): number | null {
+  if (visited.has(nodeId)) return null;
+  visited.add(nodeId);
+  const conn = editor.getConnections().find(
+    (c) => c.target === nodeId && c.targetInput === "in0",
+  ) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
+  if (!conn) return null;
+  const src = editor.getNode(conn.source) as CylNode | undefined;
+  const out = String(conn.sourceOutput ?? "");
+  if (src?.kind === "input") {
+    const m = /^in(\d)$/.exec(out);
+    return m ? Number(m[1]) : null;
+  }
+  if ((src?.kind === "null" || src?.kind === "transform") && out === "out0") {
+    return resolveInputSourcePort(editor, src.id, visited);
+  }
+  return null;
+}
+
 /** Resolve a DOM target to a rete node via area.nodeViews (element containment). */
 function nodeFromTarget(
   editor: NodeEditor<Schemes>,
@@ -422,23 +452,13 @@ export async function createReteGraph(
     getDisplayPortIndex: () => {
       const disp = g.editor.getNodes().find((x) => (x as CylNode).flags.display) as CylNode | undefined;
       if (!disp || (disp.kind !== "null" && disp.kind !== "transform")) return null;
-      const conn = g.editor.getConnections().find(
-        (c) => c.target === disp.id && c.targetInput === "in0",
-      ) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
-      const m = /^in(\d)$/.exec(String(conn?.sourceOutput ?? ""));
-      return m ? Number(m[1]) : null;
+      return resolveInputSourcePort(g.editor, disp.id);
     },
     getSelectedNode: () => {
       const sel = (g.editor.getNodes() as CylNode[]).find((n) => (n as ClassicPreset.Node).selected);
       if (!sel) return null;
       let port: number | null = null;
-      if (sel.kind === "null" || sel.kind === "transform") {
-        const conn = g.editor.getConnections().find(
-          (c) => c.target === sel.id && c.targetInput === "in0",
-        ) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
-        const m = /^in(\d)$/.exec(String(conn?.sourceOutput ?? ""));
-        port = m ? Number(m[1]) : null;
-      }
+      if (sel.kind === "null" || sel.kind === "transform") port = resolveInputSourcePort(g.editor, sel.id);
       return { kind: sel.kind, id: sel.id, label: sel.label, port, params: sel.params ?? [] };
     },
     onSelectionChanged: (cb) => {
