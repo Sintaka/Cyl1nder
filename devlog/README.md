@@ -47,6 +47,7 @@
 | 节点视图 MCP 调试工具报告 | [nodeview-mcp-report.md](nodeview-mcp-report.md) |
 | 视口显示模式 / Param 面板 MCP 通道调研 | [mcp-channel-proposals.md](mcp-channel-proposals.md) |
 | bridge⇄HDA 流式落地现状调研 | [streaming-hda-review.md](streaming-hda-review.md) |
+| 快速传输技术栈评估（WASM/串流/本地通信） | [transport-tech-evaluation.md](transport-tech-evaluation.md) |
 
 ## 关键词 → 专题文件（快速跳读）
 
@@ -79,6 +80,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00043：快速传输技术栈评估——WS 保持主通道，WebTransport 列为 v0.3+ 备选（保留 WS fallback）；B2 起启用 proto=msgpack（1.5-2x 于 JSON）；zstd/Draco 按需叠加；最大亮点 = B2 Rust core 一份代码双端复用（bridge sidecar + web wasm），消除 M5 fuzz 对拍漂移；动捕级再上 WebGPU compute + WASM threads（需 COOP/COEP）；明确不做：WebRTC DataChannel / 视频串流 / HDA 引 WS。
 - v0.1.00042：6 路并行（写集拆分后 Lovelace/Meitner/Newton/Ptolemy + Planck/Gibbs/Kuhn）：spreadsheet 跟随选中节点（null→in0 源端口、多选取第一个）+ label 覆盖 + vertnum/primnum + 填充列/补空行 + 更暗斑马；docking 活动标签改 Chrome 式完整圆角 + 相邻凹切；viewport 默认 Flat Wire Shaded + displaySettings 存取 + three.js gizmo 演示（G/Shift+G）；新增 Param 面板（默认布局带 Params 页）；MCP 新工具 viewport_settings/node_params + 通道调研；bridge⇄HDA 流式现状调研（方案 B 未开始）；main.ts 主进程接线 + 选中刷新 timing 修复（setTimeout 0）。
 - v0.1.00041：修复 viewport-bug-report / annotations-web 首行合并（PowerShell git show 数组未 -join 换行）；编码/数组坑 + git 历史卫生写入 development-standards；根 README（x6→rete、版本格式）与 AGENT_QUICKSTART（nodes→nodes2）过期引用同步。
 - v0.1.00040：git 历史清理（filter-branch 替换 devlog/README.md 巨 blob，.git 69MB→2MB，--force-with-lease 推送成功）；恢复 5 个被管道编码写坏的 devlog 文件（README/annotations-web/viewport-bug-report/shortcuts/temp-scene-log）。
