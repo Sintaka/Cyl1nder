@@ -118,7 +118,9 @@
   stroke: #ffd166 !important; stroke-width: 3 !important;
   filter: drop-shadow(0 0 6px rgba(255, 209, 102, 0.8));
 }
-/* drag-insert preview: two flowing dashed curves (source -> mouse -> target) */
+/* drag-insert preview: two flowing dashed curves (source socket -> dragged node
+   IN / dragged node OUT -> target socket), following the moving node's ports */
+.cyl-graph .cyl-insert-preview { z-index: 0; pointer-events: none; } /* below nodes (node z-index is 1) */
 .cyl-graph .cyl-insert-preview path {
   stroke: #ffd166; stroke-width: 2.5; fill: none; stroke-dasharray: 7 5;
   animation: cyl-dash-flow 0.6s linear infinite;

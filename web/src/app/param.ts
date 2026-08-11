@@ -3,8 +3,11 @@
  * attributes (name / type / value table). v1: float/int -> number input,
  * class -> select, other strings -> text input; edits rebuild the params array
  * and fire onChange (the caller persists them + re-runs the network).
+ * float/int number inputs also get middle-drag scrubbing (attachScrub).
  * Pure DOM string rendering - no imports, no framework.
  */
+
+import { attachScrub, format4 } from "./scrub";
 
 export interface ParamInfo {
   name: string;
@@ -108,6 +111,20 @@ export function renderParams(
       const commit = () => onChange(applyEdit(info, name, ctrl.value));
       ctrl.addEventListener("input", commit);
       ctrl.addEventListener("change", commit);
+      if (ctrl instanceof HTMLInputElement && ctrl.type === "number") {
+        attachScrub(
+          ctrl,
+          () => {
+            const v = parseFloat(ctrl.value);
+            return Number.isFinite(v) ? v : 0;
+          },
+          (next) => {
+            const text = format4(next);
+            ctrl.value = text;
+            onChange(applyEdit(info, name, text));
+          },
+        );
+      }
     }
   }
 }

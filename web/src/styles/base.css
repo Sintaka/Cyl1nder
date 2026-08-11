@@ -93,3 +93,48 @@ html, body, #app { height: 100%; margin: 0; }
 .cyl-param-table input:focus, .cyl-param-table select:focus {
   border-color: #2b6cb0;
 }
+
+/* hide native number spin arrows; middle-drag scrubbing replaces them (keep keyboard input) */
+.cyl-param-table input[type="number"]::-webkit-inner-spin-button,
+.cyl-param-table input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.cyl-param-table input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: none;
+}
+
+/* ---- middle-drag scrub popup (web/src/app/scrub.ts) ---- */
+.cyl-scrub {
+  position: fixed;
+  z-index: 80;
+  min-width: 72px;
+  background: #1b1e24;
+  border: 1px solid #3a3f4a;
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  font: 10px/1.5 ui-monospace, monospace;
+  color: #cfd2d6;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.cyl-scrub-row {
+  padding: 0 8px;
+  text-align: right;
+  border-radius: 3px;
+}
+.cyl-scrub-row.active {
+  background: #2b6cb0;
+  color: #fff;
+}
+.cyl-scrub-sep {
+  border-top: 1px solid #2a2d33;
+  margin: 3px 0;
+}
+.cyl-scrub-value {
+  padding: 0 8px;
+  text-align: right;
+  color: #7ce3a8;
+}

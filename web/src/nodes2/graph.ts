@@ -1174,7 +1174,7 @@ function attachInsertion(
   // Insertion preview overlay: two dashed flowing curves (source -> mouse -> target).
   const overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   overlay.setAttribute("class", "cyl-insert-preview");
-  overlay.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:6;";
+  overlay.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:0;";
   overlay.style.width = "100%";
   overlay.style.height = "100%";
   container.appendChild(overlay);
@@ -1185,19 +1185,38 @@ function attachInsertion(
     overlay.appendChild(path);
   }
 
-  const setHover = (connId: string | null, mouseX = 0, mouseY = 0) => {
-    if (hoverConn) {
-      area.connectionViews.get(hoverConn)?.element.querySelector("path")?.classList.remove("drop-target");
-      hoverConn = null;
-    }
+  /** Container-local center of a node port (data-port-id) -> preview endpoint. */
+  const portCenterLocal = (nodeId: string, portId: string, rect: DOMRect): { x: number; y: number } | null => {
+    const el = area.nodeViews.get(nodeId)?.element.querySelector(`[data-port-id="${portId}"]`);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2 - rect.left, y: r.top + r.height / 2 - rect.top };
+  };
+
+  /**
+   * Two flowing dashed curves following the dragged node while hovering a
+   * connection: previewA = connection source socket -> dragged node IN port,
+   * previewB = dragged node OUT port -> connection target socket. Re-drawn on
+   * every pointermove so the endpoints track the moving node's ports.
+   */
+  // The container pointermove listener runs in the capture phase, BEFORE rete's
+  // node drag handler applies the move, so DOM port positions lag one event
+  // behind. Defer the redraw to the next frame so the curves follow the node.
+  let previewRaf = 0;
+  const refreshPreview = (mouseX: number, mouseY: number) => {
+    if (previewRaf) cancelAnimationFrame(previewRaf);
+    previewRaf = requestAnimationFrame(() => {
+      previewRaf = 0;
+      updatePreview(mouseX, mouseY);
+    });
+  };
+
+  const updatePreview = (mouseX: number, mouseY: number) => {
     previewA.setAttribute("d", "");
     previewB.setAttribute("d", "");
-    if (!connId) return;
-    const view = area.connectionViews.get(connId);
+    if (!hoverConn || !draggingNodeId) return;
+    const view = area.connectionViews.get(hoverConn);
     if (!view) return;
-    view.element.querySelector("path")?.classList.add("drop-target");
-    hoverConn = connId;
-    // curved preview source socket -> mouse -> target socket, container-local coords
     const svg = view.element.querySelector("path") as SVGPathElement | null;
     if (!svg || typeof svg.getTotalLength !== "function") return;
     const ctm = svg.getScreenCTM();
@@ -1208,12 +1227,27 @@ function attachInsertion(
     const p1 = svg.getPointAtLength(len);
     const start = new DOMPoint(p0.x, p0.y).matrixTransform(ctm);
     const end = new DOMPoint(p1.x, p1.y).matrixTransform(ctm);
-    const mx = mouseX - rect.left;
-    const my = mouseY - rect.top;
-    previewA.setAttribute("d", connectionPathD(start.x - rect.left, start.y - rect.top, mx, my));
-    previewB.setAttribute("d", connectionPathD(mx, my, end.x - rect.left, end.y - rect.top));
+    const inC = portCenterLocal(draggingNodeId, "in0", rect);
+    const outC = portCenterLocal(draggingNodeId, "out0", rect);
+    if (!inC || !outC) return;
+    previewA.setAttribute("d", connectionPathD(start.x - rect.left, start.y - rect.top, inC.x, inC.y));
+    previewB.setAttribute("d", connectionPathD(outC.x, outC.y, end.x - rect.left, end.y - rect.top));
   };
 
+  const setHover = (connId: string | null, mouseX = 0, mouseY = 0) => {
+    if (hoverConn) {
+      area.connectionViews.get(hoverConn)?.element.querySelector("path")?.classList.remove("drop-target");
+      hoverConn = null;
+    }
+    if (connId) {
+      const view = area.connectionViews.get(connId);
+      if (view) {
+        view.element.querySelector("path")?.classList.add("drop-target");
+        hoverConn = connId;
+      }
+    }
+    refreshPreview(mouseX, mouseY);
+  };
   container.addEventListener(
     "pointerdown",
     (e) => {
@@ -1234,6 +1268,7 @@ function attachInsertion(
       if (!draggingNodeId) return;
       const connId = hitTestConnection(area, e.clientX, e.clientY);
       if (connId !== hoverConn) setHover(connId, e.clientX, e.clientY);
+      else refreshPreview(e.clientX, e.clientY); // keep endpoints on the moving node
     },
     true,
   );
@@ -1368,15 +1403,13 @@ function attachRectSelect(
 }
 
 // ---------------------------------------------------------------------------
-// Shake a node to disconnect + auto-reconnect nearest compatible neighbors.
-// Drag a node back-and-forth quickly (>=3 direction reversals within ~600ms
-// with >6px per segment); all its connections are cut, then it re-links to the
-// nearest left neighbor's first output (into our first input) and nearest right
-// neighbor's first input (from our first output) when the socket types match
-// and the target slot is free.
-// NOTE: v1 interpretation of "auto-connect the first matching input/output" -
-// every socket is GEO in v1 so type matches usually succeed. May be refined
-// once real per-port types exist.
+// Shake a node to pop it out of the chain: all its connections are cut and each
+// A -> node -> B path heals into a direct A -> B (keeping the original
+// sourceOutput/targetInput) when the socket types match and B's target slot is
+// free. The shaken node stays disconnected. Multi-port nodes without a
+// through-path just get cut.
+// Threshold: drag back-and-forth quickly (>=3 direction reversals within ~600ms
+// with >6px per segment). Undo = one {type:"shake"} entry (cut + added).
 // ---------------------------------------------------------------------------
 
 function attachShakeDisconnect(
@@ -1400,7 +1433,7 @@ function attachShakeDisconnect(
     const node = editor.getNode(id) as CylNode | undefined;
     if (!node) return;
 
-    // 1. Cut every connection touching this node (record refs BEFORE removal).
+    // 1. Record + cut every connection touching this node.
     const touching = editor.getConnections().filter((c) => c.source === id || c.target === id);
     const cutRefs: ConnectionRef[] = touching.map((c) => ({
       source: c.source,
@@ -1415,61 +1448,36 @@ function attachShakeDisconnect(
       log(`shake cut ${c.id} (${src} -> ${tgt})`);
     }
 
-    const pos = area.nodeViews.get(id)?.position ?? { x: 0, y: 0 };
-    const firstIn = Object.entries(node.inputs)[0];
-    const firstOut = Object.entries(node.outputs)[0];
+    // 2. Heal each A -> node -> B path into a direct A -> B (keep the original
+    //    sourceOutput/targetInput, e.g. input.in1 -> null1 -> output.out1 becomes
+    //    input.in1 -> output.out1). Only when A's output socket type matches B's
+    //    input socket type and B's target slot is free; multi-port nodes without
+    //    a through-path just get cut.
+    const ins = touching.filter((c) => c.target === id);
+    const outs = touching.filter((c) => c.source === id);
     const addedRefs: ConnectionRef[] = [];
-
-    // 2. INPUT side: nearest node to the LEFT whose FIRST output socket type
-    //    matches our first input -> connect that first output into our first input.
-    if (firstIn && firstIn[1]) {
-      const inKey = firstIn[0];
-      const inSocket = firstIn[1].socket.name;
-      const inFree = !editor.getConnections().some((c) => c.target === id && c.targetInput === inKey);
-      if (inFree) {
-        let best: { node: CylNode; d: number } | null = null;
-        for (const other of editor.getNodes() as CylNode[]) {
-          if (other.id === id) continue;
-          const p = area.nodeViews.get(other.id)?.position;
-          if (!p || p.x >= pos.x) continue; // must be to the LEFT
-          const out = Object.entries(other.outputs)[0];
-          if (!out || !out[1] || out[1].socket.name !== inSocket) continue;
-          const d = Math.hypot(p.x - pos.x, p.y - pos.y);
-          if (!best || d < best.d) best = { node: other, d };
-        }
-        if (best) {
-          const outKey = Object.keys(best.node.outputs)[0];
-          await editor.addConnection(new ClassicPreset.Connection(best.node, outKey, node, inKey) as unknown as Schemes["Connection"]);
-          addedRefs.push({ source: best.node.id, sourceOutput: outKey, target: id, targetInput: inKey });
-          log(`shake reconnect: ${best.node.label}.${outKey} -> ${node.label}.${inKey}`);
-        }
-      }
-    }
-
-    // 3. OUTPUT side: nearest node to the RIGHT whose FIRST input socket type
-    //    matches our first output and whose first input slot is free -> connect
-    //    our first output into that first input.
-    if (firstOut && firstOut[1]) {
-      const outKey = firstOut[0];
-      const outSocket = firstOut[1].socket.name;
-      let best: { node: CylNode; d: number } | null = null;
-      for (const other of editor.getNodes() as CylNode[]) {
-        if (other.id === id) continue;
-        const p = area.nodeViews.get(other.id)?.position;
-        if (!p || p.x <= pos.x) continue; // must be to the RIGHT
-        const inp = Object.entries(other.inputs)[0];
-        if (!inp || !inp[1] || inp[1].socket.name !== outSocket) continue;
-        const inpKey = inp[0];
-        const inFree = !editor.getConnections().some((c) => c.target === other.id && c.targetInput === inpKey);
+    const healed: Set<string> = new Set(); // B target slot already reconnected
+    for (const inc of ins) {
+      const a = editor.getNode(inc.source) as CylNode | undefined;
+      if (!a) continue;
+      const aOut = a.outputs?.[inc.sourceOutput];
+      if (!aOut) continue;
+      for (const outc of outs) {
+        const b = editor.getNode(outc.target) as CylNode | undefined;
+        if (!b) continue;
+        const bIn = b.inputs?.[outc.targetInput];
+        if (!bIn || bIn.socket.name !== aOut.socket.name) continue;
+        const slot = `${outc.target}:${outc.targetInput}`;
+        if (healed.has(slot)) continue;
+        const inFree = !editor.getConnections().some((c) => c.target === outc.target && c.targetInput === outc.targetInput);
         if (!inFree) continue;
-        const d = Math.hypot(p.x - pos.x, p.y - pos.y);
-        if (!best || d < best.d) best = { node: other, d };
-      }
-      if (best) {
-        const inKey = Object.keys(best.node.inputs)[0];
-        await editor.addConnection(new ClassicPreset.Connection(node, outKey, best.node, inKey) as unknown as Schemes["Connection"]);
-        addedRefs.push({ source: id, sourceOutput: outKey, target: best.node.id, targetInput: inKey });
-        log(`shake reconnect: ${node.label}.${outKey} -> ${best.node.label}.${inKey}`);
+        await editor.addConnection(
+          new ClassicPreset.Connection(a, inc.sourceOutput, b, outc.targetInput) as unknown as Schemes["Connection"],
+        );
+        addedRefs.push({ source: inc.source, sourceOutput: inc.sourceOutput, target: outc.target, targetInput: outc.targetInput });
+        healed.add(slot);
+        log(`shake heal: ${a.label}.${inc.sourceOutput} -> ${b.label}.${outc.targetInput}`);
+        break;
       }
     }
 

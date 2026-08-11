@@ -270,3 +270,26 @@
 ### 验证
 - tsc 0 错误；vitest 6 文件 59 通过（undo 新增 cut-many 用例）；bridge pytest 20 通过；Playwright round2 5/5 + round3 4/4（真实桥 8375 + vite 8376）。
 - round3 用例：Y 划线画布中部/下部两次轨迹均可见（截图像素含 #ff3b30 + getBBox 在 svg 视口内）；L 形划线一次切断两条连接且一次 Ctrl+Z 全恢复；transform 拖拽插入拆线；插入预览两条曲线 path 出现。
+
+## v0.1.00046（2026-08-11）
+**4 路并行**（Heisenberg=dock / Ramanujan=nodeview / Hypatia=param scrub / Herschel=viewport enter）。
+
+### UI（styles/dock.css）
+- **活动标签底部圆角方向翻转**：`::before/::after` 盒子 `-14px/14px` → `-7px/7px`，radial-gradient 圆心从角落移到角落正上方 7px（`circle at 100% 0%` / `circle at 0 0%`），可见弧变成圆心的**左下/右下段**——弧从底边起向上收、顶点在下方外侧紧贴底边（斜线下半段圆角），不再向上鼓进标签体内。像素逐行验证：蓝块上宽下窄（改前上窄下宽）。
+- **tab 间隔 +2px/边**：`.dv-tab` margin `3px 2px 0` → `3px 4px 0`（非活动对 4px→8px 净间隔）；活动标签负边距 `-4px` → `-2px`（活动↔相邻 -2px 重叠 → +2px 可见间隙）。
+
+### 节点视图（nodes2/）
+- **快捷插入预览修复**（attachInsertion）：两条虚线曲线端点从鼠标点改为**被拖节点端口**——previewA=连接源 socket→节点 IN 端口中心、previewB=节点 OUT 端口中心→连接目标 socket（`[data-port-id]` getBoundingClientRect 中心换算容器局部坐标）；拖动中每个 pointermove 都刷新（rAF 延迟一帧，因为容器 capture 先于 rete 拖拽应用位移），曲线实时跟住节点端口；overlay z-index 6→**0**（节点 z-index=1，预览显示在节点背后）。
+- **甩出节点 + 连线自动愈合**（attachShakeDisconnect 重做）：来回甩动 1 入 1 出节点（null/transform）→ 切断全部连接 → 每个 A→node→B 通路按原 sourceOutput/targetInput 直接重建 A→B（如 input.in1→null1→output.out1 愈合为 input.in1→output.out1），被甩节点保持断开；多端口节点无通路则只切断。undo 仍单个 `{type:"shake", cut, added}`；Ctrl+Z 恢复原链。
+
+### Param 面板：中键拖拽倍率 scrubbing（新 web/src/app/scrub.ts + 9 单测）
+- 去掉 number 输入框原生上下箭头（CSS 隐藏 spin button）。
+- 按住中键在数值框上拖动：弹出 1 列 7 行倍率浮层（100/10/1/0.1/0.01/0.001/0.0001，自上而下），鼠标所在行高亮；未水平拖动前倍率随鼠标上下切换（数值不动）；`|dx|>3px` 后倍率锁定，`value += dx*倍率` 实时写回并触发 onChange（动态应用）；数值格式最多 4 位小数去尾零；浮层下方显示当前值；释放中键关闭。
+
+### Viewport：左图标工具栏 + Enter 激活模式（renderer.ts + main.ts + viewport.css）
+- 视口左侧新增纵向图标工具栏（`.cyl-viewport-toolbar`），第一个图标为 **Enter 箭头**（SVG：左门框+向右箭头）。
+- 点击 Enter（或非输入/按钮聚焦时按 Enter 键）进入**节点 viewport 激活模式**：对选中的 transform 节点，把 TransformControls translate gizmo（X/Y/Z 轴箭头 + XY/YZ/XZ 平面方块 = 轴/平面/万向）attach 到 (tx,ty,tz) 处的临时 Object3D；拖动 gizmo → 读 position 四舍五入 4 位小数 → 回调更新节点 params(tx/ty/tz) + runNetwork（推桥 outputs）；gizmo 处有线框小方块 + RGB 轴参考标记。Esc / 再点 Enter / 切换选中节点退出。与 G 键 gizmo demo、曲线编辑互斥（进入时 detach，退出后恢复）。
+
+### 验证
+- tsc 0 错误；vitest 7 文件 68 通过（新增 scrub 9）；bridge pytest 20 通过；Playwright 全量 **16/16**（round2 5 + round3 4 + round4-nodeview 4 + round4-viewport 2 + smoke 1）。
+- round4-nodeview 用例：预览端点=节点端口+拖动实时刷新、z-index 预览在节点后、null/transform 甩出愈合 + Ctrl+Z 恢复。round4-viewport 用例：工具栏 Enter 图标切换、gizmo 拖动更新 tx/ty/tz 且桥 outputs 平移。

@@ -14,6 +14,8 @@
   - app/layouts/Default.json
 - `app/log.ts`
 - `app/param.ts`
+  - app/scrub
+- `app/scrub.ts`
 - `app/spreadsheet.ts`
   - protocol/types
 - `bridge/client.ts`

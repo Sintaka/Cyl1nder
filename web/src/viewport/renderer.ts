@@ -60,6 +60,17 @@ export class Viewport {
   private gizmoDemo: THREE.Mesh | null = null;
   private gizmoModes: ("translate" | "rotate" | "scale")[] = ["translate", "rotate", "scale"];
   private gizmoModeIdx = 0;
+  /** Enter-edit activation (left toolbar): transform node tx/ty/tz <-> translate gizmo. */
+  private enterActive = false;
+  private enterEditHandler: (() => void) | null = null;
+  private toolbar: HTMLDivElement;
+  private enterBtn: HTMLButtonElement;
+  private enterObject: THREE.Object3D | null = null;
+  private enterMarker: THREE.Object3D | null = null;
+  private enterOnChange: ((tx: number, ty: number, tz: number) => void) | null = null;
+  private demoWasOn = false;
+  private demoMode: "translate" | "rotate" | "scale" = "translate";
+  private enterResumeLine: THREE.Line | null = null;
 
   /** Display modes: smooth/flat shaded (Lambert, optional black wire), unlit shaded/wire, wireframe, wireframe ghost. */
   displayMode: DisplayMode = "flat-wire";
@@ -171,6 +182,25 @@ export class Viewport {
       true,
     );
     container.appendChild(this.modeBtn);
+
+    // left icon toolbar: first icon = Enter (node viewport edit activation)
+    this.toolbar = document.createElement("div");
+    this.toolbar.className = "cyl-viewport-toolbar";
+    this.enterBtn = document.createElement("button");
+    this.enterBtn.type = "button";
+    this.enterBtn.className = "cyl-tool-btn";
+    this.enterBtn.title = "Enter node viewport edit";
+    this.enterBtn.innerHTML = `
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M3 2 h2 M3 14 h2 M5 2 v12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        <path d="M8 8 h5 M11 4.5 l3.5 3.5 -3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+    this.enterBtn.addEventListener("click", () => {
+      if (this.enterActive) this.endTransformGizmo();
+      else this.enterEditHandler?.();
+    });
+    this.toolbar.appendChild(this.enterBtn);
+    container.appendChild(this.toolbar);
 
     // 35mm-equivalent lens: vertical FOV = 2*atan(24/(2*35)) ≈ 38 deg (full-frame 36x24).
     const CAMERA_FOV_35MM = 38;
@@ -314,7 +344,7 @@ export class Viewport {
 
   private onPointerDown(e: PointerEvent): void {
     // Only plain left-click selects; Alt is handed to HoudiniControls navigation.
-    if (e.altKey || e.button !== 0 || this.transform.dragging) return;
+    if (this.enterActive || e.altKey || e.button !== 0 || this.transform.dragging) return;
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.pointer.x = ((e.clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1;
     this.pointer.y = -((e.clientY - rect.top) / Math.max(1, rect.height)) * 2 + 1;
@@ -326,6 +356,7 @@ export class Viewport {
   }
 
   private select(line: THREE.Line): void {
+    if (this.enterActive) return; // Enter edit owns the gizmo
     const inputIndex = line.userData.inputIndex as number;
     const curve = line.userData.curve as CurveData;
     const input = store.inputs.find((i) => i.index === inputIndex);
@@ -345,6 +376,7 @@ export class Viewport {
   }
 
   private commitEdit(): void {
+    if (this.enterActive) return; // transform-param drag handled by the Enter onChange
     const line = this.selectedLine;
     if (!line) return;
     const inputIndex = line.userData.inputIndex as number;
@@ -422,6 +454,10 @@ export class Viewport {
   /** three.js gizmo demo: TransformControls is the gizmo (the project already uses it
    *  for translate editing). G toggles the demo box, Shift+G cycles the gizmo mode. */
   toggleGizmoDemo(): void {
+    if (this.enterActive) {
+      store.pushLog("[viewport] exit enter edit mode first (Esc)");
+      return;
+    }
     if (this.gizmoDemo) {
       this.transform.detach();
       this.scene.remove(this.gizmoDemo);
@@ -444,10 +480,119 @@ export class Viewport {
 
   /** Cycle translate -> rotate -> scale on the gizmo demo (no-op while demo is off). */
   cycleGizmoMode(): void {
-    if (!this.gizmoDemo) return;
+    if (this.enterActive || !this.gizmoDemo) return;
     this.gizmoModeIdx = (this.gizmoModeIdx + 1) % 3;
     this.transform.setMode(this.gizmoModes[this.gizmoModeIdx]);
     store.pushLog(`[viewport] gizmo mode = ${this.gizmoModes[this.gizmoModeIdx]}`);
+  }
+
+  /** Register the "enter node viewport edit" handler (main.ts); null clears it. */
+  setEnterEditHandler(fn: (() => void) | null): void {
+    this.enterEditHandler = fn;
+  }
+
+  /** True while Enter edit mode is active (transform gizmo attached). */
+  isEnterActive(): boolean {
+    return this.enterActive;
+  }
+
+  /** Enter edit mode for a transform node: attach the translate gizmo to a temp
+   *  object at (tx,ty,tz) and report drags (rounded 4dp) via onChange. */
+  beginTransformGizmo(
+    nodeId: string,
+    tx: number,
+    ty: number,
+    tz: number,
+    onChange: (tx: number, ty: number, tz: number) => void,
+  ): void {
+    if (this.enterActive) this.endTransformGizmo();
+    // mutual exclusion with the G-key demo / curve-line editing (one gizmo owner)
+    this.demoWasOn = !!this.gizmoDemo;
+    if (this.gizmoDemo) this.transform.detach();
+    this.enterResumeLine = this.selectedLine;
+    if (this.selectedLine) this.transform.detach();
+    this.demoMode = this.transform.getMode();
+    this.transform.setMode("translate"); // X/Y/Z arrows + XY/YZ/XZ plane squares
+    this.enterOnChange = onChange;
+
+    const obj = new THREE.Object3D();
+    obj.name = "cyl-enter-gizmo";
+    obj.position.set(tx, ty, tz);
+    this.scene.add(obj);
+    this.enterObject = obj;
+
+    this.enterMarker = this.makeTranslateMarker();
+    this.enterMarker.position.set(tx, ty, tz);
+    this.scene.add(this.enterMarker);
+
+    const onObjChange = (): void => {
+      const p = obj.position;
+      const r = (n: number): number => Math.round(n * 10000) / 10000;
+      this.enterOnChange?.(r(p.x), r(p.y), r(p.z));
+    };
+    obj.userData.cylEnterChange = onObjChange;
+    this.transform.addEventListener("objectChange", onObjChange);
+    this.transform.attach(obj);
+
+    this.enterActive = true;
+    this.enterBtn.classList.add("cyl-enter-on");
+    store.pushLog(`[viewport] enter edit mode: transform ${nodeId} gizmo at (${tx}, ${ty}, ${tz}) - drag axes/planes (Esc to exit)`);
+  }
+
+  /** Leave Enter edit mode: detach, drop the temp object/marker, restore G demo / curve. */
+  endTransformGizmo(): void {
+    const obj = this.enterObject;
+    if (obj) {
+      const fn = obj.userData.cylEnterChange as (() => void) | undefined;
+      if (fn) this.transform.removeEventListener("objectChange", fn);
+      this.transform.detach();
+      this.scene.remove(obj);
+    }
+    if (this.enterMarker) {
+      this.scene.remove(this.enterMarker);
+      this.enterMarker.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        mesh.geometry?.dispose();
+        const m = mesh.material as THREE.Material | THREE.Material[] | undefined;
+        if (Array.isArray(m)) m.forEach((mm) => mm.dispose());
+        else if (m) m.dispose();
+      });
+    }
+    this.enterObject = null;
+    this.enterMarker = null;
+    this.enterOnChange = null;
+    const wasActive = this.enterActive;
+    this.enterActive = false;
+    this.enterBtn.classList.remove("cyl-enter-on");
+    if (this.demoWasOn && this.gizmoDemo) {
+      this.transform.setMode(this.demoMode);
+      this.transform.attach(this.gizmoDemo);
+    }
+    this.demoWasOn = false;
+    if (this.enterResumeLine && this.selectedLine === this.enterResumeLine) {
+      this.transform.attach(this.enterResumeLine);
+    }
+    this.enterResumeLine = null;
+    if (wasActive) store.pushLog("[viewport] exited enter edit mode");
+  }
+
+  /** Small reference marker at the gizmo position: wire box + RGB axis stubs. */
+  private makeTranslateMarker(): THREE.Group {
+    const g = new THREE.Group();
+    g.add(this.makeBox(new THREE.Vector3(0, 0, 0), 0x7ce3a8));
+    const axes: Array<[THREE.Vector3, number]> = [
+      [new THREE.Vector3(1, 0, 0), 0xff5252],
+      [new THREE.Vector3(0, 1, 0), 0x4fc3f7],
+      [new THREE.Vector3(0, 0, 1), 0xffee58],
+    ];
+    for (const [dir, color] of axes) {
+      const line = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), dir.clone().multiplyScalar(0.6)]),
+        new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.8 }),
+      );
+      g.add(line);
+    }
+    return g;
   }
 
   /** W / Shift+W display-mode hotkeys. Lives here (not main.ts) so F/B handlers stay untouched. */
@@ -463,6 +608,13 @@ export class Viewport {
     window.addEventListener("keydown", (e) => {
       if (e.repeat || isTyping()) return;
       const key = e.key.toLowerCase();
+      if (key === "escape") {
+        if (this.enterActive) {
+          e.preventDefault();
+          this.endTransformGizmo();
+        }
+        return;
+      }
       if (key !== "w" && key !== "g") return;
       if (key === "g") {
         e.preventDefault();
@@ -554,6 +706,7 @@ export class Viewport {
     this.controls.controls.dispose();
     this.transform.dispose();
     this.renderer.dispose();
+    this.toolbar.remove();
     this.renderer.domElement.remove();
   }
 }

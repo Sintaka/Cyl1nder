@@ -213,6 +213,7 @@ const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuf
 });
 (window as unknown as Record<string, unknown>).__cylViewport = viewport;
 (window as unknown as Record<string, unknown>).__cylGraph = graph; // debug hook (MCP debug access)
+viewport.setEnterEditHandler(toggleEnterEdit); // left toolbar Enter icon -> activation
 
 // Default startup layout: bundled Default.json (the user's Desk1 arrangement, versioned in the
 // project). Applied AFTER graph + viewport are created so dockview fromJSON moves panels that
@@ -286,9 +287,44 @@ function refreshSelectionPanels(): void {
   );
 }
 
+/** Enter node viewport edit activation (toolbar icon + Enter key): a selected
+ *  transform node gets a translate gizmo bound to tx/ty/tz. */
+function toggleEnterEdit(): void {
+  if (viewport.isEnterActive()) {
+    viewport.endTransformGizmo();
+    return;
+  }
+  const sel = graph.getSelectedNode();
+  if (!sel || sel.kind !== "transform") {
+    store.pushLog("[viewport] enter: select a transform node first");
+    return;
+  }
+  const params = sel.params ?? [];
+  const num = (name: string): number => {
+    const p = params.find((q) => q.name === name);
+    const v = p?.value;
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  viewport.beginTransformGizmo(sel.id, num("tx"), num("ty"), num("tz"), (x, y, z) => {
+    const cur = graph.getSelectedNode();
+    if (!cur || cur.id !== sel.id) return;
+    graph.setNodeParams(
+      sel.id,
+      (cur.params ?? []).map((q) =>
+        q.name === "tx" ? { ...q, value: x } : q.name === "ty" ? { ...q, value: y } : q.name === "tz" ? { ...q, value: z } : q,
+      ),
+    );
+    void runNetwork();
+  });
+}
+
 // node selection changes -> refresh Spreadsheet + Params immediately
 // (store.subscribe alone does not fire when only the graph selection changes)
-graph.onSelectionChanged(() => refreshSelectionPanels());
+graph.onSelectionChanged(() => {
+  refreshSelectionPanels();
+  if (viewport.isEnterActive()) viewport.endTransformGizmo();
+});
 
 /** Node flags -> viewport: display visibility + reference reference overlays. */
 function refreshNodeFlags(): void {
@@ -540,6 +576,16 @@ window.addEventListener("keydown", (e) => {
   const el = document.activeElement;
   if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
   viewport.toggleDebugBoxes();
+});
+// Enter = node viewport edit activation (same handler as the toolbar icon).
+// Skipped while typing in inputs or when a button is focused (Enter clicks it natively).
+window.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || e.repeat) return;
+  const el = document.activeElement;
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
+  if (el instanceof HTMLButtonElement) return;
+  e.preventDefault();
+  toggleEnterEdit();
 });
 
 /** Debounced persist of the node graph (nodes/positions/connections) to the path system. */

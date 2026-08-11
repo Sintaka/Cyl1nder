@@ -22,44 +22,52 @@
 }
 .cyl-dock .dockview-theme-dark .dv-tab {
   border-radius: 6px;
-  margin: 3px 2px 0; /* horizontal gap; bottom flush so tabs sit on the panel */
+  margin: 3px 4px 0; /* horizontal gap (4px/side -> 8px between inactive tabs); bottom flush so tabs sit on the panel */
 }
 /* Active tab: Chrome-style silhouette — top corners convex (7px), bottom edge
    straight and flush with the panel below (no carved-in bottom corners). The
    bottom corners are painted as convex quarter-circles (::before/::after) that
-   flare OUT over the adjacent tabs, so they read as outward bumps. */
+   flare OUT over the adjacent tabs, so they read as outward bumps. Each quarter's
+   arc sits in the LOWER half of the corner (below the corner diagonal), hugging
+   the tab bottom edge like a Chrome open-tab corner. */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab {
   position: relative;
   z-index: 10;            /* overlap adjacent inactive tabs */
   border-radius: 7px 7px 0 0;  /* top corners convex, bottom straight */
-  margin: 3px -4px 0;     /* flush with the content bottom + slight side overlap */
+  margin: 3px -2px 0;     /* flush with the content bottom + slight side overlap; net 2px gap to each neighbour */
 }
-/* bottom-LEFT convex corner: blue quarter circle centered on the tab's bottom-left
-   corner, bulging left over the previous tab (kept inside the tab bar). */
+/* bottom-LEFT convex corner: blue quarter circle whose visible arc is the LOWER-left
+   segment (circle centred 7px above the corner), bulging down-left over the previous
+   tab and hugging the bottom edge (kept inside the tab bar). */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab::before {
   content: "";
   position: absolute;
   top: auto;              /* neutralize dockview's :not(:first-child) divider rule */
   right: auto;
-  left: -14px;          /* box ends exactly at the tab corner; circle bulges left */
+  left: -7px;           /* box ends exactly at the tab corner; circle bulges down-left */
   bottom: 0;
-  width: 14px;
-  height: 14px;
-  background: radial-gradient(circle at 100% 100%, #2e4f7d 0 7px, transparent 7.5px);
+  width: 7px;
+  height: 7px;
+  /* circle centred at the box's top-RIGHT corner (7px above the tab's bottom-left
+     corner) => visible quarter is the LOWER-left segment: the arc hugs the bottom
+     edge (apex ~2px above it) instead of bulging upward. */
+  background: radial-gradient(circle at 100% 0%, #2e4f7d 0 7px, transparent 7.5px);
   pointer-events: none;
 }
-/* bottom-RIGHT convex corner: blue quarter circle centered on the tab's bottom-right
-   corner, bulging right over the next tab. */
+/* bottom-RIGHT convex corner: blue quarter circle whose visible arc is the LOWER-right
+   segment, bulging down-right over the next tab and hugging the bottom edge. */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab::after {
   content: "";
   position: absolute;
   top: auto;              /* neutralize dockview's focus/divider pseudo-element rules */
   left: auto;
-  right: -14px;         /* box starts exactly at the tab corner; circle bulges right */
+  right: -7px;          /* box starts exactly at the tab corner; circle bulges down-right */
   bottom: 0;
-  width: 14px;
-  height: 14px;
-  background: radial-gradient(circle at 0 100%, #2e4f7d 0 7px, transparent 7.5px);
+  width: 7px;
+  height: 7px;
+  /* symmetric to ::before: circle centred at the box's top-LEFT corner =>
+     visible quarter is the LOWER-right segment, arc hugging the bottom edge. */
+  background: radial-gradient(circle at 0 0%, #2e4f7d 0 7px, transparent 7.5px);
   pointer-events: none;
 }
 /* Active tab is the FIRST tab: extra left margin keeps the bottom-left convex
