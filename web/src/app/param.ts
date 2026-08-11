@@ -13,6 +13,8 @@ export interface ParamInfo {
   name: string;
   type: string;
   value: unknown;
+  /** code-side default value (Ctrl+MMB restore); type fallback when absent. */
+  default?: unknown;
 }
 
 export interface ParamPanelInfo {
@@ -41,7 +43,7 @@ function controlHtml(p: ParamInfo): string {
   }
   if (p.type === "string" && p.name === "class") {
     const current = String(p.value);
-    const opts = ["autoguess", "points", "vertices", "prim", "detail"]
+    const opts = Array.from(new Set(["autoguess", "points", "vertices", "prim", "detail", current]))
       .map((o) => `<option value="${o}"${o === current ? " selected" : ""}>${o}</option>`)
       .join("");
     return `<select data-name="${name}">${opts}</select>`;
@@ -59,6 +61,14 @@ function applyEdit(info: ParamPanelInfo, name: string, raw: string): ParamInfo[]
     }
     return { ...p, value: raw };
   });
+}
+
+/** Default value for a param: explicit `default` first, then a type fallback. */
+export function paramDefault(p: ParamInfo): unknown {
+  if (p.default !== undefined) return p.default;
+  if (p.type === "float" || p.type === "int") return 0;
+  if (p.type === "string" && p.name === "class") return "autoguess";
+  return "";
 }
 
 /**
@@ -108,9 +118,21 @@ export function renderParams(
     );
     for (const ctrl of controls) {
       const name = ctrl.getAttribute("data-name") ?? "";
+      const p = info.params.find((x) => x.name === name)!; // name always comes from controlHtml
       const commit = () => onChange(applyEdit(info, name, ctrl.value));
       ctrl.addEventListener("input", commit);
       ctrl.addEventListener("change", commit);
+      // Ctrl + middle-click restores the default value (explicit default first,
+      // otherwise a type fallback) through the normal commit path (undoable).
+      ctrl.addEventListener("pointerdown", (e) => {
+        const pe = e as PointerEvent;
+        if (pe.button === 1 && (pe.ctrlKey || pe.metaKey)) {
+          e.preventDefault();
+          const dv = String(paramDefault(p));
+          ctrl.value = dv;
+          commit();
+        }
+      });
       if (ctrl instanceof HTMLInputElement && ctrl.type === "number") {
         attachScrub(
           ctrl,

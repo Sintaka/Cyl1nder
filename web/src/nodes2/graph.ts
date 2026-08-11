@@ -36,6 +36,15 @@ export interface NodeFlags {
 
 export const DEFAULT_FLAGS: NodeFlags = { display: false, bypass: false, freeze: false, reference: false };
 
+/** One editable param: name / type / value, plus an optional code-side default
+ *  (Ctrl+MMB restore in the Param panel; falls back to a type default). */
+export interface ParamSpec {
+  name: string;
+  type: string;
+  value: unknown;
+  default?: unknown;
+}
+
 /** Info about the first selected node (multi-select -> first), for panels that
  *  follow the selection (Spreadsheet / Params). `port` for a null node = the
  *  _input_ source index (in0..in3) feeding its in0; null when unresolved. */
@@ -44,7 +53,7 @@ export interface SelectedNodeInfo {
   id: string;
   label: string;
   port: number | null;
-  params: Array<{ name: string; type: string; value: unknown }>;
+  params: ParamSpec[];
 }
 
 export interface ReteGraphHandlers {
@@ -79,11 +88,13 @@ export interface ReteGraph {
    *  connections + per-node kind/params, so the caller can trace input->...->output. */
   getNetworkSnapshot(): NetworkSnapshot;
   /** Replace a node's params (Param panel edits); returns false when the node is gone. */
-  setNodeParams(nodeId: string, params: Array<{ name: string; type: string; value: unknown }>): boolean;
+  setNodeParams(nodeId: string, params: ParamSpec[]): boolean;
   /** Undo the last topology edit (cut / insert / shake). */
   undo(): void;
   /** Redo the last undone topology edit. */
   redo(): void;
+  /** Push a custom undo action (e.g. param edits) into the shared undo stack. */
+  pushUndo(action: UndoAction): void;
 }
 
 const GEO = "geo";
@@ -183,7 +194,7 @@ export class CylNode extends ClassicPreset.Node {
   /** stable base name (e.g. "null"); label may carry a unique suffix (null1, null2…). */
   baseLabel = "";
   /** per-node editable params (Param panel); empty for null/input/output in v1. */
-  params?: Array<{ name: string; type: string; value: unknown }>;
+  params?: ParamSpec[];
   constructor(label: string, kind: NodeKind) {
     super(label);
     this.kind = kind;
@@ -238,14 +249,14 @@ export function makeTransformNode(): CylNode {
   n.addInput("in0", new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
   n.addOutput("out0", new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
   n.params = [
-    { name: "px", type: "float", value: 0 },
-    { name: "py", type: "float", value: 0 },
-    { name: "pz", type: "float", value: 0 },
-    { name: "tx", type: "float", value: 0 },
-    { name: "ty", type: "float", value: 0 },
-    { name: "tz", type: "float", value: 0 },
-    { name: "group", type: "string", value: "" },
-    { name: "class", type: "string", value: "autoguess" },
+    { name: "px", type: "float", value: 0, default: 0 },
+    { name: "py", type: "float", value: 0, default: 0 },
+    { name: "pz", type: "float", value: 0, default: 0 },
+    { name: "tx", type: "float", value: 0, default: 0 },
+    { name: "ty", type: "float", value: 0, default: 0 },
+    { name: "tz", type: "float", value: 0, default: 0 },
+    { name: "group", type: "string", value: "", default: "" },
+    { name: "class", type: "string", value: "autoguess", default: "autoguess" },
   ];
   return n;
 }
@@ -350,7 +361,16 @@ export async function createReteGraph(
   // rapid Ctrl+Z/Y cannot interleave the async rete connection mutations.
   let undoChain: Promise<void> = Promise.resolve();
   const undoManager = createUndoManager((action, direction) => {
-    undoChain = undoChain.then(() => applyUndoAction(g.editor, action, direction)).catch(() => undefined);
+    undoChain = undoChain
+      .then(() => applyUndoAction(g.editor, action, direction))
+      .then(() => {
+        if (action.type === "params") {
+          // param undo/redo re-runs the network and refreshes the panels
+          handlers.onNetworkChanged?.();
+          handlers.onSelectionChanged?.();
+        }
+      })
+      .catch(() => undefined);
   }, 100);
 
   attachTabSearch(g.editor, g.area, container);
@@ -427,6 +447,9 @@ export async function createReteGraph(
     engine: g.engine,
     undo: () => undoManager.undo(),
     redo: () => undoManager.redo(),
+    pushUndo: (action) => {
+      undoManager.push(action);
+    },
     destroy: () => (g.editor as unknown as { destroy?: () => void }).destroy?.(),
     setStats: (kind, stats) => {
       const n = nodeByKind(g.editor, kind);
@@ -510,7 +533,7 @@ export async function createReteGraph(
           label: string;
           baseLabel?: string;
           flags?: NodeFlags;
-          params?: Array<{ name: string; type: string; value: unknown }>;
+          params?: ParamSpec[];
           x: number;
           y: number;
         }[];
@@ -815,6 +838,13 @@ async function applyUndoAction(
       for (const ref of action.connections) await delConn(ref);
     }
     log(`${direction} cut ${action.connections.length} connection(s) via polyline`);
+  } else if (action.type === "params") {
+    const n = editor.getNode(action.nodeId) as CylNode | undefined;
+    if (n) {
+      n.params = direction === "undo" ? action.before : action.after;
+      notifyNodeChanged();
+    }
+    log(`${direction} params on ${n ? n.label : action.nodeId}`);
   } else if (action.type === "shake") {
     if (direction === "undo") {
       for (const ref of action.added) await delConn(ref);

@@ -7,7 +7,7 @@ import { renderParams } from "./app/param";
 import { store } from "./stores/workspace";
 import { BridgeClient, connectWs } from "./bridge/client";
 import { createReteGraph, type ReteGraphHandlers } from "./nodes2/graph";
-import { computeOutputs } from "./nodes2/network";
+import { computeNodeResult, computeOutputs } from "./nodes2/network";
 import { Viewport, type ReferenceItem } from "./viewport/renderer";
 import { APP_VERSION } from "./app/app-config";
 import { inputsEqual } from "./protocol/compare";
@@ -19,10 +19,12 @@ const logCategories: [string, string][] = [
   ["all", "All"],
   ["geo", "Geo"],
   ["viewport", "Viewport"],
+  ["param", "Parameter"],
   ["ui", "UI"],
   ["bridge", "Bridge"],
 ];
 const categorize = (m: string): string => {
+  if (/\[param\]/.test(m)) return "param"; // param edits + their undo/redo (before ui/geo)
   if (/\[viewport\]/.test(m)) return "viewport";
   if (/inputs rev=|outputs|\[mesh\]|\[path\]|pushed|rev=/i.test(m)) return "geo";
   if (/\[layout\]|\[node\]|\[file\]|display|visibility/i.test(m)) return "ui";
@@ -247,6 +249,25 @@ function readParamFloats(params: Array<{ name: string; type: string; value: unkn
   return out;
 }
 
+/** Session-scoped param edit undo: consecutive edits on the SAME node within
+ *  600ms merge into one { type: "params" } undo entry (before = pre-session
+ *  params, after = latest). Selection switch flushes it immediately. */
+let pendingParamUndo: {
+  nodeId: string;
+  before: Array<{ name: string; type: string; value: unknown }>;
+  after: Array<{ name: string; type: string; value: unknown }>;
+  timer: number;
+} | null = null;
+
+/** Flush the pending param edit into the shared undo stack (debounce / selection switch). */
+function flushParamUndo(): void {
+  if (!pendingParamUndo) return;
+  const p = pendingParamUndo;
+  pendingParamUndo = null;
+  if (p.timer) window.clearTimeout(p.timer);
+  graph.pushUndo({ type: "params", nodeId: p.nodeId, before: p.before, after: p.after });
+}
+
 /** Spreadsheet + Params follow the SELECTED node (multi-select -> first), not the
  *  display flag. null -> its in0 source port (header "in0"); _input_ -> all inputs;
  *  _output_ -> outputs; no selection -> fall back to the display-flag behaviour. */
@@ -292,7 +313,21 @@ function refreshSelectionPanels(): void {
           // commit only while the same node is still selected (selection may change mid-edit)
           const cur = graph.getSelectedNode();
           if (!cur || cur.id !== selId) return;
+          const prevParams = cur.params ?? [];
+          // session undo: the first edit on this node captures the PRE-edit params
+          // as `before`; later edits update `after`; 600ms debounce merges them into
+          // a single { type: "params" } undo entry (selection switch flushes early)
+          if (!pendingParamUndo || pendingParamUndo.nodeId !== cur.id) {
+            pendingParamUndo = { nodeId: cur.id, before: prevParams, after: params, timer: 0 };
+          } else {
+            pendingParamUndo.after = params;
+          }
+          if (pendingParamUndo.timer) window.clearTimeout(pendingParamUndo.timer);
+          pendingParamUndo.timer = window.setTimeout(flushParamUndo, 600);
           graph.setNodeParams(cur.id, params);
+          const prevValue = new Map(prevParams.map((q) => [q.name, q.value]));
+          const changed = params.find((q) => prevValue.get(q.name) !== q.value);
+          store.pushLog(`[param] ${cur.label ?? cur.id} ${changed ? `${changed.name} = ${changed.value}` : "params updated"}`);
           // pivot edits move the Enter reference marker live (the gizmo stays on tx/ty/tz)
           if (viewport.isEnterActive()) {
             const v = readParamFloats(params);
@@ -335,10 +370,27 @@ function toggleEnterEdit(): void {
 // node selection changes -> refresh Spreadsheet + Params immediately
 // (store.subscribe alone does not fire when only the graph selection changes)
 graph.onSelectionChanged(() => {
+  flushParamUndo(); // selection switched -> close the pending param undo session
   refreshSelectionPanels();
   // Enter edit survives selection changes (gizmo stays on the entered node);
   // exit only via Esc / toolbar click / Enter-while-hovering.
 });
+
+/** Display node object (id + params) via the live editor (ReteGraph exposes editor). */
+function getDisplayNodeInfo(): {
+  id: string;
+  kind: string;
+  params: Array<{ name: string; type: string; value: unknown }>;
+} | null {
+  const nodes = graph.editor.getNodes() as unknown as Array<{
+    id: string;
+    kind: string;
+    params?: Array<{ name: string; type: string; value: unknown }>;
+    flags: { display: boolean };
+  }>;
+  const n = nodes.find((x) => x.flags.display);
+  return n ? { id: n.id, kind: n.kind, params: n.params ?? [] } : null;
+}
 
 /** Node flags -> viewport: display visibility + reference reference overlays. */
 function refreshNodeFlags(): void {
@@ -358,14 +410,24 @@ function refreshNodeFlags(): void {
   viewport.setVisibility("inputs", showInputs);
   viewport.setVisibility("outputs", showOutputs);
   if (kind === "null" || kind === "transform") {
-    // display only the input segment routed through this node; no connected input
-    // (getDisplayPortIndex()===null) -> -1 hides every input port (nothing to show)
     const idx = graph.getDisplayPortIndex();
-    viewport.setDisplayFocus("inputs", idx === null ? -1 : idx);
+    // a displayed null/transform shows its CURRENT chain output (transformed
+    // geometry), not the untransformed source input: hide every input port and
+    // render the node result instead; a disconnected display hides both
+    viewport.setDisplayFocus("inputs", -1);
+    const dispNode = getDisplayNodeInfo();
+    if (idx !== null && dispNode) {
+      const snap = graph.getNetworkSnapshot();
+      viewport.showNodeResult(computeNodeResult(snap, store.inputs, dispNode.id));
+    } else {
+      viewport.showNodeResult(null);
+    }
   } else if (kind === "input") {
     // _input_ displayed: Houdini shows ONE source - only the first port
+    viewport.showNodeResult(null);
     viewport.setDisplayFocus("inputs", 0);
   } else {
+    viewport.showNodeResult(null);
     viewport.setDisplayFocus("inputs", null);
   }
   if (kind === "output") {

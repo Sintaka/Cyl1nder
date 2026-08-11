@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { TransformControls } from "three/addons/controls/TransformControls.js";
 import { createRenderer, type RendererLike } from "./backend";
 import { HoudiniControls } from "./controls";
-import { buildCurves, buildInputs, buildOutputs } from "./geometry";
+import { buildCurves, buildInputs, buildOutputs, buildNodeResult } from "./geometry";
 import { store } from "../stores/workspace";
 import { applyTranslateToCurve, inputToOutput } from "../tools/transform";
 import type { CurveData, OutputBuffer } from "../protocol/types";
@@ -51,6 +51,7 @@ export class Viewport {
   private pointer = new THREE.Vector2();
   private inputGroup = new THREE.Group();
   private outputGroup = new THREE.Group();
+  private nodeResultGroup = new THREE.Group();
   private referenceGroup = new THREE.Group();
   private lastInputRev = -1;
   private lastOutputRev = -1;
@@ -232,6 +233,7 @@ export class Viewport {
     this.scene.add(this.inputGroup);
     this.scene.add(this.outputGroup);
     this.scene.add(this.referenceGroup);
+    this.scene.add(this.nodeResultGroup);
 
     new ResizeObserver(() => this.resize()).observe(container);
     this.attachKeyboardShortcuts();
@@ -295,6 +297,22 @@ export class Viewport {
       if (m) o.visible = index === null ? true : index === -1 ? false : Number(m[1]) === index;
     });
     store.pushLogSilent(`[viewport] display focus ${kind} index=${index}`);
+  }
+
+
+  /** Show the displayed node's REAL chain output (transformed geometry) in the
+   *  viewport; null hides it. Rebuilds the group on every call so param edits /
+   *  topology changes move the geometry live. */
+  showNodeResult(buffer: OutputBuffer | null): void {
+    this.nodeResultGroup.clear();
+    if (buffer) {
+      const g = buildNodeResult(buffer);
+      if (g) this.nodeResultGroup.add(g);
+      this.nodeResultGroup.visible = true;
+    } else {
+      this.nodeResultGroup.visible = false;
+    }
+    this.applyDisplayMode();
   }
 
   /** Wireframe reference overlays driven by node "wireframe" flags. */
@@ -402,7 +420,7 @@ export class Viewport {
   frame(): void {
     const box = new THREE.Box3();
     let has = false;
-    for (const group of [this.inputGroup, this.outputGroup]) {
+    for (const group of [this.inputGroup, this.outputGroup, this.nodeResultGroup]) {
       if (!group.visible) continue;
       const b = new THREE.Box3().setFromObject(group);
       if (!b.isEmpty()) {
@@ -703,6 +721,7 @@ export class Viewport {
     walk(this.inputGroup);
     walk(this.outputGroup);
     walk(this.referenceGroup);
+    walk(this.nodeResultGroup);
   }
 
   private resize(): void {

@@ -59,8 +59,10 @@
   height: 4px;
   /* transparent disc (solid edge ~3.5px) centred on the FAR corner (0% 0%) cuts the corner
      square; #2e4f7d outside the disc => the concave arc from A to B with the same
-     endpoints as before, bulging toward the tab corner. */
-  background: radial-gradient(circle at 0% 0%, transparent 0 3.4px, #2e4f7d 3.5px);
+     endpoints as before, bulging toward the tab corner.
+     Round 7: 抗锯齿软边 + 圆角半径 3.5px (hard 0.1px edge -> soft 1.0px alpha band
+     transparent 0 2.5px -> rgba(46,79,125,.4) 3px -> #2e4f7d 3.5px; radius unchanged). */
+  background: radial-gradient(circle at 0% 0%, transparent 0 2.5px, rgba(46,79,125,0.4) 3px, #2e4f7d 3.5px);
   pointer-events: none;
 }
 /* bottom-RIGHT CONCAVE corner (Round 6): symmetric mirror of ::before — same
@@ -79,8 +81,9 @@
   height: 4px;
   /* transparent disc (solid edge ~3.5px) centred on the FAR corner (100% 0%) cuts the corner
      square; #2e4f7d outside the disc => concave arc A'->B' with the same endpoints
-     as before, bulging toward the tab corner. */
-  background: radial-gradient(circle at 100% 0%, transparent 0 3.4px, #2e4f7d 3.5px);
+     as before, bulging toward the tab corner.
+     Round 7: 抗锯齿软边 + 圆角半径 3.5px (mirror of ::before; same 1.0px soft edge). */
+  background: radial-gradient(circle at 100% 0%, transparent 0 2.5px, rgba(46,79,125,0.4) 3px, #2e4f7d 3.5px);
   pointer-events: none;
 }
 /* Active tab is the FIRST tab: extra left margin keeps the bottom-left

@@ -50,6 +50,7 @@
 | 快速传输技术栈评估（WASM/串流/本地通信） | [transport-tech-evaluation.md](transport-tech-evaluation.md) |
 | Parm 参数面板系统设计（对标 Houdini，仅设计） | [parm-system-design.md](parm-system-design.md) |
 | bridge⇄HDA 同步差值根因与改进优先级 | [streaming-sync-gap.md](streaming-sync-gap.md) |
+| Params 面板用户手册（中键 scrubbing / Ctrl+中键默认值 / 撤销） | [params-user-guide.md](params-user-guide.md) |
 
 ## 关键词 → 专题文件（快速跳读）
 
@@ -82,6 +83,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00049：3 路并行（Godel/Tesla/Bacon）——tab 底部圆角抗锯齿软边(1.0px 带, 半径 3.5px)；中键 scrubbing 重做(鼠标为浮层中点/出框锁定/灵敏度减半/轨迹归一化)；Ctrl+中键恢复默认值+transform 参数默认值；parms 数值修改进撤销系统(params undo)；Log 新增 Parameter 类；viewport 真正读取节点 geo(computeNodeResult+showNodeResult, display null/transform 显示链路真实输出几何)；新建 Params 用户手册。
 - v0.1.00048：3 路并行（Mill/Hooke/Aquinas）——tab 底部圆角边界曲线镜像到对角线另一侧(起点/终点不变、填充减小)；transform display 看不见 box 根因=端口解析不追链，新增 resolveInputSourcePort 链式解析统一 null/transform；重命名双击命中区收缩到名字+20ch 省略号；shake 参数定稿(24点/1000ms/4px/≥3反向)；Enter 状态保持(点节点不变)+Enter 键仅悬停 viewport 时进入/取消。
 - v0.1.00047：4 路并行（Faraday/Copernicus/Feynman/Kierkegaard）——tab 底部圆角再翻转+小填充(4px 小脚)；预览虚线对齐端口圆圈中心；shake 判定放宽(1000ms/24点/4px)；graph 字体不可选中；禁止自连(connectioncreate 中央守卫)；端口拖线不触发插入预览；transform 加 Pivot Translate(px/py/pz)+gizmo 标记跟随 pivot；断开后视口刷新(display 无输入→隐藏全部端口)；bridge 流式同步根因调研(streaming-sync-gap.md)。
 - v0.1.00046：4 路并行（Heisenberg/Ramanujan/Hypatia/Herschel）——dock 标签底角圆角方向翻转到斜线下半段 + tab 间隔 +2px；插入预览端点改跟被拖节点端口(IN/OUT)+拖动实时刷新+z-index 在节点后；甩出节点自动愈合连线(原端口直连)；param 中键拖拽倍率 scrubbing(7 行倍率浮层)；viewport 左图标工具栏 + Enter 激活模式(transform gizmo 联动 tx/ty/tz)。

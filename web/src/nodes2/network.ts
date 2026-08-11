@@ -178,3 +178,23 @@ export function computeOutputs(inputs: InputPayload[], snap: NetworkSnapshot): O
   }
   return outputs;
 }
+
+
+/**
+ * Compute the REAL output of a single node (display viewport): trace the node's
+ * in0 chain back to its _input_ source, applying transform translations along the
+ * way (null = passthrough). Unlike computeOutputs this returns the transformed
+ * geometry of the requested node itself, so a displayed transform/null shows the
+ * current chain result instead of the untransformed source input. Broken chain /
+ * missing input / non-null-transform node -> null.
+ */
+export function computeNodeResult(
+  snap: NetworkSnapshot,
+  inputs: InputPayload[],
+  nodeId: string,
+): OutputBuffer | null {
+  const node = nodeById(snap, nodeId);
+  if (!node || (node.kind !== "null" && node.kind !== "transform")) return null;
+  const res = traceChain(node, "out0", inputs, snap, new Set());
+  return res ? bufferFromResolved(res, 0) : null;
+}

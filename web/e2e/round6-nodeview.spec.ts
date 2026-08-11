@@ -166,11 +166,22 @@ async function inputPortVisibility(page: import("@playwright/test").Page): Promi
 function displayPortIndex(page: import("@playwright/test").Page): Promise<number | null> {
   return page.evaluate(() => (window as any).__cylGraph.getDisplayPortIndex());
 }
+/** True when the viewport is showing a displayed node's computed result geometry (Round 7). */
+async function nodeResultVisible(page: import("@playwright/test").Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const v: any = (window as any).__cylViewport;
+    const g = v.scene.getObjectByName("cyl-node-result");
+    return !!g && g.visible && g.children.length > 0;
+  });
+}
+
 
 test("transform display: direct input.in0 feed shows input0 (box visible)", async ({ page }) => {
   await openGraph(page);
   await restoreGraph(page, DIRECT_TF_GRAPH, 2);
-  await expect.poll(() => inputPortVisibility(page), { timeout: 10000 }).toEqual([true, false, false, false]);
+  // source ports hidden; the computed node result geometry is shown instead (Round 7)
+  await expect.poll(() => inputPortVisibility(page), { timeout: 10000 }).toEqual([false, false, false, false]);
+  expect(await nodeResultVisible(page)).toBe(true);
   expect(await displayPortIndex(page)).toBe(0);
 
   // getSelectedNode() resolves the same direct port (spreadsheet focus)
@@ -186,7 +197,8 @@ test("transform display: direct input.in0 feed shows input0 (box visible)", asyn
 test("transform display: input.in1 -> nullA -> transform chain resolves to input1", async ({ page }) => {
   await openGraph(page);
   await restoreGraph(page, CHAIN_TF_GRAPH, 3);
-  await expect.poll(() => inputPortVisibility(page), { timeout: 10000 }).toEqual([false, true, false, false]);
+  await expect.poll(() => inputPortVisibility(page), { timeout: 10000 }).toEqual([false, false, false, false]);
+  expect(await nodeResultVisible(page)).toBe(true);
   expect(await displayPortIndex(page)).toBe(1);
 
   // getSelectedNode() follows the chain too (was null before resolveInputSourcePort)

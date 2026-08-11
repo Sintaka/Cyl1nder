@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-11），由 `node scripts/gen-index.mjs` 产出。共 **372** 个函数/类。
+> 机器生成（2026-08-11），由 `node scripts/gen-index.mjs` 产出。共 **382** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -350,25 +350,31 @@
 |---|---|---|---|---|
 | `formatLog` | 2 | function | export | 1 |
 
-## web/src/app/param.ts（131 行）
+## web/src/app/param.ts（153 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `esc` | 25 | function |  | 5 |
-| `attrEscape` | 30 | function |  | 4 |
-| `controlHtml` | 37 | function |  | 2 |
-| `applyEdit` | 53 | function |  | 3 |
-| `renderParams` | 71 | function | export | 1 |
-| `commit` | 111 | arrow |  | 0 |
+| `esc` | 27 | function |  | 5 |
+| `attrEscape` | 32 | function |  | 4 |
+| `controlHtml` | 39 | function |  | 2 |
+| `applyEdit` | 55 | function |  | 3 |
+| `paramDefault` | 67 | function | export | 2 |
+| `renderParams` | 81 | function | export | 1 |
+| `commit` | 122 | arrow |  | 1 |
 
-## web/src/app/scrub.ts（173 行）
+## web/src/app/scrub.ts（270 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `format4` | 22 | function | export | 3 |
-| `pickMultiplier` | 27 | function | export | 3 |
-| `scrubValue` | 38 | function | export | 2 |
-| `attachScrub` | 43 | function | export | 1 |
+| `format4` | 31 | function | export | 3 |
+| `pickMultiplier` | 36 | function | export | 3 |
+| `scrubValue` | 47 | function | export | 1 |
+| `accumulatedScrub` | 56 | function | export | 3 |
+| `scrubPopupTop` | 69 | function | export | 2 |
+| `isScrubOutOfBounds` | 83 | function | export | 3 |
+| `createScrubState` | 101 | function | export | 2 |
+| `scrubPointerMove` | 117 | function | export | 2 |
+| `attachScrub` | 139 | function | export | 1 |
 
 ## web/src/app/spreadsheet.ts（207 行）
 
@@ -392,94 +398,96 @@
 | `connectWs` | 126 | function | export | 1 |
 | `connect` | 131 | arrow |  | 1 |
 
-## web/src/main.ts（624 行）
+## web/src/main.ts（686 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `matchLogFilter` | 32 | arrow |  | 0 |
-| `renderLog` | 33 | arrow |  | 3 |
-| `toggle` | 86 | arrow |  | 6 |
-| `getDockJson` | 100 | arrow |  | 3 |
-| `saveCurrentLayout` | 104 | arrow |  | 2 |
-| `refreshLayoutPresets` | 112 | arrow |  | 1 |
-| `applyLayoutSettings` | 235 | function |  | 4 |
-| `readParamFloats` | 240 | function |  | 3 |
-| `refreshSelectionPanels` | 253 | function |  | 3 |
-| `toggleEnterEdit` | 309 | function |  | 2 |
-| `refreshNodeFlags` | 344 | function |  | 4 |
-| `inputStatsText` | 394 | function |  | 2 |
-| `outputStatsText` | 403 | function |  | 2 |
-| `renderInspector` | 412 | function |  | 2 |
-| `runNetwork` | 449 | function |  | 5 |
-| `startHdaWatch` | 464 | function |  | 2 |
-| `check` | 466 | arrow |  | 1 |
-| `stopHdaWatch` | 483 | function |  | 2 |
-| `loadSnapshotIntoStore` | 492 | function |  | 3 |
-| `connect` | 520 | function |  | 4 |
-| `scheduleSaveGraph` | 612 | function |  | 2 |
+| `matchLogFilter` | 34 | arrow |  | 0 |
+| `renderLog` | 35 | arrow |  | 3 |
+| `toggle` | 88 | arrow |  | 6 |
+| `getDockJson` | 102 | arrow |  | 3 |
+| `saveCurrentLayout` | 106 | arrow |  | 2 |
+| `refreshLayoutPresets` | 114 | arrow |  | 1 |
+| `applyLayoutSettings` | 237 | function |  | 4 |
+| `readParamFloats` | 242 | function |  | 3 |
+| `flushParamUndo` | 263 | function |  | 2 |
+| `refreshSelectionPanels` | 274 | function |  | 3 |
+| `toggleEnterEdit` | 344 | function |  | 2 |
+| `getDisplayNodeInfo` | 380 | function |  | 2 |
+| `refreshNodeFlags` | 396 | function |  | 4 |
+| `inputStatsText` | 456 | function |  | 2 |
+| `outputStatsText` | 465 | function |  | 2 |
+| `renderInspector` | 474 | function |  | 2 |
+| `runNetwork` | 511 | function |  | 5 |
+| `startHdaWatch` | 526 | function |  | 2 |
+| `check` | 528 | arrow |  | 1 |
+| `stopHdaWatch` | 545 | function |  | 2 |
+| `loadSnapshotIntoStore` | 554 | function |  | 3 |
+| `connect` | 582 | function |  | 4 |
+| `scheduleSaveGraph` | 674 | function |  | 2 |
 
-## web/src/nodes2/graph.ts（1598 行）
+## web/src/nodes2/graph.ts（1628 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `log` | 90 | arrow |  | 15 |
-| `notifySelection` | 94 | function |  | 3 |
-| `nodeByKind` | 101 | function |  | 4 |
-| `resolveInputSourcePort` | 112 | function |  | 4 |
-| `nodeFromTarget` | 136 | function |  | 7 |
-| `renderNode` | 152 | function |  | 1 |
-| `portIndexFromTarget` | 167 | function |  | 2 |
-| `CylNode` | 179 | class | export | 4 |
-| `makeInputNode` | 210 | function |  | 3 |
-| `makeOutputNode` | 215 | function |  | 3 |
-| `makeNullNode` | 222 | function | export | 2 |
-| `makeTransformNode` | 233 | function | export | 2 |
-| `buildGraph` | 257 | function |  | 2 |
-| `createReteGraph` | 343 | function | export | 1 |
-| `attachTabSearch` | 621 | function |  | 2 |
-| `render` | 637 | arrow |  | 4 |
-| `create` | 652 | arrow |  | 2 |
-| `close` | 681 | arrow |  | 6 |
-| `update` | 687 | arrow |  | 3 |
-| `distToSegment` | 717 | function |  | 2 |
-| `sampleConnectionPath` | 727 | function |  | 2 |
-| `findConnectionByRef` | 749 | function |  | 2 |
-| `applyUndoAction` | 760 | function |  | 2 |
-| `addConn` | 765 | arrow |  | 8 |
-| `delConn` | 773 | arrow |  | 8 |
-| `lbl` | 777 | arrow |  | 2 |
-| `attachCutMode` | 830 | function |  | 2 |
-| `isTyping` | 856 | arrow |  | 1 |
-| `pathLen` | 862 | arrow |  | 1 |
-| `setPoints` | 867 | arrow |  | 2 |
-| `clear` | 871 | arrow |  | 2 |
-| `cutConnection` | 876 | arrow |  | 1 |
-| `cutByPolyline` | 891 | arrow |  | 1 |
-| `up` | 970 | arrow |  | 0 |
-| `attachFlagMenu` | 992 | function |  | 2 |
-| `show` | 1004 | arrow |  | 2 |
-| `setNodeStateHandler` | 1058 | function | export | 2 |
-| `fireNodeState` | 1061 | function | export | 1 |
-| `setRenameHandler` | 1067 | function | export | 2 |
-| `fireRename` | 1070 | function | export | 1 |
-| `initTooltip` | 1076 | function | export | 2 |
-| `showTooltip` | 1082 | function | export | 1 |
-| `hideTooltip` | 1095 | function | export | 1 |
-| `attachMMBPan` | 1103 | function |  | 2 |
-| `onMove` | 1111 | arrow |  | 0 |
-| `onUp` | 1114 | arrow |  | 0 |
-| `attachDotGrid` | 1132 | function |  | 2 |
-| `hitTestConnection` | 1163 | function |  | 3 |
-| `connectionPathD` | 1192 | function |  | 3 |
-| `isInsertable` | 1200 | function |  | 2 |
-| `attachInsertion` | 1204 | function |  | 2 |
-| `refreshPreview` | 1252 | arrow |  | 2 |
-| `updatePreview` | 1260 | arrow |  | 1 |
-| `setHover` | 1283 | arrow |  | 2 |
-| `attachRectSelect` | 1403 | function |  | 2 |
-| `attachShakeDisconnect` | 1477 | function |  | 2 |
-| `reset` | 1488 | arrow |  | 0 |
-| `shakeNode` | 1494 | arrow |  | 1 |
+| `log` | 101 | arrow |  | 16 |
+| `notifySelection` | 105 | function |  | 3 |
+| `nodeByKind` | 112 | function |  | 4 |
+| `resolveInputSourcePort` | 123 | function |  | 4 |
+| `nodeFromTarget` | 147 | function |  | 7 |
+| `renderNode` | 163 | function |  | 1 |
+| `portIndexFromTarget` | 178 | function |  | 2 |
+| `CylNode` | 190 | class | export | 4 |
+| `makeInputNode` | 221 | function |  | 3 |
+| `makeOutputNode` | 226 | function |  | 3 |
+| `makeNullNode` | 233 | function | export | 2 |
+| `makeTransformNode` | 244 | function | export | 2 |
+| `buildGraph` | 268 | function |  | 2 |
+| `createReteGraph` | 354 | function | export | 1 |
+| `attachTabSearch` | 644 | function |  | 2 |
+| `render` | 660 | arrow |  | 4 |
+| `create` | 675 | arrow |  | 2 |
+| `close` | 704 | arrow |  | 6 |
+| `update` | 710 | arrow |  | 3 |
+| `distToSegment` | 740 | function |  | 2 |
+| `sampleConnectionPath` | 750 | function |  | 2 |
+| `findConnectionByRef` | 772 | function |  | 2 |
+| `applyUndoAction` | 783 | function |  | 2 |
+| `addConn` | 788 | arrow |  | 8 |
+| `delConn` | 796 | arrow |  | 8 |
+| `lbl` | 800 | arrow |  | 2 |
+| `attachCutMode` | 860 | function |  | 2 |
+| `isTyping` | 886 | arrow |  | 1 |
+| `pathLen` | 892 | arrow |  | 1 |
+| `setPoints` | 897 | arrow |  | 2 |
+| `clear` | 901 | arrow |  | 2 |
+| `cutConnection` | 906 | arrow |  | 1 |
+| `cutByPolyline` | 921 | arrow |  | 1 |
+| `up` | 1000 | arrow |  | 0 |
+| `attachFlagMenu` | 1022 | function |  | 2 |
+| `show` | 1034 | arrow |  | 2 |
+| `setNodeStateHandler` | 1088 | function | export | 2 |
+| `fireNodeState` | 1091 | function | export | 1 |
+| `setRenameHandler` | 1097 | function | export | 2 |
+| `fireRename` | 1100 | function | export | 1 |
+| `initTooltip` | 1106 | function | export | 2 |
+| `showTooltip` | 1112 | function | export | 1 |
+| `hideTooltip` | 1125 | function | export | 1 |
+| `attachMMBPan` | 1133 | function |  | 2 |
+| `onMove` | 1141 | arrow |  | 0 |
+| `onUp` | 1144 | arrow |  | 0 |
+| `attachDotGrid` | 1162 | function |  | 2 |
+| `hitTestConnection` | 1193 | function |  | 3 |
+| `connectionPathD` | 1222 | function |  | 3 |
+| `isInsertable` | 1230 | function |  | 2 |
+| `attachInsertion` | 1234 | function |  | 2 |
+| `refreshPreview` | 1282 | arrow |  | 2 |
+| `updatePreview` | 1290 | arrow |  | 1 |
+| `setHover` | 1313 | arrow |  | 2 |
+| `attachRectSelect` | 1433 | function |  | 2 |
+| `attachShakeDisconnect` | 1507 | function |  | 2 |
+| `reset` | 1518 | arrow |  | 0 |
+| `shakeNode` | 1524 | arrow |  | 1 |
 
 ## web/src/nodes2/groups.ts（537 行）
 
@@ -511,7 +519,7 @@
 | `pointInGroup` | 529 | function | export | 1 |
 | `matchingPoints` | 534 | function | export | 1 |
 
-## web/src/nodes2/network.ts（181 行）
+## web/src/nodes2/network.ts（200 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -519,19 +527,20 @@
 | `asFiniteNumber` | 46 | function |  | 4 |
 | `toGroupClass` | 52 | function |  | 2 |
 | `findFeeder` | 57 | function |  | 3 |
-| `nodeById` | 65 | function |  | 3 |
+| `nodeById` | 65 | function |  | 4 |
 | `parseInPort` | 70 | function |  | 2 |
 | `emptyBuffer` | 76 | function |  | 2 |
 | `fallbackBuffer` | 81 | function |  | 2 |
-| `traceChain` | 108 | function |  | 3 |
-| `bufferFromResolved` | 148 | function |  | 2 |
+| `traceChain` | 108 | function |  | 4 |
+| `bufferFromResolved` | 148 | function |  | 3 |
 | `computeOutputs` | 168 | function | export | 1 |
+| `computeNodeResult` | 191 | function | export | 1 |
 
-## web/src/nodes2/undo.ts（108 行）
+## web/src/nodes2/undo.ts（109 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `createUndoManager` | 49 | function | export | 2 |
+| `createUndoManager` | 50 | function | export | 2 |
 
 ## web/src/protocol/compare.ts（23 行）
 
@@ -577,7 +586,7 @@
 | `up` | 82 | arrow |  | 1 |
 | `release` | 106 | arrow |  | 0 |
 
-## web/src/viewport/geometry.ts（129 行）
+## web/src/viewport/geometry.ts（148 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -585,17 +594,18 @@
 | `buildWireSegments` | 13 | function |  | 2 |
 | `buildMeshFaces` | 39 | function | export | 2 |
 | `buildPoints` | 70 | function |  | 2 |
-| `buildCurves` | 83 | function | export | 3 |
+| `buildCurves` | 83 | function | export | 4 |
 | `buildInputs` | 111 | function | export | 1 |
 | `buildOutputs` | 121 | function | export | 1 |
+| `buildNodeResult` | 138 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（733 行）
+## web/src/viewport/renderer.ts（752 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `Viewport` | 44 | class | export | 1 |
-| `showModeMenu` | 131 | arrow |  | 1 |
-| `hideModeMenu` | 143 | arrow |  | 2 |
-| `applyMode` | 144 | arrow |  | 1 |
-| `openModeMenu` | 159 | arrow |  | 1 |
-| `closeModeMenu` | 160 | arrow |  | 3 |
+| `showModeMenu` | 132 | arrow |  | 1 |
+| `hideModeMenu` | 144 | arrow |  | 2 |
+| `applyMode` | 145 | arrow |  | 1 |
+| `openModeMenu` | 160 | arrow |  | 1 |
+| `closeModeMenu` | 161 | arrow |  | 3 |

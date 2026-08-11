@@ -127,3 +127,22 @@ export function buildOutputs(outputs: OutputBuffer[]): THREE.Group {
   }
   return group;
 }
+
+
+/** Displayed-node result highlight color (distinct from grey inputs / red outputs). */
+export const NODE_RESULT_COLOR = 0x7ce3a8;
+
+/** Render a single node's REAL output buffer (transformed geometry) as its own
+ *  group named "cyl-node-result"; child objects get explicit non-input/output
+ *  names so setDisplayFocus's inputN/outputN traversal never touches them. */
+export function buildNodeResult(buffer: OutputBuffer): THREE.Group | null {
+  const curves = buffer.curves ?? [];
+  const faces = buffer.faces ?? [];
+  if ((buffer.points?.length ?? 0) === 0 && curves.length === 0 && faces.length === 0) return null;
+  const group = buildCurves(buffer.points ?? [], curves, faces, NODE_RESULT_COLOR, null);
+  group.name = "cyl-node-result";
+  group.children.forEach((ch, i) => {
+    if (!ch.name) ch.name = `cyl-node-result-child-${i}`;
+  });
+  return group;
+}

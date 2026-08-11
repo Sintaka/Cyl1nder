@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { computeOutputs, type NetworkNode, type NetworkSnapshot } from "../src/nodes2/network";
+import { computeNodeResult, computeOutputs, type NetworkNode, type NetworkSnapshot } from "../src/nodes2/network";
 import type { InputPayload } from "../src/protocol/types";
 
 /**
@@ -267,5 +267,64 @@ describe("computeOutputs", () => {
     const outs = computeOutputs(inputs4, snap);
     expect(outs[0].points).toEqual(inputs4[0].points); // no infinite recursion
     expect(mocks.applyTranslateGrouped).not.toHaveBeenCalled();
+  });
+});
+
+describe("computeNodeResult", () => {
+  it("transform node result: points are translated (tx=5), topology from base", () => {
+    const snap: NetworkSnapshot = {
+      nodes: [n("in", "input"), transformNode("t", { tx: 5 }), outNode],
+      connections: [c("in", "in0", "t", "in0"), c("t", "out0", "out", "out0")],
+    };
+    const res = computeNodeResult(snap, inputs4, "t");
+    expect(res).not.toBeNull();
+    expect(res!.index).toBe(0);
+    expect(res!.points).toEqual([[5, 0, 0], [6, 0, 0]]);
+    expect(res!.pointCount).toBe(2);
+    expect(res!.primCount).toBe(1);
+    expect(res!.curves).toEqual(inputs4[0].curves);
+    expect(res!.faces).toEqual([]);
+    expect(res!.attributes).toEqual(inputs4[0].attributes);
+  });
+
+  it("null node result: passthrough of the feeding input, no translation", () => {
+    const snap: NetworkSnapshot = {
+      nodes: [n("in", "input"), n("null1", "null"), outNode],
+      connections: [c("in", "in1", "null1", "in0"), c("null1", "out0", "out", "out0")],
+    };
+    const res = computeNodeResult(snap, inputs4, "null1");
+    expect(res).not.toBeNull();
+    expect(res!.points).toEqual(inputs4[1].points);
+    expect(mocks.applyTranslateGrouped).not.toHaveBeenCalled();
+  });
+
+  it("chain input -> transform -> null: null result carries the translated points", () => {
+    const snap: NetworkSnapshot = {
+      nodes: [n("in", "input"), transformNode("t", { tx: 5 }), n("nullB", "null"), outNode],
+      connections: [c("in", "in0", "t", "in0"), c("t", "out0", "nullB", "in0"), c("nullB", "out0", "out", "out0")],
+    };
+    const res = computeNodeResult(snap, inputs4, "nullB");
+    expect(res).not.toBeNull();
+    expect(res!.points).toEqual([[5, 0, 0], [6, 0, 0]]);
+    // the transform result, not the untransformed source
+    expect(res!.points).not.toEqual(inputs4[0].points);
+  });
+
+  it("disconnected / broken chain -> null", () => {
+    // no in0 feeder at all
+    const empty: NetworkSnapshot = {
+      nodes: [n("in", "input"), transformNode("t", { tx: 5 }), outNode],
+      connections: [c("in", "in0", "out", "out0")],
+    };
+    expect(computeNodeResult(empty, inputs4, "t")).toBeNull();
+    // feeder exists but its own chain is dead (transform feeding from nothing)
+    const dead: NetworkSnapshot = {
+      nodes: [n("in", "input"), transformNode("t1", { tx: 5 }), transformNode("t2", { ty: 1 }), outNode],
+      connections: [c("t1", "out0", "t2", "in0"), c("t2", "out0", "out", "out0")],
+    };
+    expect(computeNodeResult(dead, inputs4, "t2")).toBeNull();
+    // unknown node id / non-null-transform kind -> null
+    expect(computeNodeResult(empty, inputs4, "nope")).toBeNull();
+    expect(computeNodeResult(empty, inputs4, "out")).toBeNull();
   });
 });

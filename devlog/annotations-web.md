@@ -337,3 +337,28 @@
 ### 验证
 - tsc 0 错误；vitest 7 文件 68 通过；bridge pytest 20 通过；Playwright 全量 **30/30**（round2 5 + round3 4 + round4-nodeview 4 + round4-viewport 2 + round5-nodeview 5 + round5-viewport 2 + round6-nodeview 5 + round6-viewport 2 + smoke 1）。
 - round6-nodeview：transform 直连/链条 display 都显示对应输入、断开隐藏、input 回归、重命名收缩+省略。round6-viewport：点节点后 enter 状态保持且 gizmo 仍更新进入时节点；Enter 键只在悬停 viewport 时进入/取消。注：round4/round5-viewport 两个旧用例因「Enter 需悬停 viewport」行为变更补了 `hover()` 后恢复通过。
+
+## v0.1.00049（2026-08-11）
+**3 路并行**（Godel=dock / Tesla=param+撤销基础设施 / Bacon=viewport+main）。主进程先预置契约锚点：undo.ts 的 `{type:"params"}` 动作、graph.ts 的 `pushUndo` + applyUndoAction params 分支 + undo 后自动刷新钩子，使 param 侧与 main 侧并行不冲突。
+
+### UI（styles/dock.css）
+- **tab 底部圆角抗锯齿**：凹弧渐变硬边（transparent 3.4px→蓝 3.5px）→ **1.0px 软边带**（transparent 0 2.5px, rgba(46,79,125,0.4) 3px, #2e4f7d 3.5px），圆角半径保持 **3.5px**、起点/终点不变。像素验证：弧边缘 0.57→~4.8 device px 平滑过渡、整条 tab bar 仅 8 个边缘像素变化。**devlog 标注：抗锯齿软边 + 圆角半径 3.5px（起点/终点 4px 不变）**。
+
+### Params 面板（scrub.ts / param.ts / graph.ts / params-user-guide.md）
+- **中键 scrubbing 重做**：浮层以鼠标为垂直中点（0.1 行在鼠标处，初始倍率 0.1）；框内上下只切倍率高亮、不改数据；**出框（跨左/右边缘）锁定倍率后只有左右拖动改数值**；**左右灵敏度减半**（×0.5）；**轨迹归一化**（以出框点为基准累计水平位移，value=起始值+累计位移×倍率×0.5，无抖动）。scrub.test.ts 重写 19 项。
+- **Ctrl+中键单击恢复默认值**：ParamInfo 增加可选 `default`；`paramDefault(p)` 显式 default 优先、类型兜底；数值/文本/class 控件 Ctrl+MMB 单击写回默认并走提交路径（可撤销）。scrub 忽略 Ctrl+中键避免冲突。
+- **transform 所有参数带默认值**：graph.ts 新增 `ParamSpec {name,type,value,default?}` 统一 4 处 params 类型；tx/ty/tz/px/py/pz→0、group→""、class→"autoguess"。
+- **新建 devlog/params-user-guide.md**（用户手册）：中键 scrubbing 全流程、Ctrl+中键恢复默认、键盘输入、撤销/重做快捷键。
+
+### 撤销与日志（undo.ts / graph.ts / main.ts）
+- **parms 数值修改进撤销系统**：UndoAction 新增 `{type:"params", nodeId, before, after}`；applyUndoAction params 分支（undo→before、redo→after，notifyNodeChanged）；undo/redo 后自动调 onNetworkChanged（重跑网络+刷新视口）与 onSelectionChanged（刷新面板）。main.ts 会话式记录：同一 nodeId 连续编辑合并，600ms 防抖 push，选中切换 flush。
+- **Log 面板新增 Parameter 类**：logCategories 加 `param/Parameter`；categorize 首行匹配 `[param]`；参数修改日志 `[param] label name = value`，参数撤销日志也归入该类。
+
+### Viewport 真正读取节点 geo（network.ts / geometry.ts / renderer.ts / main.ts）
+- 新增 `computeNodeResult(snap, inputs, nodeId)`：沿节点 in0 链回追（复用 traceChain），返回该节点链路的真实输出（transform 平移后 points）；断链→null。
+- `buildNodeResult(buffer)`（geometry.ts）与 `showNodeResult(buffer|null)`（renderer，`cyl-node-result` 组）。
+- **main.ts** `refreshNodeFlags`?display ? null/transform ??? ? ??? input ?? + ???????????transform ?????????????? ? ???input/output/? display ? ???/????????
+
+### 验证
+- tsc 0 错误；vitest 7 文件 **82 通过**（scrub 19 重写 + network 13 含 computeNodeResult 4 条）；bridge pytest 20 通过；Playwright 全量 **33/33**（round2 5 + round3 4 + round4-nodeview 4 + round4-viewport 2 + round5-nodeview 5 + round5-viewport 2 + round6-nodeview 5 + round6-viewport 2 + round7-viewport 3 + smoke 1）。
+- 行为变更（display null/transform 改为显示节点计算结果而非源端口）导致 round5-viewport / round6-nodeview 3 条旧断言更新为检查 `cyl-node-result` 几何。

@@ -163,6 +163,15 @@ async function inputPortVisibility(page: import("@playwright/test").Page): Promi
     return vis;
   });
 }
+/** True when the viewport is showing a displayed node's computed result geometry (Round 7). */
+async function nodeResultVisible(page: import("@playwright/test").Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const v: any = (window as any).__cylViewport;
+    const g = v.scene.getObjectByName("cyl-node-result");
+    return !!g && g.visible && g.children.length > 0;
+  });
+}
+
 
 /** Zoom/pan the graph so the connections land in open canvas space (same as round3/4). */
 async function fitGraphForCut(page: import("@playwright/test").Page): Promise<void> {
@@ -304,8 +313,9 @@ test("disconnect refresh: displayed null/transform with no input hides every por
   await restoreGraph(page, N3_DISPLAY_GRAPH, 7);
   await fitGraphForCut(page);
 
-  // null3 displayed + wired from in3 -> only input3 visible
-  await expect.poll(() => inputPortVisibility(page), { timeout: 10000 }).toEqual([false, false, false, true]);
+  // null3 displayed + wired from in3 -> source ports hidden, computed result shown
+  await expect.poll(() => inputPortVisibility(page), { timeout: 10000 }).toEqual([false, false, false, false]);
+  expect(await nodeResultVisible(page)).toBe(true);
 
   // cut i.in3 -> null3.in0 (real Y gesture, fires onNetworkChanged)
   const cut = await connectionPoint(page, { srcKind: "input", tgtLabel: "null3" }, 0.5);
@@ -316,15 +326,17 @@ test("disconnect refresh: displayed null/transform with no input hides every por
   // display null3 now has NO input -> every input port hidden (no overlap)
   await expect.poll(() => inputPortVisibility(page), { timeout: 10000 }).toEqual([false, false, false, false]);
 
-  // reconnect -> only the routed input3 shows again
+  // reconnect -> computed result shown again (source ports stay hidden)
   await restoreGraph(page, N3_DISPLAY_GRAPH, 7);
-  await expect.poll(() => inputPortVisibility(page), { timeout: 10000 }).toEqual([false, false, false, true]);
+  await expect.poll(() => inputPortVisibility(page), { timeout: 10000 }).toEqual([false, false, false, false]);
+  expect(await nodeResultVisible(page)).toBe(true);
 
   // same rule on a displayed TRANSFORM node. The transform row overlaps inside the
   // docked graph panel, so disconnect deterministically via graph restore (the
   // Y gesture is only reliable where the connection path sits on blank canvas).
   await restoreGraph(page, TF_DISPLAY_GRAPH, 2);
-  await expect.poll(() => inputPortVisibility(page), { timeout: 10000 }).toEqual([true, false, false, false]);
+  await expect.poll(() => inputPortVisibility(page), { timeout: 10000 }).toEqual([false, false, false, false]);
+  expect(await nodeResultVisible(page)).toBe(true);
 
   const tfDisconnected = JSON.parse(JSON.stringify(TF_DISPLAY_GRAPH)) as typeof TF_DISPLAY_GRAPH;
   tfDisconnected.connections = tfDisconnected.connections.filter(
@@ -333,7 +345,8 @@ test("disconnect refresh: displayed null/transform with no input hides every por
   await restoreGraph(page, tfDisconnected, 1);
   await expect.poll(() => inputPortVisibility(page), { timeout: 10000 }).toEqual([false, false, false, false]);
 
-  // reconnect -> the routed input0 shows again
+  // reconnect -> computed result shown again
   await restoreGraph(page, TF_DISPLAY_GRAPH, 2);
-  await expect.poll(() => inputPortVisibility(page), { timeout: 10000 }).toEqual([true, false, false, false]);
+  await expect.poll(() => inputPortVisibility(page), { timeout: 10000 }).toEqual([false, false, false, false]);
+  expect(await nodeResultVisible(page)).toBe(true);
 });

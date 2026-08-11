@@ -15,6 +15,7 @@ export interface ConnectionRef {
 export type UndoAction =
   | { type: "cut"; connection: ConnectionRef }
   | { type: "cut-many"; connections: ConnectionRef[] }
+  | { type: "params"; nodeId: string; before: Array<{ name: string; type: string; value: unknown }>; after: Array<{ name: string; type: string; value: unknown }> }
   | {
       type: "insert";
       nodeId: string;
