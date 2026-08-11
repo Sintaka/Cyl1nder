@@ -23,7 +23,7 @@ class RegistryError(Exception):
 
 
 class RegistryRecord:
-    __slots__ = ("serial", "hip", "nodePath", "label", "createdAt", "lastSeen")
+    __slots__ = ("serial", "hip", "nodePath", "label", "createdAt", "lastSeen", "lastActivity")
 
     def __init__(
         self,
@@ -33,6 +33,7 @@ class RegistryRecord:
         label: str = "",
         createdAt: float | None = None,
         lastSeen: float | None = None,
+        lastActivity: float | None = None,
     ) -> None:
         now = time.time()
         self.serial = serial
@@ -41,6 +42,7 @@ class RegistryRecord:
         self.label = label
         self.createdAt = createdAt if createdAt is not None else now
         self.lastSeen = lastSeen if lastSeen is not None else now
+        self.lastActivity = lastActivity if lastActivity is not None else 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -50,6 +52,7 @@ class RegistryRecord:
             "label": self.label,
             "createdAt": self.createdAt,
             "lastSeen": self.lastSeen,
+            "lastActivity": self.lastActivity,
         }
 
     @classmethod
@@ -61,6 +64,7 @@ class RegistryRecord:
             label=str(d.get("label", "")),
             createdAt=float(d.get("createdAt", 0) or 0),
             lastSeen=float(d.get("lastSeen", 0) or 0),
+            lastActivity=float(d.get("lastActivity", 0) or 0),
         )
 
 
@@ -108,6 +112,23 @@ class SerialRegistry:
             rec = self._records.get(serial)
             if rec is not None:
                 rec.lastSeen = time.time()
+
+    def mark_activity(self, serial: str) -> None:
+        """Record the last time this serial pushed data (inputs/outputs write)."""
+        with self._lock:
+            rec = self._records.get(serial)
+            if rec is not None:
+                rec.lastActivity = time.time()
+                self._save()
+
+    def remove(self, serial: str) -> bool:
+        """Drop a registry record (used by scene cleanup for dead serials)."""
+        with self._lock:
+            if serial not in self._records:
+                return False
+            del self._records[serial]
+            self._save()
+            return True
 
     def list(self) -> list[RegistryRecord]:
         with self._lock:

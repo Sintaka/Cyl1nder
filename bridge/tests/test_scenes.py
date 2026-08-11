@@ -269,3 +269,108 @@ def test_get_usdz_bytes(client: TestClient) -> None:
     # invalid serial -> 400
     assert client.get("/api/hda/zzz/usdz").status_code == 400
 
+
+def test_last_activity_updates_on_data_write(client: TestClient) -> None:
+    """lastActivity: 0 until data is pushed; put_inputs / put_outputs bump it."""
+    serial = client.post("/api/scenes", json={}).json()["serial"]
+    entry = next(e for e in client.get("/api/scenes").json()["active"] if e["serial"] == serial)
+    assert entry["lastActivity"] == 0
+
+    client.put(
+        f"/api/hda/{serial}/inputs",
+        json={
+            "inputs": [
+                {"index": 0, "name": "in0", "pointCount": 1, "points": [[0, 0, 0]], "curves": [], "faces": [], "attributes": {}}
+            ]
+        },
+    )
+    entry = next(e for e in client.get("/api/scenes").json()["active"] if e["serial"] == serial)
+    assert entry["lastActivity"] > 0
+    after_inputs = entry["lastActivity"]
+
+    client.put(
+        f"/api/hda/{serial}/outputs",
+        json={
+            "outputs": [
+                {"index": 0, "pointCount": 1, "primCount": 1, "points": [[1, 1, 1]], "curves": [], "faces": [], "attributes": {}}
+            ]
+        },
+    )
+    entry = next(e for e in client.get("/api/scenes").json()["active"] if e["serial"] == serial)
+    assert entry["lastActivity"] >= after_inputs
+
+
+def test_cleanup_removes_invalid_scenes(client: TestClient, tmp_path: Path) -> None:
+    """Cleanup deletes empty / incomplete / corrupt-meta dirs + dead registry serials, keeps valid ones."""
+    snap = tmp_path / "snapshots"
+    snap.mkdir()
+
+    empty = generate_serial()
+    (snap / empty).mkdir()
+
+    incomplete = generate_serial()
+    (snap / incomplete / "io").mkdir(parents=True)
+    (snap / incomplete / "io" / "outputs.json").write_text("[]", encoding="utf-8")
+
+    corrupt = generate_serial()
+    (snap / corrupt / "scene").mkdir(parents=True)
+    (snap / corrupt / "scene" / "meta.json").write_text("{not json", encoding="utf-8")
+
+    valid = generate_serial()
+    (snap / valid / "io").mkdir(parents=True)
+    (snap / valid / "scene").mkdir(parents=True)
+    (snap / valid / "io" / "inputs.json").write_text("[]", encoding="utf-8")
+    (snap / valid / "scene" / "meta.json").write_text(json.dumps({"savedAt": 1}), encoding="utf-8")
+
+    dead = client.post("/api/scenes", json={}).json()["serial"]  # registry-only, no data + no snapshot
+    alive_ws = client.post("/api/scenes", json={}).json()["serial"]
+    client.put(f"/api/hda/{alive_ws}/inputs", json={"inputs": []})
+    alive_snap = client.post("/api/scenes", json={}).json()["serial"]
+    (snap / alive_snap / "io").mkdir(parents=True)
+    (snap / alive_snap / "io" / "inputs.json").write_text("[]", encoding="utf-8")
+    (snap / alive_snap / "scene").mkdir(parents=True)
+    (snap / alive_snap / "scene" / "meta.json").write_text(json.dumps({"savedAt": 2}), encoding="utf-8")
+
+    body = client.post("/api/scenes/cleanup").json()
+    assert body["ok"] is True
+    reasons = {r["serial"]: r["reason"] for r in body["removed"]}
+    assert reasons.get(empty) == "empty"
+    assert reasons.get(incomplete) == "incomplete"
+    assert reasons.get(corrupt) == "corrupt-meta"
+    assert reasons.get(dead) == "no-data-no-snapshot"
+    assert valid not in reasons and alive_ws not in reasons and alive_snap not in reasons
+
+    assert not (snap / empty).exists()
+    assert not (snap / incomplete).exists()
+    assert not (snap / corrupt).exists()
+    assert (snap / valid).exists()
+    assert (snap / alive_snap).exists()
+
+    serials = client.get("/api/serials").json()
+    assert dead not in serials
+    assert alive_ws in serials and alive_snap in serials
+
+
+def test_cleanup_ignores_non_serial_dirs_and_traversal(client: TestClient, tmp_path: Path) -> None:
+    """Cleanup only touches legal serial dirs; symlink/junction escaping the root is skipped."""
+    snap = tmp_path / "snapshots"
+    snap.mkdir()
+    non_serial = snap / "not-a-serial"
+    (non_serial / "io").mkdir(parents=True)
+    (non_serial / "io" / "outputs.json").write_text("[]", encoding="utf-8")
+
+    outside = tmp_path / "outside"
+    (outside / "io").mkdir(parents=True)
+    (outside / "io" / "outputs.json").write_text("[]", encoding="utf-8")
+    serial = generate_serial()
+    try:
+        os.symlink(str(outside), str(snap / serial), target_is_directory=True)
+    except OSError:
+        pytest.skip("directory symlink not supported on this host")
+
+    body = client.post("/api/scenes/cleanup").json()
+    assert body["ok"] is True
+    assert body["removed"] == []
+    assert non_serial.exists()
+    assert outside.exists()
+    assert (snap / serial).is_symlink()

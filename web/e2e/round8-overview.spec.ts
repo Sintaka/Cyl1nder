@@ -23,7 +23,7 @@ async function waitLoaded(page: import("@playwright/test").Page): Promise<void> 
 test("overview page loads with title, refresh and main-app link", async ({ page }) => {
   await page.goto(`${BASE}/overview.html`);
   await expect(page.locator(".ov-brand")).toContainText("Cyl1nder 总管");
-  await expect(page.locator("a.ov-link[href='/']")).toBeVisible();
+  await expect(page.locator("a.ov-link[href='/?serial=']")).toBeVisible();
   await expect(page.locator("button.ov-refresh")).toBeVisible();
   await expect(page.locator("input.ov-new-input")).toBeVisible();
   await expect(page.locator("button.ov-new-button")).toBeVisible();

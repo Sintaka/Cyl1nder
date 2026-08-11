@@ -1,0 +1,351 @@
+# Cyl1nder Runtime - Houdini Python Panel (prototype)
+# 用途：Cyl1nder <-> Houdini 的「Python Runtime 接收端」原型：流式接收 tx/ty/tz 并写入目标 transform 节点。
+# 使用：Houdini -> Windows -> Python Panel Editor -> 新建 -> 粘贴本文件内容 -> 改 BRIDGE_URL -> Start。
+# 协议草案见 devlog/python-runtime-design.md（第 4 节「流式 channel 协议」）。
+from __future__ import annotations
+
+import json
+import math
+import queue
+import threading
+import time
+import urllib.request
+
+try:
+    from PySide6 import QtCore, QtWidgets
+except ImportError:  # Houdini 20.5 (Qt5) 回退
+    from PySide2 import QtCore, QtWidgets
+
+import hou
+
+# ------------------------------------------------------------------ 配置
+BRIDGE_URL = "http://127.0.0.1:8375"      # Cyl1nder bridge（REST）
+CHANNELS_PATH = "/api/runtime/channels"   # 约定端点（草案，见设计文档 §4）
+DEFAULT_TARGET = "/obj/transform1"        # 目标 transform 节点路径
+POLL_HZ = 30                              # 轮询频率（流式帧率上限）
+EPS = 1e-6                                # parm 写入去抖阈值
+# 协议 channel 名 -> Houdini parm 名（transform 先行 = 恒等映射）
+CHANNEL_PARM_MAP = {"tx": "tx", "ty": "ty", "tz": "tz"}
+
+
+def _log(widget, msg):
+    """控制台 + 面板日志框双写。"""
+    print("[CylRuntime] " + msg)
+    if widget is not None:
+        widget.appendPlainText(time.strftime("%H:%M:%S") + "  " + msg)
+
+
+# ---------------------------------------------------------------- 数据源
+class MockBackend:
+    """本地模拟流：无需 bridge 即可自测（正弦漂移，验证 panel 写 parm 链路）。"""
+
+    def __init__(self, hz):
+        self._t0 = time.time()
+        self._hz = max(1, int(hz))
+
+    def poll(self):
+        t = time.time() - self._t0
+        return {
+            "seq": int(t * self._hz),
+            "ts": int(t * 1000.0),
+            "op": "set_channels",
+            "node": None,  # 由 panel 的目标节点决定
+            "channels": {
+                "tx": 1.0 * math.sin(t * 1.1),
+                "ty": 0.5 * math.sin(t * 1.7 + 0.5),
+                "tz": 0.25 * math.sin(t * 0.9 + 1.2),
+            },
+        }
+
+
+class BridgeHttpBackend:
+    """HTTP 轮询 Cyl1nder bridge 约定端点（纯 urllib，无 WS 依赖）。
+
+    端点约定（草案，落地时并入 bridge/bridge/protocol.py 三处同步）：
+      GET /api/runtime/channels?since=<seq>
+        -> {"updates": [{op, node, channels, seq, ts, frame?}...], "seq": <最新seq>}
+      服务端可长轮询 hold；panel 侧只取最新一条（latest-wins 流式反压）。
+    """
+
+    def __init__(self, bridge_url):
+        self.base = bridge_url.rstrip("/") + CHANNELS_PATH
+        self.since = 0
+        self.last_error = ""
+
+    def poll(self):
+        try:
+            url = "{}?since={}".format(self.base, int(self.since))
+            with urllib.request.urlopen(url, timeout=5) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            updates = data.get("updates") or []
+            seq = int(data.get("seq") or 0)
+            self.since = max(self.since, seq)
+            return updates[-1] if updates else None
+        except Exception as exc:  # bridge 未实现/离线：poll 返回 None，不抛
+            self.last_error = str(exc)
+            return None
+
+
+class _PollerThread(threading.Thread):
+    """后台线程：只做数据获取（网络/mock），绝不碰 hou（线程安全铁律）。"""
+
+    def __init__(self, backend, out_q, hz):
+        super().__init__(daemon=True)
+        self._backend = backend
+        self._out = out_q
+        self._hz = max(1, int(hz))
+        self._stop = threading.Event()
+
+    def stop(self):
+        self._stop.set()
+
+    def run(self):
+        interval = 1.0 / self._hz
+        while not self._stop.is_set():
+            try:
+                update = self._backend.poll()
+                if update is not None:
+                    # latest-wins：丢旧帧只留最新，流式反压
+                    while True:
+                        try:
+                            self._out.get_nowait()
+                        except queue.Empty:
+                            break
+                    self._out.put(update)
+            except Exception:
+                pass
+            time.sleep(interval)
+
+
+# ------------------------------------------------------------- 面板主体
+class Cyl1nderRuntimePanel(QtWidgets.QWidget):
+    """连接/目标/当前值/微调/日志 一体；QTimer 在 UI 线程写 parm。"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._q = queue.Queue(maxsize=1)
+        self._thread = None
+        self._backend = None
+        self._running = False
+        self._paused = False
+        self._build_ui()
+        self._timer = QtCore.QTimer(self)
+        self._timer.timeout.connect(self._on_tick)
+        self._timer.start(30)  # UI 线程写 parm 节流（约 33Hz）
+        self.destroyed.connect(self._cleanup)
+        self._log("panel ready (prototype)")
+
+    # ---------------- UI ----------------
+    def _build_ui(self):
+        lay = QtWidgets.QVBoxLayout(self)
+        lay.setContentsMargins(6, 6, 6, 6)
+
+        self.status = QtWidgets.QLabel("idle")
+        self.status.setStyleSheet("font-weight:bold; color:#888;")
+        lay.addWidget(self.status)
+
+        row = QtWidgets.QHBoxLayout()
+        self.start_btn = QtWidgets.QPushButton("Start")
+        self.start_btn.clicked.connect(self._on_start)
+        row.addWidget(self.start_btn)
+        self.stop_btn = QtWidgets.QPushButton("Stop")
+        self.stop_btn.clicked.connect(self._on_stop)
+        row.addWidget(self.stop_btn)
+        self.pause_btn = QtWidgets.QPushButton("Pause")
+        self.pause_btn.clicked.connect(self._on_pause)
+        row.addWidget(self.pause_btn)
+        lay.addLayout(row)
+
+        cfg = QtWidgets.QGroupBox("连接")
+        grid = QtWidgets.QGridLayout(cfg)
+        grid.addWidget(QtWidgets.QLabel("数据源"), 0, 0)
+        self.mode = QtWidgets.QComboBox()
+        self.mode.addItems(["Mock（自测）", "Bridge（HTTP 轮询）"])
+        grid.addWidget(self.mode, 0, 1)
+        grid.addWidget(QtWidgets.QLabel("Bridge URL"), 1, 0)
+        self.url = QtWidgets.QLineEdit(BRIDGE_URL)
+        grid.addWidget(self.url, 1, 1)
+        grid.addWidget(QtWidgets.QLabel("Poll Hz"), 2, 0)
+        self.hz = QtWidgets.QSpinBox()
+        self.hz.setRange(1, 120)
+        self.hz.setValue(POLL_HZ)
+        grid.addWidget(self.hz, 2, 1)
+        lay.addWidget(cfg)
+
+        tgt = QtWidgets.QGroupBox("目标节点（transform translate 先行）")
+        tg = QtWidgets.QHBoxLayout(tgt)
+        self.target_edit = QtWidgets.QLineEdit(DEFAULT_TARGET)
+        tg.addWidget(self.target_edit, 1)
+        pick_btn = QtWidgets.QPushButton("Pick")
+        pick_btn.clicked.connect(self._on_pick)
+        tg.addWidget(pick_btn)
+        sel_btn = QtWidgets.QPushButton("Use Sel")
+        sel_btn.clicked.connect(self._on_use_selected)
+        tg.addWidget(sel_btn)
+        lay.addWidget(tgt)
+
+        val = QtWidgets.QGroupBox("当前值 / 微调")
+        vg = QtWidgets.QGridLayout(val)
+        self.cur_labels = {}
+        self.manual_spins = {}
+        for i, name in enumerate(("tx", "ty", "tz")):
+            vg.addWidget(QtWidgets.QLabel(name), 0, i)
+            lb = QtWidgets.QLabel("-")
+            lb.setStyleSheet("font-family:monospace;")
+            vg.addWidget(lb, 1, i)
+            self.cur_labels[name] = lb
+            sp = QtWidgets.QDoubleSpinBox()
+            sp.setDecimals(4)
+            sp.setRange(-1e6, 1e6)
+            vg.addWidget(sp, 2, i)
+            self.manual_spins[name] = sp
+        apply_btn = QtWidgets.QPushButton("Apply")
+        apply_btn.clicked.connect(self._on_manual_apply)
+        vg.addWidget(apply_btn, 2, 3)
+        lay.addWidget(val)
+
+        log_box = QtWidgets.QGroupBox("日志")
+        lb = QtWidgets.QVBoxLayout(log_box)
+        self.log_view = QtWidgets.QPlainTextEdit()
+        self.log_view.setReadOnly(True)
+        self.log_view.setMaximumBlockCount(500)
+        self.log_view.setStyleSheet("font-family:Consolas,monospace; font-size:9pt;")
+        lb.addWidget(self.log_view)
+        lay.addWidget(log_box, 1)
+
+    def _log(self, msg):
+        _log(self.log_view, msg)
+
+    def _set_status(self, text, color="#888"):
+        self.status.setText(text)
+        self.status.setStyleSheet("font-weight:bold; color:{};".format(color))
+
+    # ---------------- 控制 ----------------
+    def _make_backend(self):
+        if self.mode.currentIndex() == 0:
+            return MockBackend(self.hz.value())
+        return BridgeHttpBackend(self.url.text().strip() or BRIDGE_URL)
+
+    def _on_start(self):
+        if self._running:
+            return
+        target = self.target_edit.text().strip()
+        if target and hou.node(target) is None:
+            self._set_status("目标节点不存在: " + target, "#c44")
+            self._log("target node not found: " + target)
+            return
+        self._backend = self._make_backend()
+        self._thread = _PollerThread(self._backend, self._q, self.hz.value())
+        self._thread.start()
+        self._running = True
+        self._paused = False
+        self.pause_btn.setText("Pause")
+        self._set_status("running: " + self.mode.currentText(), "#4c4")
+        self._log("started, target=" + (target or "(target from stream)"))
+
+    def _on_stop(self):
+        if self._thread is not None:
+            self._thread.stop()
+            self._thread = None
+        self._backend = None
+        self._running = False
+        self._set_status("stopped", "#888")
+        self._log("stopped")
+
+    def _on_pause(self):
+        self._paused = not self._paused
+        self.pause_btn.setText("Resume" if self._paused else "Pause")
+        self._log("stream " + ("paused" if self._paused else "resumed"))
+
+    # ---------------- 目标 ----------------
+    def _on_pick(self):
+        path = hou.ui.selectNode()
+        if path:
+            self.target_edit.setText(path)
+            self._log("target set: " + path)
+
+    def _on_use_selected(self):
+        sel = hou.selectedNodes()
+        if sel:
+            self.target_edit.setText(sel[0].path())
+            self._log("target set: " + sel[0].path())
+        else:
+            self._log("no node selected")
+
+    # ---------------- 主循环（UI 线程） ----------------
+    def _on_tick(self):
+        if not self._running:
+            return
+        try:
+            update = self._q.get_nowait()
+        except queue.Empty:
+            update = None
+        if isinstance(self._backend, BridgeHttpBackend):
+            if self._backend.last_error:
+                self._set_status("offline: " + self._backend.last_error[:60], "#c44")
+            else:
+                self._set_status("connected · " + self.mode.currentText(), "#4c4")
+        if update is None or self._paused:
+            self._refresh_values()
+            return
+        self._write_channels(update)
+        self._refresh_values()
+
+    def _write_channels(self, update):
+        node_path = update.get("node") or self.target_edit.text().strip()
+        if not node_path:
+            self._log("no target node in stream")
+            return
+        node = hou.node(node_path)
+        if node is None:
+            self._set_status("offline: node missing " + node_path, "#c44")
+            return
+        channels = update.get("channels") or {}
+        for key, val in channels.items():
+            parm_name = CHANNEL_PARM_MAP.get(key)
+            if parm_name is None:
+                continue
+            p = node.parm(parm_name)
+            if p is None:
+                continue
+            try:
+                if abs(p.eval() - float(val)) > EPS:
+                    p.set(float(val))  # 低延迟流式写：只写变化，去抖
+            except Exception:
+                pass
+
+    def _refresh_values(self):
+        node_path = self.target_edit.text().strip()
+        node = hou.node(node_path) if node_path else None
+        for name, lb in self.cur_labels.items():
+            val = "-"
+            if node is not None:
+                p = node.parm(CHANNEL_PARM_MAP.get(name, name))
+                if p is not None:
+                    val = "{:.4f}".format(p.eval())
+            lb.setText(val)
+
+    def _on_manual_apply(self):
+        node_path = self.target_edit.text().strip()
+        node = hou.node(node_path) if node_path else None
+        if node is None:
+            self._log("no target node to apply")
+            return
+        for name, sp in self.manual_spins.items():
+            p = node.parm(CHANNEL_PARM_MAP.get(name, name))
+            if p is not None:
+                p.set(sp.value())
+        self._log("manual apply -> " + node_path)
+
+    # ---------------- 清理 ----------------
+    def _cleanup(self):
+        if self._thread is not None:
+            self._thread.stop()
+            self._thread = None
+        self._timer.stop()
+        print("[CylRuntime] panel closed")
+
+
+def createInterface(panel_args=None):
+    """Houdini Python Panel 入口：返回面板 widget。"""
+    return Cyl1nderRuntimePanel()

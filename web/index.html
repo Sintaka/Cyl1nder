@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cyl1nder</title>
     <link rel="icon" href="data:," />
+    <script>
+      // 默认入口：无 ?serial= 时重定向到 Overview 总管页；有 serial 才加载主应用（connect 视图）。
+      // 放在 module script 之前同步执行：无 serial 时不会加载主应用入口脚本，也不破坏 vite 入口加载。
+      if (!new URLSearchParams(window.location.search).has("serial")) {
+        location.replace("/overview.html");
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>

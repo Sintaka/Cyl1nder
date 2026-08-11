@@ -11,11 +11,23 @@
     <header class="ov-header">
       <span class="ov-brand">Cyl1nder 总管 <small>/ Overview</small></span>
       <span class="ov-spacer"></span>
-      <a class="ov-link" href="/">打开主应用</a>
+      <a class="ov-link" href="/?serial=">打开主应用</a>
+      <button class="ov-cleanup" id="ov-cleanup" type="button">清理无效场景</button>
+      <span class="ov-cleanup-result hidden" id="ov-cleanup-result"></span>
       <button class="ov-refresh" id="ov-refresh" type="button">刷新</button>
     </header>
     <div id="ov-banner" class="ov-banner hidden"></div>
     <main class="ov-main">
+      <!-- 新建场景置顶（在活跃/历史之上） -->
+      <section class="ov-panel" id="new-panel">
+        <h2 class="ov-section-heading">新建场景</h2>
+        <p class="ov-note">没有 Houdini 也能打开：新建后直接进入可编辑的空工作区。</p>
+        <div class="ov-new">
+          <input class="ov-new-input" id="new-label" type="text" placeholder="可选：场景名称（label）" />
+          <button class="ov-new-button" id="new-button" type="button">新建场景</button>
+        </div>
+        <p class="ov-error hidden" id="new-error"></p>
+      </section>
       <section class="ov-panel" id="active-panel">
         <h2 class="ov-section-heading">活跃场景</h2>
         <p class="ov-hint" id="active-hint">加载中…</p>
@@ -25,15 +37,6 @@
         <h2 class="ov-section-heading">历史场景</h2>
         <p class="ov-hint" id="history-hint">加载中…</p>
         <div class="ov-list" id="history-list"></div>
-      </section>
-      <section class="ov-panel" id="new-panel">
-        <h2 class="ov-section-heading">新建场景</h2>
-        <p class="ov-note">没有 Houdini 也能打开：新建后直接进入可编辑的空工作区。</p>
-        <div class="ov-new">
-          <input class="ov-new-input" id="new-label" type="text" placeholder="可选：场景名称（label）" />
-          <button class="ov-new-button" id="new-button" type="button">新建场景</button>
-        </div>
-        <p class="ov-error hidden" id="new-error"></p>
       </section>
     </main>
     <script type="module" src="/src/overview.ts"></script>

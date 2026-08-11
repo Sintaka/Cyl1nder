@@ -120,3 +120,54 @@ web 侧：编辑 → WS edit → put_outputs（_same_content 去重 + rev++）�
 
 - 新建：`devlog/streaming-sync-gap.md`（本文）。
 - 未触碰：`bridge/`、`web/`、`hda/` 源码；未改其它 devlog 文件。
+
+## 8. 落地：缓存-直到输入变化 + 同步 fps 提升（v0.1.00051）
+
+> 日期：2026-08-11。范围：把本文 P0（访问即准备 + 就绪缓冲 + 位置流式更新）在 HDA 侧落地。只改 `hda/src/cyl1nder_hda.py` 与 `hda/scripts/hython_smoke.py`（并行 agent 正在改 bridge/web，本写集不碰；不 git commit）。
+> 目标：Cyl1nder 中拖拽 transform 的同步从 ~20fps 往 60fps 方向；cook 主线程延迟 10-50ms → <2ms（拉取侧）。
+
+### 8.1 实现要点
+
+1. **就绪缓冲（后台拉取）**：`_sync_loop`（30fps `/pending` 心跳语义不变）在启动时预热，检测到 pending/reset 时在**后台线程**调 `_refresh_ready()` 拉 `/outputs?since=<ready rev>` 到 `_READY[serial]`（按 role 合并、latest-wins、每次更新 `_gen` 打标）。cook 主线程**零网络零 JSON 反序列化**，只读 `_READY`。`_role_buffer`（直接拉取）退化为冷启动 REST fallback（同步线程尚未预热时，首次 cook 用）。
+2. **缓存-直到输入改变（输出侧）**：`_GEO_CACHE[(serial, role)]` 持有预构建 `hou.Geometry` + 精确拓扑签名（`_buffer_sig`：pointCount + curves/faces 的 pointIndices）。cook 应用 `_apply_output`：
+   - 同一 buffer（`_gen` 相同，O(1)）→ 缓存命中，`geo.copy(cached)`（10k 点 ~0.04-0.13ms 原生），不重建；
+   - 拓扑签名相同（位置-only 变化）→ `setPointFloatAttribValues("P", ...)` 批量写缓存几何 + copy，**不 clear()/不重建**；
+   - 拓扑变化 → 重建缓存几何（罕见）。
+   自愈：拓扑漂移 → 重建；位置漂移 → 从 buffer 重写 P。
+3. **缓存-直到输入改变（输入侧）**：`_input_signature`（role 0 每 recook 一次）对 4 路输入做内容签名（P 原生批量 + point/prim 计数 + 每 prim 顶点数 + width/Cd/uv）；与 `_PUSH_CACHE[serial]` 相同则**跳过 serialize_input×4 + push**（输入未变不再重复推流，不再 bump inputRev / 喂 web feedback 循环）。签名失败 → 保守重推。
+4. **关键实测发现**（hython）：
+   - Python SOP 输出几何**每次真实 recook 都重置为 input0 拷贝**（maintainstate 0/1 + `cook(force=True)` 均如此）→ 跨 cook 无法持久化点/prim，所以快速路径用「预构建缓存几何 + `geo.copy()` + 批量 P 写」，而不是「复用 input0 只 setPosition」。
+   - HOM 逐点访问：writable ~10µs/pt，read-only ~60µs/pt（6x）→ 输入签名在 **writable 拷贝**上算（`hou.Geometry().copy(src)`），5-6x 加速。
+   - `_ensure_bridge`/`_ensure_frontend` 每次 cook 都做 HTTP 健康探测（1-25ms × 4 role SOP）是隐藏开销 → 2s 限频。
+5. **心跳/门控语义保留**：`/pending` 仍按 sync_fps 轮询并 touch lastSeen；`scheduled` 门控保留（防风暴）；就绪缓冲在 scheduled 期间仍刷新（latest-wins），recook 落地时拿到最新。
+
+### 8.2 预期收益（hython 实测：drag-frame 单 python SOP cook 主线程时长）
+
+| 输入规模（4 路） | 旧链路（serialize×4 + clear/rebuild + 健康探测） | 新链路（签名跳过 push + 就绪缓冲 + 缓存几何 copy） |
+|---|---|---|
+| 200 pts / 40 curves | ~35-50ms（≈20fps） | ~5ms（200fps 级；受 sync_fps 上限约束） |
+| 500 pts / 100 curves | ~50-80ms | ~3.5ms |
+| 2000 pts / 400 curves | ~350-550ms（2-3fps） | ~13ms（77fps 级） |
+
+- cook 主线程：拉取+反序列化 0（后台）；10k 点位置-only 应用 ≈ 0.8ms（批量 P 写）+ copy ~0.1ms；拓扑重建仅发生在拓扑变化。
+- 端到端同步上限从「1/cook 时长（百毫秒级）」变为 min(sync_fps, 轮询/调度延迟) → **把 sync_fps 提到 60 现在有真实收益**（16ms 轮询）；默认 30fps 拖拽同步 ~30fps，设 60 可到 ~60fps。
+- 输入侧：拖拽期间输入未变 → 不再重复推流（省 HTTP + inputRev 抖动 + web feedback）。
+
+### 8.3 剩余瓶颈（P1 方向）
+
+| # | 瓶颈 | 现状 | 后续（P1） |
+|---|---|---|---|
+| 1 | HDA 轮询粒度 | `/pending` 30-60fps 轮询（33/16ms 上界）+ hdefereval 主线程空闲延迟 | bridge `/stream` 长轮询/事件推送（~5ms 级） |
+| 2 | 全量 JSON | 输出变化仍全量传输（后台线程拉取，不阻塞 cook，但背景 CPU/带宽 100% 传输） | 协议 delta（稀疏 `[{i,p}]`）+ topoId/transform（M1） |
+| 3 | 协议无 delta | 简单 transform 也全量重传/全量广播 | `/stream` + diff（P1） |
+| 4 | 输入侧全量 | 输入变化时 serialize×4 仍全量 JSON（每点 ~10µs writable / ~60µs read-only） | 输入侧 delta / 原生批量序列化（P2） |
+| 5 | 拓扑重建 | 拓扑变化时仍 clear+重建（10k 点 ~43ms） | topoId 快速路径 + `createPoints` 批量（M3） |
+| 6 | 健康探测 | autostart 探测 2s 限频（摊薄 <1ms/cook） | 可由 `/pending` 心跳状态替代 |
+
+### 8.4 风险 / 注意
+
+- 输入签名对「同计数同位置的 point 重排/重连」不敏感（自愈：下一次真实变化全量重推）——与 sync-architecture「内容对账自愈」铁律一致。
+- `_READY`/`_GEO_CACHE`/`_PUSH_CACHE` 随 serial 累积（进程内、Houdini 生命周期内）；serial 再生（regenerate）不清理旧缓存（既有 `_SYNC`/`_OUT_CACHE` 同样行为）。
+- 落地路径是 built 的 4-Python-SOP 布局（build_hda.py）；`cook_core`（1-Python+blast）未 build，仅同步改为读 `_READY`（冷启动直接拉），未做缓存几何快速路径。
+- 心跳：`/pending` 语义未变（仍 touch lastSeen）；web `startHdaWatch`（registry.lastSeen）依赖保留。
+- 并行 agent 正在改 bridge/web；`/stream`+diff（P1）需协议三端同步（protocol.py / types.ts / protocol.md），落地前确认文件归属。

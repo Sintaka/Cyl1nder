@@ -1,15 +1,18 @@
 ﻿import { BRIDGE_URL } from "./protocol/types";
 
-// Overview 总管页面：活跃场景 / 历史场景 / 新建场景。
-// 契约（bridge routes.py，并行实现中）：
-//   GET  /api/scenes -> { active:[{serial,label,nodePath,lastSeen,inputRev,outputRev}], history:[{serial,savedAt}] }
+// Overview 总管页面：新建场景（置顶）/ 活跃场景 / 历史场景。
+// 契约（bridge scenes.py，并行实现中）：
+//   GET  /api/scenes -> { active:[{serial,label,nodePath,lastSeen,lastActivity?,inputRev,outputRev}], history:[{serial,savedAt}] }
 //   POST /api/scenes -> body {label?} -> {serial}
+//   POST /api/scenes/cleanup -> {ok, removed:[serial...]}   （并行实现中，可能 404）
 
 interface ActiveScene {
   serial: string;
   label: string;
   nodePath: string;
   lastSeen: number;
+  /** 最近一次推数据/活动的 epoch 秒，0=从未。旧桥响应没有该字段，按 0（未cook）处理。 */
+  lastActivity?: number;
   inputRev: number;
   outputRev: number;
 }
@@ -24,13 +27,21 @@ interface ScenesResponse {
   history: HistoryScene[];
 }
 
+interface CleanupResponse {
+  ok: boolean;
+  removed: string[];
+}
+
 class HttpError extends Error {
   constructor(readonly status: number) {
     super(`HTTP ${status}`);
   }
 }
 
-const OFFLINE_MS = 15_000; // lastSeen 超过 15s 标"离线/未cook"
+const OFFLINE_MS = 15_000; // lastSeen 超过 15s -> 离线（Houdini 心跳断）
+const STALE_ACTIVITY_MS = 5_000; // lastActivity 超过 5s 未推数据 -> 未cook
+
+type ActiveState = "offline" | "uncooked" | "online";
 
 function $(sel: string): HTMLElement {
   const el = document.querySelector(sel);
@@ -40,6 +51,8 @@ function $(sel: string): HTMLElement {
 
 const banner = $("#ov-banner");
 const refreshBtn = $("#ov-refresh") as HTMLButtonElement;
+const cleanupBtn = $("#ov-cleanup") as HTMLButtonElement;
+const cleanupResult = $("#ov-cleanup-result");
 const activeHint = $("#active-hint");
 const activeList = $("#active-list");
 const historyHint = $("#history-hint");
@@ -83,15 +96,35 @@ function openSerial(serial: string): void {
   location.href = `/?serial=${encodeURIComponent(serial)}`;
 }
 
+/** 三态判定：离线 / 未cook / 在线，离线优先。 */
+function activeState(s: ActiveScene): { state: ActiveState; text: string; title: string } {
+  const seenDiff = Date.now() - epochMs(s.lastSeen);
+  if (seenDiff > OFFLINE_MS) {
+    return { state: "offline", text: "离线", title: `Houdini 心跳断开（lastSeen ${relTime(s.lastSeen)}）` };
+  }
+  const activity = s.lastActivity ?? 0; // 旧响应无 lastActivity 时按 0 = 从未推数据 -> 未cook
+  if (activity === 0) {
+    return { state: "uncooked", text: "未cook", title: "Houdini 在跑但从未推过数据（lastActivity=0）" };
+  }
+  const activityDiff = Date.now() - epochMs(activity);
+  if (activityDiff > STALE_ACTIVITY_MS || (s.inputRev === 0 && s.outputRev === 0)) {
+    return { state: "uncooked", text: "未cook", title: `Houdini 在跑但该场景还没 cook（lastActivity ${relTime(activity)}）` };
+  }
+  return { state: "online", text: "在线", title: `正常在线（最近活动 ${relTime(activity)}）` };
+}
+
 function activeRowHtml(s: ActiveScene): string {
-  const offline = Date.now() - epochMs(s.lastSeen) > OFFLINE_MS;
+  const { state, text, title } = activeState(s);
   const label = s.label ? esc(s.label) : esc(s.serial);
   const path = s.nodePath ? `<small class="ov-path" title="${esc(s.nodePath)}">${esc(s.nodePath)}</small>` : "";
   return `
     <div class="ov-row">
       <div class="ov-cell ov-serial" title="${esc(s.serial)}">${esc(s.serial)}</div>
       <div class="ov-cell ov-label">${label}${path}</div>
-      <div class="ov-cell ov-seen ${offline ? "offline" : ""}">${offline ? "离线/未cook" : relTime(s.lastSeen)}</div>
+      <div class="ov-cell ov-seen ${state}">
+        <span class="ov-state" title="${esc(title)}">${text}</span>
+        <small class="ov-seen-at">${relTime(s.lastSeen)}</small>
+      </div>
       <div class="ov-cell ov-revs"><span class="rev">in ${s.inputRev}</span><span class="rev">out ${s.outputRev}</span></div>
       <div class="ov-cell ov-action"><button class="ov-open" type="button" data-serial="${esc(s.serial)}">打开</button></div>
     </div>`;
@@ -163,7 +196,43 @@ async function loadScenes(): Promise<void> {
   }
 }
 
+/** 清理无效场景：POST /api/scenes/cleanup -> {ok, removed}，成功后重新拉取渲染。 */
+async function cleanupScenes(): Promise<void> {
+  cleanupBtn.disabled = true;
+  cleanupBtn.textContent = "清理中…";
+  cleanupResult.classList.add("hidden");
+  try {
+    const res = await fetch(`${BRIDGE_URL}/api/scenes/cleanup`, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) throw new HttpError(res.status);
+    const data = (await res.json()) as CleanupResponse;
+    const removed = Array.isArray(data.removed) ? data.removed : [];
+    if (removed.length === 0) {
+      cleanupResult.textContent = "没有无效场景";
+      cleanupResult.title = "";
+      cleanupResult.className = "ov-cleanup-result none";
+    } else {
+      const preview = removed.slice(0, 5).join("、") + (removed.length > 5 ? "…" : "");
+      cleanupResult.textContent = `已清理 ${removed.length} 个无效场景：${preview}`;
+      cleanupResult.title = removed.join("\n");
+      cleanupResult.className = "ov-cleanup-result ok";
+    }
+    await loadScenes(); // 清理成功后重新拉取渲染
+  } catch (err) {
+    cleanupResult.textContent =
+      err instanceof HttpError ? `清理接口未就绪（HTTP ${err.status}）` : "清理失败（桥离线）";
+    cleanupResult.title = "";
+    cleanupResult.className = "ov-cleanup-result err";
+  } finally {
+    cleanupBtn.disabled = false;
+    cleanupBtn.textContent = "清理无效场景";
+  }
+}
+
 refreshBtn.addEventListener("click", () => void loadScenes());
+cleanupBtn.addEventListener("click", () => void cleanupScenes());
 
 // 打开按钮：事件委托（active + history 共用）
 for (const list of [activeList, historyList]) {

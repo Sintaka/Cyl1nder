@@ -383,3 +383,33 @@
 ### 验证
 - tsc 0 错误；vitest 7 文件 82 通过；bridge pytest 31 通过（新增 scenes/usdz 11 条）；Playwright 39 passed / 2 skipped（2 skipped = round8-overview 的 /api/scenes 用例，因运行中的 bridge 是旧进程未含新端点，重启 bridge 后自动转绿）。
 - 行为变更（Enter 跟随选中）导致 round4/round6-viewport 2 条旧断言更新为「无 transform 时模式激活但 gizmo 空」。
+
+## v0.1.00051（2026-08-11）
+**4 路并行**（Hegel=Overview web / Socrates=bridge scenes+cleanup / Banach=HDA 缓存+同步 fps / Huygens=Houdini python runtime 设计+panel 原型）。
+
+### Overview 总管页（web/overview.html + src/overview.ts + styles/overview.css + index.html）
+- **默认入口**：index.html 内联脚本——无 `?serial=` 时 `location.replace("/overview.html")`（访问端口默认打开总管页）；有 serial 才加载主应用（现有链接/测试不破坏）。
+- **新建场景区块置顶**（新建 → 活跃 → 历史）。
+- **离线 vs 未cook 三态区分**：lastSeen 超 15s → 离线（红）；lastSeen 新鲜但 lastActivity 陈旧/为 0 或 inputRev&&outputRev 均 0 → 未cook（橙）；否则在线（绿）。
+- **清理无效场景按钮**：POST /api/scenes/cleanup → 重新拉取渲染 + 结果列表（>5 截断，完整进 title）。
+- 打开主应用链接改为 `/?serial=`（避免被默认重定向绕回）。
+
+### bridge scenes + cleanup（registry.py / scenes.py / routes.py / test_scenes.py）
+- RegistryRecord 加 `lastActivity`（epoch，0=从未），put_inputs/put_outputs 实际写入时 mark_activity；list_scenes active 项带 lastActivity。
+- `POST /api/scenes/cleanup`：history 删空/缺 io+meta/meta 损坏的 serial 目录；active 移除无数据且无快照的注册；返回 removed+reason（empty/incomplete/corrupt-meta/no-data-no-snapshot）；resolve+relative_to 防路径穿越。pytest 34 通过。
+
+### HDA 缓存-直到输入变化 + 同步 fps（hda/src/cyl1nder_hda.py + hython_smoke.py + streaming-sync-gap §8）
+- **就绪缓冲（访问即准备）**：_sync_loop 后台线程预热拉 /outputs?since=<ready rev> 到 _READY（latest-wins），cook 主线程零网络零反序列化；_role_buffer 退化为冷启动 fallback。
+- **输出缓存三态**：同一 buffer（_gen 相同）→ geo.copy(cached)（O(1)）；拓扑签名相同（位置-only）→ setPointFloatAttribValues(P) 批量写不重建；拓扑变化才重建；内容对账自愈保留。
+- **输入推送缓存**：_input_signature 相同则跳过 serialize×4+push（拖拽期间输入未变不再重复推流/bump inputRev）。
+- **实测 fps**：200pt/40crv 35-50ms（≈20fps）→ ~5ms（200fps 级，受 sync_fps 约束）；2000pt/400crv 350-550ms → ~13ms（77fps 级）。现在把 sync_fps 提到 60 有真实收益（16ms 轮询 → ~60fps 拖拽同步）。关键发现：Python SOP 每次真实 recook 输出都重置为 input0 拷贝 → 快速路径用缓存几何+copy+批量 P 写而非跨 cook setPosition；健康探测 2s 限频。
+- hython smoke 全绿（缓存命中/位置快速路径/拓扑重建/输入推送缓存/输入变化失效）。
+
+### Houdini python runtime 接口设计与 transform 流式 panel（Huygens，设计+原型）
+- 调研 spaceMouse2（D:\code\dev\Houdini\spaceMouse2）：python panel 模式（后台线程取数→queue→UI 线程 QTimer 写 hou，hou 只在主线程）；apex 特殊处理——pack 类数据（scene 的 apex.Dict/Matrix4/Geometry pack）、Channel List 不可拆分（animbinding channel primitive 几何体，ChannelPrim.eval/insertKey/setKeyValue）、关节世界坐标需 control_manager.getControlXform/getControlData、当前只能改 viewport 绝对坐标（graph_parms 热改不落 key 不可撤销）。
+- **devlog/python-runtime-design.md**：Cyl1nder ⇄ Houdini Python Runtime 接收端（python panel 常驻，非 SOP HDA）⇄ 目标节点；流式 channel 协议草案（set_channels 增量/稀疏/latest-wins，bridge 8375 新端点长轮询，Houdini 端纯 urllib）；分期 Phase1 transform 3 float → Phase2 channel list 增量 → Phase3 Apex Animation Layer（最终目标已记录）。
+- **hda/panels/cyl1nder_runtime.pypanel**：Houdini Python Panel 原型（Mock/Bridge 双数据源、写 tx/ty/tz、状态指示、目标节点 Pick/Use Sel、Pause/Resume、30ms QTimer 写 hou；CHANNEL_PARM_MAP 预留 apex 映射；hython py_compile 通过）。
+
+### 验证
+- tsc 0 错误；vitest 7 文件 82 通过；bridge pytest 34 通过；hython smoke SMOKE OK；Playwright 44 passed / 2 skipped（smoke 在 10 worker 全量跑时偶发 flake，单独跑通过）。
+- round9-overview：裸 / 重定向 overview、?serial= 不重定向、新建置顶、清理按钮、三态渲染。

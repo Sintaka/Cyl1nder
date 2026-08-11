@@ -40,6 +40,24 @@ _CORE_CACHE: dict[str, dict] = {}
 _OUT_CACHE: dict[str, dict] = {}
 _OUT_LOCK = threading.Lock()
 
+# ready buffer: outputs pulled by the BACKGROUND sync thread, never on the cook
+# main thread. Cook only reads this cache; it stays valid until the bridge rev
+# moves (web-side input change) or the process exits. latest-wins per role.
+_READY: dict[str, dict] = {}
+_READY_LOCK = threading.Lock()
+
+# per-serial apply counters: hython smoke asserts cache-hit / fast-path / rebuild.
+_STATS: dict[str, dict] = {}
+
+# per (serial, role): cached output geometry + its exact topology signature.
+# Built once per topology, then P is batch-updated natively and the geometry is
+# copied into the cook output (~0.1ms). Valid until the next input change / close.
+_GEO_CACHE: dict[tuple[str, int], dict] = {}
+
+# per-serial exact input signature of the last push -> inputs are re-serialized
+# and re-pushed only when they actually change (cache-until-input-change, push side).
+_PUSH_CACHE: dict[str, tuple] = {}
+
 # HDA owns bridge startup: if unreachable, spawn it (one attempt / 5s)
 BRIDGE_PY = r"D:\code\dev\Cyl1nder\bridge\.venv\Scripts\python.exe"
 BRIDGE_CWD = r"D:\code\dev\Cyl1nder\bridge"
@@ -48,6 +66,11 @@ VITE_JS = r"D:\code\dev\Cyl1nder\web\node_modules\vite\bin\vite.js"
 WEB_CWD = r"D:\code\dev\Cyl1nder\web"
 _BRIDGE_LAST_SPAWN = 0.0
 _UI_LAST_SPAWN = 0.0
+# autostart health probes cost 1-25ms each (HTTP) and cook() runs per role SOP per
+# recook - re-probing every cook would eat the whole 60fps budget. Rate-limit them.
+_AUTOSTART_CHECK_INTERVAL = 2.0
+_BRIDGE_LAST_CHECK = 0.0
+_UI_LAST_CHECK = 0.0
 
 def _ui_healthy() -> bool:
     """True when the web UI (vite on 8376) answers."""
@@ -60,14 +83,18 @@ def _ui_healthy() -> bool:
 
 def _ensure_frontend(root: hou.Node) -> None:
     """Bind the web UI lifecycle to the bridge: if 8376 is down, start vite (1 attempt / 10s)."""
-    global _UI_LAST_SPAWN
+    global _UI_LAST_SPAWN, _UI_LAST_CHECK
     if not bool(_parm(root, "bridge_autostart", 1)):
         return
+    now = time.time()
+    if now - _UI_LAST_CHECK < _AUTOSTART_CHECK_INTERVAL:
+        return  # recently probed: skip the HTTP round-trip on this cook
+    _UI_LAST_CHECK = now
     if _ui_healthy():
         return
-    if time.time() - _UI_LAST_SPAWN < 10.0:
+    if now - _UI_LAST_SPAWN < 10.0:
         return
-    _UI_LAST_SPAWN = time.time()
+    _UI_LAST_SPAWN = now
     try:
         subprocess.Popen(
             [NODE, VITE_JS],
@@ -89,15 +116,19 @@ def _bridge_healthy(bridge_url: str) -> bool:
 
 def _ensure_bridge(root: hou.Node) -> None:
     """If the bridge is unreachable, start it (one attempt per 5s)."""
-    global _BRIDGE_LAST_SPAWN
+    global _BRIDGE_LAST_SPAWN, _BRIDGE_LAST_CHECK
     if not bool(_parm(root, "bridge_autostart", 1)):
         return
+    now = time.time()
+    if now - _BRIDGE_LAST_CHECK < _AUTOSTART_CHECK_INTERVAL:
+        return  # recently probed: skip the HTTP round-trip on this cook
+    _BRIDGE_LAST_CHECK = now
     bridge_url = _parm(root, "bridge_url", "http://127.0.0.1:8375")
     if _bridge_healthy(bridge_url):
         return
-    if time.time() - _BRIDGE_LAST_SPAWN < 5.0:
+    if now - _BRIDGE_LAST_SPAWN < 5.0:
         return
-    _BRIDGE_LAST_SPAWN = time.time()
+    _BRIDGE_LAST_SPAWN = now
     try:
         subprocess.Popen(
             [BRIDGE_PY, "-m", "bridge"],
@@ -110,27 +141,57 @@ def _ensure_bridge(root: hou.Node) -> None:
         pass
 
 
-def _same_as_buffer(geo: hou.Geometry, buf: dict) -> bool:
-    """Compare CURRENT output geometry content vs the bridge buffer.
+def _ready_state(serial: str) -> dict:
+    """Get (or create) the serial's ready-buffer state."""
+    with _READY_LOCK:
+        st = _READY.get(serial)
+        if st is None:
+            st = {"rev": 0, "outputs": {}, "gen": 0, "error": ""}
+            _READY[serial] = st
+        return st
 
-    Content-based, self-healing: even if some other path wrote stale geometry
-    (e.g. passthrough fallback), the next cook detects the mismatch and rebuilds.
-    No stored hash/bookkeeping to desync with.
+
+def _refresh_ready(client: BridgeClient, serial: str) -> None:
+    """Background pull: refresh the ready buffer with outputs newer than its rev.
+
+    Runs on the sync thread, never on the cook main thread. Only the changed
+    roles' latest buffers are fetched (since=<ready rev>) and merged
+    (latest-wins). The buffer stays valid until the next input change / close.
     """
-    pts = [
-        [round(p.position().x(), 6), round(p.position().y(), 6), round(p.position().z(), 6)]
-        for p in geo.points()
-    ]
-    if pts != (buf.get("points") or []):
-        return False
-    curves = [[p.number() for p in prim.points()] for prim in geo.prims()]
-    buf_curves = [c.get("pointIndices") for c in (buf.get("curves") or [])]
-    return curves == buf_curves
+    st = _ready_state(serial)
+    with _READY_LOCK:
+        since = st["rev"]
+    outputs, new_rev = client.pull_outputs(since)
+    with _READY_LOCK:
+        if outputs is None:
+            st["error"] = client.last_error or "pull failed"
+            return
+        st["error"] = ""
+        if outputs:
+            st["gen"] += 1
+            for b in outputs:
+                idx = int(b.get("index", -1))
+                if idx >= 0:
+                    b = dict(b)
+                    b["_gen"] = st["gen"]  # cook skips identical buffers via this tag
+                    st["outputs"][idx] = b
+        st["rev"] = max(st["rev"], new_rev)
+
+
+def _reset_ready(serial: str) -> None:
+    """Bridge restart (rev went backwards): drop the ready buffer, re-pull from 0."""
+    with _READY_LOCK:
+        st = _READY.get(serial)
+        if st is not None:
+            st["rev"] = 0
+            st["outputs"] = {}
+            st["gen"] += 1
 
 
 def _sync_loop(serial: str, node_path: str, interval: float, bridge_url: str) -> None:
     client = BridgeClient(serial, bridge_url=bridge_url)
     last_seen = 0
+    _refresh_ready(client, serial)  # warm the ready buffer at startup (background)
     while True:
         state = _SYNC.get(serial)
         if state is None or state["stop"].is_set():
@@ -140,16 +201,19 @@ def _sync_loop(serial: str, node_path: str, interval: float, bridge_url: str) ->
         if reset:
             # bridge restarted: rev went backwards - re-pull everything from 0
             last_seen = 0
+            _reset_ready(serial)
+            _refresh_ready(client, serial)
             state = _SYNC.get(serial)
             if state is not None and not state["scheduled"]:
                 state["scheduled"] = True
                 _schedule_recook(node_path)
             continue
         if pending and rev > last_seen:
+            last_seen = rev
+            _refresh_ready(client, serial)  # ready buffer fresh before the recook lands
             state = _SYNC.get(serial)
             if state is None or state["scheduled"]:
                 continue
-            last_seen = rev
             state["scheduled"] = True
             _schedule_recook(node_path)
 
@@ -291,6 +355,62 @@ def _build_detail(geo: hou.Geometry, buf: dict) -> None:
                     created[idx].setAttribValue(widths_attr, float(w[k]))
 
 
+def _buffer_sig(buf: dict) -> tuple:
+    """Exact topology signature of an output buffer (points/curves/faces structure).
+
+    Computed from plain buffer data (no hou objects), so it is cheap to compare
+    per cook; the point/prim content itself is re-applied from the buffer, so the
+    signature only has to be exact about STRUCTURE (counts + vertex indices).
+    """
+    curves = buf.get("curves") or []
+    faces = buf.get("faces") or []
+    return (
+        len(buf.get("points") or []),
+        tuple(tuple(int(i) for i in (c.get("pointIndices") or [])) for c in curves),
+        tuple(tuple(int(i) for i in f) for f in faces),
+    )
+
+
+def _apply_output(geo: hou.Geometry, buf: dict, serial: str, role: int) -> None:
+    """Apply one output buffer via a cached per-(serial, role) geometry.
+
+    - same buffer as last apply (same _gen, O(1)) -> cache hit: copy the cached
+      geometry (~0.1ms native), no rebuild.
+    - topology unchanged (exact sig compare) -> batch P update on the cached
+      geometry, then copy - no clear()/rebuild.
+    - otherwise -> rebuild the cached geometry from the buffer (rare, topology
+      change only). Content-based self-healing: topology drift rebuilds, position
+      drift is fixed by re-writing P from the buffer.
+    Counters feed the hython smoke assertions (cache hit / fast path / rebuild).
+    """
+    key = (serial, role)
+    entry = _GEO_CACHE.get(key)
+    stats = _STATS.setdefault(serial, {"rebuilds": 0, "fast_paths": 0, "skips": 0})
+    if entry is not None and entry.get("buf_gen") == buf.get("_gen") \
+            and len(entry["geo"].points()) == len(buf.get("points") or []):
+        geo.copy(entry["geo"])
+        stats["skips"] += 1
+        return
+    sig = _buffer_sig(buf)
+    if entry is not None and entry["sig"] == sig:
+        pts = buf.get("points") or []
+        try:
+            entry["geo"].setPointFloatAttribValues(
+                "P", [float(v) for p in pts for v in p]
+            )
+            entry["buf_gen"] = buf.get("_gen")
+            geo.copy(entry["geo"])
+            stats["fast_paths"] += 1
+            return
+        except Exception:  # noqa: BLE001 - malformed P: full rebuild below
+            pass
+    cached = hou.Geometry()
+    _build_detail(cached, buf)
+    _GEO_CACHE[key] = {"geo": cached, "sig": sig, "buf_gen": buf.get("_gen")}
+    geo.copy(cached)
+    stats["rebuilds"] += 1
+
+
 # ---------------------------------------------------------------------------
 # runtime-optimized layout: ONE python SOP (cook_core) + 4 blast splitters
 # ---------------------------------------------------------------------------
@@ -301,19 +421,27 @@ def _snapshot_parts(root: hou.Node, node: hou.Node) -> list[dict]:
     Each part: {"role": i, "points": [...], "curves": [{"pointIndices": [...]}]}
     """
     serial = _parm(root, "cyl1nder_serial", "") or ""
-    client = BridgeClient(
-        serial,
-        bridge_url=_parm(root, "bridge_url", "http://127.0.0.1:8375"),
-        node_path=root.path(),
-        label="Cyl1nder",
-    )
-    outputs, _ = client.pull_outputs(0)
     srcs = node.inputs()
+    ready = _READY.get(serial)
+    if ready is not None:
+        outputs = ready["outputs"]  # background-prepared: no HTTP in the cook
+    else:
+        # cold start before the sync thread warmed the ready buffer: one direct pull
+        client = BridgeClient(
+            serial,
+            bridge_url=_parm(root, "bridge_url", "http://127.0.0.1:8375"),
+            node_path=root.path(),
+            label="Cyl1nder",
+        )
+        pulled, _ = client.pull_outputs(0)
+        outputs = None
+        if pulled is not None:
+            outputs = {int(b.get("index", -1)): b for b in pulled if b.get("index") is not None}
     parts: list[dict] = []
     for i in range(INPUT_COUNT):
         buf = None
         if outputs is not None:
-            buf = next((b for b in outputs if int(b.get("index", -1)) == i), None)
+            buf = outputs.get(i)
         if buf is not None and (buf.get("points") or []):
             parts.append(
                 {
@@ -465,6 +593,41 @@ def _role_buffer(serial: str, bridge_url: str, role: int) -> dict | None:
         return merged.get(role)
 
 
+def _input_signature(srcs: list) -> tuple | None:
+    """Input content signature: P (native bulk) + point/prim counts + per-prim vertex
+    counts + carried point attrs, computed on a writable copy (per-prim HOM access
+    is ~6x faster on writable geometry).
+
+    Computed once per recook (role 0 only) as the gate for re-serializing/re-pushing:
+    unchanged inputs cost only the signature, not the full JSON rebuild. Catches
+    position, point/prim count and per-curve vertex-count changes; only a
+    point-reorder / re-link that keeps counts AND positions identical is missed
+    (self-heals on the next real change - content-based reconciliation).
+    Returns None when it cannot be computed (caller then always re-pushes).
+    """
+    try:
+        parts = []
+        for i in range(INPUT_COUNT):
+            src = srcs[i] if i < len(srcs) else None
+            geo_i = src.geometry() if src is not None else None
+            if geo_i is None:
+                parts.append((0, (), (), ()))
+                continue
+            copy = hou.Geometry()
+            copy.copy(geo_i)
+            flat = tuple(copy.pointFloatAttribValues("P"))
+            counts = tuple(len(prim.vertices()) for prim in copy.prims())
+            attrs = ()
+            for aname in ("width", "Cd", "uv"):
+                a = copy.findPointAttrib(aname)
+                if a is not None:
+                    attrs += (aname, a.tupleSize(), tuple(copy.pointFloatAttribValues(aname)))
+            parts.append((len(copy.points()), flat, counts, attrs))
+        return tuple(parts)
+    except Exception:  # noqa: BLE001 - never block the cook on a signature failure
+        return None
+
+
 def cook(role: int) -> None:
     node = hou.pwd()
     root = _root(node)
@@ -480,35 +643,42 @@ def cook(role: int) -> None:
 
     if role == ROLE_PUSH and auto_push:
         srcs = node.inputs()
-        inputs: list[dict] = []
-        for i in range(INPUT_COUNT):
-            src = srcs[i] if i < len(srcs) else None
-            geo_i = src.geometry() if src is not None else None
-            if geo_i is None:
-                inputs.append(
-                    {
-                        "index": i,
-                        "name": f"in{i}",
-                        "pointCount": 0,
-                        "primCount": 0,
-                        "points": [],
-                        "curves": [],
-                        "attributes": {},
-                    }
-                )
-            else:
-                inputs.append(serialize_input(geo_i, i, f"in{i}"))
-        hip = hou.hipFile.path()
-        client.push_inputs(inputs, hip=hip)
+        sig = _input_signature(srcs)
+        if sig is None or _PUSH_CACHE.get(serial) != sig:
+            inputs: list[dict] = []
+            for i in range(INPUT_COUNT):
+                src = srcs[i] if i < len(srcs) else None
+                geo_i = src.geometry() if src is not None else None
+                if geo_i is None:
+                    inputs.append(
+                        {
+                            "index": i,
+                            "name": f"in{i}",
+                            "pointCount": 0,
+                            "primCount": 0,
+                            "points": [],
+                            "curves": [],
+                            "attributes": {},
+                        }
+                    )
+                else:
+                    inputs.append(serialize_input(geo_i, i, f"in{i}"))
+            hip = hou.hipFile.path()
+            client.push_inputs(inputs, hip=hip)
+            _PUSH_CACHE[serial] = sig
         _set_status(root, "ok" if not client.last_error else "offline")
 
     if auto_pull:
         ensure_sync(root, serial)  # bidirectional: web edit -> dirty -> recook (<= sync_fps)
-        buf = _role_buffer(serial, bridge_url, role)
-        if buf is not None and not _same_as_buffer(geo, buf):
-            geo.clear()
-            _build_detail(geo, buf)
-        elif buf is None:
+        with _READY_LOCK:
+            ready = _READY.get(serial)
+        if ready is None:
+            buf = _role_buffer(serial, bridge_url, role)  # cold start: REST fallback
+        else:
+            buf = ready["outputs"].get(role)  # background-prepared; no HTTP in cook
+        if buf is not None:
+            _apply_output(geo, buf, serial, role)
+        else:
             # No data for THIS role on the bridge yet -> passthrough THIS role's own
             # input. node.geometry() is always the input0 copy on a multi-input python
             # SOP, so keeping it made all 4 output ports emit the first input.
@@ -519,7 +689,10 @@ def cook(role: int) -> None:
                 if other is not None and not _same_geo(geo, other):
                     geo.clear()
                     geo.merge(other)
-        _set_status(root, "ok" if not client.last_error else "offline")
+        with _READY_LOCK:
+            _st = _READY.get(serial)
+        _ready_err = _st.get("error", "") if _st is not None else ""
+        _set_status(root, "ok" if not client.last_error and not _ready_err else "offline")
     else:
         # passthrough fallback: output index = input index (HDA still useful w/o bridge)
         geo.clear()

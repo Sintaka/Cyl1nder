@@ -42,6 +42,29 @@ body {
 .ov-refresh:hover { background: #3a6ea5; }
 .ov-refresh:disabled { opacity: 0.5; cursor: default; }
 
+/* ---- cleanup ---- */
+.ov-cleanup {
+  background: #7a4a1f;
+  color: #fff;
+  border: 1px solid #a16207;
+  border-radius: 4px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.ov-cleanup:hover { background: #92400e; }
+.ov-cleanup:disabled { opacity: 0.5; cursor: default; }
+.ov-cleanup-result {
+  max-width: 340px;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ov-cleanup-result.ok { color: #86efac; }
+.ov-cleanup-result.none { color: #8f959e; }
+.ov-cleanup-result.err { color: #f87171; }
+.ov-cleanup-result.hidden { display: none; }
+
 /* ---- bridge status banner ---- */
 .ov-banner { padding: 8px 16px; font-size: 12px; }
 .ov-banner.offline { background: rgba(127, 29, 29, 0.35); color: #fecaca; border-bottom: 1px solid #7f1d1d; }
@@ -94,7 +117,12 @@ body {
 .ov-label { font-weight: 600; color: #e5e7eb; }
 .ov-path { display: block; color: #7a7f87; font-weight: 400; font-size: 11px; }
 .ov-seen { color: #8f959e; }
-.ov-seen.offline { color: #f87171; font-weight: 600; }
+/* 三态：离线(红) / 未cook(橙) / 在线(绿)，时间统一灰小字 */
+.ov-seen .ov-state { font-weight: 600; }
+.ov-seen .ov-seen-at { display: block; color: #8f959e; font-size: 11px; font-weight: 400; }
+.ov-seen.offline .ov-state { color: #f87171; }
+.ov-seen.uncooked .ov-state { color: #fbbf24; }
+.ov-seen.online .ov-state { color: #7ce3a8; }
 .ov-revs { display: flex; gap: 8px; font: 10px/1.4 ui-monospace, monospace; color: #8f959e; }
 .ov-revs .rev { background: #0f1012; border: 1px solid #33363c; border-radius: 3px; padding: 1px 5px; }
 .ov-open {

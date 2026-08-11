@@ -44,6 +44,7 @@ def list_scenes() -> dict[str, Any]:
                 "label": rec.label,
                 "nodePath": rec.nodePath,
                 "lastSeen": rec.lastSeen,
+                "lastActivity": rec.lastActivity,
                 "inputRev": ws.input_rev if ws else 0,
                 "outputRev": ws.output_rev() if ws else 0,
             }
@@ -63,6 +64,56 @@ def list_scenes() -> dict[str, Any]:
                 entry["label"] = meta["label"]
             history.append(entry)
     return {"active": active, "history": history}
+
+
+def _invalid_snapshot_dir(d: Path) -> str | None:
+    """Return the invalidity reason for a snapshot dir, or None if it is valid."""
+    if not any(d.iterdir()):
+        return "empty"
+    has_inputs = (d / "io" / "inputs.json").exists()
+    has_meta = (d / "scene" / "meta.json").exists()
+    if not has_inputs and not has_meta:
+        return "incomplete"
+    if has_meta and _read_json(d / "scene" / "meta.json") is None:
+        return "corrupt-meta"
+    return None
+
+
+def cleanup_scenes() -> dict[str, Any]:
+    """Remove invalid scene dirs (empty / incomplete / corrupt meta) + dead registry serials.
+    Safety: only legal serial dirs directly under the snapshot root are considered, and
+    each target must resolve back inside the root (symlink / junction traversal is skipped).
+    """
+    st = get_state()
+    removed: list[dict[str, Any]] = []
+    base = _snapshot_base()
+    if base.is_dir():
+        base = base.resolve()
+        for d in sorted(base.iterdir()):
+            if not d.is_dir() or not is_valid_serial(d.name):
+                continue
+            target = d.resolve()
+            try:
+                target.relative_to(base)
+            except ValueError:
+                continue
+            reason = _invalid_snapshot_dir(target)
+            if reason:
+                shutil.rmtree(target)
+                removed.append({"serial": d.name, "reason": reason})
+    kept: set[str] = set()
+    if base.is_dir():
+        for d in base.iterdir():
+            if d.is_dir() and is_valid_serial(d.name):
+                kept.add(d.name)
+    for rec in st.registry.list():
+        ws = st.workspaces.get(rec.serial)
+        has_data = ws is not None and (ws.input_rev > 0 or ws.output_rev() > 0)
+        if not has_data and rec.serial not in kept:
+            st.registry.remove(rec.serial)
+            removed.append({"serial": rec.serial, "reason": "no-data-no-snapshot"})
+    st.logs.info("scenes", f"cleanup removed {len(removed)} invalid scene(s)", "")
+    return {"ok": True, "removed": removed}
 
 
 def create_scene(label: str | None = None) -> str:

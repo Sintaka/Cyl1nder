@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import RedirectResponse, Response
 
 from .protocol import InputsPut, OutputsPut, VERSION, WEB_UI_URL, is_valid_serial
-from .scenes import create_scene, list_scenes, open_scene, save_scene
+from .scenes import cleanup_scenes, create_scene, list_scenes, open_scene, save_scene
 from .snapshot import build_meta, read_snapshot, write_snapshot
 from .usdz import build_usdz_bytes
 from .ui_layout import UiLayoutStore, list_layouts, load_layout, save_layout
@@ -83,6 +83,7 @@ async def put_inputs(serial: str, payload: InputsPut) -> dict:
         serial, hip=payload.hip, nodePath=payload.nodePath, label=payload.label
     )
     rev = st.workspaces.get_or_create(serial).set_inputs(payload.inputs)
+    st.registry.mark_activity(serial)
     st.logs.info("routes", f"inputs pushed ({len(payload.inputs)}), rev={rev}", serial)
     await manager.broadcast(
         serial,
@@ -107,6 +108,8 @@ async def put_outputs(serial: str, payload: OutputsPut) -> dict:
     st = get_state()
     ws = st.workspaces.get_or_create(serial)
     rev, accepted = ws.put_outputs(payload.outputs)
+    if accepted:
+        st.registry.mark_activity(serial)
     st.logs.info("routes", f"outputs pushed ({len(payload.outputs)}, accepted {len(accepted)}), rev={rev}", serial)
     if accepted:
         await manager.broadcast(
@@ -226,6 +229,12 @@ async def scenes_create(payload: dict | None = None) -> dict:
     """Create a new scene: fresh serial + registry entry + empty workspace."""
     payload = payload or {}
     return {"serial": create_scene(payload.get("label"))}
+
+
+@router.post("/api/scenes/cleanup")
+async def scenes_cleanup() -> dict:
+    """Remove invalid scene dirs + dead registry serials; returns removed {serial, reason}."""
+    return cleanup_scenes()
 
 
 @router.post("/api/hda/{serial}/scene/save")
