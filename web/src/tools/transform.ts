@@ -40,3 +40,31 @@ export function inputToOutput(index: number, input: InputPayload, points: number
     attributes: input.attributes,
   };
 }
+
+/**
+ * Translate only the points matching a Houdini-style group expression.
+ * `base` provides attributes/curves/faces for matching; `points` is the
+ * CURRENT point array (may already be transformed upstream in a chain). The filter
+ * resolves its class from `cls` (autoguess -> points in v1). Returns a new array.
+ */
+import { parseGroupExpression, matchingPoints, type GroupClass, type GroupData } from "../nodes2/groups";
+
+export function applyTranslateGrouped(
+  base: InputPayload,
+  points: number[][],
+  groupExpr: string,
+  cls: GroupClass,
+  dx: number,
+  dy: number,
+  dz: number,
+): number[][] {
+  const filter = parseGroupExpression(groupExpr, cls);
+  // P-based rules (e.g. @P.y>0) must evaluate against the CURRENT point array
+  // (the input to THIS node in a chain), not the original base payload.
+  const data: GroupData = { points, attributes: base.attributes, curves: base.curves, faces: base.faces ?? [] };
+  const next = points.map((p) => [...p]);
+  for (const i of matchingPoints(filter, data)) {
+    if (i >= 0 && i < next.length) next[i] = translatePoint(next[i], dx, dy, dz);
+  }
+  return next;
+}

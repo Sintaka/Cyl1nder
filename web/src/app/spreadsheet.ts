@@ -103,7 +103,7 @@ export function renderPayload(p: GeoPayload): { points: string; vertices: string
   faces.forEach((f, i) => {
     primRows.push(rowHtml([String(curves.length + i), "polygon", String(f.length), f.join(", ")]));
   });
-  const primsTable = `<table class="cyl-sp-table"><colgroup><col class="cyl-sp-col-num"><col><col class="cyl-sp-col-num"><col>${FILL_COL}</colgroup><thead><tr><th>primnum</th><th>type</th><th>verts</th><th>points</th><th></th></tr></thead><tbody>${bodyHtml(
+  const primsTable = `<table class="cyl-sp-table"><colgroup><col class="cyl-sp-col-num"><col><col class="cyl-sp-col-num"><col>${FILL_COL}</colgroup><thead><tr><th>primnum</th><th>type</th><th>verts</th><th>primpoints</th><th></th></tr></thead><tbody>${bodyHtml(
     primRows.length ? primRows : [`<tr><td colspan="5">no prims</td></tr>`],
     5,
   )}</tbody></table>`;
@@ -115,13 +115,13 @@ export function renderPayload(p: GeoPayload): { points: string; vertices: string
     for (const pi of refs) {
       const pt = pts[pi];
       if (!pt) continue;
-      vRows.push(rowHtml([String(vIdx), `P${pi}`, `prim${primId}`, fmtNum(pt[0]), fmtNum(pt[1]), fmtNum(pt[2])]));
+      vRows.push(rowHtml([String(vIdx), `${pi}`, `${primId}`, fmtNum(pt[0]), fmtNum(pt[1]), fmtNum(pt[2])]));
       vIdx++;
     }
   };
   curves.forEach((c, i) => addVerts(c.pointIndices, i));
   faces.forEach((f, i) => addVerts(f, curves.length + i));
-  const verticesTable = `<table class="cyl-sp-table"><colgroup><col><col><col><col class="cyl-sp-col-num"><col class="cyl-sp-col-num"><col class="cyl-sp-col-num">${FILL_COL}</colgroup><thead><tr><th>vertnum</th><th>point</th><th>prim</th><th>v.x</th><th>v.y</th><th>v.z</th><th></th></tr></thead><tbody>${bodyHtml(
+  const verticesTable = `<table class="cyl-sp-table"><colgroup><col><col><col><col class="cyl-sp-col-num"><col class="cyl-sp-col-num"><col class="cyl-sp-col-num">${FILL_COL}</colgroup><thead><tr><th>vertnum</th><th>ptnum</th><th>primnum</th><th>v.x</th><th>v.y</th><th>v.z</th><th></th></tr></thead><tbody>${bodyHtml(
     vRows.length ? vRows : [`<tr><td colspan="7">no vertices</td></tr>`],
     7,
   )}</tbody></table>`;

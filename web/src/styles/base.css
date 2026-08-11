@@ -82,3 +82,14 @@ html, body, #app { height: 100%; margin: 0; }
 .cyl-param-table th { background: #1a1d22; color: #8f959e; position: sticky; top: 0; z-index: 1; }
 .cyl-param-table tbody tr:nth-child(odd) td { background: #14161a; }
 .cyl-param-table tbody tr:nth-child(even) td { background: #101114; }
+.cyl-param-table input, .cyl-param-table select {
+  background: #1a1d22;
+  border: 1px solid #33363c;
+  color: #cfd2d6;
+  padding: 1px 4px;
+  font: inherit; /* inherit the 10px table font */
+  box-sizing: border-box;
+}
+.cyl-param-table input:focus, .cyl-param-table select:focus {
+  border-color: #2b6cb0;
+}

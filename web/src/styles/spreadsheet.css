@@ -18,9 +18,9 @@
 .cyl-sp-table th, .cyl-sp-table td { border: 1px solid #22252a; padding: 1px 6px; text-align: left; white-space: nowrap; }
 /* sticky header: z-index keeps scrolling rows from painting over it (leak fix) */
 .cyl-sp-table th { background: #1a1d22; color: #8f959e; position: sticky; top: 0; z-index: 1; }
-/* dark-blue alternating row backgrounds (odd rows darkened: #16202e -> #0f1722) */
-.cyl-sp-table tbody tr:nth-child(odd) td { background: #0f1722; }
-.cyl-sp-table tbody tr:nth-child(even) td { background: #1b2738; }
+/* dark-blue alternating row backgrounds (odd rows darkened: #16202e -> #111720) */
+.cyl-sp-table tbody tr:nth-child(odd) td { background: #111720; }
+.cyl-sp-table tbody tr:nth-child(even) td { background: #1f2834; }
 /* hover must stay visible over the striping (later rule wins) */
-.cyl-sp-table tbody tr:hover td { background: #1c2430; }
+.cyl-sp-table tbody tr:hover td { background: #20252c; }
 .cyl-sp-empty { padding: 12px; color: #6b7280; }

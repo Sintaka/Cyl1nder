@@ -1,26 +1,33 @@
 # 模块依赖图 / MODULE GRAPH (web/src)
 
-> 机器生成（2026-08-10），由 `node scripts/gen-graph.mjs` 产出。
+> 机器生成（2026-08-11），由 `node scripts/gen-graph.mjs` 产出。
 
 - `app/app-config.ts`
   - three/webgpu
 - `app/dock.ts`
-  - app/layouts
   - bridge/client
   - dockview
   - dockview/dist/styles/dockview.css
   - stores/workspace
 - `app/layout.ts`
 - `app/layouts.ts`
+  - app/layouts/Default.json
 - `app/log.ts`
+- `app/param.ts`
+- `app/spreadsheet.ts`
+  - protocol/types
 - `bridge/client.ts`
   - protocol/types
 - `main.ts`
   - app/app-config
   - app/dock
   - app/layout
+  - app/layouts
+  - app/param
+  - app/spreadsheet
   - bridge/client
   - nodes2/graph
+  - nodes2/network
   - protocol/compare
   - protocol/types
   - stores/workspace
@@ -29,6 +36,8 @@
 - `nodes2/graph.ts`
   - fuse.js
   - nodes2/NodeView
+  - nodes2/network
+  - nodes2/undo
   - react
   - react-dom/client
   - rete
@@ -37,12 +46,20 @@
   - rete-engine
   - rete-react-plugin
   - stores/workspace
+- `nodes2/groups.ts`
+  - protocol/types
+- `nodes2/network.ts`
+  - nodes2/groups
+  - protocol/types
+  - tools/transform
+- `nodes2/undo.ts`
 - `protocol/compare.ts`
   - protocol/types
 - `protocol/types.ts`
 - `stores/workspace.ts`
   - protocol/types
 - `tools/transform.ts`
+  - nodes2/groups
   - protocol/types
 - `viewport/backend.ts`
   - app/app-config

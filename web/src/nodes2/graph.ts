@@ -19,11 +19,13 @@ import React from "react";
 import { NodeView, notifyNodeChanged, setDisplayHandler } from "./NodeView";
 import Fuse from "fuse.js";
 import { store } from "../stores/workspace";
+import type { NetworkSnapshot } from "./network";
+import { createUndoManager, type ConnectionRef, type UndoAction, type UndoManager } from "./undo";
 
 type Schemes = ClassicScheme;
 type AreaExtra = ReactArea2D<Schemes>;
 
-export type NodeKind = "input" | "output" | "null";
+export type NodeKind = "input" | "output" | "null" | "transform";
 
 export interface NodeFlags {
   display: boolean;
@@ -51,6 +53,8 @@ export interface ReteGraphHandlers {
   onFlagsChanged?: (kind: NodeKind, flags: NodeFlags) => void;
   /** node selection changed (pick / rect-select / restore) -> panels follow selection */
   onSelectionChanged?: () => void;
+  /** network topology changed (cut / insert / shake) -> caller re-runs the network */
+  onNetworkChanged?: () => void;
 }
 
 export interface ReteGraph {
@@ -71,6 +75,15 @@ export interface ReteGraph {
   frameSelection(): void;
   serializeGraph(): unknown;
   restoreGraph(data: unknown): Promise<void>;
+  /** Network topology snapshot for the compute side (main.ts runNetwork): flat
+   *  connections + per-node kind/params, so the caller can trace input->...->output. */
+  getNetworkSnapshot(): NetworkSnapshot;
+  /** Replace a node's params (Param panel edits); returns false when the node is gone. */
+  setNodeParams(nodeId: string, params: Array<{ name: string; type: string; value: unknown }>): boolean;
+  /** Undo the last topology edit (cut / insert / shake). */
+  undo(): void;
+  /** Redo the last undone topology edit. */
+  redo(): void;
 }
 
 const GEO = "geo";
@@ -185,6 +198,24 @@ export function makeNullNode(): CylNode {
   n.addOutput("out0", new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
   return n;
 }
+/** Houdini-style unique naming: transform1, transform2… (independent seq). */
+let transformSeq = 1;
+export function makeTransformNode(): CylNode {
+  const name = `transform${transformSeq}`;
+  transformSeq += 1;
+  const n = new CylNode(name, "transform");
+  n.baseLabel = "transform";
+  n.addInput("in0", new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
+  n.addOutput("out0", new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
+  n.params = [
+    { name: "tx", type: "float", value: 0 },
+    { name: "ty", type: "float", value: 0 },
+    { name: "tz", type: "float", value: 0 },
+    { name: "group", type: "string", value: "" },
+    { name: "class", type: "string", value: "autoguess" },
+  ];
+  return n;
+}
 
 // ---------------------------------------------------------------------------
 // editor factory
@@ -268,15 +299,38 @@ export async function createReteGraph(
 ): Promise<ReteGraph> {
   const g = await buildGraph(container, handlers);
 
+  // Undo/redo stack for topology edits (cut / insert / shake); apply is chained so
+  // rapid Ctrl+Z/Y cannot interleave the async rete connection mutations.
+  let undoChain: Promise<void> = Promise.resolve();
+  const undoManager = createUndoManager((action, direction) => {
+    undoChain = undoChain.then(() => applyUndoAction(g.editor, action, direction)).catch(() => undefined);
+  }, 100);
+
   attachTabSearch(g.editor, g.area, container);
-  attachCutMode(g.editor, g.area, container);
+  attachCutMode(g.editor, g.area, container, handlers, undoManager);
   attachFlagMenu(g.editor, g.area, container, (n) => handlers.onFlagsChanged?.(n.kind, { ...n.flags }));
   attachMMBPan(g.area, container);
   attachDotGrid(g.area, container);
   initTooltip(container);
-  attachInsertion(g.editor, g.area, container);
+  attachInsertion(g.editor, g.area, container, handlers, undoManager);
   attachRectSelect(g.editor, g.area, container, g.selectable);
-  attachShakeDisconnect(g.editor, g.area, container);
+  attachShakeDisconnect(g.editor, g.area, container, handlers, undoManager);
+
+  // Ctrl/Cmd+Z = undo, Ctrl+Shift+Z / Ctrl+Y = redo (skip while typing).
+  window.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const el = document.activeElement;
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
+    const k = e.key.toLowerCase();
+    if (k === "z") {
+      e.preventDefault();
+      if (e.shiftKey) undoManager.redo();
+      else undoManager.undo();
+    } else if (k === "y") {
+      e.preventDefault();
+      undoManager.redo();
+    }
+  });
 
   // Houdini display semantics: only ONE node per network may be displayed.
   // Clicking a node's display chip clears all others and lights this one.
@@ -324,6 +378,8 @@ export async function createReteGraph(
     editor: g.editor,
     area: g.area,
     engine: g.engine,
+    undo: () => undoManager.undo(),
+    redo: () => undoManager.redo(),
     destroy: () => (g.editor as unknown as { destroy?: () => void }).destroy?.(),
     setStats: (kind, stats) => {
       const n = nodeByKind(g.editor, kind);
@@ -348,7 +404,7 @@ export async function createReteGraph(
     },
     getDisplayPortIndex: () => {
       const disp = g.editor.getNodes().find((x) => (x as CylNode).flags.display) as CylNode | undefined;
-      if (!disp || disp.kind !== "null") return null;
+      if (!disp || (disp.kind !== "null" && disp.kind !== "transform")) return null;
       const conn = g.editor.getConnections().find(
         (c) => c.target === disp.id && c.targetInput === "in0",
       ) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
@@ -359,7 +415,7 @@ export async function createReteGraph(
       const sel = (g.editor.getNodes() as CylNode[]).find((n) => (n as ClassicPreset.Node).selected);
       if (!sel) return null;
       let port: number | null = null;
-      if (sel.kind === "null") {
+      if (sel.kind === "null" || sel.kind === "transform") {
         const conn = g.editor.getConnections().find(
           (c) => c.target === sel.id && c.targetInput === "in0",
         ) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
@@ -383,7 +439,16 @@ export async function createReteGraph(
       const nodes = g.editor.getNodes().map((n) => {
         const c = n as CylNode;
         const pos = g.area.nodeViews.get(n.id)?.position;
-        return { id: n.id, kind: c.kind, label: c.label, baseLabel: c.baseLabel, flags: c.flags, x: pos?.x ?? 0, y: pos?.y ?? 0 };
+        return {
+          id: n.id,
+          kind: c.kind,
+          label: c.label,
+          baseLabel: c.baseLabel,
+          flags: c.flags,
+          params: c.params && c.params.length > 0 ? c.params : undefined,
+          x: pos?.x ?? 0,
+          y: pos?.y ?? 0,
+        };
       });
       // Defensive: only serialize connections whose endpoint nodes still exist. Rete can
       // leave orphan connections behind after node removal, and persisting those produced
@@ -402,7 +467,16 @@ export async function createReteGraph(
     },
     restoreGraph: async (data) => {
       const d = data as {
-        nodes?: { id: string; kind: NodeKind; label: string; baseLabel?: string; flags?: NodeFlags; x: number; y: number }[];
+        nodes?: {
+          id: string;
+          kind: NodeKind;
+          label: string;
+          baseLabel?: string;
+          flags?: NodeFlags;
+          params?: Array<{ name: string; type: string; value: unknown }>;
+          x: number;
+          y: number;
+        }[];
         connections?: { source: string; sourceOutput: string; target: string; targetInput: string }[];
         viewport?: { k: number; x: number; y: number };
       };
@@ -417,6 +491,7 @@ export async function createReteGraph(
         let n: CylNode;
         if (nd.kind === "input") n = makeInputNode();
         else if (nd.kind === "output") n = makeOutputNode();
+        else if (nd.kind === "transform") n = makeTransformNode();
         else n = makeNullNode();
         const flags = { ...DEFAULT_FLAGS, ...(nd.flags ?? {}) };
         if (flags.display && displayAssigned) {
@@ -427,6 +502,7 @@ export async function createReteGraph(
         n.flags = flags;
         n.label = nd.label ?? n.label;
         n.baseLabel = nd.baseLabel ?? n.baseLabel;
+        if (nd.params) n.params = nd.params;
         await g.editor.addNode(n);
         idMap.set(nd.id, n.id);
         await g.area.translate(n.id, { x: nd.x ?? 0, y: nd.y ?? 0 });
@@ -446,6 +522,28 @@ export async function createReteGraph(
       store.pushLog(`[node] restored graph: ${d.nodes.length} nodes / ${(d.connections ?? []).length} connections`);
       notifySelection(); // selection was reset by the rebuild
     },
+    getNetworkSnapshot: () => {
+      const nodeIds = new Set(g.editor.getNodes().map((n) => n.id));
+      return {
+        nodes: (g.editor.getNodes() as CylNode[]).map((n) => ({
+          id: n.id,
+          kind: n.kind,
+          label: n.label,
+          params: n.params ?? [],
+        })),
+        connections: g.editor
+          .getConnections()
+          .filter((c) => nodeIds.has(c.source) && nodeIds.has(c.target))
+          .map((c) => ({ source: c.source, sourceOutput: c.sourceOutput, target: c.target, targetInput: c.targetInput })),
+      };
+    },
+    setNodeParams: (nodeId, params) => {
+      const n = g.editor.getNode(nodeId) as CylNode | undefined;
+      if (!n) return false;
+      n.params = params;
+      notifyNodeChanged();
+      return true;
+    },
   };
 }
 
@@ -464,6 +562,7 @@ const PALETTE: PaletteEntry[] = [
   { kind: "input", label: "_input_", desc: "4-output source", keywords: "source input 输入 起点" },
   { kind: "output", label: "_output_", desc: "4-input sink", keywords: "sink output 输出 终点" },
   { kind: "null", label: "null", desc: "passthrough 1+1", keywords: "null passthrough 直通" },
+  { kind: "transform", label: "transform", desc: "translate by group 变换/移动", keywords: "transform translate move 变换 移动 组" },
 ];
 
 const fuse = new Fuse(PALETTE, {
@@ -524,12 +623,13 @@ function attachTabSearch(
         y: (lastGraphMouse.y - rect.top - t.y) / t.k,
       };
     }
-    if (entry.kind === "null") {
-      let n = makeNullNode();
-      while (editor.getNodes().some((x) => (x as CylNode).label === n.label)) n = makeNullNode();
+    if (entry.kind === "null" || entry.kind === "transform") {
+      const make = entry.kind === "transform" ? makeTransformNode : makeNullNode;
+      let n = make();
+      while (editor.getNodes().some((x) => (x as CylNode).label === n.label)) n = make();
       await editor.addNode(n);
       await area.translate(n.id, center);
-      log(`created null node ${n.label}`);
+      log(`created ${entry.kind} node ${n.label}`);
     } else {
       const existing = editor.getNodes().find((x) => (x as CylNode).kind === entry.kind);
       if (existing) await area.translate(existing.id, center);
@@ -604,28 +704,103 @@ function sampleConnectionPath(
   return pts;
 }
 
+/** Find a live connection matching a ConnectionRef (stable across add/remove cycles). */
+function findConnectionByRef(editor: NodeEditor<Schemes>, ref: ConnectionRef): { id: string } | undefined {
+  return editor.getConnections().find(
+    (c) =>
+      c.source === ref.source &&
+      c.sourceOutput === ref.sourceOutput &&
+      c.target === ref.target &&
+      c.targetInput === ref.targetInput,
+  );
+}
+
+/** Replay/reverse a recorded topology edit for undo/redo (ref-based, id-stable). */
+async function applyUndoAction(
+  editor: NodeEditor<Schemes>,
+  action: UndoAction,
+  direction: "undo" | "redo",
+): Promise<void> {
+  const addConn = async (ref: ConnectionRef) => {
+    const src = editor.getNode(ref.source) as CylNode | undefined;
+    const tgt = editor.getNode(ref.target) as CylNode | undefined;
+    if (!src || !tgt) return;
+    await editor.addConnection(
+      new ClassicPreset.Connection(src, ref.sourceOutput, tgt, ref.targetInput) as unknown as Schemes["Connection"],
+    );
+  };
+  const delConn = async (ref: ConnectionRef) => {
+    const c = findConnectionByRef(editor, ref);
+    if (c) await editor.removeConnection(c.id);
+  };
+  const lbl = (ref: ConnectionRef) => {
+    const s = (editor.getNode(ref.source) as CylNode | undefined)?.label ?? ref.source;
+    const t = (editor.getNode(ref.target) as CylNode | undefined)?.label ?? ref.target;
+    return `${s} -> ${t}`;
+  };
+  if (action.type === "cut") {
+    if (direction === "undo") await addConn(action.connection);
+    else await delConn(action.connection);
+    log(`${direction} cut connection ${lbl(action.connection)}`);
+  } else if (action.type === "insert") {
+    const a2n: ConnectionRef = {
+      source: action.connection.source,
+      sourceOutput: action.connection.sourceOutput,
+      target: action.nodeId,
+      targetInput: "in0",
+    };
+    const n2b: ConnectionRef = {
+      source: action.nodeId,
+      sourceOutput: "out0",
+      target: action.connection.target,
+      targetInput: action.connection.targetInput,
+    };
+    if (direction === "undo") {
+      await delConn(a2n);
+      await delConn(n2b);
+      await addConn(action.connection);
+      if (action.prevConnection) await addConn(action.prevConnection);
+    } else {
+      await delConn(action.connection);
+      if (action.prevConnection) await delConn(action.prevConnection);
+      await addConn(a2n);
+      await addConn(n2b);
+    }
+    log(`${direction} insert ${action.nodeLabel} into ${lbl(action.connection)}`);
+  } else {
+    if (direction === "undo") {
+      for (const ref of action.added) await delConn(ref);
+      for (const ref of action.cut) await addConn(ref);
+    } else {
+      for (const ref of action.cut) await delConn(ref);
+      for (const ref of action.added) await addConn(ref);
+    }
+    log(`${direction} shake (${action.cut.length} cut / ${action.added.length} added)`);
+  }
+}
+
 function attachCutMode(
   editor: NodeEditor<Schemes>,
   area: AreaPlugin<Schemes, AreaExtra>,
   container: HTMLElement,
+  handlers: ReteGraphHandlers,
+  undoManager: UndoManager,
 ): void {
   let armed = false;
   let drawing = false;
-  let seg: { x0: number; y0: number; x1: number; y1: number } | null = null;
+  let pts: { x: number; y: number }[] = [];
 
-  // Full-cover, absolutely-positioned SVG for the red cut line. pointer-events:none
+  // Full-cover, absolutely-positioned SVG for the red cut polyline. pointer-events:none
   // so it never intercepts graph input; z-index above nodes/connections/previews.
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:9;";
-  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  line.setAttribute("stroke", "#ff3b30");
-  line.setAttribute("stroke-width", "2");
-  line.setAttribute("stroke-linecap", "round");
-  line.setAttribute("x1", "0");
-  line.setAttribute("y1", "0");
-  line.setAttribute("x2", "0");
-  line.setAttribute("y2", "0");
-  svg.appendChild(line);
+  const poly = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+  poly.setAttribute("stroke", "#ff3b30");
+  poly.setAttribute("stroke-width", "2");
+  poly.setAttribute("stroke-linecap", "round");
+  poly.setAttribute("fill", "none");
+  poly.setAttribute("points", "");
+  svg.appendChild(poly);
   container.appendChild(svg);
 
   const isTyping = () => {
@@ -634,37 +809,51 @@ function attachCutMode(
     return el.getClientRects().length > 0;
   };
 
-  const showLine = (x0: number, y0: number, x1: number, y1: number) => {
-    seg = { x0, y0, x1, y1 };
-    const rect = container.getBoundingClientRect();
-    line.setAttribute("x1", String(x0 - rect.left));
-    line.setAttribute("y1", String(y0 - rect.top));
-    line.setAttribute("x2", String(x1 - rect.left));
-    line.setAttribute("y2", String(y1 - rect.top));
+  const pathLen = (arr: { x: number; y: number }[]) => {
+    let len = 0;
+    for (let i = 1; i < arr.length; i++) len += Math.hypot(arr[i].x - arr[i - 1].x, arr[i].y - arr[i - 1].y);
+    return len;
   };
-  const hideLine = () => {
-    seg = null;
-    line.setAttribute("x1", "0");
-    line.setAttribute("y1", "0");
-    line.setAttribute("x2", "0");
-    line.setAttribute("y2", "0");
+  const setPoints = (arr: { x: number; y: number }[]) => {
+    const rect = container.getBoundingClientRect();
+    poly.setAttribute("points", arr.map((p) => `${p.x - rect.left},${p.y - rect.top}`).join(" "));
+  };
+  const clear = () => {
+    pts = [];
+    poly.setAttribute("points", "");
   };
 
   const cutConnection = (id: string) => {
     const conn = editor.getConnection(id) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
-    const src = conn ? ((editor.getNode(conn.source as string) as CylNode | undefined)?.label ?? conn.source) : "?";
-    const tgt = conn ? ((editor.getNode(conn.target as string) as CylNode | undefined)?.label ?? conn.target) : "?";
+    const src = conn ? ((editor.getNode(conn.source) as CylNode | undefined)?.label ?? conn.source) : "?";
+    const tgt = conn ? ((editor.getNode(conn.target) as CylNode | undefined)?.label ?? conn.target) : "?";
+    if (conn) {
+      undoManager.push({
+        type: "cut",
+        connection: { source: conn.source, sourceOutput: conn.sourceOutput, target: conn.target, targetInput: conn.targetInput },
+      });
+    }
     void editor.removeConnection(id);
     log(`cut connection ${id} (${src} -> ${tgt})`);
+    handlers.onNetworkChanged?.();
   };
 
-  const cutBySegment = (x0: number, y0: number, x1: number, y1: number) => {
+  const cutByPolyline = (arr: { x: number; y: number }[]) => {
     const ids = Array.from(area.connectionViews.keys());
     for (const id of ids) {
       if (!area.connectionViews.has(id)) continue;
-      const pts = sampleConnectionPath(area, id);
-      if (!pts) continue;
-      if (pts.some((p) => distToSegment(p.x, p.y, x0, y0, x1, y1) <= 8)) cutConnection(id);
+      const sampled = sampleConnectionPath(area, id);
+      if (!sampled) continue;
+      for (let i = 1; i < arr.length; i++) {
+        const ax = arr[i - 1].x;
+        const ay = arr[i - 1].y;
+        const bx = arr[i].x;
+        const by = arr[i].y;
+        if (sampled.some((p) => distToSegment(p.x, p.y, ax, ay, bx, by) <= 8)) {
+          cutConnection(id);
+          break;
+        }
+      }
     }
   };
 
@@ -677,7 +866,7 @@ function attachCutMode(
     if (e.key.toLowerCase() !== "y") return;
     armed = false;
     drawing = false;
-    hideLine();
+    clear();
   });
 
   container.addEventListener(
@@ -689,7 +878,8 @@ function attachCutMode(
       if (nodeFromTarget(editor, area, target)) return;
       if (target.closest?.(".cyl-ns") || target.closest?.(".cyl-rp-port") || target.closest?.("button") || target instanceof HTMLInputElement) return;
       drawing = true;
-      showLine(e.clientX, e.clientY, e.clientX, e.clientY);
+      pts = [{ x: e.clientX, y: e.clientY }];
+      setPoints(pts);
       e.preventDefault();
       e.stopImmediatePropagation(); // keep rect-select / area drag from hijacking the cut
     },
@@ -699,8 +889,12 @@ function attachCutMode(
   container.addEventListener(
     "pointermove",
     (e) => {
-      if (!drawing || !seg) return;
-      showLine(seg.x0, seg.y0, e.clientX, e.clientY);
+      if (!drawing) return;
+      const last = pts[pts.length - 1];
+      if (pts.length < 500 && Math.hypot(e.clientX - last.x, e.clientY - last.y) > 4) {
+        pts.push({ x: e.clientX, y: e.clientY });
+        setPoints(pts);
+      }
       e.preventDefault();
     },
     true,
@@ -709,15 +903,15 @@ function attachCutMode(
   const up = (e: PointerEvent) => {
     if (!armed || !drawing) return;
     drawing = false;
-    const s = seg;
-    hideLine();
-    if (!s) return;
-    if (Math.hypot(s.x1 - s.x0, s.y1 - s.y0) < 4) {
+    const arr = pts;
+    clear();
+    if (arr.length === 0) return;
+    if (pathLen(arr) < 4) {
       // click without dragging: cut the single connection under the cursor
       const connId = hitTestConnection(area, e.clientX, e.clientY);
       if (connId) cutConnection(connId);
     } else {
-      cutBySegment(s.x0, s.y0, s.x1, s.y1);
+      cutByPolyline(arr);
     }
   };
   window.addEventListener("pointerup", up);
@@ -931,6 +1125,8 @@ function attachInsertion(
   editor: NodeEditor<Schemes>,
   area: AreaPlugin<Schemes, AreaExtra>,
   container: HTMLElement,
+  handlers: ReteGraphHandlers,
+  undoManager: UndoManager,
 ): void {
   let draggingNullId: string | null = null;
   let draggingNullNode: CylNode | null = null;
@@ -1039,9 +1235,19 @@ function attachInsertion(
         new ClassicPreset.Connection(nullNode, "out0", tgtNode, conn.targetInput as string) as unknown as Schemes["Connection"],
       );
       store.pushLog(`[node] inserted ${nullNode.label} into ${srcNode.label} -> ${tgtNode.label}`);
-      // spread the layout: shift every node to the right of the inserted null
+      // keep the inserted node clear of its source: minX = src edge + node width + 30
       const nullPos = area.nodeViews.get(nullNode.id)?.position;
       if (nullPos) {
+        const srcPos = area.nodeViews.get(srcNode.id)?.position;
+        if (srcPos) {
+          const width = (area.nodeViews.get(nullNode.id)?.element.getBoundingClientRect().width ?? 150) / area.area.transform.k;
+          const minX = srcPos.x + width + 30;
+          if (nullPos.x < minX) {
+            void area.translate(nullNode.id, { x: minX, y: nullPos.y });
+            nullPos.x = minX;
+          }
+        }
+        // spread the layout: shift every node to the right of the inserted null
         const offset = 180;
         for (const n of editor.getNodes()) {
           if (n.id === nullNode.id) continue;
@@ -1049,6 +1255,16 @@ function attachInsertion(
           if (pos && pos.x > nullPos.x + 30) void area.translate(n.id, { x: pos.x + offset, y: pos.y });
         }
       }
+      undoManager.push({
+        type: "insert",
+        nodeId: nullNode.id,
+        nodeLabel: nullNode.label,
+        connection: { source: conn.source, sourceOutput: conn.sourceOutput, target: conn.target, targetInput: conn.targetInput },
+        prevConnection: existing
+          ? { source: existing.source, sourceOutput: existing.sourceOutput, target: existing.target, targetInput: existing.targetInput }
+          : null,
+      });
+      handlers.onNetworkChanged?.();
     })();
   };
   window.addEventListener("pointerup", up);
@@ -1137,6 +1353,8 @@ function attachShakeDisconnect(
   editor: NodeEditor<Schemes>,
   area: AreaPlugin<Schemes, AreaExtra>,
   container: HTMLElement,
+  handlers: ReteGraphHandlers,
+  undoManager: UndoManager,
 ): void {
   let trackingId: string | null = null;
   let shakeFired = false;
@@ -1152,11 +1370,17 @@ function attachShakeDisconnect(
     const node = editor.getNode(id) as CylNode | undefined;
     if (!node) return;
 
-    // 1. Cut every connection touching this node.
+    // 1. Cut every connection touching this node (record refs BEFORE removal).
     const touching = editor.getConnections().filter((c) => c.source === id || c.target === id);
+    const cutRefs: ConnectionRef[] = touching.map((c) => ({
+      source: c.source,
+      sourceOutput: c.sourceOutput,
+      target: c.target,
+      targetInput: c.targetInput,
+    }));
     for (const c of touching) {
-      const src = (editor.getNode(c.source as string) as CylNode | undefined)?.label ?? c.source;
-      const tgt = (editor.getNode(c.target as string) as CylNode | undefined)?.label ?? c.target;
+      const src = (editor.getNode(c.source) as CylNode | undefined)?.label ?? c.source;
+      const tgt = (editor.getNode(c.target) as CylNode | undefined)?.label ?? c.target;
       await editor.removeConnection(c.id);
       log(`shake cut ${c.id} (${src} -> ${tgt})`);
     }
@@ -1164,6 +1388,7 @@ function attachShakeDisconnect(
     const pos = area.nodeViews.get(id)?.position ?? { x: 0, y: 0 };
     const firstIn = Object.entries(node.inputs)[0];
     const firstOut = Object.entries(node.outputs)[0];
+    const addedRefs: ConnectionRef[] = [];
 
     // 2. INPUT side: nearest node to the LEFT whose FIRST output socket type
     //    matches our first input -> connect that first output into our first input.
@@ -1185,6 +1410,7 @@ function attachShakeDisconnect(
         if (best) {
           const outKey = Object.keys(best.node.outputs)[0];
           await editor.addConnection(new ClassicPreset.Connection(best.node, outKey, node, inKey) as unknown as Schemes["Connection"]);
+          addedRefs.push({ source: best.node.id, sourceOutput: outKey, target: id, targetInput: inKey });
           log(`shake reconnect: ${best.node.label}.${outKey} -> ${node.label}.${inKey}`);
         }
       }
@@ -1212,8 +1438,14 @@ function attachShakeDisconnect(
       if (best) {
         const inKey = Object.keys(best.node.inputs)[0];
         await editor.addConnection(new ClassicPreset.Connection(node, outKey, best.node, inKey) as unknown as Schemes["Connection"]);
+        addedRefs.push({ source: id, sourceOutput: outKey, target: best.node.id, targetInput: inKey });
         log(`shake reconnect: ${node.label}.${outKey} -> ${best.node.label}.${inKey}`);
       }
+    }
+
+    if (cutRefs.length > 0 || addedRefs.length > 0) {
+      undoManager.push({ type: "shake", cut: cutRefs, added: addedRefs });
+      handlers.onNetworkChanged?.();
     }
   };
 

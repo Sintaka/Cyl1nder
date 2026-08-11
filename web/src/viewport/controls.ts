@@ -74,7 +74,7 @@ export class HoudiniControls {
           const dx = ev.clientX - last.x;
           const dy = ev.clientY - last.y;
           last = { x: ev.clientX, y: ev.clientY };
-          const delta = (dx - dy) / 60; // normalized: right(+x)-up(-y) = in
+          const delta = (Math.sign(dx - dy) * Math.max(Math.abs(dx), Math.abs(dy))) / 60; // per-axis magnitude: right(+x)-up(-y)=in, diagonal = 1x (not √2x)
           if (Math.abs(delta) > 0.001) {
             dollyCamera(this.controls, delta * 0.5); // ~2x sensitivity real dolly
           }

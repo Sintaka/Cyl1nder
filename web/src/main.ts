@@ -7,6 +7,7 @@ import { renderParams } from "./app/param";
 import { store } from "./stores/workspace";
 import { BridgeClient, connectWs } from "./bridge/client";
 import { createReteGraph, type ReteGraphHandlers } from "./nodes2/graph";
+import { computeOutputs } from "./nodes2/network";
 import { Viewport, type ReferenceItem } from "./viewport/renderer";
 import { APP_VERSION } from "./app/app-config";
 import { inputsEqual } from "./protocol/compare";
@@ -187,6 +188,9 @@ const handlers: ReteGraphHandlers = {
     // Display flag: default to showing this node's FIRST port data in the viewport
     if (flags.display) viewport.pickByNode(kind, 0);
   },
+  onNetworkChanged: () => {
+    void runNetwork();
+  },
 };
 const graph = await createReteGraph(layout.graphContainer, handlers);
 
@@ -239,7 +243,7 @@ function refreshSelectionPanels(): void {
   let source: "inputs" | "outputs" = "inputs";
   let focus: SpreadsheetFocus = { kind: null, index: null, label: null };
   if (sel) {
-    if (sel.kind === "null") {
+    if (sel.kind === "null" || sel.kind === "transform") {
       focus =
         sel.port !== null
           ? { kind: "null", index: sel.port, label: "in0" }
@@ -266,7 +270,20 @@ function refreshSelectionPanels(): void {
     source = "inputs";
   }
   renderSpreadsheet(spreadsheetEl, payloads, source, focus);
-  renderParams(paramEl, sel ? { label: sel.label, kind: sel.kind, params: sel.params } : null);
+  const selId = sel?.id ?? null;
+  renderParams(
+    paramEl,
+    sel ? { label: sel.label, kind: sel.kind, params: sel.params } : null,
+    selId
+      ? (params) => {
+          // commit only while the same node is still selected (selection may change mid-edit)
+          const cur = graph.getSelectedNode();
+          if (!cur || cur.id !== selId) return;
+          graph.setNodeParams(cur.id, params);
+          void runNetwork();
+        }
+      : undefined,
+  );
 }
 
 // node selection changes -> refresh Spreadsheet + Params immediately
@@ -286,11 +303,11 @@ function refreshNodeFlags(): void {
   const kind = disp?.kind ?? null;
   const hasOutputs = store.outputs.length > 0;
   const showOutputs = kind === "output" && hasOutputs;
-  const showInputs = kind === "input" || kind === "null" || kind === null;
+  const showInputs = kind === "input" || kind === "null" || kind === "transform" || kind === null;
   viewport.setVisibility("inputs", showInputs);
   viewport.setVisibility("outputs", showOutputs);
-  if (kind === "null") {
-    // display only the input segment routed through this null node
+  if (kind === "null" || kind === "transform") {
+    // display only the input segment routed through this node
     viewport.setDisplayFocus("inputs", graph.getDisplayPortIndex());
   } else if (kind === "input") {
     // _input_ displayed: Houdini shows ONE source - only the first port
@@ -375,19 +392,11 @@ store.subscribe(() => {
       : "";
 });
 
-/** v1 network: passthrough - output_i = input_i geometry, pushed back to the bridge. */
+/** v1 network: trace the graph topology (input -> null/transform -> output) into 4 output buffers. */
 async function runNetwork(): Promise<void> {
   if (!store.serial || store.inputs.length === 0) return;
-  const outputs: OutputBuffer[] = store.inputs.map((inp) => ({
-    index: inp.index,
-    rev: 0,
-    pointCount: inp.pointCount,
-    primCount: inp.primCount,
-    points: inp.points,
-    curves: inp.curves,
-    faces: inp.faces ?? [],
-    attributes: inp.attributes,
-  }));
+  const snap = graph.getNetworkSnapshot();
+  const outputs: OutputBuffer[] = computeOutputs(store.inputs, snap);
   try {
     const r = await client.pushOutputs(store.serial, outputs);
     store.pushLog(`network ran: ${outputs.length} outputs → rev=${r.rev}`);

@@ -56,9 +56,9 @@
   top: auto;              /* neutralizes dockview's :not(:first-child) divider rule */
   right: 0;
   bottom: 0;
-  width: 8px;
-  height: 8px;
-  background: radial-gradient(circle at 100% 100%, #1c1e22 0 8px, transparent 8.5px);
+  width: 6px;
+  height: 6px;
+  background: radial-gradient(circle at 100% 100%, #1c1e22 0 6px, transparent 6.5px);
   pointer-events: none;
   z-index: 5;
 }
@@ -73,9 +73,9 @@
   top: auto;              /* neutralizes dockview's :not(:first-child) divider rule */
   left: 0;
   bottom: 0;
-  width: 8px;
-  height: 8px;
-  background: radial-gradient(circle at 0 100%, #1c1e22 0 8px, transparent 8.5px);
+  width: 6px;
+  height: 6px;
+  background: radial-gradient(circle at 0 100%, #1c1e22 0 6px, transparent 6.5px);
   pointer-events: none;
   z-index: 5;
 }
@@ -91,7 +91,7 @@
   align-self: center;
   width: 20px;
   height: 20px;
-  margin: 0 6px 0 2px;
+  margin: 0 10px 0 6px;
   padding: 0;
   border-radius: 6px;
   border: 1px solid transparent;

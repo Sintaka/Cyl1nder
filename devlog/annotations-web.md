@@ -225,3 +225,29 @@
 - **流式调研（Kuhn，streaming-hda-review.md + streaming-plan-b 头部）**：方案 B 仍「设计定稿」、M1–M6 未开始实现；差距=全量重建/33ms 轮询/无增量/无 topoId；给出 B1-M1→M3 落地清单与风险。
 - **主进程接线（main.ts）**：spreadsheet/param 跟随**选中节点**（多选取第一个）：null→其 in0 源端口（头部 `in0`）、input→全部 4 路、output→outputs、无选中→回退 display flag；选中变更经 `graph.onSelectionChanged`（**setTimeout 0 等 rete 异步选中落地后再刷新**——同步通知会读到旧选中）驱动；布局 JSON 存取 `displaySettings`（getDockJson 注入 + applyLayout 后恢复）；Default.json 顶层 `displaySettings.mode=flat-wire`；debug hook 新增 `__cylGraph`。
 - **验证**：tsc 0 错；vitest 13 过；pytest 20 过；官方 smoke e2e 过；自建 Playwright 复测（Flat Wire Shaded 默认 / Params 空态 / 点 null3 → `in0 · 2pt / 1prim` / 点 _input_ → 4 section / 无 console error）。
+
+## v0.1.00044（2026-08-11）
+**7 路并行**（写集拆分：Kepler=viewport / Popper=spreadsheet / Pasteur=dock / Dalton=groups / Dewey=undo / Poincare=nodeview-core / Bernoulli=param+network；主进程先建契约骨架 groups.ts / undo.ts / network.ts + graph.ts getNetworkSnapshot/setNodeParams + transform.ts applyTranslateGrouped，后合并单 commit）。
+
+### 3D 视口
+- **Alt+RMB 缩放归一化**（viewport/controls.ts）：`(dx-dy)/60` → `sign(dx-dy)*max(|dx|,|dy|)/60`，水平/垂直/对角线四方向都是 1 倍灵敏度（此前对角线是 √2 倍）。E2E 六方向验证 ±1/60。
+- **F frame 保持相机角度**（viewport/renderer.ts frame()）：先取 `dir = 相机位置-target` 归一化（退化回 (0,0,1)），再 `target=center`、`position = center + dir*max(size*1.5,1)`，不再重置成水平 +Z 视角。E2E 验证方向点积 = 1.0、target 移到几何中心。
+- pickByNode 参数联合加 "transform"（passthrough log，v1 无可编辑目标）。
+
+### UI
+- **Spreadsheet**（app/spreadsheet.ts + styles/spreadsheet.css）：vertices 表头 `point→ptnum`、`prim→primnum`（单元格 P{pi}/prim{id} 改纯数字）；prims 表头 `points→primpoints`；斑马纹饱和度 -0.1（odd #111720 / even #1f2834 / hover #20252c，HSL 明度不变）。
+- **Dock 标签**（styles/dock.css）：诊断发现活动标签底角本来就是凸的，"像凹"来自相邻标签 8px 凹缺口比 6px 凸角大 2px 的"高肩膀"压角 → 缺口统一 6px 与凸角对称嵌套，底边与内容区无缝贴合（Chrome 打开态）；`+` 按钮 margin `0 6px 0 2px → 0 10px 0 6px` 右移 4px。像素级前后对比验证。
+
+### 节点视图（nodes2/）
+- **组处理系统**（新 groups.ts，纯函数 + 27 单测）：Houdini group 表达式解析+匹配。类选择 autoguess/points/vertices/prim/detail；`@组名`（group_xxx 值 1=命中）、`@attr op value`（= == != > >= < <=）、类型前缀 `i@/s@/v@/p@(四元数)/3@/4@(矩阵)`、分量 `@P.x` / `@Cd[2]`、P 伪属性=当前位置；`*`=全部、`^`/`!`=排除；id 规则 `n / n-m / n-m:step / n-m:keep,step`；同名多属性取第一个（4@transform 与 3@transform 共存）。无现成 npm 库（零新依赖）→ 紧凑手写 parser，注释标注语法来源与 v1 刻意差异。
+- **transform 节点**（graph.ts）：PALETTE 新入口、makeTransformNode（transform1… 唯一命名，in0/out0 GEO，params=tx/ty/tz float 0 + group "" + class "autoguess"）、serialize/restore 带 params、getSelectedNode/getDisplayPortIndex 对 transform 同 null 解析 in0 源端口。tools/transform.ts `applyTranslateGrouped(base, points, groupExpr, cls, dx,dy,dz)`：P 规则用当前点阵匹配（链式正确）。
+- **网络计算**（新 network.ts + 9 单测）：`computeOutputs(inputs, snap)` 从 _output_ 各端口反向追链（input→null passthrough→transform 按序平移），未接链端口 fallback passthrough inputs[i]（保持 4 输出历史行为）；环防御。
+- **Param 面板可编辑**（app/param.ts + base.css）：float/int→number input、class→select(autoguess/points/vertices/prim/detail)、其他 string→text；onChange→`setNodeParams` + `runNetwork`（仅当仍是选中节点）。
+- **main.ts**：runNetwork 改用 getNetworkSnapshot()+computeOutputs；`onNetworkChanged`（cut/insert/shake 后触发 rerun）；refreshSelectionPanels/refreshNodeFlags 对 transform 视同 null（spreadsheet 显示 in0、视口聚焦其输入段）。
+- **Y 划线多段轨迹**（attachCutMode）：`<line>` → `<polyline>`，>4px 追加（上限 500），逐段 distToSegment≤8 判定；<4px 仍单击切断单条。E2E L 形折线切断验证。
+- **撤销系统**（新 undo.ts + 9 单测）：cut/insert/shake 三类拓扑操作；Ctrl/Cmd+Z undo、Ctrl+Shift+Z / Ctrl+Y redo（输入框聚焦跳过）；apply 走 promise 链防快速交错；ReteGraph 暴露 undo()/redo()。E2E 切断→undo→redo 验证。
+- **插入重合整理**（attachInsertion）：插入后先按左侧源节点实际宽度算 minX=src.x+宽+30，插入节点重叠则先右移清开，再执行 +180 右推。
+
+### 验证
+- tsc 0 错误；vitest 6 文件 58 通过（新增 groups 27 / undo 9 / network 9）；bridge pytest 20 通过；Playwright e2e round2 5/5 + smoke 1/1（连真实桥 8375 + vite 8376）。
+- E2E 自包含：beforeAll 推规范 inputs、每测 restoreGraph 自建起始图、afterAll 恢复磁盘快照 fixtures（防 web 自动保存 graph 快照污染测试场景）。

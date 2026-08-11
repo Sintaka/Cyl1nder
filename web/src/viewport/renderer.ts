@@ -282,7 +282,7 @@ export class Viewport {
   }
 
   /** Node-graph -> viewport linkage: picking a node/port selects its curve. */
-  pickByNode(kind: "input" | "output" | "null", index: number | null): void {
+  pickByNode(kind: "input" | "output" | "null" | "transform", index: number | null): void {
     if (kind === "input") {
       if (index === null) {
         store.pushLog("input_ node picked - click a port (in0..in3) to select that curve");
@@ -303,6 +303,10 @@ export class Viewport {
     }
     if (kind === "output") {
       store.pushLog("output_ node picked - outputs are read-only in v1 (edit happens on inputs)");
+      return;
+    }
+    if (kind === "transform") {
+      store.pushLog("transform node picked - passthrough (no edit target in v1)");
       return;
     }
     store.pushLog("null node picked - passthrough (no edit target in v1)");
@@ -375,8 +379,11 @@ export class Viewport {
     }
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3()).length();
+    const dir = this.camera.position.clone().sub(this.controls.controls.target);
+    if (dir.length() < 1e-4) dir.set(0, 0, 1); // degenerate pose: fall back to +Z
+    dir.normalize();
     this.controls.controls.target.copy(center);
-    this.camera.position.copy(center).add(new THREE.Vector3(0, 0, Math.max(size * 1.5, 1)));
+    this.camera.position.copy(center).addScaledVector(dir, Math.max(size * 1.5, 1));
     this.camera.zoom = 1;
     this.camera.updateProjectionMatrix();
     this.controls.controls.update();

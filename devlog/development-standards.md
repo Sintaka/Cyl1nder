@@ -55,3 +55,11 @@
 - **PowerShell 里外部命令输出是字符串数组（按行拆分）**：`git show` / `git log` / `Get-Content` 直接赋值得到的是 `string[]`。要当文本用必须先 `$out -join "`n"`；**严禁对数组直接 `.TrimEnd()` / `+ 字符串` 拼接**——数组会被隐式转成"用空格连接的一行"，毁掉 md 的换行/分隔线结构（已踩坑：viewport-bug-report / annotations-web 首行被压成 1.6 万字符）。
 - **git 历史卫生**：devlog/文档保持小体积；**禁止把大文件或日志（如 append 循环产物）提交进历史**——GitHub 硬拒 >100MB、警告 >50MB，push 会被 pre-receive 拒绝。
 - **历史清理流程（破坏性，先备份）**：① `git bundle create <path>.bundle --all` 全量备份；② `git filter-branch --force --index-filter "if git cat-file -e \"$GIT_COMMIT:<path>\" 2>/dev/null; then git update-index --cacheinfo 100644,<新blob>,<path>; fi" -- <branch>` 把该文件在每个提交替换为小版本；③ 删 `refs/original` + `git reflog expire --expire=now --all` + `git gc --prune=now --aggressive`；④ 验证 `git cat-file --batch-all-objects --batch-check` 无 >1MB blob；⑤ `git push --force-with-lease`。**备份在确认远端一切正常前不删**（partial clone 下 prune 后旧对象本地不可恢复，bundle 是唯一备份）。
+
+## 代码修改默认派子智能体（铁律，2026-08-11 起）
+**主进程（Codex 主管）收到「继续开发 / 实现 X / 修复 Y」这类编码任务时，默认把代码修改交给并行 codex 子智能体执行——即使只有 1 个智能体也照派。用户不需要每次重复说明。**
+
+- **主进程职责**：拆写集（写集不相交）→ 先定契约（函数签名/数据结构写死在任务里；必要时主进程先改结构建骨架文件锚定契约）→ 派发 → 合并 review → 全量验证（tsc/vitest/pytest/E2E）→ 更新 devlog + 索引 + 版本号 → 单 commit。
+- **子智能体职责**：只改分配到的写集文件，按契约实现，各自 `tsc --noEmit` 通过并尽量 Playwright 自测，完成后回报改了哪些文件。
+- **主进程自己的写集**：仅限 ① devlog/文档/版本号/索引；② 合并时补契约另一侧的调用点（如 main.ts）；③ 拆结构用的骨架/契约锚点文件。
+- **例外**：纯调研/只读任务、临时调试、一行级 hotfix 可主进程直接做；除此之外一律派子智能体。
