@@ -49,6 +49,7 @@
 | bridge⇄HDA 流式落地现状调研 | [streaming-hda-review.md](streaming-hda-review.md) |
 | 快速传输技术栈评估（WASM/串流/本地通信） | [transport-tech-evaluation.md](transport-tech-evaluation.md) |
 | Parm 参数面板系统设计（对标 Houdini，仅设计） | [parm-system-design.md](parm-system-design.md) |
+| bridge⇄HDA 同步差值根因与改进优先级 | [streaming-sync-gap.md](streaming-sync-gap.md) |
 
 ## 关键词 → 专题文件（快速跳读）
 
@@ -81,6 +82,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00047：4 路并行（Faraday/Copernicus/Feynman/Kierkegaard）——tab 底部圆角再翻转+小填充(4px 小脚)；预览虚线对齐端口圆圈中心；shake 判定放宽(1000ms/24点/4px)；graph 字体不可选中；禁止自连(connectioncreate 中央守卫)；端口拖线不触发插入预览；transform 加 Pivot Translate(px/py/pz)+gizmo 标记跟随 pivot；断开后视口刷新(display 无输入→隐藏全部端口)；bridge 流式同步根因调研(streaming-sync-gap.md)。
 - v0.1.00046：4 路并行（Heisenberg/Ramanujan/Hypatia/Herschel）——dock 标签底角圆角方向翻转到斜线下半段 + tab 间隔 +2px；插入预览端点改跟被拖节点端口(IN/OUT)+拖动实时刷新+z-index 在节点后；甩出节点自动愈合连线(原端口直连)；param 中键拖拽倍率 scrubbing(7 行倍率浮层)；viewport 左图标工具栏 + Enter 激活模式(transform gizmo 联动 tx/ty/tz)。
 - v0.1.00045：3 路并行（Pascal/Russell/Noether）——dock 活动标签改 Chrome 打开态（底边平直+底部外凸圆角伪元素）；插入预览改黄色虚线流动曲线（同曲率贝塞尔）；Y 划线轨迹修复（overlay SVG 300×150 视口裁剪根因）；一次划线多段切断=单次撤销(cut-many)；transform 支持拖拽快捷插入(isInsertable 1入1出)；parm 面板系统设计文档(仅设计)。
 - v0.1.00044：7 路并行（Kepler/Popper/Pasteur/Dalton/Dewey/Poincare/Bernoulli）——视口 Alt+RMB 归一化 + F-frame 保持视角；Spreadsheet 列改名(ptnum/primnum/primpoints)+条纹降饱和；dock 标签底角外凸缺口匹配+`+`右移；组处理系统(groups.ts)、transform 节点+可编辑 Param、Y 划线多段、撤销系统(Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y)、插入重合整理、network.ts 网络计算。

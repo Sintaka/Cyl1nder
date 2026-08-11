@@ -190,6 +190,7 @@ const handlers: ReteGraphHandlers = {
   },
   onNetworkChanged: () => {
     void runNetwork();
+    refreshNodeFlags(); // topology changed -> refresh display focus right away
   },
 };
 const graph = await createReteGraph(layout.graphContainer, handlers);
@@ -233,6 +234,17 @@ store.pushLog(`[layout] default layout "${DEFAULT_LAYOUT_NAME}" applied`);
 /** Apply viewport display settings persisted inside a layout JSON (if any). */
 function applyLayoutSettings(json: unknown): void {
   viewport.setDisplaySettings((json as { displaySettings?: { mode?: unknown } } | null)?.displaySettings);
+}
+
+/** Read float/int params into a {name: value} record (missing / invalid -> 0). */
+function readParamFloats(params: Array<{ name: string; type: string; value: unknown }>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const p of params) {
+    if (p.type !== "float" && p.type !== "int") continue;
+    const n = typeof p.value === "number" ? p.value : Number(p.value);
+    out[p.name] = Number.isFinite(n) ? n : 0;
+  }
+  return out;
 }
 
 /** Spreadsheet + Params follow the SELECTED node (multi-select -> first), not the
@@ -281,6 +293,11 @@ function refreshSelectionPanels(): void {
           const cur = graph.getSelectedNode();
           if (!cur || cur.id !== selId) return;
           graph.setNodeParams(cur.id, params);
+          // pivot edits move the Enter reference marker live (the gizmo stays on tx/ty/tz)
+          if (viewport.isEnterActive()) {
+            const v = readParamFloats(params);
+            viewport.setEnterPivot(v.px ?? 0, v.py ?? 0, v.pz ?? 0);
+          }
           void runNetwork();
         }
       : undefined,
@@ -299,14 +316,8 @@ function toggleEnterEdit(): void {
     store.pushLog("[viewport] enter: select a transform node first");
     return;
   }
-  const params = sel.params ?? [];
-  const num = (name: string): number => {
-    const p = params.find((q) => q.name === name);
-    const v = p?.value;
-    const n = typeof v === "number" ? v : Number(v);
-    return Number.isFinite(n) ? n : 0;
-  };
-  viewport.beginTransformGizmo(sel.id, num("tx"), num("ty"), num("tz"), (x, y, z) => {
+  const v = readParamFloats(sel.params ?? []);
+  viewport.beginTransformGizmo(sel.id, v.tx ?? 0, v.ty ?? 0, v.tz ?? 0, v.px ?? 0, v.py ?? 0, v.pz ?? 0, (x, y, z) => {
     const cur = graph.getSelectedNode();
     if (!cur || cur.id !== sel.id) return;
     graph.setNodeParams(
@@ -332,7 +343,8 @@ function refreshNodeFlags(): void {
   // at PORT level (not just node kind):
   //   _input_  -> show ONLY the first source input (in0)
   //   null     -> passthrough: show ONLY the input segment wired through it
-  //               (graph.getDisplayPortIndex() resolves in0..in3 from the graph)
+  //               (graph.getDisplayPortIndex() resolves in0..in3 from the graph;
+  //               no in0 connection -> -1 hides every input port)
   //   _output_ -> show ONLY the first output buffer (out0); nothing when Houdini hasn't pushed
   //   no display node -> keep showing inputs (safe source view)
   const disp = graph.getDisplayNode();
@@ -343,8 +355,10 @@ function refreshNodeFlags(): void {
   viewport.setVisibility("inputs", showInputs);
   viewport.setVisibility("outputs", showOutputs);
   if (kind === "null" || kind === "transform") {
-    // display only the input segment routed through this node
-    viewport.setDisplayFocus("inputs", graph.getDisplayPortIndex());
+    // display only the input segment routed through this node; no connected input
+    // (getDisplayPortIndex()===null) -> -1 hides every input port (nothing to show)
+    const idx = graph.getDisplayPortIndex();
+    viewport.setDisplayFocus("inputs", idx === null ? -1 : idx);
   } else if (kind === "input") {
     // _input_ displayed: Houdini shows ONE source - only the first port
     viewport.setDisplayFocus("inputs", 0);

@@ -208,6 +208,9 @@ export function makeTransformNode(): CylNode {
   n.addInput("in0", new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
   n.addOutput("out0", new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
   n.params = [
+    { name: "px", type: "float", value: 0 },
+    { name: "py", type: "float", value: 0 },
+    { name: "pz", type: "float", value: 0 },
     { name: "tx", type: "float", value: 0 },
     { name: "ty", type: "float", value: 0 },
     { name: "tz", type: "float", value: 0 },
@@ -223,6 +226,20 @@ export function makeTransformNode(): CylNode {
 
 async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
   const editor = new NodeEditor<Schemes>();
+  // No self-connections allowed: veto any connectioncreate whose source ===
+  // target (covers drag-created / restored / inserted / healed connections in
+  // one place - addConnection() returns false when the signal chain stops).
+  (editor as unknown as { addPipe(mw: (ctx: { type: string; data?: { source?: string; target?: string } }) => unknown): void }).addPipe((ctx) => {
+    if (ctx.type === "connectioncreate") {
+      const data = ctx.data;
+      if (data && data.source && data.source === data.target) {
+        const s = (editor.getNode(data.source) as CylNode | undefined)?.label ?? data.source;
+        log(`blocked self-connection on ${s} (source === target)`);
+        return undefined;
+      }
+    }
+    return ctx;
+  });
   const area = new AreaPlugin<Schemes, AreaExtra>(container);
   // Task 1: rete's AreaPlugin installs a default Drag handler that pans the whole
   // network on ANY-pointer (incl. LMB) drag over the background. Disable it so LMB
@@ -511,6 +528,10 @@ export async function createReteGraph(
         const src = g.editor.getNode(idMap.get(c.source) ?? "") as CylNode | undefined;
         const tgt = g.editor.getNode(idMap.get(c.target) ?? "") as CylNode | undefined;
         if (!src || !tgt) continue;
+        if (src.id === tgt.id) {
+          log(`restore skipped self-connection on ${src.label}`);
+          continue;
+        }
         await g.editor.addConnection(
           new ClassicPreset.Connection(src, c.sourceOutput, tgt, c.targetInput) as unknown as Schemes["Connection"],
         );
@@ -724,7 +745,7 @@ async function applyUndoAction(
   const addConn = async (ref: ConnectionRef) => {
     const src = editor.getNode(ref.source) as CylNode | undefined;
     const tgt = editor.getNode(ref.target) as CylNode | undefined;
-    if (!src || !tgt) return;
+    if (!src || !tgt || src.id === tgt.id) return;
     await editor.addConnection(
       new ClassicPreset.Connection(src, ref.sourceOutput, tgt, ref.targetInput) as unknown as Schemes["Connection"],
     );
@@ -1185,11 +1206,16 @@ function attachInsertion(
     overlay.appendChild(path);
   }
 
-  /** Container-local center of a node port (data-port-id) -> preview endpoint. */
+  /** Container-local center of a node port socket circle (RefSocket span) -> preview endpoint. */
   const portCenterLocal = (nodeId: string, portId: string, rect: DOMRect): { x: number; y: number } | null => {
     const el = area.nodeViews.get(nodeId)?.element.querySelector(`[data-port-id="${portId}"]`);
     if (!el) return null;
-    const r = el.getBoundingClientRect();
+    // [data-port-id] is the whole port row (socket circle + label, ~39px wide);
+    // its center is NOT the circle center. Use the RefSocket span (input at the
+    // left end, output at the right end) - it hugs the circle.
+    const sock = el.querySelector(":scope > span.input, :scope > span.output");
+    const target = (sock ?? el) as Element;
+    const r = target.getBoundingClientRect();
     return { x: r.left + r.width / 2 - rect.left, y: r.top + r.height / 2 - rect.top };
   };
 
@@ -1251,7 +1277,18 @@ function attachInsertion(
   container.addEventListener(
     "pointerdown",
     (e) => {
-      const hit = nodeFromTarget(editor, area, e.target as Element);
+      if (e.button !== 0) return;
+      const target = e.target as Element;
+      // Only dragging the node BODY (title/head/stats) starts insertion
+      // tracking - ports/sockets, chips, buttons and the rename input must not.
+      if (
+        target.closest?.(".cyl-rp-port") ||
+        target.closest?.(".cyl-ns") ||
+        target.closest?.("button") ||
+        target.closest?.(".cyl-rp-rename") ||
+        target instanceof HTMLInputElement
+      ) return;
+      const hit = nodeFromTarget(editor, area, target);
       // any single-in/single-out node (null / transform) can be drag-inserted
       if (hit && isInsertable(hit.node)) {
         draggingNodeId = hit.id;
@@ -1286,6 +1323,10 @@ function attachInsertion(
     const srcNode = editor.getNode(conn.source as string) as CylNode | undefined;
     const tgtNode = editor.getNode(conn.target as string) as CylNode | undefined;
     if (!srcNode || !tgtNode) return;
+    if (srcNode.id === node.id || tgtNode.id === node.id) {
+      log(`insert skipped: dragged node ${node.label} is an endpoint of the hovered connection`);
+      return;
+    }
     void (async () => {
       // one-input constraint: drop any existing connection into this node's in0 first
       const existing = editor.getConnections().find(
@@ -1408,8 +1449,9 @@ function attachRectSelect(
 // sourceOutput/targetInput) when the socket types match and B's target slot is
 // free. The shaken node stays disconnected. Multi-port nodes without a
 // through-path just get cut.
-// Threshold: drag back-and-forth quickly (>=3 direction reversals within ~600ms
-// with >6px per segment). Undo = one {type:"shake"} entry (cut + added).
+// Threshold: drag back-and-forth (>=3 direction reversals within ~1000ms with
+// >4px per segment; a slower real-mouse shake keeps enough points in the buffer).
+// Undo = one {type:"shake"} entry (cut + added).
 // ---------------------------------------------------------------------------
 
 function attachShakeDisconnect(
@@ -1465,6 +1507,7 @@ function attachShakeDisconnect(
       for (const outc of outs) {
         const b = editor.getNode(outc.target) as CylNode | undefined;
         if (!b) continue;
+        if (a.id === b.id) continue; // never heal into a self-loop
         const bIn = b.inputs?.[outc.targetInput];
         if (!bIn || bIn.socket.name !== aOut.socket.name) continue;
         const slot = `${outc.target}:${outc.targetInput}`;
@@ -1509,16 +1552,16 @@ function attachShakeDisconnect(
       if (!id || shakeFired) return;
       const now = performance.now();
       buf.push({ x: e.clientX, y: e.clientY, t: now });
-      if (buf.length > 8) buf.shift();
-      // Only the last ~600ms of movement matters for the reversal pattern.
-      const recent = buf.filter((p) => now - p.t <= 600);
-      if (recent.length < 5) return;
+      if (buf.length > 24) buf.shift();
+      // Only the last ~1000ms of movement matters for the reversal pattern.
+      const recent = buf.filter((p) => now - p.t <= 1000);
+      if (recent.length < 4) return;
       let reversals = 0;
       let prev: { dx: number; dy: number } | null = null;
       for (let i = 1; i < recent.length; i++) {
         const dx = recent[i].x - recent[i - 1].x;
         const dy = recent[i].y - recent[i - 1].y;
-        if (Math.hypot(dx, dy) < 6) continue; // ignore micro-movements
+        if (Math.hypot(dx, dy) < 4) continue; // ignore micro-movements
         if (prev && prev.dx * dx + prev.dy * dy < 0) reversals += 1;
         prev = { dx, dy };
       }

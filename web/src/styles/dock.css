@@ -36,38 +36,45 @@
   border-radius: 7px 7px 0 0;  /* top corners convex, bottom straight */
   margin: 3px -2px 0;     /* flush with the content bottom + slight side overlap; net 2px gap to each neighbour */
 }
-/* bottom-LEFT convex corner: blue quarter circle whose visible arc is the LOWER-left
-   segment (circle centred 7px above the corner), bulging down-left over the previous
-   tab and hugging the bottom edge (kept inside the tab bar). */
+/* bottom-LEFT convex corner: SMALL blue foot hugging the bottom edge (Round 5).
+   Direction flipped back: circle centred ON the tab's bottom-left corner point
+   (100% 100%), radius 4. The 4px-tall box + small radius show only the small bottom
+   segment of the quarter arc, BELOW the corner diagonal: a compact triangle whose
+   wide base sits on the bottom edge, tapering up, arc bulging outward-down over the
+   previous tab — NOT the big disc that filled the whole corner before. */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab::before {
   content: "";
   position: absolute;
   top: auto;              /* neutralize dockview's :not(:first-child) divider rule */
   right: auto;
-  left: -7px;           /* box ends exactly at the tab corner; circle bulges down-left */
+  left: -7px;           /* box ends exactly at the tab corner; small foot flares down-left */
   bottom: 0;
   width: 7px;
-  height: 7px;
-  /* circle centred at the box's top-RIGHT corner (7px above the tab's bottom-left
-     corner) => visible quarter is the LOWER-left segment: the arc hugs the bottom
-     edge (apex ~2px above it) instead of bulging upward. */
-  background: radial-gradient(circle at 100% 0%, #2e4f7d 0 7px, transparent 7.5px);
+  height: 4px;          /* short box => only the bottom sliver of the circle is visible */
+  /* circle centred at the box's bottom-RIGHT corner (the tab's bottom-left corner
+     point), radius 4 => visible fill is the SMALL arc segment below the corner
+     diagonal: wide at the bottom edge, tapering up, arc bulging outward-down. */
+  background: radial-gradient(circle at 100% 100%, #2e4f7d 0 4px, transparent 4.5px);
   pointer-events: none;
 }
-/* bottom-RIGHT convex corner: blue quarter circle whose visible arc is the LOWER-right
-   segment, bulging down-right over the next tab and hugging the bottom edge. */
+/* bottom-RIGHT convex corner: SMALL blue foot hugging the bottom edge (Round 5).
+   Symmetric to ::before: circle centred ON the tab's bottom-right corner point
+   (0 100%), radius 4, 4px-tall box => only the small bottom segment of the quarter
+   arc shows, below the corner diagonal: wide base on the bottom edge, tapering up,
+   arc bulging outward-down over the next tab. */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab::after {
   content: "";
   position: absolute;
   top: auto;              /* neutralize dockview's focus/divider pseudo-element rules */
   left: auto;
-  right: -7px;          /* box starts exactly at the tab corner; circle bulges down-right */
+  right: -7px;          /* box starts exactly at the tab corner; small foot flares down-right */
   bottom: 0;
   width: 7px;
-  height: 7px;
-  /* symmetric to ::before: circle centred at the box's top-LEFT corner =>
-     visible quarter is the LOWER-right segment, arc hugging the bottom edge. */
-  background: radial-gradient(circle at 0 0%, #2e4f7d 0 7px, transparent 7.5px);
+  height: 4px;          /* short box => only the bottom sliver of the circle is visible */
+  /* circle centred at the box's bottom-LEFT corner (the tab's bottom-right corner
+     point), radius 4 => visible fill is the SMALL arc segment below the corner
+     diagonal: wide at the bottom edge, tapering up, arc bulging outward-down. */
+  background: radial-gradient(circle at 0 100%, #2e4f7d 0 4px, transparent 4.5px);
   pointer-events: none;
 }
 /* Active tab is the FIRST tab: extra left margin keeps the bottom-left convex

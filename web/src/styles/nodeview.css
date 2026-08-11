@@ -80,7 +80,16 @@
   box-sizing: border-box;
 }
 /* dot-grid background (screen-space, zoom LOD handled by JS opacity) */
-.cyl-graph { position: relative; }
+.cyl-graph {
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none; /* dragging hits the node, not its text */
+}
+/* keep text selectable where the user needs it: rename input + palette search */
+.cyl-graph .cyl-rp-rename, .cyl-graph .cyl-palette-input {
+  user-select: text;
+  -webkit-user-select: text;
+}
 .cyl-dotgrid {
   position: absolute; inset: 0; pointer-events: none; z-index: 0;
   background-image: radial-gradient(circle, #3a3f4a 1px, transparent 1.5px);

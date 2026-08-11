@@ -277,8 +277,9 @@ export class Viewport {
     store.pushLog(`[viewport] debug boxes ${this.debugBoxes.visible ? "shown" : "hidden"}`);
   }
 
-  /** Display flag shows only the FIRST port of the displayed node (Houdini display).
-   *  index=null shows the whole group. */
+  /** Display flag shows only the port routed through the displayed node (Houdini display).
+   *  index=null shows the whole group; index=-1 hides the whole group (a display
+   *  null/transform with no connected input -> nothing to show). */
   setDisplayFocus(kind: "inputs" | "outputs", index: number | null): void {
     // buildInputs/buildOutputs wrap the per-port groups inside one Group; traverse
     // to find the actual inputN/outputN groups (face/wire meshes live inside them).
@@ -287,7 +288,7 @@ export class Viewport {
     const re = new RegExp(`^${prefix}(\\d+)$`);
     root.traverse((o) => {
       const m = o.name?.match(re);
-      if (m) o.visible = index === null || Number(m[1]) === index;
+      if (m) o.visible = index === null ? true : index === -1 ? false : Number(m[1]) === index;
     });
     store.pushLogSilent(`[viewport] display focus ${kind} index=${index}`);
   }
@@ -497,12 +498,16 @@ export class Viewport {
   }
 
   /** Enter edit mode for a transform node: attach the translate gizmo to a temp
-   *  object at (tx,ty,tz) and report drags (rounded 4dp) via onChange. */
+   *  object at (tx,ty,tz) and report drags (rounded 4dp) via onChange. The reference
+   *  marker sits at the PIVOT (px,py,pz) - dragging the gizmo moves tx/ty/tz only. */
   beginTransformGizmo(
     nodeId: string,
     tx: number,
     ty: number,
     tz: number,
+    px: number,
+    py: number,
+    pz: number,
     onChange: (tx: number, ty: number, tz: number) => void,
   ): void {
     if (this.enterActive) this.endTransformGizmo();
@@ -522,7 +527,8 @@ export class Viewport {
     this.enterObject = obj;
 
     this.enterMarker = this.makeTranslateMarker();
-    this.enterMarker.position.set(tx, ty, tz);
+    this.enterMarker.name = "cyl-enter-pivot";
+    this.enterMarker.position.set(px, py, pz);
     this.scene.add(this.enterMarker);
 
     const onObjChange = (): void => {
@@ -537,6 +543,11 @@ export class Viewport {
     this.enterActive = true;
     this.enterBtn.classList.add("cyl-enter-on");
     store.pushLog(`[viewport] enter edit mode: transform ${nodeId} gizmo at (${tx}, ${ty}, ${tz}) - drag axes/planes (Esc to exit)`);
+  }
+
+  /** Move the pivot reference marker (param-panel px/py/pz edits while Enter is active). */
+  setEnterPivot(x: number, y: number, z: number): void {
+    if (this.enterMarker) this.enterMarker.position.set(x, y, z);
   }
 
   /** Leave Enter edit mode: detach, drop the temp object/marker, restore G demo / curve. */
@@ -576,7 +587,7 @@ export class Viewport {
     if (wasActive) store.pushLog("[viewport] exited enter edit mode");
   }
 
-  /** Small reference marker at the gizmo position: wire box + RGB axis stubs. */
+  /** Small reference marker at the PIVOT position: wire box + RGB axis stubs. */
   private makeTranslateMarker(): THREE.Group {
     const g = new THREE.Group();
     g.add(this.makeBox(new THREE.Vector3(0, 0, 0), 0x7ce3a8));

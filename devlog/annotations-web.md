@@ -293,3 +293,28 @@
 ### 验证
 - tsc 0 错误；vitest 7 文件 68 通过（新增 scrub 9）；bridge pytest 20 通过；Playwright 全量 **16/16**（round2 5 + round3 4 + round4-nodeview 4 + round4-viewport 2 + smoke 1）。
 - round4-nodeview 用例：预览端点=节点端口+拖动实时刷新、z-index 预览在节点后、null/transform 甩出愈合 + Ctrl+Z 恢复。round4-viewport 用例：工具栏 Enter 图标切换、gizmo 拖动更新 tx/ty/tz 且桥 outputs 平移。
+
+## v0.1.00047（2026-08-11）
+**4 路并行**（Faraday=dock / Copernicus=nodeview / Feynman=viewport+main / Kierkegaard=bridge 流式调研）。
+
+### UI（styles/dock.css）
+- **tab 底部圆角第二次翻转 + 小填充**：圆心翻回角点本身（`circle at 100% 100%` / `0 100%`），盒子高 7px→4px、半径 7→4，只露出**斜线下方的 4px 小脚弧**（小三角：底宽顶窄、紧贴底边向外鼓），不再是大圆盘填充。像素验证：蓝色面积 48px²→15px²（小 3 倍以上）、弧朝下半部分向外。
+
+### 节点视图（nodes2/）
+- **预览虚线对齐端口圆圈中心**：`portCenterLocal` 从整行 `[data-port-id]`（圆点+标签 39px，中心偏 12px）改为取 RefSocket 圆点 `span.input/span.output` 的中心；预览曲线端点在圆圈中心，且保持 z-index 在节点后。
+- **shake 判定放宽**：buf 8→24、窗口 600→1000ms、最少点 5→4、单段 6→4px（反向次数保持 >=3）；真实鼠标慢甩能触发，普通单方向慢拖不误伤。
+- **节点面板字体不可选中**：`.cyl-graph` 加 `user-select:none`（重命名输入框/palette 输入恢复 text），不再拖到文字。
+- **禁止自连**：buildGraph 加 `connectioncreate` 中央守卫（source===target 阻断，`addConnection()` 返回 false），并覆盖 restoreGraph / applyUndoAction / attachInsertion（被插节点是悬停连接端点则跳过）/ shake 愈合。
+- **端口拖线不触发插入预览**：attachInsertion 的 pointerdown 排除 `.cyl-rp-port`/`.cyl-ns`/`button`/rename/input，只有拖节点本体才启动插入跟踪。
+- **transform 加 Pivot Translate**：params 增加 px/py/pz(float, 0)，供 viewport Enter 模式 pivot 使用。
+
+### Viewport / main
+- **Pivot Translate**：`beginTransformGizmo` 增 pivot 参数——gizmo 仍在 (tx,ty,tz)（拖动只改 tx/ty/tz），参考标记（`cyl-enter-pivot`）放在 pivot (px,py,pz)，不再显示「拖动前原中心」；新增 `setEnterPivot`，参数面板改 px/py/pz 时实时移动标记。
+- **断开后视口刷新**：`onNetworkChanged` 现在 `void runNetwork(); refreshNodeFlags();`；display 的 null/transform 无 in0 输入（getDisplayPortIndex()===null）→ `setDisplayFocus('inputs', -1)`（隐藏全部输入端口），不再回退显示全部 inputs，消除 box+tube 原点重叠。
+
+### bridge 流式同步调研（Kierkegaard，仅设计不实现）
+- 新建 devlog/streaming-sync-gap.md：结论——瓶颈不在 30fps 轮询（那是 /pending 上限，实际调度被 scheduled 门控压到 ≈1/cook 时长），而在「Houdini dirty→整节点重执行→Cyl1nder 每次访问都在 cook 主线程内全量重算（since=0 全量拉取 + 全量 JSON 反序列化 + geo.clear()+重建）+ 全链路无增量/缓存」。建议：P0=HDA 侧访问即准备（后台线程就绪缓冲 + 差量 setPosition，纯 hda/src 可先落地）；P1=B1 协议 diff_output + /stream + topoId/transform + web applyOutputDelta；P2=B2 msgpack + native core。
+
+### 验证
+- tsc 0 错误；vitest 7 文件 68 通过；bridge pytest 20 通过；Playwright 全量 **23/23**（round2 5 + round3 4 + round4-nodeview 4 + round4-viewport 2 + round5-nodeview 5 + round5-viewport 2 + smoke 1）。
+- round5-nodeview：预览端点=端口圆圈中心、慢甩弹出+单向慢拖不误伤、自连被阻断、端口拖线不触发预览、graph 不可选中。round5-viewport：pivot 标记在 (px,py,pz)、gizmo 拖动只改 tx/ty/tz 且桥 outputs 平移；断开 display 节点后所有输入端口隐藏、重连恢复。
