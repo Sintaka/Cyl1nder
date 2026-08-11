@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-11T08:40:34.600Z",
-  "totalFunctions": 361,
+  "generatedAt": "2026-08-11T09:20:35.491Z",
+  "totalFunctions": 363,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -1901,14 +1901,14 @@
     },
     {
       "file": "web/src/nodes2/graph.ts",
-      "lineCount": 1497,
+      "lineCount": 1527,
       "functions": [
         {
           "name": "log",
           "line": 90,
           "kind": "arrow",
           "exported": false,
-          "calls": 11
+          "calls": 13
         },
         {
           "name": "notifySelection",
@@ -2062,14 +2062,14 @@
           "line": 724,
           "kind": "arrow",
           "exported": false,
-          "calls": 7
+          "calls": 8
         },
         {
           "name": "delConn",
           "line": 732,
           "kind": "arrow",
           "exported": false,
-          "calls": 7
+          "calls": 8
         },
         {
           "name": "lbl",
@@ -2080,196 +2080,210 @@
         },
         {
           "name": "attachCutMode",
-          "line": 782,
+          "line": 789,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "isTyping",
-          "line": 806,
+          "line": 815,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "pathLen",
-          "line": 812,
+          "line": 821,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "setPoints",
-          "line": 817,
-          "kind": "arrow",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "clear",
-          "line": 821,
-          "kind": "arrow",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "cutConnection",
           "line": 826,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
+          "name": "clear",
+          "line": 830,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "cutConnection",
+          "line": 835,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 1
+        },
+        {
           "name": "cutByPolyline",
-          "line": 841,
+          "line": 850,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "up",
-          "line": 903,
+          "line": 929,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "attachFlagMenu",
-          "line": 925,
+          "line": 951,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "show",
-          "line": 937,
+          "line": 963,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "setNodeStateHandler",
-          "line": 991,
+          "line": 1017,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "fireNodeState",
-          "line": 994,
+          "line": 1020,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "setRenameHandler",
-          "line": 1000,
+          "line": 1026,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "fireRename",
-          "line": 1003,
+          "line": 1029,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "initTooltip",
-          "line": 1009,
+          "line": 1035,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "showTooltip",
-          "line": 1015,
+          "line": 1041,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "hideTooltip",
-          "line": 1028,
+          "line": 1054,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "attachMMBPan",
-          "line": 1036,
+          "line": 1062,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "onMove",
-          "line": 1044,
+          "line": 1070,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "onUp",
-          "line": 1047,
+          "line": 1073,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "attachDotGrid",
-          "line": 1065,
+          "line": 1091,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "hitTestConnection",
-          "line": 1096,
+          "line": 1122,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
+          "name": "connectionPathD",
+          "line": 1151,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "isInsertable",
+          "line": 1159,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "attachInsertion",
-          "line": 1124,
+          "line": 1163,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "setHover",
-          "line": 1149,
+          "line": 1188,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "attachRectSelect",
-          "line": 1277,
+          "line": 1307,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "attachShakeDisconnect",
-          "line": 1352,
+          "line": 1382,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "reset",
-          "line": 1363,
+          "line": 1393,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "shakeNode",
-          "line": 1369,
+          "line": 1399,
           "kind": "arrow",
           "exported": false,
           "calls": 1
@@ -2542,11 +2556,11 @@
     },
     {
       "file": "web/src/nodes2/undo.ts",
-      "lineCount": 107,
+      "lineCount": 108,
       "functions": [
         {
           "name": "createUndoManager",
-          "line": 48,
+          "line": 49,
           "kind": "function",
           "exported": true,
           "calls": 2

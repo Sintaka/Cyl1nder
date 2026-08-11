@@ -48,6 +48,7 @@
 | 视口显示模式 / Param 面板 MCP 通道调研 | [mcp-channel-proposals.md](mcp-channel-proposals.md) |
 | bridge⇄HDA 流式落地现状调研 | [streaming-hda-review.md](streaming-hda-review.md) |
 | 快速传输技术栈评估（WASM/串流/本地通信） | [transport-tech-evaluation.md](transport-tech-evaluation.md) |
+| Parm 参数面板系统设计（对标 Houdini，仅设计） | [parm-system-design.md](parm-system-design.md) |
 
 ## 关键词 → 专题文件（快速跳读）
 
@@ -80,6 +81,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00045：3 路并行（Pascal/Russell/Noether）——dock 活动标签改 Chrome 打开态（底边平直+底部外凸圆角伪元素）；插入预览改黄色虚线流动曲线（同曲率贝塞尔）；Y 划线轨迹修复（overlay SVG 300×150 视口裁剪根因）；一次划线多段切断=单次撤销(cut-many)；transform 支持拖拽快捷插入(isInsertable 1入1出)；parm 面板系统设计文档(仅设计)。
 - v0.1.00044：7 路并行（Kepler/Popper/Pasteur/Dalton/Dewey/Poincare/Bernoulli）——视口 Alt+RMB 归一化 + F-frame 保持视角；Spreadsheet 列改名(ptnum/primnum/primpoints)+条纹降饱和；dock 标签底角外凸缺口匹配+`+`右移；组处理系统(groups.ts)、transform 节点+可编辑 Param、Y 划线多段、撤销系统(Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y)、插入重合整理、network.ts 网络计算。
 - v0.1.00043：快速传输技术栈评估——WS 保持主通道，WebTransport 列为 v0.3+ 备选（保留 WS fallback）；B2 起启用 proto=msgpack（1.5-2x 于 JSON）；zstd/Draco 按需叠加；最大亮点 = B2 Rust core 一份代码双端复用（bridge sidecar + web wasm），消除 M5 fuzz 对拍漂移；动捕级再上 WebGPU compute + WASM threads（需 COOP/COEP）；明确不做：WebRTC DataChannel / 视频串流 / HDA 引 WS。
 - v0.1.00042：6 路并行（写集拆分后 Lovelace/Meitner/Newton/Ptolemy + Planck/Gibbs/Kuhn）：spreadsheet 跟随选中节点（null→in0 源端口、多选取第一个）+ label 覆盖 + vertnum/primnum + 填充列/补空行 + 更暗斑马；docking 活动标签改 Chrome 式完整圆角 + 相邻凹切；viewport 默认 Flat Wire Shaded + displaySettings 存取 + three.js gizmo 演示（G/Shift+G）；新增 Param 面板（默认布局带 Params 页）；MCP 新工具 viewport_settings/node_params + 通道调研；bridge⇄HDA 流式现状调研（方案 B 未开始）；main.ts 主进程接线 + 选中刷新 timing 修复（setTimeout 0）。

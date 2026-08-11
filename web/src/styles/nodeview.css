@@ -118,6 +118,14 @@
   stroke: #ffd166 !important; stroke-width: 3 !important;
   filter: drop-shadow(0 0 6px rgba(255, 209, 102, 0.8));
 }
+/* drag-insert preview: two flowing dashed curves (source -> mouse -> target) */
+.cyl-graph .cyl-insert-preview path {
+  stroke: #ffd166; stroke-width: 2.5; fill: none; stroke-dasharray: 7 5;
+  animation: cyl-dash-flow 0.6s linear infinite;
+}
+@keyframes cyl-dash-flow {
+  to { stroke-dashoffset: -12; }
+}
 /* node header: name left (double-click rename), state chips right (right->left: D R B F) */
 .cyl-graph .cyl-rp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 4px; }
 .cyl-graph .cyl-rp-title { cursor: text; }

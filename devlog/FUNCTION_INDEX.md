@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-11），由 `node scripts/gen-index.mjs` 产出。共 **361** 个函数/类。
+> 机器生成（2026-08-11），由 `node scripts/gen-index.mjs` 产出。共 **363** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -407,11 +407,11 @@
 | `connect` | 467 | function |  | 4 |
 | `scheduleSaveGraph` | 547 | function |  | 2 |
 
-## web/src/nodes2/graph.ts（1497 行）
+## web/src/nodes2/graph.ts（1527 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `log` | 90 | arrow |  | 11 |
+| `log` | 90 | arrow |  | 13 |
 | `notifySelection` | 94 | function |  | 3 |
 | `nodeByKind` | 101 | function |  | 4 |
 | `nodeFromTarget` | 106 | function |  | 7 |
@@ -433,37 +433,39 @@
 | `sampleConnectionPath` | 686 | function |  | 2 |
 | `findConnectionByRef` | 708 | function |  | 2 |
 | `applyUndoAction` | 719 | function |  | 2 |
-| `addConn` | 724 | arrow |  | 7 |
-| `delConn` | 732 | arrow |  | 7 |
+| `addConn` | 724 | arrow |  | 8 |
+| `delConn` | 732 | arrow |  | 8 |
 | `lbl` | 736 | arrow |  | 2 |
-| `attachCutMode` | 782 | function |  | 2 |
-| `isTyping` | 806 | arrow |  | 1 |
-| `pathLen` | 812 | arrow |  | 1 |
-| `setPoints` | 817 | arrow |  | 2 |
-| `clear` | 821 | arrow |  | 2 |
-| `cutConnection` | 826 | arrow |  | 2 |
-| `cutByPolyline` | 841 | arrow |  | 1 |
-| `up` | 903 | arrow |  | 0 |
-| `attachFlagMenu` | 925 | function |  | 2 |
-| `show` | 937 | arrow |  | 2 |
-| `setNodeStateHandler` | 991 | function | export | 2 |
-| `fireNodeState` | 994 | function | export | 1 |
-| `setRenameHandler` | 1000 | function | export | 2 |
-| `fireRename` | 1003 | function | export | 1 |
-| `initTooltip` | 1009 | function | export | 2 |
-| `showTooltip` | 1015 | function | export | 1 |
-| `hideTooltip` | 1028 | function | export | 1 |
-| `attachMMBPan` | 1036 | function |  | 2 |
-| `onMove` | 1044 | arrow |  | 0 |
-| `onUp` | 1047 | arrow |  | 0 |
-| `attachDotGrid` | 1065 | function |  | 2 |
-| `hitTestConnection` | 1096 | function |  | 3 |
-| `attachInsertion` | 1124 | function |  | 2 |
-| `setHover` | 1149 | arrow |  | 2 |
-| `attachRectSelect` | 1277 | function |  | 2 |
-| `attachShakeDisconnect` | 1352 | function |  | 2 |
-| `reset` | 1363 | arrow |  | 0 |
-| `shakeNode` | 1369 | arrow |  | 1 |
+| `attachCutMode` | 789 | function |  | 2 |
+| `isTyping` | 815 | arrow |  | 1 |
+| `pathLen` | 821 | arrow |  | 1 |
+| `setPoints` | 826 | arrow |  | 2 |
+| `clear` | 830 | arrow |  | 2 |
+| `cutConnection` | 835 | arrow |  | 1 |
+| `cutByPolyline` | 850 | arrow |  | 1 |
+| `up` | 929 | arrow |  | 0 |
+| `attachFlagMenu` | 951 | function |  | 2 |
+| `show` | 963 | arrow |  | 2 |
+| `setNodeStateHandler` | 1017 | function | export | 2 |
+| `fireNodeState` | 1020 | function | export | 1 |
+| `setRenameHandler` | 1026 | function | export | 2 |
+| `fireRename` | 1029 | function | export | 1 |
+| `initTooltip` | 1035 | function | export | 2 |
+| `showTooltip` | 1041 | function | export | 1 |
+| `hideTooltip` | 1054 | function | export | 1 |
+| `attachMMBPan` | 1062 | function |  | 2 |
+| `onMove` | 1070 | arrow |  | 0 |
+| `onUp` | 1073 | arrow |  | 0 |
+| `attachDotGrid` | 1091 | function |  | 2 |
+| `hitTestConnection` | 1122 | function |  | 3 |
+| `connectionPathD` | 1151 | function |  | 3 |
+| `isInsertable` | 1159 | function |  | 2 |
+| `attachInsertion` | 1163 | function |  | 2 |
+| `setHover` | 1188 | arrow |  | 2 |
+| `attachRectSelect` | 1307 | function |  | 2 |
+| `attachShakeDisconnect` | 1382 | function |  | 2 |
+| `reset` | 1393 | arrow |  | 0 |
+| `shakeNode` | 1399 | arrow |  | 1 |
 
 ## web/src/nodes2/groups.ts（537 行）
 
@@ -511,11 +513,11 @@
 | `bufferFromResolved` | 148 | function |  | 2 |
 | `computeOutputs` | 168 | function | export | 1 |
 
-## web/src/nodes2/undo.ts（107 行）
+## web/src/nodes2/undo.ts（108 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `createUndoManager` | 48 | function | export | 2 |
+| `createUndoManager` | 49 | function | export | 2 |
 
 ## web/src/protocol/compare.ts（23 行）
 

@@ -251,3 +251,22 @@
 ### 验证
 - tsc 0 错误；vitest 6 文件 58 通过（新增 groups 27 / undo 9 / network 9）；bridge pytest 20 通过；Playwright e2e round2 5/5 + smoke 1/1（连真实桥 8375 + vite 8376）。
 - E2E 自包含：beforeAll 推规范 inputs、每测 restoreGraph 自建起始图、afterAll 恢复磁盘快照 fixtures（防 web 自动保存 graph 快照污染测试场景）。
+
+## v0.1.00045（2026-08-11）
+**3 路并行**（Pascal=dock / Russell=nodeview-core / Noether=parm 设计；主进程先定位根因：两个 overlay SVG 只设 `position:absolute;inset:0` 未设 width/height，SVG 默认视口 300×150 把左上区域以外的内容全部裁剪）。
+
+### UI（styles/dock.css）
+- **活动标签改为 Chrome 打开态轮廓**：底边平直且与内容区同底（`.dv-tab` margin-bottom 0、活动标签 `border-radius:7px 7px 0 0`）；底部两角用 `::before/::after` 画活动色 #2e4f7d 的 7px 外凸四分之一圆（径向渐变，盒子在标签外侧 -14px 处，避免圆心落在体内被自身底色盖住）；首/尾标签加 margin 防凸角被裁/压到 `+` 按钮。像素级验证：底角蓝色区间 65px→87px、无暗带、四角均为外凸圆角、底边与面板无缝。
+
+### 节点视图（nodes2/）
+- **插入预览改为高亮黄色虚线流动曲线**（attachInsertion）：两个 `<line>` → 两个 `<path class="cyl-insert-preview-path">`，用与真实连线同曲率（curvature 0.3）的 `connectionPathD()` 画源 socket→鼠标、鼠标→目标 两条贝塞尔；nodeview.css 加 `stroke:#ffd166; stroke-dasharray:7 5; animation: cyl-dash-flow`（dashoffset 循环流动）。修复 overlay 300×150 视口裁剪（补 width/height 100%）。
+- **Y 划线轨迹显示修复**（attachCutMode）：cut svg 同补 width/height 100%，画布任意位置的红色轨迹实时可见（根因：SVG 默认 300×150 视口，只有左上区域内的线可见）。
+- **一次划线多段切断 = 单个撤销操作**：`undo.ts` UndoAction 增加 `{type:"cut-many", connections:[]}`；`cutByPolyline` 收集全部命中 refs（去重）→ 一次性 remove → push 一个 cut-many → 一次 onNetworkChanged；applyUndoAction 支持 cut-many（undo=全恢复 / redo=全删）。单击切断仍走 `{type:"cut"}`。
+- **transform 拖拽快捷插入**（attachInsertion 泛化）：`isInsertable(n)` = 恰好 1 入 1 出（null 与 transform 均满足，input/output 4 出/4 入不适用）；draggingNullId→draggingNodeId 泛化，插入/预览/重叠整理/undo/onNetworkChanged 对二者通用。
+
+### Parm 参数面板系统（仅设计，不实现）
+- 新建 devlog/parm-system-design.md：对标 Houdini Parameter 面板——`ParmDef`（定义，代码侧 registry）+ `node.params`（值）分离；15 种类型（int/float/vec2-4/color/bool/menu/string/button/separator/label/folder/ramp/data）；元数据（name/label/default/min/max/step/options/script/visibleWhen/enabledWhen/group/help）；folder/separator 简单分组；Group(String)+Group Type(enum) 复合模板直接对接 groups.ts 实时校验；按钮 Phase1 前端 action 注册表（零协议改动）；可见性/可更改性条件式小子集（禁止 eval）；持久化沿用 schemaVersion 2 兼容。选型：不引入 RJSF/uniforms/Formily/@mui（React 生态、零新依赖铁律、语义不符），借鉴 Houdini 定义/值分离 + ComfyUI widget registry + JSON Forms schema 分离 + Blender 折叠单列，自研小模块。
+
+### 验证
+- tsc 0 错误；vitest 6 文件 59 通过（undo 新增 cut-many 用例）；bridge pytest 20 通过；Playwright round2 5/5 + round3 4/4（真实桥 8375 + vite 8376）。
+- round3 用例：Y 划线画布中部/下部两次轨迹均可见（截图像素含 #ff3b30 + getBBox 在 svg 视口内）；L 形划线一次切断两条连接且一次 Ctrl+Z 全恢复；transform 拖拽插入拆线；插入预览两条曲线 path 出现。

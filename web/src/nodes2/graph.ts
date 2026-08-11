@@ -767,7 +767,14 @@ async function applyUndoAction(
       await addConn(n2b);
     }
     log(`${direction} insert ${action.nodeLabel} into ${lbl(action.connection)}`);
-  } else {
+  } else if (action.type === "cut-many") {
+    if (direction === "undo") {
+      for (const ref of action.connections) await addConn(ref);
+    } else {
+      for (const ref of action.connections) await delConn(ref);
+    }
+    log(`${direction} cut ${action.connections.length} connection(s) via polyline`);
+  } else if (action.type === "shake") {
     if (direction === "undo") {
       for (const ref of action.added) await delConn(ref);
       for (const ref of action.cut) await addConn(ref);
@@ -794,6 +801,8 @@ function attachCutMode(
   // so it never intercepts graph input; z-index above nodes/connections/previews.
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:9;";
+  svg.style.width = "100%";
+  svg.style.height = "100%";
   const poly = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
   poly.setAttribute("stroke", "#ff3b30");
   poly.setAttribute("stroke-width", "2");
@@ -839,6 +848,10 @@ function attachCutMode(
   };
 
   const cutByPolyline = (arr: { x: number; y: number }[]) => {
+    // One stroke = one undoable operation: collect every hit once (the same
+    // connection may be crossed by several polyline segments), then remove all.
+    const cutRefs: ConnectionRef[] = [];
+    const seen = new Set<string>();
     const ids = Array.from(area.connectionViews.keys());
     for (const id of ids) {
       if (!area.connectionViews.has(id)) continue;
@@ -849,12 +862,25 @@ function attachCutMode(
         const ay = arr[i - 1].y;
         const bx = arr[i].x;
         const by = arr[i].y;
-        if (sampled.some((p) => distToSegment(p.x, p.y, ax, ay, bx, by) <= 8)) {
-          cutConnection(id);
-          break;
+        if (!sampled.some((p) => distToSegment(p.x, p.y, ax, ay, bx, by) <= 8)) continue;
+        const conn = editor.getConnection(id) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
+        if (conn && !seen.has(id)) {
+          seen.add(id);
+          cutRefs.push({
+            source: conn.source,
+            sourceOutput: conn.sourceOutput,
+            target: conn.target,
+            targetInput: conn.targetInput,
+          });
         }
+        break;
       }
     }
+    if (cutRefs.length === 0) return;
+    for (const id of seen) void editor.removeConnection(id);
+    undoManager.push({ type: "cut-many", connections: cutRefs });
+    log(`cut ${cutRefs.length} connection(s) via polyline`);
+    handlers.onNetworkChanged?.();
   };
 
   window.addEventListener("keydown", (e) => {
@@ -1121,6 +1147,19 @@ function hitTestConnection(
   return null;
 }
 
+/** Bézier path matching the real connections (curvature 0.3), used by the insertion preview. */
+function connectionPathD(x1: number, y1: number, x2: number, y2: number): string {
+  const dx = Math.abs(x2 - x1);
+  const dy = Math.abs(y1 - y2);
+  const off = Math.max(dy / 2, dx) * 0.3;
+  return `M ${x1} ${y1} C ${x1 + off} ${y1}, ${x2 - off} ${y2}, ${x2} ${y2}`;
+}
+
+/** Nodes that can be drag-inserted into a connection: exactly one input + one output. */
+function isInsertable(n: CylNode): boolean {
+  return !!n.inputs && !!n.outputs && Object.keys(n.inputs).length === 1 && Object.keys(n.outputs).length === 1;
+}
+
 function attachInsertion(
   editor: NodeEditor<Schemes>,
   area: AreaPlugin<Schemes, AreaExtra>,
@@ -1128,22 +1167,22 @@ function attachInsertion(
   handlers: ReteGraphHandlers,
   undoManager: UndoManager,
 ): void {
-  let draggingNullId: string | null = null;
-  let draggingNullNode: CylNode | null = null;
+  let draggingNodeId: string | null = null;
+  let draggingNode: CylNode | null = null;
   let hoverConn: string | null = null;
 
-  // Insertion preview overlay: two dashed lines showing A->mouse->B before release.
+  // Insertion preview overlay: two dashed flowing curves (source -> mouse -> target).
   const overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   overlay.setAttribute("class", "cyl-insert-preview");
   overlay.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:6;";
+  overlay.style.width = "100%";
+  overlay.style.height = "100%";
   container.appendChild(overlay);
-  const dashA = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  const dashB = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  for (const l of [dashA, dashB]) {
-    l.setAttribute("stroke", "#ffd166");
-    l.setAttribute("stroke-width", "2");
-    l.setAttribute("stroke-dasharray", "7 5");
-    overlay.appendChild(l);
+  const previewA = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  const previewB = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  for (const path of [previewA, previewB]) {
+    path.setAttribute("class", "cyl-insert-preview-path");
+    overlay.appendChild(path);
   }
 
   const setHover = (connId: string | null, mouseX = 0, mouseY = 0) => {
@@ -1151,20 +1190,14 @@ function attachInsertion(
       area.connectionViews.get(hoverConn)?.element.querySelector("path")?.classList.remove("drop-target");
       hoverConn = null;
     }
-    dashA.setAttribute("x1", "0");
-    dashA.setAttribute("y1", "0");
-    dashA.setAttribute("x2", "0");
-    dashA.setAttribute("y2", "0");
-    dashB.setAttribute("x1", "0");
-    dashB.setAttribute("y1", "0");
-    dashB.setAttribute("x2", "0");
-    dashB.setAttribute("y2", "0");
+    previewA.setAttribute("d", "");
+    previewB.setAttribute("d", "");
     if (!connId) return;
     const view = area.connectionViews.get(connId);
     if (!view) return;
     view.element.querySelector("path")?.classList.add("drop-target");
     hoverConn = connId;
-    // dashed preview from source socket -> mouse -> target socket
+    // curved preview source socket -> mouse -> target socket, container-local coords
     const svg = view.element.querySelector("path") as SVGPathElement | null;
     if (!svg || typeof svg.getTotalLength !== "function") return;
     const ctm = svg.getScreenCTM();
@@ -1175,23 +1208,20 @@ function attachInsertion(
     const p1 = svg.getPointAtLength(len);
     const start = new DOMPoint(p0.x, p0.y).matrixTransform(ctm);
     const end = new DOMPoint(p1.x, p1.y).matrixTransform(ctm);
-    dashA.setAttribute("x1", String(start.x - rect.left));
-    dashA.setAttribute("y1", String(start.y - rect.top));
-    dashA.setAttribute("x2", String(mouseX - rect.left));
-    dashA.setAttribute("y2", String(mouseY - rect.top));
-    dashB.setAttribute("x1", String(mouseX - rect.left));
-    dashB.setAttribute("y1", String(mouseY - rect.top));
-    dashB.setAttribute("x2", String(end.x - rect.left));
-    dashB.setAttribute("y2", String(end.y - rect.top));
+    const mx = mouseX - rect.left;
+    const my = mouseY - rect.top;
+    previewA.setAttribute("d", connectionPathD(start.x - rect.left, start.y - rect.top, mx, my));
+    previewB.setAttribute("d", connectionPathD(mx, my, end.x - rect.left, end.y - rect.top));
   };
 
   container.addEventListener(
     "pointerdown",
     (e) => {
       const hit = nodeFromTarget(editor, area, e.target as Element);
-      if (hit && hit.node.kind === "null") {
-        draggingNullId = hit.id;
-        draggingNullNode = hit.node;
+      // any single-in/single-out node (null / transform) can be drag-inserted
+      if (hit && isInsertable(hit.node)) {
+        draggingNodeId = hit.id;
+        draggingNode = hit.node;
       }
     },
     true,
@@ -1201,7 +1231,7 @@ function attachInsertion(
     "pointermove",
     (e) => {
       lastGraphMouse = { x: e.clientX, y: e.clientY };
-      if (!draggingNullId) return;
+      if (!draggingNodeId) return;
       const connId = hitTestConnection(area, e.clientX, e.clientY);
       if (connId !== hoverConn) setHover(connId, e.clientX, e.clientY);
     },
@@ -1209,56 +1239,56 @@ function attachInsertion(
   );
 
   const up = () => {
-    if (!draggingNullId) return;
-    draggingNullId = null;
-    const nullNode = draggingNullNode;
-    draggingNullNode = null;
+    if (!draggingNodeId) return;
+    draggingNodeId = null;
+    const node = draggingNode;
+    draggingNode = null;
     const connId = hoverConn;
     setHover(null);
-    if (!connId || !nullNode) return;
+    if (!connId || !node) return;
     const conn = editor.getConnection(connId) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
     if (!conn) return;
     const srcNode = editor.getNode(conn.source as string) as CylNode | undefined;
     const tgtNode = editor.getNode(conn.target as string) as CylNode | undefined;
     if (!srcNode || !tgtNode) return;
     void (async () => {
-      // one-input constraint: drop any existing connection into this null's in0 first
+      // one-input constraint: drop any existing connection into this node's in0 first
       const existing = editor.getConnections().find(
-        (c) => c.target === nullNode.id && c.targetInput === "in0",
+        (c) => c.target === node.id && c.targetInput === "in0",
       ) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
       if (existing) await editor.removeConnection(existing.id);
       await editor.removeConnection(connId);
       await editor.addConnection(
-        new ClassicPreset.Connection(srcNode, conn.sourceOutput as string, nullNode, "in0") as unknown as Schemes["Connection"],
+        new ClassicPreset.Connection(srcNode, conn.sourceOutput as string, node, "in0") as unknown as Schemes["Connection"],
       );
       await editor.addConnection(
-        new ClassicPreset.Connection(nullNode, "out0", tgtNode, conn.targetInput as string) as unknown as Schemes["Connection"],
+        new ClassicPreset.Connection(node, "out0", tgtNode, conn.targetInput as string) as unknown as Schemes["Connection"],
       );
-      store.pushLog(`[node] inserted ${nullNode.label} into ${srcNode.label} -> ${tgtNode.label}`);
+      store.pushLog(`[node] inserted ${node.label} into ${srcNode.label} -> ${tgtNode.label}`);
       // keep the inserted node clear of its source: minX = src edge + node width + 30
-      const nullPos = area.nodeViews.get(nullNode.id)?.position;
-      if (nullPos) {
+      const pos = area.nodeViews.get(node.id)?.position;
+      if (pos) {
         const srcPos = area.nodeViews.get(srcNode.id)?.position;
         if (srcPos) {
-          const width = (area.nodeViews.get(nullNode.id)?.element.getBoundingClientRect().width ?? 150) / area.area.transform.k;
+          const width = (area.nodeViews.get(node.id)?.element.getBoundingClientRect().width ?? 150) / area.area.transform.k;
           const minX = srcPos.x + width + 30;
-          if (nullPos.x < minX) {
-            void area.translate(nullNode.id, { x: minX, y: nullPos.y });
-            nullPos.x = minX;
+          if (pos.x < minX) {
+            void area.translate(node.id, { x: minX, y: pos.y });
+            pos.x = minX;
           }
         }
-        // spread the layout: shift every node to the right of the inserted null
+        // spread the layout: shift every node to the right of the inserted node
         const offset = 180;
         for (const n of editor.getNodes()) {
-          if (n.id === nullNode.id) continue;
-          const pos = area.nodeViews.get(n.id)?.position;
-          if (pos && pos.x > nullPos.x + 30) void area.translate(n.id, { x: pos.x + offset, y: pos.y });
+          if (n.id === node.id) continue;
+          const nPos = area.nodeViews.get(n.id)?.position;
+          if (nPos && nPos.x > pos.x + 30) void area.translate(n.id, { x: nPos.x + offset, y: nPos.y });
         }
       }
       undoManager.push({
         type: "insert",
-        nodeId: nullNode.id,
-        nodeLabel: nullNode.label,
+        nodeId: node.id,
+        nodeLabel: node.label,
         connection: { source: conn.source, sourceOutput: conn.sourceOutput, target: conn.target, targetInput: conn.targetInput },
         prevConnection: existing
           ? { source: existing.source, sourceOutput: existing.sourceOutput, target: existing.target, targetInput: existing.targetInput }

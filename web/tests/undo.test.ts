@@ -6,6 +6,11 @@ const cut = (target: string): UndoAction => ({
   connection: { source: "A", sourceOutput: "out0", target, targetInput: "in0" },
 });
 
+const cutMany = (...targets: string[]): UndoAction => ({
+  type: "cut-many",
+  connections: targets.map((target) => ({ source: "A", sourceOutput: "out0", target, targetInput: "in0" })),
+});
+
 describe("createUndoManager", () => {
   it("push enables undo but not redo", () => {
     const mgr = createUndoManager(vi.fn());
@@ -42,6 +47,23 @@ describe("createUndoManager", () => {
     // old branch is gone: redo no longer replays the undone C
     mgr.redo();
     expect(apply).not.toHaveBeenCalledWith(cut("C"), "redo");
+  });
+
+  it("cut-many is a single stack entry: push -> undo -> redo", () => {
+    const apply = vi.fn();
+    const mgr = createUndoManager(apply);
+    const action = cutMany("B", "C");
+    mgr.push(action);
+    expect(mgr.canUndo()).toBe(true);
+    expect(mgr.canRedo()).toBe(false);
+    mgr.undo();
+    expect(apply).toHaveBeenLastCalledWith(action, "undo");
+    expect(mgr.canUndo()).toBe(false);
+    expect(mgr.canRedo()).toBe(true);
+    mgr.redo();
+    expect(apply).toHaveBeenLastCalledWith(action, "redo");
+    expect(mgr.canUndo()).toBe(true);
+    expect(mgr.canRedo()).toBe(false);
   });
 
   it("redo replays the action and restores undo state", () => {

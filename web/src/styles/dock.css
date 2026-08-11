@@ -22,27 +22,55 @@
 }
 .cyl-dock .dockview-theme-dark .dv-tab {
   border-radius: 6px;
-  margin: 3px 2px; /* horizontal gap between rounded tabs */
+  margin: 3px 2px 0; /* horizontal gap; bottom flush so tabs sit on the panel */
 }
-/* Active tab: Chrome-style full rounded rectangle (all four corners 6px). The
-   bottom corners are CONVEX (outward) rounded, NOT cut in. A higher z-index +
-   slight negative side margins let it overlap the adjacent inactive tabs and
-   cover their bottom corners behind it. */
+/* Active tab: Chrome-style silhouette — top corners convex (7px), bottom edge
+   straight and flush with the panel below (no carved-in bottom corners). The
+   bottom corners are painted as convex quarter-circles (::before/::after) that
+   flare OUT over the adjacent tabs, so they read as outward bumps. */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab {
   position: relative;
   z-index: 10;            /* overlap adjacent inactive tabs */
-  border-radius: 6px;     /* full rounded rectangle: all four corners */
+  border-radius: 7px 7px 0 0;  /* top corners convex, bottom straight */
   margin: 3px -4px 0;     /* flush with the content bottom + slight side overlap */
 }
-/* Active tab is the FIRST tab: keep the normal left margin so it isn't clipped
-   by the scrollable's left edge. */
-.cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab:first-child {
-  margin-left: 2px;
+/* bottom-LEFT convex corner: blue quarter circle centered on the tab's bottom-left
+   corner, bulging left over the previous tab (kept inside the tab bar). */
+.cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab::before {
+  content: "";
+  position: absolute;
+  top: auto;              /* neutralize dockview's :not(:first-child) divider rule */
+  right: auto;
+  left: -14px;          /* box ends exactly at the tab corner; circle bulges left */
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  background: radial-gradient(circle at 100% 100%, #2e4f7d 0 7px, transparent 7.5px);
+  pointer-events: none;
 }
-/* Active tab is the LAST tab (its next sibling is the "+" button): only touch the
-   button instead of overlapping it. */
+/* bottom-RIGHT convex corner: blue quarter circle centered on the tab's bottom-right
+   corner, bulging right over the next tab. */
+.cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab::after {
+  content: "";
+  position: absolute;
+  top: auto;              /* neutralize dockview's focus/divider pseudo-element rules */
+  left: auto;
+  right: -14px;         /* box starts exactly at the tab corner; circle bulges right */
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  background: radial-gradient(circle at 0 100%, #2e4f7d 0 7px, transparent 7.5px);
+  pointer-events: none;
+}
+/* Active tab is the FIRST tab: extra left margin keeps the bottom-left convex
+   corner visible instead of being clipped by the scrollable's left edge. */
+.cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab:first-child {
+  margin-left: 9px;
+}
+/* Active tab is the LAST tab (its next sibling is the "+" button): keep the
+   bottom-right convex corner clear of the button. */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab:has(+ .cyl-dock-add) {
-  margin-right: -2px;
+  margin-right: 4px;
 }
 /* Inactive tab immediately BEFORE the active tab: concave (inward) notch at its
    bottom-RIGHT corner (the side the active tab overlaps). Painted with the TAB-BAR
