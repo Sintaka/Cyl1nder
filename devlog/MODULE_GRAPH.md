@@ -55,6 +55,8 @@
   - protocol/types
   - tools/transform
 - `nodes2/undo.ts`
+- `overview.ts`
+  - protocol/types
 - `protocol/compare.ts`
   - protocol/types
 - `protocol/types.ts`

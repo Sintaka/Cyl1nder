@@ -1,0 +1,132 @@
+﻿/* Cyl1nder Overview 总管页面 — 与主应用同主题：背景 #141518 / 面板 #1b1e24 / 绿 #7ce3a8 / 蓝 #2e4f7d */
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: #141518;
+  color: #cfd2d6;
+  font: 12px/1.4 system-ui, sans-serif;
+}
+
+/* ---- header ---- */
+.ov-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #1b1e24;
+  border-bottom: 1px solid #2a2d33;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.ov-brand { font-size: 15px; font-weight: 700; color: #fff; }
+.ov-brand small { color: #7ce3a8; font-weight: 400; margin-left: 6px; }
+.ov-spacer { flex: 1; }
+.ov-link {
+  background: #2e4f7d;
+  color: #fff;
+  border: 1px solid #3a6ea5;
+  border-radius: 4px;
+  padding: 4px 10px;
+  text-decoration: none;
+}
+.ov-link:hover { background: #3a6ea5; }
+.ov-refresh {
+  background: #2e4f7d;
+  color: #fff;
+  border: 1px solid #3a6ea5;
+  border-radius: 4px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.ov-refresh:hover { background: #3a6ea5; }
+.ov-refresh:disabled { opacity: 0.5; cursor: default; }
+
+/* ---- bridge status banner ---- */
+.ov-banner { padding: 8px 16px; font-size: 12px; }
+.ov-banner.offline { background: rgba(127, 29, 29, 0.35); color: #fecaca; border-bottom: 1px solid #7f1d1d; }
+.ov-banner.error { background: rgba(146, 64, 14, 0.3); color: #fde68a; border-bottom: 1px solid #92400e; }
+.ov-banner.hidden { display: none; }
+
+/* ---- layout ---- */
+.ov-main {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 18px 16px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.ov-panel {
+  background: #1b1e24;
+  border: 1px solid #2a2d33;
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.ov-section-heading {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7a7f87;
+}
+.ov-note { color: #7a7f87; margin: 0 0 8px; }
+.ov-hint { color: #6b7280; font-style: italic; margin: 4px 0; }
+.ov-hint.hidden { display: none; }
+.ov-error { color: #f87171; margin: 6px 0 0; }
+.ov-error.hidden { display: none; }
+
+/* ---- scene rows ---- */
+.ov-list { display: flex; flex-direction: column; gap: 6px; }
+.ov-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.1fr) minmax(160px, 1.4fr) 110px 110px 70px;
+  align-items: center;
+  gap: 10px;
+  background: #141518;
+  border: 1px solid #2a2d33;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+.ov-row.history { grid-template-columns: minmax(150px, 1fr) 160px 70px; }
+.ov-cell { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-serial { font: 11px/1.4 ui-monospace, monospace; color: #9fd8ff; }
+.ov-label { font-weight: 600; color: #e5e7eb; }
+.ov-path { display: block; color: #7a7f87; font-weight: 400; font-size: 11px; }
+.ov-seen { color: #8f959e; }
+.ov-seen.offline { color: #f87171; font-weight: 600; }
+.ov-revs { display: flex; gap: 8px; font: 10px/1.4 ui-monospace, monospace; color: #8f959e; }
+.ov-revs .rev { background: #0f1012; border: 1px solid #33363c; border-radius: 3px; padding: 1px 5px; }
+.ov-open {
+  background: #2e4f7d;
+  color: #fff;
+  border: 1px solid #3a6ea5;
+  border-radius: 4px;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.ov-open:hover { background: #3a6ea5; }
+
+/* ---- new scene ---- */
+.ov-new { display: flex; gap: 8px; flex-wrap: wrap; }
+.ov-new-input {
+  flex: 1;
+  max-width: 320px;
+  background: #0f1012;
+  color: #cfd2d6;
+  border: 1px solid #33363c;
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+.ov-new-button {
+  background: #7ce3a8;
+  color: #0f1a13;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ov-new-button:hover { filter: brightness(1.08); }
+.ov-new-button:disabled { opacity: 0.5; cursor: default; }

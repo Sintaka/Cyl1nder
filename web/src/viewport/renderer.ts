@@ -61,7 +61,7 @@ export class Viewport {
   private gizmoDemo: THREE.Mesh | null = null;
   private gizmoModes: ("translate" | "rotate" | "scale")[] = ["translate", "rotate", "scale"];
   private gizmoModeIdx = 0;
-  /** Enter-edit activation (left toolbar): transform node tx/ty/tz <-> translate gizmo. */
+  /** Enter-edit activation (left toolbar): MODE state (independent of gizmo attachment). */
   private enterActive = false;
   /** True while the pointer hovers the viewport canvas (Enter-key gating in main.ts). */
   private hovered = false;
@@ -514,7 +514,7 @@ export class Viewport {
     this.enterEditHandler = fn;
   }
 
-  /** True while Enter edit mode is active (transform gizmo attached). */
+  /** True while Enter edit mode is active (gizmo may be idle when no transform is selected). */
   isEnterActive(): boolean {
     return this.enterActive;
   }
@@ -537,7 +537,7 @@ export class Viewport {
     pz: number,
     onChange: (tx: number, ty: number, tz: number) => void,
   ): void {
-    if (this.enterActive) this.endTransformGizmo();
+    if (this.enterActive) this.endTransformGizmo({ keepActive: true });
     // mutual exclusion with the G-key demo / curve-line editing (one gizmo owner)
     this.demoWasOn = !!this.gizmoDemo;
     if (this.gizmoDemo) this.transform.detach();
@@ -577,8 +577,11 @@ export class Viewport {
     if (this.enterMarker) this.enterMarker.position.set(x, y, z);
   }
 
-  /** Leave Enter edit mode: detach, drop the temp object/marker, restore G demo / curve. */
-  endTransformGizmo(): void {
+  /** Leave Enter edit mode: detach, drop the temp object/marker, restore G demo / curve.
+   *  With keepActive the MODE stays on (button lit, isEnterActive() true) and only the
+   *  gizmo is dropped - used when the selection has no edit target (null/input/output). */
+  endTransformGizmo(opts: { keepActive?: boolean } = {}): void {
+    const { keepActive = false } = opts;
     const obj = this.enterObject;
     if (obj) {
       const fn = obj.userData.cylEnterChange as (() => void) | undefined;
@@ -599,6 +602,7 @@ export class Viewport {
     this.enterObject = null;
     this.enterMarker = null;
     this.enterOnChange = null;
+    if (keepActive) return; // mode stays active, gizmo idle until a transform is selected
     const wasActive = this.enterActive;
     this.enterActive = false;
     this.enterBtn.classList.remove("cyl-enter-on");
@@ -612,6 +616,17 @@ export class Viewport {
     }
     this.enterResumeLine = null;
     if (wasActive) store.pushLog("[viewport] exited enter edit mode");
+  }
+
+  /** Activate Enter mode WITHOUT a gizmo (e.g. no transform selected): the mode stays
+   *  on, the toolbar button stays lit, and the viewport renders normally. False = exit. */
+  setEnterActive(active: boolean): void {
+    if (active) {
+      this.enterActive = true;
+      this.enterBtn.classList.add("cyl-enter-on");
+      return;
+    }
+    this.endTransformGizmo();
   }
 
   /** Small reference marker at the PIVOT position: wire box + RGB axis stubs. */

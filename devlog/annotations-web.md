@@ -357,8 +357,29 @@
 ### Viewport 真正读取节点 geo（network.ts / geometry.ts / renderer.ts / main.ts）
 - 新增 `computeNodeResult(snap, inputs, nodeId)`：沿节点 in0 链回追（复用 traceChain），返回该节点链路的真实输出（transform 平移后 points）；断链→null。
 - `buildNodeResult(buffer)`（geometry.ts）与 `showNodeResult(buffer|null)`（renderer，`cyl-node-result` 组）。
-- **main.ts** `refreshNodeFlags`?display ? null/transform ??? ? ??? input ?? + ???????????transform ?????????????? ? ???input/output/? display ? ???/????????
+- **main.ts** `refreshNodeFlags`：display 为 null/transform 且有源 → 隐藏源 input 端口 + 显示节点计算结果几何（transform 移动后几何体跟着移动）；断开 → 隐藏；input/output/无 display → 显示源/输出（原逻辑）。
 
 ### 验证
 - tsc 0 错误；vitest 7 文件 **82 通过**（scrub 19 重写 + network 13 含 computeNodeResult 4 条）；bridge pytest 20 通过；Playwright 全量 **33/33**（round2 5 + round3 4 + round4-nodeview 4 + round4-viewport 2 + round5-nodeview 5 + round5-viewport 2 + round6-nodeview 5 + round6-viewport 2 + round7-viewport 3 + smoke 1）。
 - 行为变更（display null/transform 改为显示节点计算结果而非源端口）导致 round5-viewport / round6-nodeview 3 条旧断言更新为检查 `cyl-node-result` 几何。
+
+## v0.1.00050（2026-08-11）
+**4 路并行**（Turing=viewport+main / Halley=Overview 页面 / Pauli=bridge 场景+usdz / Darwin=流式推送 dirty 讨论）。参考 AHS fork（D:codedevwebAnimehairstudio）的 QuickSave/QuickExport：File System Access API（showDirectoryPicker/showSaveFilePicker + createWritable，浏览器原生覆盖确认），仅借鉴架构不复制代码。
+
+### Viewport / main（renderer.ts / main.ts / client.ts）
+- **Enter 模式跟随第一个选中节点**（不再是 display flag / 进入时节点）：enterActive 语义与 gizmo 解耦；endTransformGizmo({keepActive}) 只 detach 不清模式；setEnterActive(bool) 支持无 transform 进入（gizmo idle 但模式亮）。onSelectionChanged 里 enter 激活时：选中 transform → 重绑 gizmo（读其 tx/ty/tz/px/py/pz）；null/input/output/无选中 → gizmo 空但模式保持；再选 transform → gizmo 重现。
+- **File/Layout 菜单点击后关闭**；旧 Open Scene 改名 **Reload Scene**；新增真正 **Open Scene…**（选带序列号文件夹 → 读 io/scene → pushInputs+putSnapshot → 跳 ?serial=，无 Houdini 也能开）；**Save Scene As** 保存整个 <serial>/ 文件夹（io/inputs.json+outputs.json、scene/node-graph.json+node-parm.json、docking-layout.json），同名文件夹确认覆盖；**Overview** 菜单项开 /overview.html。FSA 优先（Chromium showDirectoryPicker），失败/非 Chromium fallback 到 bridge 的 scene/save 与 scenes/open（prompt 路径）。
+
+### Overview 总管页面（web/overview.html + src/overview.ts + styles/overview.css + vite 多页）
+- /overview.html 同主题深色页：活跃场景（serial/label/lastSeen/revs/离线标红/打开）、历史场景（serial/savedAt/打开）、新建场景（POST /api/scenes → 跳 ?serial=，无 Houdini 也能开）；桥离线/接口不可用横幅区分提示；vite build 多页输入 index+overview。
+
+### bridge 场景管理 + usdz（routes.py + scenes.py + usdz.py + test_scenes.py）
+- GET /api/scenes（active=registry+workspace 汇总，history=快照目录+meta.savedAt）；POST /api/scenes {label?} → 新 serial+注册+空 workspace；POST /api/hda/{serial}/scene/save {target_dir, overwrite?}（保存时先刷新 io 缓存 → 拷贝整个快照目录到 target_dir/<serial> → 生成 <serial>.usdz，同名 exists 冲突）；POST /api/scenes/open {folder_path}（文件夹名=合法 serial → 注册+载入 inputs/graph/docking）；GET /api/hda/{serial}/usdz 返回 usdz 字节。
+- **usdz.py 零新依赖**：最小 usda 文本（#usda 1.0 + upAxis=Y，faces→UsdGeom.Mesh、curves→UsdGeom.BasisCurves、纯点→UsdGeom.Points）+ 标准库 zipfile 打包 .usdz（USDZ=zip）；参考 AHS buildHairUsda 风格但自写，不复制代码。
+
+### 流式推送 dirty 讨论（Darwin，仅设计）
+- 新建 devlog/streaming-push-dirty.md：推荐主通道 = ① bridge→HDA 事件推送（/stream 长轮询 NDJSON，替代 33ms /pending 轮询，~1-5ms）+ ③ HDA 后台就绪缓冲 + topoId 不变只 setPosition；② fxhoudinimcp execute_python 可触发指定 SOP dirty 但仅作 dev/E2E 钩子（白名单模板），不作应用主链路；按 role 分桶 dirty + bypass 隔离 + position-only 最小化计算量；bridge 侧增量缓存（topoId/transform/deltaRing）+ web 侧节点结果缓存（nodeId/inputRev/paramSignature/topoEpoch，LRU 256）配合内容对比自愈。
+
+### 验证
+- tsc 0 错误；vitest 7 文件 82 通过；bridge pytest 31 通过（新增 scenes/usdz 11 条）；Playwright 39 passed / 2 skipped（2 skipped = round8-overview 的 /api/scenes 用例，因运行中的 bridge 是旧进程未含新端点，重启 bridge 后自动转绿）。
+- 行为变更（Enter 跟随选中）导致 round4/round6-viewport 2 条旧断言更新为「无 transform 时模式激活但 gizmo 空」。

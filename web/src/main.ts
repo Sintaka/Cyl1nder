@@ -96,7 +96,27 @@ layout.root.querySelectorAll(".cyl-menu").forEach((menu) => {
   document.addEventListener("pointerdown", (ev) => {
     if (!drop.contains(ev.target as Node)) toggle(false);
   }, { capture: true });
+  // clicking any menu ITEM closes this menu's drop (File / Layout)
+  drop.addEventListener("click", () => toggle(false));
 });
+
+// File menu markup lives in app/layout.ts: rename the old "Open Scene…" (reload)
+// and add the real folder->serial "Open Scene…" + Overview entries here.
+{
+  const file = layout.menuFile;
+  const reloadBtn = file.querySelector<HTMLButtonElement>('button[data-act="open"]');
+  if (reloadBtn) reloadBtn.textContent = "Reload Scene";
+  const openSceneBtn = document.createElement("button");
+  openSceneBtn.type = "button";
+  openSceneBtn.dataset.act = "open-scene";
+  openSceneBtn.textContent = "Open Scene…";
+  file.insertBefore(openSceneBtn, reloadBtn ?? file.firstElementChild);
+  const overviewBtn = document.createElement("button");
+  overviewBtn.type = "button";
+  overviewBtn.dataset.act = "overview";
+  overviewBtn.textContent = "Overview";
+  file.appendChild(overviewBtn);
+}
 
 let currentLayoutName = DEFAULT_LAYOUT_NAME;
 const getDockJson = () => ({
@@ -148,12 +168,16 @@ layout.menuFile.querySelectorAll("button").forEach((b) => {
       void client.putSnapshot(store.serial, { graph: graph.serializeGraph(), docking: getDockJson() });
       store.pushLog("[file] scene saved");
     } else if (act === "open") {
+      // Reload Scene: re-read the current serial's disk snapshot.
       if (!store.serial) return;
       void loadSnapshotIntoStore(store.serial);
+    } else if (act === "open-scene") {
+      void openSceneFromDir();
     } else if (act === "saveas") {
       if (!store.serial) return;
-      void client.putSnapshot(store.serial, { graph: graph.serializeGraph(), docking: getDockJson() });
-      store.pushLog("[file] scene saved as current");
+      void saveSceneAs();
+    } else if (act === "overview") {
+      window.open("/overview.html");
     }
   });
 });
@@ -182,6 +206,139 @@ layout.menuLayout.querySelectorAll("button").forEach((b) => {
     }
   });
 });
+
+// ---- File System Access API scene save/open (Chromium) with prompt fallback ----
+// showDirectoryPicker is Chromium-only and not in the TS DOM lib yet.
+declare global {
+  interface Window {
+    showDirectoryPicker?: (opts?: { mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle>;
+  }
+}
+
+/** Write a JSON file into a directory handle (creates parent subdirs). */
+async function writeJsonToDir(dir: FileSystemDirectoryHandle, relPath: string, data: unknown): Promise<void> {
+  const parts = relPath.split("/");
+  let cur = dir;
+  for (const part of parts.slice(0, -1)) cur = await cur.getDirectoryHandle(part, { create: true });
+  const fh = await cur.getFileHandle(parts[parts.length - 1], { create: true });
+  const w = await fh.createWritable();
+  await w.write(JSON.stringify(data, null, 2));
+  await w.close();
+}
+
+/** Read a JSON file from a directory handle (null when missing/unreadable). */
+async function readJsonFromDir(dir: FileSystemDirectoryHandle, relPath: string): Promise<unknown | null> {
+  try {
+    const parts = relPath.split("/");
+    let cur = dir;
+    for (const part of parts.slice(0, -1)) cur = await cur.getDirectoryHandle(part);
+    const fh = await cur.getFileHandle(parts[parts.length - 1]);
+    return JSON.parse(await (await fh.getFile()).text());
+  } catch {
+    return null;
+  }
+}
+
+/** Save Scene As: File System Access first (write <serial>/ under the picked dir,
+ *  overwrite confirm when the serial folder exists), falls back to the bridge path. */
+async function saveSceneAs(): Promise<void> {
+  const serial = store.serial;
+  if (!serial) return;
+  try {
+    await client.putSnapshot(serial, { graph: graph.serializeGraph(), docking: getDockJson() });
+  } catch (e) {
+    store.pushLog(`[file] scene snapshot failed: ${String(e)}`);
+  }
+  const picker = window.showDirectoryPicker;
+  if (picker) {
+    try {
+      const dir = await picker({ mode: "readwrite" });
+      let exists = false;
+      try {
+        await dir.getDirectoryHandle(serial);
+        exists = true;
+      } catch {
+        /* not present yet */
+      }
+      if (exists && !window.confirm("同名文件夹已存在，覆盖？")) return;
+      const nodes = (graph.serializeGraph() as { nodes?: Array<{ id: string; params?: unknown[] }> }).nodes ?? [];
+      const parm: Record<string, unknown[]> = {};
+      for (const n of nodes) if (n.params?.length) parm[n.id] = n.params;
+      await writeJsonToDir(dir, `${serial}/io/inputs.json`, store.inputs);
+      await writeJsonToDir(dir, `${serial}/io/outputs.json`, store.outputs);
+      await writeJsonToDir(dir, `${serial}/scene/node-graph.json`, graph.serializeGraph());
+      if (Object.keys(parm).length) await writeJsonToDir(dir, `${serial}/scene/node-parm.json`, parm);
+      await writeJsonToDir(dir, `${serial}/docking-layout.json`, getDockJson());
+      store.pushLog(`[file] scene saved to ${dir.name}/${serial}`);
+      return;
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return; // user cancelled
+      store.pushLog(`[file] folder save failed (${String(e)}) - falling back to server path`);
+    }
+  }
+  // Fallback: bridge server path (prompt for a target dir).
+  const targetDir = window.prompt("输入保存目标目录");
+  if (!targetDir) return;
+  const dir = targetDir.trim();
+  try {
+    let r = await client.saveSceneFolder(serial, dir);
+    if (!r.ok && r.exists) {
+      if (window.confirm("同名文件夹已存在，覆盖？")) r = await client.saveSceneFolder(serial, dir, true);
+    }
+    if (r.ok) store.pushLog(`[file] scene saved to ${r.path ?? dir}`);
+    else store.pushLog(`[file] scene save failed: ${r.error ?? "unknown"}`);
+  } catch (e) {
+    store.pushLog(`[file] scene save error: ${String(e)}`);
+  }
+}
+
+/** Open Scene: File System Access first (pick a serial-named folder, read io +
+ *  graph + docking, push to the bridge), falls back to the bridge server path. */
+async function openSceneFromDir(): Promise<void> {
+  const picker = window.showDirectoryPicker;
+  if (picker) {
+    try {
+      const dir = await picker({ mode: "read" });
+      const serial = dir.name;
+      if (!/^C1-[0-9a-z]{8,}-[0-9a-z]{4}$/.test(serial)) {
+        store.pushLog(`[file] open scene failed: folder name is not a serial: ${serial}`);
+        return;
+      }
+      const [inputs, graphJson, docking] = await Promise.all([
+        readJsonFromDir(dir, "io/inputs.json"),
+        readJsonFromDir(dir, "scene/node-graph.json"),
+        readJsonFromDir(dir, "docking-layout.json"),
+      ]);
+      if (Array.isArray(inputs) && inputs.length > 0) {
+        await client
+          .pushInputs(serial, inputs as InputPayload[])
+          .catch((e) => store.pushLog(`[file] push inputs failed: ${String(e)}`));
+      }
+      await client
+        .putSnapshot(serial, {
+          graph: graphJson && typeof graphJson === "object" ? graphJson : undefined,
+          docking: docking && typeof docking === "object" ? docking : undefined,
+        })
+        .catch((e) => store.pushLog(`[file] push snapshot failed: ${String(e)}`));
+      location.href = `?serial=${encodeURIComponent(serial)}`;
+      return;
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return; // user cancelled
+      store.pushLog(`[file] folder open failed (${String(e)}) - falling back to server path`);
+    }
+  }
+  // Fallback: bridge server path (prompt for a folder path).
+  const folderPath = window.prompt("输入场景文件夹路径（文件夹名=序列号，如 D:/scenes/C1-xxxxxxxx-xxxx）");
+  if (!folderPath) return;
+  void client
+    .openSceneFolder(folderPath.trim())
+    .then((r) => {
+      if (r.ok && r.serial) location.href = `?serial=${encodeURIComponent(r.serial)}`;
+      else store.pushLog(`[file] open scene failed: ${r.error ?? "no serial returned"}`);
+    })
+    .catch((e) => store.pushLog(`[file] open scene error: ${String(e)}`));
+}
+
 const handlers: ReteGraphHandlers = {
   onNodePick: (kind, index, _nodeId) => viewport.pickByNode(kind, index),
   onFlagsChanged: (kind, flags) => {
@@ -339,22 +496,18 @@ function refreshSelectionPanels(): void {
   );
 }
 
-/** Enter node viewport edit activation (toolbar icon + Enter key): a selected
- *  transform node gets a translate gizmo bound to tx/ty/tz. */
-function toggleEnterEdit(): void {
-  if (viewport.isEnterActive()) {
-    viewport.endTransformGizmo();
-    return;
-  }
+/** Bind the translate gizmo to the FIRST SELECTED node while Enter mode is on:
+ *  transform -> attach the gizmo at its current tx/ty/tz; null/input/output/none
+ *  -> drop the gizmo but keep the mode active (idle until a transform is selected). */
+function bindEnterGizmoToSelection(): void {
   const sel = graph.getSelectedNode();
   if (!sel || sel.kind !== "transform") {
-    store.pushLog("[viewport] enter: select a transform node first");
+    viewport.endTransformGizmo({ keepActive: true });
     return;
   }
   const v = readParamFloats(sel.params ?? []);
   viewport.beginTransformGizmo(sel.id, v.tx ?? 0, v.ty ?? 0, v.tz ?? 0, v.px ?? 0, v.py ?? 0, v.pz ?? 0, (x, y, z) => {
-    // Gizmo stays bound to the node Enter was pressed on: read its CURRENT params
-    // from the network snapshot (selection may have moved to another node since).
+    // Enter follows the CURRENT selection: read the bound node's live params.
     const node = graph.getNetworkSnapshot().nodes.find((n) => n.id === sel.id);
     if (!node) return; // node deleted mid-edit
     graph.setNodeParams(
@@ -367,13 +520,30 @@ function toggleEnterEdit(): void {
   });
 }
 
+/** Enter node viewport edit activation (toolbar icon + Enter key): follows the
+ *  first selected node - transform -> gizmo, otherwise enter stays active idle. */
+function toggleEnterEdit(): void {
+  if (viewport.isEnterActive()) {
+    viewport.endTransformGizmo();
+    return;
+  }
+  const sel = graph.getSelectedNode();
+  if (!sel || sel.kind !== "transform") {
+    viewport.setEnterActive(true); // enter mode on, gizmo idle until a transform is selected
+    store.pushLog("[viewport] enter: no transform selected - gizmo idle");
+    return;
+  }
+  bindEnterGizmoToSelection();
+}
+
 // node selection changes -> refresh Spreadsheet + Params immediately
 // (store.subscribe alone does not fire when only the graph selection changes)
 graph.onSelectionChanged(() => {
   flushParamUndo(); // selection switched -> close the pending param undo session
   refreshSelectionPanels();
-  // Enter edit survives selection changes (gizmo stays on the entered node);
-  // exit only via Esc / toolbar click / Enter-while-hovering.
+  // Enter mode follows the FIRST SELECTED node: transform -> rebind the gizmo to
+  // it; null/input/output/none -> drop the gizmo but keep Enter mode active.
+  if (viewport.isEnterActive()) bindEnterGizmoToSelection();
 });
 
 /** Display node object (id + params) via the live editor (ReteGraph exposes editor). */

@@ -97,6 +97,51 @@ export class BridgeClient {
     );
   }
 
+  /** Scene library: active (live) scenes + save history. */
+  async listScenes(): Promise<{
+    active: Array<{ serial: string; label: string; nodePath: string; lastSeen: string; inputRev: number; outputRev: number }>;
+    history: Array<{ serial: string; savedAt: string }>;
+  }> {
+    return json(await fetch(`${this.base}/api/scenes`));
+  }
+
+  /** Register a new scene (bridge creates the serial); returns the new serial. */
+  async createScene(label?: string): Promise<{ serial: string }> {
+    return json(
+      await fetch(`${this.base}/api/scenes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(label ? { label } : {}),
+      }),
+    );
+  }
+
+  /** Save the WHOLE serial-named scene folder under targetDir (overwrite prompts upstream). */
+  async saveSceneFolder(
+    serial: string,
+    targetDir: string,
+    overwrite = false,
+  ): Promise<{ ok: boolean; exists?: boolean; path?: string; error?: string }> {
+    return json(
+      await fetch(`${this.base}/api/hda/${serial}/scene/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_dir: targetDir, overwrite }),
+      }),
+    );
+  }
+
+  /** Open a scene folder by path (folder name = serial); returns the serial to connect. */
+  async openSceneFolder(folderPath: string): Promise<{ serial: string; ok?: boolean; error?: string }> {
+    return json(
+      await fetch(`${this.base}/api/scenes/open`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folder_path: folderPath }),
+      }),
+    );
+  }
+
   /** Named desktop layouts (Documents/Cyl1nder/Layouts). */
   async listLayouts(): Promise<string[]> {
     return json<{ layouts: string[] }>(await fetch(`${this.base}/api/ui/layouts`)).then((r) => r.layouts);

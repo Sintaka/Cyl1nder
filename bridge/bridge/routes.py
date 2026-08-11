@@ -1,11 +1,13 @@
-"""REST routes: health / serials / per-serial inputs / outputs / logs."""
+"""REST routes: health / serials / per-serial inputs / outputs / logs / scenes / usdz."""
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 
 from .protocol import InputsPut, OutputsPut, VERSION, WEB_UI_URL, is_valid_serial
+from .scenes import create_scene, list_scenes, open_scene, save_scene
 from .snapshot import build_meta, read_snapshot, write_snapshot
+from .usdz import build_usdz_bytes
 from .ui_layout import UiLayoutStore, list_layouts, load_layout, save_layout
 from .state import get_state
 from .ws import manager
@@ -208,3 +210,58 @@ async def global_logs(
     limit: int = Query(200, ge=1, le=1000),
 ) -> dict:
     return {"logs": get_state().logs.query(level=level, limit=limit)}
+
+
+# --- scenes (bridge-side scene management + usdz export) ---
+
+
+@router.get("/api/scenes")
+async def scenes_list() -> dict:
+    """Active = registry serials (+ workspace revs); history = snapshot dirs on disk."""
+    return list_scenes()
+
+
+@router.post("/api/scenes")
+async def scenes_create(payload: dict | None = None) -> dict:
+    """Create a new scene: fresh serial + registry entry + empty workspace."""
+    payload = payload or {}
+    return {"serial": create_scene(payload.get("label"))}
+
+
+@router.post("/api/hda/{serial}/scene/save")
+async def scene_save(serial: str, payload: dict | None = None) -> dict:
+    """Save the whole snapshot folder (io/scene/docking + <serial>.usdz) into target_dir."""
+    _check_serial(serial)
+    payload = payload or {}
+    target_dir = payload.get("target_dir")
+    if not target_dir:
+        raise HTTPException(status_code=400, detail="target_dir required")
+    return save_scene(serial, str(target_dir), overwrite=bool(payload.get("overwrite")))
+
+
+@router.post("/api/scenes/open")
+async def scenes_open(payload: dict | None = None) -> dict:
+    """Open a saved scene folder: folder name must be a valid serial; loads io + graph + docking."""
+    payload = payload or {}
+    folder_path = payload.get("folder_path")
+    if not folder_path:
+        raise HTTPException(status_code=400, detail="folder_path required")
+    try:
+        return open_scene(str(folder_path))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/api/hda/{serial}/usdz")
+async def get_usdz(serial: str) -> Response:
+    """Stream the serial's io snapshot as a .usdz archive (zip + root.usda).
+
+    Web uses FS Access to save the bytes into the scene folder; the artifact is
+    the same as the one scene/save drops next to the copied snapshot folder.
+    """
+    _check_serial(serial)
+    return Response(
+        content=build_usdz_bytes(serial),
+        media_type="model/vnd.usdz+zip",
+        headers={"Content-Disposition": f'attachment; filename="{serial}.usdz"'},
+    )

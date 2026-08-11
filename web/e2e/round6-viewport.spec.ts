@@ -101,14 +101,21 @@ test("Enter edit persists across node selection change; gizmo drag still updates
   let gizmo = await page.evaluate(() => (window as any).__cylViewport.scene.getObjectByName("cyl-enter-gizmo"));
   expect(gizmo).not.toBeNull();
 
-  // select a DIFFERENT node (_input_) -> Enter state + gizmo must survive
+  // select a DIFFERENT node (_input_) -> Enter state survives but gizmo goes idle
+  // (enter mode follows the SELECTED node - Round 8)
   await page.locator(".cyl-rp-title", { hasText: "_input_" }).first().click({ timeout: 15000 });
   expect(await page.evaluate(() => (window as any).__cylGraph.getSelectedNode()?.kind)).toBe("input");
   expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(true);
   gizmo = await page.evaluate(() => (window as any).__cylViewport.scene.getObjectByName("cyl-enter-gizmo"));
+  expect(gizmo).toBeFalsy();
+
+  // select the transform again -> gizmo rebinds to it (follows selection)
+  await page.locator(".cyl-rp-title", { hasText: /^transform\d+$/ }).first().click({ timeout: 15000 });
+  expect(await page.evaluate(() => (window as any).__cylGraph.getSelectedNode()?.kind)).toBe("transform");
+  gizmo = await page.evaluate(() => (window as any).__cylViewport.scene.getObjectByName("cyl-enter-gizmo"));
   expect(gizmo).not.toBeNull();
 
-  // simulate a translate drag -> still updates the ENTERED transform node's tx/ty/tz
+  // simulate a translate drag -> updates the SELECTED transform node's tx/ty/tz
   await page.evaluate(() => {
     const v: any = (window as any).__cylViewport;
     const obj = v.scene.getObjectByName("cyl-enter-gizmo");

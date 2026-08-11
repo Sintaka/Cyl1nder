@@ -100,18 +100,17 @@ test("viewport toolbar: Enter icon renders on the left edge and toggles enter-ed
   await expect(enterBtn).toHaveAttribute("title", "Enter node viewport edit");
   await expect(enterBtn.locator("svg")).toBeVisible();
 
-  // no transform selected -> stays off
-  await enterBtn.click();
-  const logText = await page.locator(".cyl-log-body").textContent({ timeout: 1500 }).catch(() => "");
-  if (logText) expect(logText).toContain("select a transform node first");
-  expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(false);
-
-  // select the transform node -> Enter icon activates the mode
-  await page.locator(".cyl-rp-title", { hasText: /^transform\d+$/ }).first().click({ timeout: 15000 });
+  // no transform selected -> enter mode activates with gizmo idle (Round 8)
   await enterBtn.click();
   expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(true);
+  let gizmo = await page.evaluate(() => (window as any).__cylViewport.scene.getObjectByName("cyl-enter-gizmo"));
+  expect(gizmo).toBeFalsy();
+
+  // select the transform node -> gizmo rebinds (enter mode follows the selection)
+  await page.locator(".cyl-rp-title", { hasText: /^transform\d+$/ }).first().click({ timeout: 15000 });
+  expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(true);
   await expect(enterBtn).toHaveClass(/cyl-enter-on/);
-  const gizmo = await page.evaluate(() => (window as any).__cylViewport.scene.getObjectByName("cyl-enter-gizmo"));
+  gizmo = await page.evaluate(() => (window as any).__cylViewport.scene.getObjectByName("cyl-enter-gizmo"));
   expect(gizmo).not.toBeNull();
 
   // re-click exits the mode

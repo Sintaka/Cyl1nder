@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-11），由 `node scripts/gen-index.mjs` 产出。共 **382** 个函数/类。
+> 机器生成（2026-08-11），由 `node scripts/gen-index.mjs` 产出。共 **425** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -119,29 +119,45 @@
 | `_save` | 120 | def |  | 2 |
 | `_load` | 129 | def |  | 2 |
 
-## bridge/bridge/routes.py（211 行）
+## bridge/bridge/routes.py（268 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_maybe_snapshot` | 20 | def |  | 3 |
-| `root` | 41 | def |  | 1 |
-| `_check_serial` | 48 | def |  | 9 |
-| `health` | 54 | def |  | 1 |
-| `list_serials` | 60 | def |  | 1 |
-| `status` | 65 | def |  | 2 |
-| `put_inputs` | 77 | def |  | 1 |
-| `get_outputs` | 94 | def |  | 1 |
-| `put_outputs` | 103 | def |  | 2 |
-| `pending` | 119 | def |  | 1 |
-| `serial_logs` | 133 | def |  | 1 |
-| `get_snapshot` | 143 | def |  | 1 |
-| `get_ui_layout` | 154 | def |  | 1 |
-| `put_ui_layout` | 161 | def |  | 1 |
-| `put_snapshot` | 169 | def |  | 1 |
-| `ui_layouts` | 186 | def |  | 1 |
-| `ui_layout_save` | 192 | def |  | 1 |
-| `ui_layout_load` | 199 | def |  | 1 |
-| `global_logs` | 206 | def |  | 1 |
+| `_maybe_snapshot` | 22 | def |  | 3 |
+| `root` | 43 | def |  | 1 |
+| `_check_serial` | 50 | def |  | 11 |
+| `health` | 56 | def |  | 1 |
+| `list_serials` | 62 | def |  | 1 |
+| `status` | 67 | def |  | 2 |
+| `put_inputs` | 79 | def |  | 1 |
+| `get_outputs` | 96 | def |  | 1 |
+| `put_outputs` | 105 | def |  | 2 |
+| `pending` | 121 | def |  | 1 |
+| `serial_logs` | 135 | def |  | 1 |
+| `get_snapshot` | 145 | def |  | 1 |
+| `get_ui_layout` | 156 | def |  | 1 |
+| `put_ui_layout` | 163 | def |  | 1 |
+| `put_snapshot` | 171 | def |  | 1 |
+| `ui_layouts` | 188 | def |  | 1 |
+| `ui_layout_save` | 194 | def |  | 1 |
+| `ui_layout_load` | 201 | def |  | 1 |
+| `global_logs` | 208 | def |  | 1 |
+| `scenes_list` | 219 | def |  | 1 |
+| `scenes_create` | 225 | def |  | 1 |
+| `scene_save` | 232 | def |  | 1 |
+| `scenes_open` | 243 | def |  | 1 |
+| `get_usdz` | 256 | def |  | 1 |
+
+## bridge/bridge/scenes.py（137 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `_snapshot_base` | 23 | def |  | 2 |
+| `_read_json` | 29 | def |  | 6 |
+| `list_scenes` | 36 | def |  | 1 |
+| `create_scene` | 68 | def |  | 1 |
+| `save_scene` | 78 | def |  | 1 |
+| `open_scene` | 109 | def |  | 1 |
 
 ## bridge/bridge/snapshot.py（135 行）
 
@@ -174,6 +190,23 @@
 | `list_layouts` | 41 | def |  | 1 |
 | `save_layout` | 48 | def |  | 1 |
 | `load_layout` | 66 | def |  | 1 |
+
+## bridge/bridge/usdz.py（141 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `_num` | 21 | def |  | 5 |
+| `_points_text` | 25 | def |  | 4 |
+| `_ints_text` | 29 | def |  | 4 |
+| `_widths_text` | 33 | def |  | 2 |
+| `_mesh_prim` | 37 | def |  | 2 |
+| `_curves_prim` | 49 | def |  | 2 |
+| `_points_prim` | 68 | def |  | 2 |
+| `_payload_block` | 76 | def |  | 3 |
+| `_build_usda` | 95 | def |  | 2 |
+| `_resolve_hip` | 110 | def |  | 2 |
+| `build_usdz_bytes` | 118 | def |  | 2 |
+| `write_usdz` | 128 | def |  | 1 |
 
 ## bridge/bridge/workspace.py（124 行）
 
@@ -390,41 +423,46 @@
 | `addVerts` | 114 | arrow |  | 2 |
 | `renderSpreadsheet` | 158 | function | export | 1 |
 
-## web/src/bridge/client.ts（162 行）
+## web/src/bridge/client.ts（207 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `BridgeClient` | 23 | class | export | 0 |
-| `connectWs` | 126 | function | export | 1 |
-| `connect` | 131 | arrow |  | 1 |
+| `connectWs` | 171 | function | export | 1 |
+| `connect` | 176 | arrow |  | 1 |
 
-## web/src/main.ts（686 行）
+## web/src/main.ts（856 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `matchLogFilter` | 34 | arrow |  | 0 |
 | `renderLog` | 35 | arrow |  | 3 |
-| `toggle` | 88 | arrow |  | 6 |
-| `getDockJson` | 102 | arrow |  | 3 |
-| `saveCurrentLayout` | 106 | arrow |  | 2 |
-| `refreshLayoutPresets` | 114 | arrow |  | 1 |
-| `applyLayoutSettings` | 237 | function |  | 4 |
-| `readParamFloats` | 242 | function |  | 3 |
-| `flushParamUndo` | 263 | function |  | 2 |
-| `refreshSelectionPanels` | 274 | function |  | 3 |
-| `toggleEnterEdit` | 344 | function |  | 2 |
-| `getDisplayNodeInfo` | 380 | function |  | 2 |
-| `refreshNodeFlags` | 396 | function |  | 4 |
-| `inputStatsText` | 456 | function |  | 2 |
-| `outputStatsText` | 465 | function |  | 2 |
-| `renderInspector` | 474 | function |  | 2 |
-| `runNetwork` | 511 | function |  | 5 |
-| `startHdaWatch` | 526 | function |  | 2 |
-| `check` | 528 | arrow |  | 1 |
-| `stopHdaWatch` | 545 | function |  | 2 |
-| `loadSnapshotIntoStore` | 554 | function |  | 3 |
-| `connect` | 582 | function |  | 4 |
-| `scheduleSaveGraph` | 674 | function |  | 2 |
+| `toggle` | 88 | arrow |  | 7 |
+| `getDockJson` | 122 | arrow |  | 4 |
+| `saveCurrentLayout` | 126 | arrow |  | 2 |
+| `refreshLayoutPresets` | 134 | arrow |  | 1 |
+| `writeJsonToDir` | 219 | function |  | 6 |
+| `readJsonFromDir` | 230 | function |  | 4 |
+| `saveSceneAs` | 244 | function |  | 2 |
+| `openSceneFromDir` | 297 | function |  | 2 |
+| `applyLayoutSettings` | 394 | function |  | 4 |
+| `readParamFloats` | 399 | function |  | 3 |
+| `flushParamUndo` | 420 | function |  | 2 |
+| `refreshSelectionPanels` | 431 | function |  | 3 |
+| `bindEnterGizmoToSelection` | 502 | function |  | 3 |
+| `toggleEnterEdit` | 525 | function |  | 2 |
+| `getDisplayNodeInfo` | 550 | function |  | 2 |
+| `refreshNodeFlags` | 566 | function |  | 4 |
+| `inputStatsText` | 626 | function |  | 2 |
+| `outputStatsText` | 635 | function |  | 2 |
+| `renderInspector` | 644 | function |  | 2 |
+| `runNetwork` | 681 | function |  | 5 |
+| `startHdaWatch` | 696 | function |  | 2 |
+| `check` | 698 | arrow |  | 1 |
+| `stopHdaWatch` | 715 | function |  | 2 |
+| `loadSnapshotIntoStore` | 724 | function |  | 3 |
+| `connect` | 752 | function |  | 4 |
+| `scheduleSaveGraph` | 844 | function |  | 2 |
 
 ## web/src/nodes2/graph.ts（1628 行）
 
@@ -542,6 +580,26 @@
 |---|---|---|---|---|
 | `createUndoManager` | 50 | function | export | 2 |
 
+## web/src/overview.ts（202 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `HttpError` | 27 | class |  | 2 |
+| `$` | 35 | function |  | 0 |
+| `epochMs` | 55 | function |  | 4 |
+| `relTime` | 59 | function |  | 2 |
+| `clockTime` | 71 | function |  | 2 |
+| `setBanner` | 77 | function |  | 4 |
+| `openSerial` | 82 | function |  | 3 |
+| `activeRowHtml` | 86 | function |  | 1 |
+| `historyRowHtml` | 100 | function |  | 1 |
+| `renderActive` | 109 | function |  | 2 |
+| `renderHistory` | 115 | function |  | 2 |
+| `renderUnavailable` | 121 | function |  | 2 |
+| `fetchScenes` | 130 | function |  | 2 |
+| `failMessage` | 137 | function |  | 3 |
+| `loadScenes` | 146 | function |  | 3 |
+
 ## web/src/protocol/compare.ts（23 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
@@ -599,7 +657,7 @@
 | `buildOutputs` | 121 | function | export | 1 |
 | `buildNodeResult` | 138 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（752 行）
+## web/src/viewport/renderer.ts（767 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|

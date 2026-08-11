@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-11T12:26:44.750Z",
-  "totalFunctions": 382,
+  "generatedAt": "2026-08-11T14:07:45.285Z",
+  "totalFunctions": 425,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -525,137 +525,220 @@
     },
     {
       "file": "bridge/bridge/routes.py",
-      "lineCount": 211,
+      "lineCount": 268,
       "functions": [
         {
           "name": "_maybe_snapshot",
-          "line": 20,
+          "line": 22,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "root",
-          "line": 41,
+          "line": 43,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_check_serial",
-          "line": 48,
+          "line": 50,
           "kind": "def",
           "exported": false,
-          "calls": 9
+          "calls": 11
         },
         {
           "name": "health",
-          "line": 54,
+          "line": 56,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "list_serials",
-          "line": 60,
+          "line": 62,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "status",
-          "line": 65,
+          "line": 67,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "put_inputs",
-          "line": 77,
+          "line": 79,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get_outputs",
-          "line": 94,
+          "line": 96,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_outputs",
-          "line": 103,
+          "line": 105,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "pending",
-          "line": 119,
+          "line": 121,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "serial_logs",
-          "line": 133,
+          "line": 135,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get_snapshot",
-          "line": 143,
+          "line": 145,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get_ui_layout",
-          "line": 154,
+          "line": 156,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_ui_layout",
-          "line": 161,
+          "line": 163,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_snapshot",
-          "line": 169,
+          "line": 171,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "ui_layouts",
-          "line": 186,
+          "line": 188,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "ui_layout_save",
-          "line": 192,
+          "line": 194,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "ui_layout_load",
-          "line": 199,
+          "line": 201,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "global_logs",
-          "line": 206,
+          "line": 208,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "scenes_list",
+          "line": 219,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "scenes_create",
+          "line": 225,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "scene_save",
+          "line": 232,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "scenes_open",
+          "line": 243,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "get_usdz",
+          "line": 256,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "bridge/bridge/scenes.py",
+      "lineCount": 137,
+      "functions": [
+        {
+          "name": "_snapshot_base",
+          "line": 23,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_read_json",
+          "line": 29,
+          "kind": "def",
+          "exported": false,
+          "calls": 6
+        },
+        {
+          "name": "list_scenes",
+          "line": 36,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "create_scene",
+          "line": 68,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "save_scene",
+          "line": 78,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "open_scene",
+          "line": 109,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -793,6 +876,96 @@
         {
           "name": "load_layout",
           "line": 66,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "bridge/bridge/usdz.py",
+      "lineCount": 141,
+      "functions": [
+        {
+          "name": "_num",
+          "line": 21,
+          "kind": "def",
+          "exported": false,
+          "calls": 5
+        },
+        {
+          "name": "_points_text",
+          "line": 25,
+          "kind": "def",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "_ints_text",
+          "line": 29,
+          "kind": "def",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "_widths_text",
+          "line": 33,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_mesh_prim",
+          "line": 37,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_curves_prim",
+          "line": 49,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_points_prim",
+          "line": 68,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_payload_block",
+          "line": 76,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "_build_usda",
+          "line": 95,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_resolve_hip",
+          "line": 110,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "build_usdz_bytes",
+          "line": 118,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "write_usdz",
+          "line": 128,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -1811,7 +1984,7 @@
     },
     {
       "file": "web/src/bridge/client.ts",
-      "lineCount": 162,
+      "lineCount": 207,
       "functions": [
         {
           "name": "BridgeClient",
@@ -1822,14 +1995,14 @@
         },
         {
           "name": "connectWs",
-          "line": 126,
+          "line": 171,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "connect",
-          "line": 131,
+          "line": 176,
           "kind": "arrow",
           "exported": false,
           "calls": 1
@@ -1838,7 +2011,7 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 686,
+      "lineCount": 856,
       "functions": [
         {
           "name": "matchLogFilter",
@@ -1859,144 +2032,179 @@
           "line": 88,
           "kind": "arrow",
           "exported": false,
-          "calls": 6
+          "calls": 7
         },
         {
           "name": "getDockJson",
-          "line": 102,
+          "line": 122,
           "kind": "arrow",
           "exported": false,
-          "calls": 3
+          "calls": 4
         },
         {
           "name": "saveCurrentLayout",
-          "line": 106,
+          "line": 126,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "refreshLayoutPresets",
-          "line": 114,
+          "line": 134,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
+          "name": "writeJsonToDir",
+          "line": 219,
+          "kind": "function",
+          "exported": false,
+          "calls": 6
+        },
+        {
+          "name": "readJsonFromDir",
+          "line": 230,
+          "kind": "function",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "saveSceneAs",
+          "line": 244,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "openSceneFromDir",
+          "line": 297,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "applyLayoutSettings",
-          "line": 237,
+          "line": 394,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "readParamFloats",
-          "line": 242,
+          "line": 399,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "flushParamUndo",
-          "line": 263,
+          "line": 420,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "refreshSelectionPanels",
-          "line": 274,
+          "line": 431,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "bindEnterGizmoToSelection",
+          "line": 502,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "toggleEnterEdit",
-          "line": 344,
+          "line": 525,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "getDisplayNodeInfo",
-          "line": 380,
+          "line": 550,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "refreshNodeFlags",
-          "line": 396,
+          "line": 566,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "inputStatsText",
-          "line": 456,
+          "line": 626,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "outputStatsText",
-          "line": 465,
+          "line": 635,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderInspector",
-          "line": 474,
+          "line": 644,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "runNetwork",
-          "line": 511,
+          "line": 681,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "startHdaWatch",
-          "line": 526,
+          "line": 696,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "check",
-          "line": 528,
+          "line": 698,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "stopHdaWatch",
-          "line": 545,
+          "line": 715,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "loadSnapshotIntoStore",
-          "line": 554,
+          "line": 724,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "connect",
-          "line": 582,
+          "line": 752,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "scheduleSaveGraph",
-          "line": 674,
+          "line": 844,
           "kind": "function",
           "exported": false,
           "calls": 2
@@ -2700,6 +2908,117 @@
       ]
     },
     {
+      "file": "web/src/overview.ts",
+      "lineCount": 202,
+      "functions": [
+        {
+          "name": "HttpError",
+          "line": 27,
+          "kind": "class",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "$",
+          "line": 35,
+          "kind": "function",
+          "exported": false,
+          "calls": 0
+        },
+        {
+          "name": "epochMs",
+          "line": 55,
+          "kind": "function",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "relTime",
+          "line": 59,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "clockTime",
+          "line": 71,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "setBanner",
+          "line": 77,
+          "kind": "function",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "openSerial",
+          "line": 82,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "activeRowHtml",
+          "line": 86,
+          "kind": "function",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "historyRowHtml",
+          "line": 100,
+          "kind": "function",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "renderActive",
+          "line": 109,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "renderHistory",
+          "line": 115,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "renderUnavailable",
+          "line": 121,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "fetchScenes",
+          "line": 130,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "failMessage",
+          "line": 137,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "loadScenes",
+          "line": 146,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        }
+      ]
+    },
+    {
       "file": "web/src/protocol/compare.ts",
       "lineCount": 23,
       "functions": [
@@ -2896,7 +3215,7 @@
     },
     {
       "file": "web/src/viewport/renderer.ts",
-      "lineCount": 752,
+      "lineCount": 767,
       "functions": [
         {
           "name": "Viewport",
