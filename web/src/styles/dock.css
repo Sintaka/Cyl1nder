@@ -24,15 +24,14 @@
   border-radius: 6px;
   margin: 3px 2px; /* horizontal gap between rounded tabs */
 }
-/* Active tab: VSCode/Houdini style - rounded TOP edge only + concave (inverted)
-   bottom corners so it visually merges with the panel content below. The notch is
-   painted with the CONTENT background (--dv-group-view-background-color), not the
-   tab-bar background. A higher z-index lets the active tab overlap the adjacent
-   inactive tabs and hide their bottom corners behind it. */
+/* Active tab: Chrome-style full rounded rectangle (all four corners 6px). The
+   bottom corners are CONVEX (outward) rounded, NOT cut in. A higher z-index +
+   slight negative side margins let it overlap the adjacent inactive tabs and
+   cover their bottom corners behind it. */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab {
   position: relative;
   z-index: 10;            /* overlap adjacent inactive tabs */
-  border-radius: 6px 6px 0 0; /* top edge rounded only */
+  border-radius: 6px;     /* full rounded rectangle: all four corners */
   margin: 3px -4px 0;     /* flush with the content bottom + slight side overlap */
 }
 /* Active tab is the FIRST tab: keep the normal left margin so it isn't clipped
@@ -45,8 +44,30 @@
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab:has(+ .cyl-dock-add) {
   margin-right: -2px;
 }
-/* bottom-left concave notch (quarter-disc of the content background) */
-.cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab::before {
+/* Inactive tab immediately BEFORE the active tab: concave (inward) notch at its
+   bottom-RIGHT corner (the side the active tab overlaps). Painted with the TAB-BAR
+   background (#1c1e22) so the active tab's convex rounded corner looks nested in. */
+.cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab:has(+ .dv-active-tab) {
+  position: relative; /* anchor for the notch */
+}
+.cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab:has(+ .dv-active-tab)::after {
+  content: "";
+  position: absolute;
+  top: auto;              /* neutralizes dockview's :not(:first-child) divider rule */
+  right: 0;
+  bottom: 0;
+  width: 8px;
+  height: 8px;
+  background: radial-gradient(circle at 100% 100%, #1c1e22 0 8px, transparent 8.5px);
+  pointer-events: none;
+  z-index: 5;
+}
+/* Inactive tab immediately AFTER the active tab: concave notch at its bottom-LEFT
+   corner (same tab-bar-background trick). */
+.cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-active-tab + .dv-tab {
+  position: relative; /* anchor for the notch */
+}
+.cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-active-tab + .dv-tab::after {
   content: "";
   position: absolute;
   top: auto;              /* neutralizes dockview's :not(:first-child) divider rule */
@@ -54,22 +75,9 @@
   bottom: 0;
   width: 8px;
   height: 8px;
-  background: radial-gradient(circle at 0 100%, var(--dv-group-view-background-color) 0 8px, transparent 8.5px);
+  background: radial-gradient(circle at 0 100%, #1c1e22 0 8px, transparent 8.5px);
   pointer-events: none;
-  z-index: 11;
-}
-/* bottom-right concave notch */
-.cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab::after {
-  content: "";
-  position: absolute;
-  top: auto;
-  right: 0;
-  bottom: 0;
-  width: 8px;
-  height: 8px;
-  background: radial-gradient(circle at 100% 100%, var(--dv-group-view-background-color) 0 8px, transparent 8.5px);
-  pointer-events: none;
-  z-index: 11;
+  z-index: 5;
 }
 /* hover background for inactive tabs (dockview theme rule is very specific,
    so !important is needed to reliably override the bundled stylesheet) */

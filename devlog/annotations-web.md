@@ -210,3 +210,18 @@
   - 标签栏最右固定 **✕**（不随溢出滑动），点击 `group.api.close()` **关闭整个 group**，store.pushLog 记录。
   - `base.css` 追加全局深色滚动条（WebKit + Firefox scrollbar-color）。
 - **主进程**：main.ts 接线 spreadsheet focus（display 驱动）；折叠 James 的子 commit 为单 commit；全量验证 tsc/vitest/pytest/e2e/verify-all + 综合 Playwright 复测全绿。
+
+## v0.1.00042（2026-08-11）6 路并行（spreadsheet/dock/param/viewport 写集拆分 + MCP 通道 + 流式调研）
+- **结构调整（主进程预调）**：graph.ts 先加 `getSelectedNode()` + `onSelectionChanged()`（ReteGraph 契约），使 spreadsheet/param 写集与 main.ts 解耦；main.ts 由主进程统一接线。
+- **Spreadsheet（Lovelace，spreadsheet.ts + spreadsheet.css）**：
+  - `SpreadsheetFocus` 增加可选 `label`：null 节点选中时 section 头部显示 `in0`（null 的输入端口名）而不是 `inputsN`（修复「选 null3 显示 inputs3」）。
+  - Vertices / Prims 第一列 `#` → `vertnum` / `primnum`。
+  - 每张表最右加空填充列（`.cyl-sp-col-fill` width:100%/min 200px）→ 表格铺满面板宽、留空处也显示表格底色；数据行不足 8 行补空行，各 sheet 组件高度统一不截断。
+  - 交替深色更暗：odd `#16202e → #0f1722`（even/hover 不变）。
+- **docking 标签（Meitner，dock.css）**：活动标签改为**完整圆角矩形**（四角 6px、底角向外凸的 Chrome 式圆角），删除自挖凹角 `::before/::after`；相邻非活动标签加 8px 凹切（radial-gradient 用标签栏背景 `#1c1e22`），活动标签 z-index 10 遮挡相邻标签底角；first/last/+`/`✕` 边界与 hover/颜色全部保留。
+- **viewport（Newton，renderer.ts）**：默认显示模式 `smooth-shaded → flat-wire`（Flat Wire Shaded）；新增 `getDisplaySettings()` / `setDisplaySettings()` 供布局 JSON 存取显示设置；**three.js gizmo 演示**（确认 TransformControls 即 gizmo，项目已用于 translate 编辑）：G 开关绿色测试盒、Shift+G 切 translate/rotate/scale。
+- **Param 面板（Ptolemy，param.ts 新建 + dock.ts + Default.json + base.css）**：`renderParams(el, info)` 显示选中节点的可输入属性（null/in/out 无属性 → 空态「该节点暂无可用参数（v1 预留）」）；默认布局右栏加 Params 标签页；`+` 菜单可加独立实例；`DockContent` 增加 `param`。
+- **MCP 通道（Planck，mcp_server.py + test_mcp.py + mcp-channel-proposals.md + API_INDEX）**：新增 `cyl1nder_viewport_settings` / `cyl1nder_node_params`（读快照 docking.displaySettings / scene/node-parm.json）；pytest 20 全绿；调研文档列 7 项通道，指出节点选中态未持久化（后续快照扩展或 WS 推送）。
+- **流式调研（Kuhn，streaming-hda-review.md + streaming-plan-b 头部）**：方案 B 仍「设计定稿」、M1–M6 未开始实现；差距=全量重建/33ms 轮询/无增量/无 topoId；给出 B1-M1→M3 落地清单与风险。
+- **主进程接线（main.ts）**：spreadsheet/param 跟随**选中节点**（多选取第一个）：null→其 in0 源端口（头部 `in0`）、input→全部 4 路、output→outputs、无选中→回退 display flag；选中变更经 `graph.onSelectionChanged`（**setTimeout 0 等 rete 异步选中落地后再刷新**——同步通知会读到旧选中）驱动；布局 JSON 存取 `displaySettings`（getDockJson 注入 + applyLayout 后恢复）；Default.json 顶层 `displaySettings.mode=flat-wire`；debug hook 新增 `__cylGraph`。
+- **验证**：tsc 0 错；vitest 13 过；pytest 20 过；官方 smoke e2e 过；自建 Playwright 复测（Flat Wire Shaded 默认 / Params 空态 / 点 null3 → `in0 · 2pt / 1prim` / 点 _input_ → 4 section / 无 console error）。

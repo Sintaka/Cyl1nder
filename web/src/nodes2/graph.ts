@@ -34,10 +34,23 @@ export interface NodeFlags {
 
 export const DEFAULT_FLAGS: NodeFlags = { display: false, bypass: false, freeze: false, reference: false };
 
+/** Info about the first selected node (multi-select -> first), for panels that
+ *  follow the selection (Spreadsheet / Params). `port` for a null node = the
+ *  _input_ source index (in0..in3) feeding its in0; null when unresolved. */
+export interface SelectedNodeInfo {
+  kind: NodeKind;
+  id: string;
+  label: string;
+  port: number | null;
+  params: Array<{ name: string; type: string; value: unknown }>;
+}
+
 export interface ReteGraphHandlers {
   onNodePick?: (kind: NodeKind, port: number | null, nodeId: string) => void;
   /** node flags changed (context menu) -> caller refreshes viewport visibility/reference */
   onFlagsChanged?: (kind: NodeKind, flags: NodeFlags) => void;
+  /** node selection changed (pick / rect-select / restore) -> panels follow selection */
+  onSelectionChanged?: () => void;
 }
 
 export interface ReteGraph {
@@ -51,6 +64,10 @@ export interface ReteGraph {
   getDisplayNode(): { kind: NodeKind; flags: NodeFlags } | null;
   /** For a displayed null node: the _input_ source port (in0..in3) feeding its in0. */
   getDisplayPortIndex(): number | null;
+  /** First selected node (multi-select -> first), or null (panels follow selection). */
+  getSelectedNode(): SelectedNodeInfo | null;
+  /** Subscribe to selection changes (node pick / rect-select / restore). Returns unsub. */
+  onSelectionChanged(cb: () => void): () => void;
   frameSelection(): void;
   serializeGraph(): unknown;
   restoreGraph(data: unknown): Promise<void>;
@@ -58,6 +75,12 @@ export interface ReteGraph {
 
 const GEO = "geo";
 const log = (m: string) => store.pushLog(`[node] ${m}`);
+
+/** Selection-change listeners (panels that follow the selected node). */
+const selectionListeners = new Set<() => void>();
+function notifySelection(): void {
+  for (const fn of selectionListeners) fn();
+}
 
 /** Cached per-kind labels so setStats can restore the base title. */
 const BASE_LABEL: Record<string, string> = { _input_: "_input_", _output_: "_output_", null: "null" };
@@ -116,6 +139,8 @@ export class CylNode extends ClassicPreset.Node {
   kind: NodeKind = "null";
   /** stable base name (e.g. "null"); label may carry a unique suffix (null1, null2…). */
   baseLabel = "";
+  /** per-node editable params (Param panel); empty for null/input/output in v1. */
+  params?: Array<{ name: string; type: string; value: unknown }>;
   constructor(label: string, kind: NodeKind) {
     super(label);
     this.kind = kind;
@@ -220,6 +245,15 @@ async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
         const idx = portIndexFromTarget(target);
         handlers.onNodePick?.(hit.node.kind, idx, hit.id);
       }
+      // Selection is applied asynchronously by rete (nodepicked -> selectable pipe),
+      // so notify AFTER this event task (setTimeout 0) - otherwise panels read the
+      // stale selection. Also fires for blank clicks (deselect) and chip/port clicks.
+      // notifySelection drives the graph-level subscription (main.ts); the handlers
+      // callback is kept for the alternate API.
+      window.setTimeout(() => {
+        handlers.onSelectionChanged?.();
+        notifySelection();
+      }, 0);
     },
     true,
   );
@@ -321,6 +355,23 @@ export async function createReteGraph(
       const m = /^in(\d)$/.exec(String(conn?.sourceOutput ?? ""));
       return m ? Number(m[1]) : null;
     },
+    getSelectedNode: () => {
+      const sel = (g.editor.getNodes() as CylNode[]).find((n) => (n as ClassicPreset.Node).selected);
+      if (!sel) return null;
+      let port: number | null = null;
+      if (sel.kind === "null") {
+        const conn = g.editor.getConnections().find(
+          (c) => c.target === sel.id && c.targetInput === "in0",
+        ) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
+        const m = /^in(\d)$/.exec(String(conn?.sourceOutput ?? ""));
+        port = m ? Number(m[1]) : null;
+      }
+      return { kind: sel.kind, id: sel.id, label: sel.label, port, params: sel.params ?? [] };
+    },
+    onSelectionChanged: (cb) => {
+      selectionListeners.add(cb);
+      return () => selectionListeners.delete(cb);
+    },
     frameSelection: () => {
       const all = g.editor.getNodes();
       const selected = all.filter((n) => (n as ClassicPreset.Node).selected);
@@ -393,6 +444,7 @@ export async function createReteGraph(
         await g.area.area.translate(d.viewport.x ?? 0, d.viewport.y ?? 0);
       }
       store.pushLog(`[node] restored graph: ${d.nodes.length} nodes / ${(d.connections ?? []).length} connections`);
+      notifySelection(); // selection was reset by the rebuild
     },
   };
 }
@@ -1064,6 +1116,7 @@ function attachRectSelect(
       }
     }
     store.pushLog(`[node] rect-select complete`);
+    window.setTimeout(notifySelection, 0); // select()/unselect() are async
   };
   window.addEventListener("pointerup", up);
 }

@@ -181,6 +181,50 @@ def cyl1nder_nodeview_connected(serial: str, nodeId: str) -> dict | None:
     }
 
 
+# ---- viewport / params: 视口显示模式 + 节点参数（读快照 docking/parm 部分，不依赖 web 在线）----
+
+
+def _read_snapshot_data(serial: str) -> dict | None:
+    """读取某 serial 的完整快照（复用 bridge/bridge/snapshot.py::read_snapshot），无快照返回 None。"""
+    st = get_state()
+    rec = st.registry.get(serial)
+    hip = rec.hip if rec else ""
+    return read_snapshot(hip, serial)
+
+
+@mcp.tool()
+def cyl1nder_viewport_settings(serial: str) -> dict | None:
+    """视口显示模式：读取该 serial 快照 docking-layout.json 顶层的 displaySettings（如 {"mode":"flat-wire"}）。
+
+    无快照 / 无 docking / 无 displaySettings 时返回 displaySettings=None 并附 note。
+    """
+    snap = _read_snapshot_data(serial)
+    if not snap:
+        return {"serial": serial, "displaySettings": None, "note": "无快照（snapshot_root 不存在或为空）"}
+    docking = snap.get("docking")
+    if not isinstance(docking, dict):
+        return {"serial": serial, "displaySettings": None, "note": "快照无 docking 部分（docking-layout.json 缺失）"}
+    ds = docking.get("displaySettings")
+    if ds is None:
+        return {"serial": serial, "displaySettings": None, "note": "docking-layout.json 顶层无 displaySettings"}
+    return {"serial": serial, "displaySettings": ds}
+
+
+@mcp.tool()
+def cyl1nder_node_params(serial: str) -> dict | None:
+    """节点参数：读取该 serial 快照 scene/node-parm.json（按节点路径/标签 key 的 dict）。
+
+    无快照 / 无 parm 时返回 params=None 并附 note。
+    """
+    snap = _read_snapshot_data(serial)
+    if not snap:
+        return {"serial": serial, "params": None, "note": "无快照（snapshot_root 不存在或为空）"}
+    parm = snap.get("parm")
+    if not isinstance(parm, dict):
+        return {"serial": serial, "params": None, "note": "快照无 parm 部分（scene/node-parm.json 缺失）"}
+    return {"serial": serial, "params": parm}
+
+
 @mcp.tool()
 def cyl1nder_read_layout() -> dict:
     """Debug: current docking layout (docking-layout.json from the bridge file)."""

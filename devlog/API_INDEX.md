@@ -1,6 +1,6 @@
 # API 索引 / API INDEX
 
-> 机器生成（2026-08-10），由 `node scripts/gen-api-index.mjs` 产出。单源：bridge/bridge/*.py
+> 机器生成（2026-08-11），由 `node scripts/gen-api-index.mjs` 产出。单源：bridge/bridge/*.py
 
 ## REST (127.0.0.1:8375)
 
@@ -33,11 +33,13 @@
 - `cyl1nder_nodeview_connections` (mcp_server.py:107)
 - `cyl1nder_nodeview_status` (mcp_server.py:127)
 - `cyl1nder_nodeview_connected` (mcp_server.py:154)
-- `cyl1nder_read_layout` (mcp_server.py:185)
-- `cyl1nder_read_logs` (mcp_server.py:208)
-- `cyl1nder_get_errors` (mcp_server.py:214)
-- `cyl1nder_get_geometry_summary` (mcp_server.py:220)
-- `cyl1nder_index_query` (mcp_server.py:230)
+- `cyl1nder_viewport_settings` (mcp_server.py:196)
+- `cyl1nder_node_params` (mcp_server.py:214)
+- `cyl1nder_read_layout` (mcp_server.py:229)
+- `cyl1nder_read_logs` (mcp_server.py:252)
+- `cyl1nder_get_errors` (mcp_server.py:258)
+- `cyl1nder_get_geometry_summary` (mcp_server.py:264)
+- `cyl1nder_index_query` (mcp_server.py:274)
 
 ## WS 消息
 

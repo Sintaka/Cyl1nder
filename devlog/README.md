@@ -45,6 +45,8 @@
 | 快捷键（分类记录） | [shortcuts.md](shortcuts.md) |
 | 视口显示踩坑记录（poly/线框/模式菜单/相机） | [viewport-bug-report.md](viewport-bug-report.md) |
 | 节点视图 MCP 调试工具报告 | [nodeview-mcp-report.md](nodeview-mcp-report.md) |
+| 视口显示模式 / Param 面板 MCP 通道调研 | [mcp-channel-proposals.md](mcp-channel-proposals.md) |
+| bridge⇄HDA 流式落地现状调研 | [streaming-hda-review.md](streaming-hda-review.md) |
 
 ## 关键词 → 专题文件（快速跳读）
 
@@ -72,8 +74,12 @@
 | 并行修改规范（子智能体） | devlog/development-standards.md（「并行修改规范」章节） |
 | 编码规范 / 中文乱码 / git 历史清理 | devlog/development-standards.md（「编码与 Git 卫生」章节） |
 | Spreadsheet / 层级持久 / 列宽 | web/src/app/spreadsheet.ts · web/src/styles/spreadsheet.css · devlog/annotations-web.md |
+| 选中节点 / Spreadsheet·Param 跟随 | web/src/main.ts（refreshSelectionPanels）· web/src/app/spreadsheet.ts · web/src/app/param.ts · web/src/nodes2/graph.ts（getSelectedNode） |
+| 显示模式默认 / displaySettings | web/src/viewport/renderer.ts · web/src/app/layouts/Default.json · web/src/app/main.ts（getDockJson） |
+| three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00042：6 路并行（写集拆分后 Lovelace/Meitner/Newton/Ptolemy + Planck/Gibbs/Kuhn）：spreadsheet 跟随选中节点（null→in0 源端口、多选取第一个）+ label 覆盖 + vertnum/primnum + 填充列/补空行 + 更暗斑马；docking 活动标签改 Chrome 式完整圆角 + 相邻凹切；viewport 默认 Flat Wire Shaded + displaySettings 存取 + three.js gizmo 演示（G/Shift+G）；新增 Param 面板（默认布局带 Params 页）；MCP 新工具 viewport_settings/node_params + 通道调研；bridge⇄HDA 流式现状调研（方案 B 未开始）；main.ts 主进程接线 + 选中刷新 timing 修复（setTimeout 0）。
 - v0.1.00041：修复 viewport-bug-report / annotations-web 首行合并（PowerShell git show 数组未 -join 换行）；编码/数组坑 + git 历史卫生写入 development-standards；根 README（x6→rete、版本格式）与 AGENT_QUICKSTART（nodes→nodes2）过期引用同步。
 - v0.1.00040：git 历史清理（filter-branch 替换 devlog/README.md 巨 blob，.git 69MB→2MB，--force-with-lease 推送成功）；恢复 5 个被管道编码写坏的 devlog 文件（README/annotations-web/viewport-bug-report/shortcuts/temp-scene-log）。
 - v0.1.00039：spreadsheet.css 再拆分 + 4 路并行（Bacon/McClintock/Noether/James）：spreadsheet display-focus 过滤（null/_input_ 只显对应源）、层级持久（不因刷新回 point）、行交替深蓝、ptnum 窄列 int + P 每分量 10ch + 科学计数、标题栏漏缝修复；视口补 Unlit Shaded/Unlit Wire Shaded 对（Shift+W），Wireframe Ghost 面 0.2（80% 透明）；节点改名修复（rete remount 吞 dblclick → 手动 pointerdown 检测 + 模块级状态）+ 究极尾号去重（foo→foo1…）+ 毛玻璃 blur12px/明度+0.1；docking 标签上半圆角下半反圆角、活动深蓝、+ 跟随标签右移、标签栏滚轮横滚、✕ 固定右侧关闭整个 group、全局深色滚动条；并行修改规范写入 development-standards.md。

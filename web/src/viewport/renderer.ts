@@ -56,16 +56,20 @@ export class Viewport {
   private lastOutputRev = -1;
   private selectedLine: THREE.Line | null = null;
   private animId = 0;
+  /** three.js TransformControls gizmo demo box (G toggle / Shift+G cycle). */
+  private gizmoDemo: THREE.Mesh | null = null;
+  private gizmoModes: ("translate" | "rotate" | "scale")[] = ["translate", "rotate", "scale"];
+  private gizmoModeIdx = 0;
 
   /** Display modes: smooth/flat shaded (Lambert, optional black wire), unlit shaded/wire, wireframe, wireframe ghost. */
-  displayMode: DisplayMode = "smooth-shaded";
+  displayMode: DisplayMode = "flat-wire";
   /** Debug reference boxes: verify the viewport can render (independent of incoming data). */
   private debugBoxes = new THREE.Group();
   private headLight = new THREE.DirectionalLight(0xffffff, 1.1);
   private ambient = new THREE.AmbientLight(0x404050, 0.8);
   private modeBtn: HTMLButtonElement;
   /** Mode remembered before entering wireframe-ghost, so W can restore it. */
-  private modeBeforeGhost: DisplayMode = "smooth-shaded";
+  private modeBeforeGhost: DisplayMode = "flat-wire";
 
   private constructor(
     private container: HTMLElement,
@@ -396,6 +400,49 @@ export class Viewport {
     store.pushLog(`[viewport] display mode = ${mode}`);
   }
 
+  /** Display settings snapshot for layout JSON persistence. */
+  getDisplaySettings(): { mode: DisplayMode } {
+    return { mode: this.displayMode };
+  }
+
+  /** Restore display settings from a layout JSON blob; ignores unknown/empty shapes. */
+  setDisplaySettings(s: { mode?: unknown } | null | undefined): void {
+    if (typeof s?.mode === "string" && s.mode in MODE_LABELS && s.mode !== this.displayMode) {
+      this.setDisplayMode(s.mode as DisplayMode);
+    }
+  }
+
+  /** three.js gizmo demo: TransformControls is the gizmo (the project already uses it
+   *  for translate editing). G toggles the demo box, Shift+G cycles the gizmo mode. */
+  toggleGizmoDemo(): void {
+    if (this.gizmoDemo) {
+      this.transform.detach();
+      this.scene.remove(this.gizmoDemo);
+      this.gizmoDemo = null;
+      store.pushLog("[viewport] gizmo demo OFF");
+      return;
+    }
+    const box = new THREE.Mesh(
+      new THREE.BoxGeometry(0.8, 0.8, 0.8),
+      new THREE.MeshLambertMaterial({ color: 0x7ce3a8 }),
+    );
+    box.position.set(2, 1.5, 0);
+    this.scene.add(box);
+    this.transform.attach(box);
+    this.transform.setMode(this.gizmoModes[0]);
+    this.gizmoModeIdx = 0;
+    this.gizmoDemo = box;
+    store.pushLog("[viewport] gizmo demo ON (three.js TransformControls) mode=translate - G toggle / Shift+G cycle");
+  }
+
+  /** Cycle translate -> rotate -> scale on the gizmo demo (no-op while demo is off). */
+  cycleGizmoMode(): void {
+    if (!this.gizmoDemo) return;
+    this.gizmoModeIdx = (this.gizmoModeIdx + 1) % 3;
+    this.transform.setMode(this.gizmoModes[this.gizmoModeIdx]);
+    store.pushLog(`[viewport] gizmo mode = ${this.gizmoModes[this.gizmoModeIdx]}`);
+  }
+
   /** W / Shift+W display-mode hotkeys. Lives here (not main.ts) so F/B handlers stay untouched. */
   private attachKeyboardShortcuts(): void {
     const isTyping = (): boolean => {
@@ -407,7 +454,15 @@ export class Viewport {
       );
     };
     window.addEventListener("keydown", (e) => {
-      if (e.repeat || e.key.toLowerCase() !== "w" || isTyping()) return;
+      if (e.repeat || isTyping()) return;
+      const key = e.key.toLowerCase();
+      if (key !== "w" && key !== "g") return;
+      if (key === "g") {
+        e.preventDefault();
+        if (e.shiftKey) this.cycleGizmoMode();
+        else this.toggleGizmoDemo();
+        return;
+      }
       e.preventDefault();
       if (e.shiftKey) {
         // Shift+W: toggle inside the shaded pair you're in; from any other mode, enter the smooth pair.

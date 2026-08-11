@@ -6,12 +6,14 @@ from bridge.mcp_server import (
     cyl1nder_get_status,
     cyl1nder_index_query,
     cyl1nder_list_serials,
+    cyl1nder_node_params,
     cyl1nder_nodeview_connected,
     cyl1nder_nodeview_connections,
     cyl1nder_nodeview_nodes,
     cyl1nder_nodeview_status,
     cyl1nder_ping,
     cyl1nder_read_logs,
+    cyl1nder_viewport_settings,
 )
 from bridge.protocol import generate_serial
 from bridge.state import get_state, reset_state
@@ -66,3 +68,51 @@ def test_mcp_tools(tmp_path: Path, monkeypatch) -> None:
     assert status["displayNodes"] == ["n1"]
     conn = cyl1nder_nodeview_connected(serial, "n1")
     assert len(conn["predecessors"]) == 0 and len(conn["successors"]) == 1
+
+
+def test_mcp_viewport_settings_and_node_params(tmp_path: Path, monkeypatch) -> None:
+    reset_state(tmp_path / "data")
+    monkeypatch.setenv("CYL1NDER_SNAPSHOT_ROOT", str(tmp_path / "snaps"))
+    st = get_state()
+    serial = generate_serial()
+    st.registry.register(serial, nodePath="/obj/x", label="Cyl1nder")
+    st.workspaces.get_or_create(serial).set_inputs([])
+
+    from bridge.snapshot import write_snapshot
+
+    # 无快照：两个工具都返回 None + note
+    vp = cyl1nder_viewport_settings(serial)
+    assert vp["displaySettings"] is None and vp["note"]
+    np = cyl1nder_node_params(serial)
+    assert np["params"] is None and np["note"]
+
+    # 快照存在但缺对应部分：graph 在但无 parm；docking 在但无 displaySettings
+    write_snapshot(serial, "", graph={"schemaVersion": 2, "nodes": [], "connections": []})
+    assert cyl1nder_node_params(serial)["params"] is None
+    write_snapshot(serial, "", docking={"grid": {"width": 100}})
+    vp = cyl1nder_viewport_settings(serial)
+    assert vp["displaySettings"] is None and "displaySettings" in vp["note"]
+
+    # 写全：有 docking.displaySettings + 有 parm
+    write_snapshot(
+        serial,
+        "",
+        docking={
+            "grid": {"root": {"type": "leaf", "data": {"views": ["viewport"], "id": "1"}}, "width": 100, "height": 100},
+            "displaySettings": {"mode": "flat-wire"},
+        },
+        parm={
+            "/obj/x/Cyl1nder1": {"label": "Cyl1nder1", "parms": {"scale": 1.0, "density": 100}},
+            "Cyl1nder2": {"label": "Cyl1nder2", "parms": {"enabled": True}},
+        },
+    )
+    assert cyl1nder_viewport_settings(serial)["displaySettings"] == {"mode": "flat-wire"}
+    assert cyl1nder_node_params(serial)["params"] == {
+        "/obj/x/Cyl1nder1": {"label": "Cyl1nder1", "parms": {"scale": 1.0, "density": 100}},
+        "Cyl1nder2": {"label": "Cyl1nder2", "parms": {"enabled": True}},
+    }
+
+    # 成功返回不含 note 键（无快照 / 缺部分时才有 note）
+    vp = cyl1nder_viewport_settings(serial)
+    assert vp["displaySettings"] == {"mode": "flat-wire"} and "note" not in vp
+

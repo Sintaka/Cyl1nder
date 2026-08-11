@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-10），由 `node scripts/gen-index.mjs` 产出。共 **300** 个函数/类。
+> 机器生成（2026-08-11），由 `node scripts/gen-index.mjs` 产出。共 **313** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -61,7 +61,7 @@
 |---|---|---|---|---|
 | `create_app` | 14 | def |  | 2 |
 
-## bridge/bridge/mcp_server.py（259 行）
+## bridge/bridge/mcp_server.py（303 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -76,13 +76,16 @@
 | `cyl1nder_nodeview_connections` | 107 | def |  | 1 |
 | `cyl1nder_nodeview_status` | 127 | def |  | 1 |
 | `cyl1nder_nodeview_connected` | 154 | def |  | 1 |
-| `cyl1nder_read_layout` | 185 | def |  | 1 |
-| `walk` | 195 | def |  | 3 |
-| `cyl1nder_read_logs` | 208 | def |  | 1 |
-| `cyl1nder_get_errors` | 214 | def |  | 1 |
-| `cyl1nder_get_geometry_summary` | 220 | def |  | 1 |
-| `cyl1nder_index_query` | 230 | def |  | 1 |
-| `run_stdio` | 253 | def |  | 2 |
+| `_read_snapshot_data` | 187 | def |  | 3 |
+| `cyl1nder_viewport_settings` | 196 | def |  | 1 |
+| `cyl1nder_node_params` | 214 | def |  | 1 |
+| `cyl1nder_read_layout` | 229 | def |  | 1 |
+| `walk` | 239 | def |  | 3 |
+| `cyl1nder_read_logs` | 252 | def |  | 1 |
+| `cyl1nder_get_errors` | 258 | def |  | 1 |
+| `cyl1nder_get_geometry_summary` | 264 | def |  | 1 |
+| `cyl1nder_index_query` | 274 | def |  | 1 |
+| `run_stdio` | 297 | def |  | 2 |
 
 ## bridge/bridge/protocol.py（96 行）
 
@@ -302,31 +305,32 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/dock.ts（525 行）
+## web/src/app/dock.ts（541 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `layoutDebug` | 55 | function |  | 2 |
-| `categorizeLog` | 78 | function |  | 2 |
-| `renderLogBody` | 87 | function |  | 4 |
-| `createFreshLog` | 93 | function |  | 2 |
-| `createFreshInspector` | 121 | function |  | 2 |
-| `render` | 124 | arrow |  | 2 |
-| `createFreshSpreadsheet` | 146 | function |  | 2 |
-| `createPlaceholder` | 166 | function |  | 2 |
-| `createInstanceContent` | 176 | function |  | 2 |
-| `nextInstanceIndex` | 198 | function |  | 2 |
-| `addInstancePanel` | 208 | function |  | 2 |
-| `hideAddMenu` | 222 | function |  | 5 |
-| `ensureAddMenu` | 227 | function |  | 2 |
-| `toggleAddMenu` | 266 | function |  | 2 |
-| `groupIdForButton` | 281 | function |  | 2 |
-| `attachTabBarWheel` | 291 | function |  | 2 |
-| `closeTabGroup` | 309 | function |  | 2 |
-| `refreshAddButtons` | 325 | function |  | 4 |
-| `setupDock` | 383 | function | export | 1 |
-| `onLayoutChange` | 470 | arrow |  | 0 |
-| `applyLayout` | 514 | function | export | 1 |
+| `layoutDebug` | 57 | function |  | 2 |
+| `categorizeLog` | 80 | function |  | 2 |
+| `renderLogBody` | 89 | function |  | 4 |
+| `createFreshLog` | 95 | function |  | 2 |
+| `createFreshInspector` | 123 | function |  | 2 |
+| `render` | 126 | arrow |  | 2 |
+| `createFreshSpreadsheet` | 148 | function |  | 2 |
+| `createFreshParam` | 164 | function |  | 2 |
+| `createPlaceholder` | 179 | function |  | 2 |
+| `createInstanceContent` | 189 | function |  | 2 |
+| `nextInstanceIndex` | 213 | function |  | 2 |
+| `addInstancePanel` | 223 | function |  | 2 |
+| `hideAddMenu` | 237 | function |  | 5 |
+| `ensureAddMenu` | 242 | function |  | 2 |
+| `toggleAddMenu` | 281 | function |  | 2 |
+| `groupIdForButton` | 296 | function |  | 2 |
+| `attachTabBarWheel` | 306 | function |  | 2 |
+| `closeTabGroup` | 324 | function |  | 2 |
+| `refreshAddButtons` | 340 | function |  | 4 |
+| `setupDock` | 398 | function | export | 1 |
+| `onLayoutChange` | 486 | arrow |  | 0 |
+| `applyLayout` | 530 | function | export | 1 |
 
 ## web/src/app/layout.ts（172 行）
 
@@ -346,16 +350,27 @@
 |---|---|---|---|---|
 | `formatLog` | 2 | function | export | 1 |
 
-## web/src/app/spreadsheet.ts（165 行）
+## web/src/app/param.ts（68 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `esc` | 22 | function |  | 7 |
-| `fmtNum` | 27 | function |  | 7 |
-| `attrRow` | 34 | function |  | 2 |
-| `renderPayload` | 41 | function | export | 2 |
-| `addVerts` | 77 | arrow |  | 2 |
-| `renderSpreadsheet` | 119 | function | export | 1 |
+| `esc` | 21 | function |  | 6 |
+| `fmtValue` | 26 | function |  | 2 |
+| `renderParams` | 38 | function | export | 1 |
+
+## web/src/app/spreadsheet.ts（207 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `esc` | 31 | function |  | 6 |
+| `htmlEscape` | 36 | function |  | 2 |
+| `fmtNum` | 41 | function |  | 7 |
+| `attrRow` | 48 | function |  | 2 |
+| `rowHtml` | 58 | function |  | 5 |
+| `bodyHtml` | 67 | function |  | 5 |
+| `renderPayload` | 73 | function | export | 2 |
+| `addVerts` | 114 | arrow |  | 2 |
+| `renderSpreadsheet` | 158 | function | export | 1 |
 
 ## web/src/bridge/client.ts（162 行）
 
@@ -365,77 +380,80 @@
 | `connectWs` | 126 | function | export | 1 |
 | `connect` | 131 | arrow |  | 1 |
 
-## web/src/main.ts（492 行）
+## web/src/main.ts（550 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `matchLogFilter` | 30 | arrow |  | 0 |
-| `renderLog` | 31 | arrow |  | 3 |
-| `toggle` | 80 | arrow |  | 6 |
-| `getDockJson` | 94 | arrow |  | 3 |
-| `saveCurrentLayout` | 95 | arrow |  | 2 |
-| `refreshLayoutPresets` | 103 | arrow |  | 1 |
-| `refreshNodeFlags` | 214 | function |  | 3 |
-| `inputStatsText` | 261 | function |  | 2 |
-| `outputStatsText` | 270 | function |  | 2 |
-| `renderInspector` | 279 | function |  | 2 |
-| `runNetwork` | 321 | function |  | 2 |
-| `startHdaWatch` | 344 | function |  | 2 |
-| `check` | 346 | arrow |  | 1 |
-| `stopHdaWatch` | 363 | function |  | 2 |
-| `loadSnapshotIntoStore` | 372 | function |  | 3 |
-| `connect` | 400 | function |  | 4 |
-| `scheduleSaveGraph` | 480 | function |  | 2 |
+| `matchLogFilter` | 31 | arrow |  | 0 |
+| `renderLog` | 32 | arrow |  | 3 |
+| `toggle` | 85 | arrow |  | 6 |
+| `getDockJson` | 99 | arrow |  | 3 |
+| `saveCurrentLayout` | 103 | arrow |  | 2 |
+| `refreshLayoutPresets` | 111 | arrow |  | 1 |
+| `applyLayoutSettings` | 229 | function |  | 4 |
+| `refreshSelectionPanels` | 236 | function |  | 3 |
+| `refreshNodeFlags` | 277 | function |  | 3 |
+| `inputStatsText` | 324 | function |  | 2 |
+| `outputStatsText` | 333 | function |  | 2 |
+| `renderInspector` | 342 | function |  | 2 |
+| `runNetwork` | 379 | function |  | 2 |
+| `startHdaWatch` | 402 | function |  | 2 |
+| `check` | 404 | arrow |  | 1 |
+| `stopHdaWatch` | 421 | function |  | 2 |
+| `loadSnapshotIntoStore` | 430 | function |  | 3 |
+| `connect` | 458 | function |  | 4 |
+| `scheduleSaveGraph` | 538 | function |  | 2 |
 
-## web/src/nodes2/graph.ts（1212 行）
+## web/src/nodes2/graph.ts（1265 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `log` | 60 | arrow |  | 8 |
-| `nodeByKind` | 65 | function |  | 4 |
-| `nodeFromTarget` | 70 | function |  | 7 |
-| `renderNode` | 86 | function |  | 1 |
-| `portIndexFromTarget` | 101 | function |  | 2 |
-| `CylNode` | 113 | class | export | 3 |
-| `makeInputNode` | 142 | function |  | 3 |
-| `makeOutputNode` | 147 | function |  | 3 |
-| `makeNullNode` | 154 | function | export | 4 |
-| `buildGraph` | 168 | function |  | 2 |
-| `createReteGraph` | 231 | function | export | 1 |
-| `attachTabSearch` | 429 | function |  | 2 |
-| `render` | 445 | arrow |  | 4 |
-| `create` | 460 | arrow |  | 2 |
-| `close` | 488 | arrow |  | 6 |
-| `update` | 494 | arrow |  | 3 |
-| `distToSegment` | 524 | function |  | 2 |
-| `sampleConnectionPath` | 534 | function |  | 2 |
-| `attachCutMode` | 555 | function |  | 2 |
-| `isTyping` | 579 | arrow |  | 1 |
-| `showLine` | 585 | arrow |  | 2 |
-| `hideLine` | 593 | arrow |  | 2 |
-| `cutConnection` | 601 | arrow |  | 2 |
-| `cutBySegment` | 609 | arrow |  | 1 |
-| `up` | 657 | arrow |  | 0 |
-| `attachFlagMenu` | 679 | function |  | 2 |
-| `show` | 691 | arrow |  | 2 |
-| `setNodeStateHandler` | 745 | function | export | 2 |
-| `fireNodeState` | 748 | function | export | 1 |
-| `setRenameHandler` | 754 | function | export | 2 |
-| `fireRename` | 757 | function | export | 1 |
-| `initTooltip` | 763 | function | export | 2 |
-| `showTooltip` | 769 | function | export | 1 |
-| `hideTooltip` | 782 | function | export | 1 |
-| `attachMMBPan` | 790 | function |  | 2 |
-| `onMove` | 798 | arrow |  | 0 |
-| `onUp` | 801 | arrow |  | 0 |
-| `attachDotGrid` | 819 | function |  | 2 |
-| `hitTestConnection` | 850 | function |  | 3 |
-| `attachInsertion` | 878 | function |  | 2 |
-| `setHover` | 901 | arrow |  | 2 |
-| `attachRectSelect` | 1009 | function |  | 2 |
-| `attachShakeDisconnect` | 1083 | function |  | 2 |
-| `reset` | 1092 | arrow |  | 0 |
-| `shakeNode` | 1098 | arrow |  | 1 |
+| `log` | 77 | arrow |  | 8 |
+| `notifySelection` | 81 | function |  | 3 |
+| `nodeByKind` | 88 | function |  | 4 |
+| `nodeFromTarget` | 93 | function |  | 7 |
+| `renderNode` | 109 | function |  | 1 |
+| `portIndexFromTarget` | 124 | function |  | 2 |
+| `CylNode` | 136 | class | export | 3 |
+| `makeInputNode` | 167 | function |  | 3 |
+| `makeOutputNode` | 172 | function |  | 3 |
+| `makeNullNode` | 179 | function | export | 4 |
+| `buildGraph` | 193 | function |  | 2 |
+| `createReteGraph` | 265 | function | export | 1 |
+| `attachTabSearch` | 481 | function |  | 2 |
+| `render` | 497 | arrow |  | 4 |
+| `create` | 512 | arrow |  | 2 |
+| `close` | 540 | arrow |  | 6 |
+| `update` | 546 | arrow |  | 3 |
+| `distToSegment` | 576 | function |  | 2 |
+| `sampleConnectionPath` | 586 | function |  | 2 |
+| `attachCutMode` | 607 | function |  | 2 |
+| `isTyping` | 631 | arrow |  | 1 |
+| `showLine` | 637 | arrow |  | 2 |
+| `hideLine` | 645 | arrow |  | 2 |
+| `cutConnection` | 653 | arrow |  | 2 |
+| `cutBySegment` | 661 | arrow |  | 1 |
+| `up` | 709 | arrow |  | 0 |
+| `attachFlagMenu` | 731 | function |  | 2 |
+| `show` | 743 | arrow |  | 2 |
+| `setNodeStateHandler` | 797 | function | export | 2 |
+| `fireNodeState` | 800 | function | export | 1 |
+| `setRenameHandler` | 806 | function | export | 2 |
+| `fireRename` | 809 | function | export | 1 |
+| `initTooltip` | 815 | function | export | 2 |
+| `showTooltip` | 821 | function | export | 1 |
+| `hideTooltip` | 834 | function | export | 1 |
+| `attachMMBPan` | 842 | function |  | 2 |
+| `onMove` | 850 | arrow |  | 0 |
+| `onUp` | 853 | arrow |  | 0 |
+| `attachDotGrid` | 871 | function |  | 2 |
+| `hitTestConnection` | 902 | function |  | 3 |
+| `attachInsertion` | 930 | function |  | 2 |
+| `setHover` | 953 | arrow |  | 2 |
+| `attachRectSelect` | 1061 | function |  | 2 |
+| `attachShakeDisconnect` | 1136 | function |  | 2 |
+| `reset` | 1145 | arrow |  | 0 |
+| `shakeNode` | 1151 | arrow |  | 1 |
 
 ## web/src/protocol/compare.ts（23 行）
 
@@ -492,13 +510,13 @@
 | `buildInputs` | 111 | function | export | 1 |
 | `buildOutputs` | 121 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（498 行）
+## web/src/viewport/renderer.ts（553 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `Viewport` | 44 | class | export | 1 |
-| `showModeMenu` | 112 | arrow |  | 1 |
-| `hideModeMenu` | 124 | arrow |  | 2 |
-| `applyMode` | 125 | arrow |  | 1 |
-| `openModeMenu` | 140 | arrow |  | 1 |
-| `closeModeMenu` | 141 | arrow |  | 3 |
+| `showModeMenu` | 116 | arrow |  | 1 |
+| `hideModeMenu` | 128 | arrow |  | 2 |
+| `applyMode` | 129 | arrow |  | 1 |
+| `openModeMenu` | 144 | arrow |  | 1 |
+| `closeModeMenu` | 145 | arrow |  | 3 |

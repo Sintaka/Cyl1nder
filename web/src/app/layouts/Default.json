@@ -39,7 +39,8 @@
               "type": "leaf",
               "data": {
                 "views": [
-                  "inspector"
+                  "inspector",
+                  "param"
                 ],
                 "activeView": "inspector",
                 "id": "7"
@@ -92,7 +93,13 @@
       "id": "inspector",
       "contentComponent": "inspector",
       "title": "Inspector"
+    },
+    "param": {
+      "id": "param",
+      "contentComponent": "param",
+      "title": "Params"
     }
   },
-  "activeGroup": "4"
+  "activeGroup": "4",
+  "displaySettings": { "mode": "flat-wire" }
 }

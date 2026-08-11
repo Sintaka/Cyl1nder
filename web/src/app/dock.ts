@@ -1,4 +1,4 @@
-/** Docking layout (dockview): Node Graph / Viewport / Inspector / Log / Spreadsheet
+/** Docking layout (dockview): Node Graph / Viewport / Inspector / Log / Spreadsheet / Params
  *  as draggable, floatable, resizable panels.
  *
  * Layout persistence (so ANY browser/session - including the agent's headless
@@ -25,6 +25,7 @@ export interface DockContent {
   inspector: HTMLElement;
   log: HTMLElement;
   spreadsheet: HTMLElement;
+  param: HTMLElement;
 }
 
 const STORAGE_KEY = "cyl1nder.dock.layout.v1";
@@ -37,6 +38,7 @@ const PANEL_TYPES = [
   { type: "inspector", title: "Inspector" },
   { type: "log", title: "Log" },
   { type: "spreadsheet", title: "Spreadsheet" },
+  { type: "param", title: "Params" },
 ] as const;
 
 const PANEL_TYPE_TITLES: Record<string, string> = Object.fromEntries(
@@ -157,6 +159,17 @@ function createFreshSpreadsheet(): { el: HTMLElement; dispose: () => void } {
   return { el, dispose: unsub };
 }
 
+/** Fresh Param instance: v1 shows a note only (no selection subscription;
+ *  the main param panel is wired by main.ts, which is out of scope here). */
+function createFreshParam(): { el: HTMLElement; dispose: () => void } {
+  const el = document.createElement("div");
+  el.className = "cyl-param cyl-param-instance";
+  el.innerHTML = `
+    <div class="cyl-param-head">Params 实例</div>
+    <div class="cyl-param-empty">Param 实例 · 跟随选中节点，与主面板一致</div>`;
+  return { el, dispose: () => {} };
+}
+
 /**
  * Viewport / Node Graph are heavy singletons (a second WebGL canvas / rete
  * editor would require wiring from main.ts which is out of scope). v1: add the
@@ -181,6 +194,8 @@ function createInstanceContent(type: string, title: string): { el: HTMLElement; 
       return createFreshInspector();
     case "spreadsheet":
       return createFreshSpreadsheet();
+    case "param":
+      return createFreshParam();
     default:
       return createPlaceholder(type, title);
   }
@@ -387,6 +402,7 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
     inspector: content.inspector,
     log: content.log,
     spreadsheet: content.spreadsheet,
+    param: content.param,
   };
 
   const dv = new DockviewComponent(container, {
@@ -420,7 +436,7 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
         };
       }
 
-      // Original 5 panels: shared content element from byId.
+      // Original 6 panels: shared content element from byId.
       const inner = byId[raw];
       return {
         element: wrapper,

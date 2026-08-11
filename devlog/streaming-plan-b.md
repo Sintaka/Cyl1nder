@@ -1,6 +1,7 @@
 # 方案B落地设计：流式传输 + 本地原生 core（streaming-plan-b）
 
 > 状态：**设计定稿（决策完备）** —— 实现者按本文执行，不需要再做架构决策；个别标有「实现时确认」的仅限接口细节核对。
+> 落地现状（2026-08-11）：**设计已定稿，但尚未开始实现**——M1–M6 均未落地，三端源码无 stream/topoId/diff/ring/chunked 实现（详见 `streaming-hda-review.md`，只读调研）。
 > 关联文档：`hda-core-cpp-discussion.md`（方案讨论）、`livelink-roadmap.md`（延迟路线）、`sync-architecture.md`（脏几何/内容对比教训）、`protocol.md`（协议 v1）、`decisions.md`（铁律）、`hda-hot-reload.md`（热重载）。
 > 一句话：HDA 保持薄 Python 壳；新增「快照 + 位置增量」流式协议；先纯 Python 打通三端（B1），再把 diff / 序列化 / 流式热点迁入本地原生 sidecar 进程（B2）。
 

@@ -2,14 +2,15 @@ import "./styles.css";
 import { buildLayout } from "./app/layout";
 import { DEFAULT_LAYOUT, DEFAULT_LAYOUT_NAME } from "./app/layouts";
 import { applyLayout, setupDock } from "./app/dock";
-import { renderSpreadsheet } from "./app/spreadsheet";
+import { renderSpreadsheet, type SpreadsheetFocus } from "./app/spreadsheet";
+import { renderParams } from "./app/param";
 import { store } from "./stores/workspace";
 import { BridgeClient, connectWs } from "./bridge/client";
 import { createReteGraph, type ReteGraphHandlers } from "./nodes2/graph";
 import { Viewport, type ReferenceItem } from "./viewport/renderer";
 import { APP_VERSION } from "./app/app-config";
 import { inputsEqual } from "./protocol/compare";
-import type { OutputBuffer } from "./protocol/types";
+import type { InputPayload, OutputBuffer } from "./protocol/types";
 
 /** Log categories: geo data / viewport / ui / bridge(python runtime). */
 let logFilter = "all";
@@ -57,6 +58,9 @@ layout.logEl.appendChild(logBody);
 const spreadsheetEl = document.createElement("div");
 spreadsheetEl.id = "cyl-spreadsheet";
 spreadsheetEl.className = "cyl-spreadsheet";
+const paramEl = document.createElement("div");
+paramEl.id = "cyl-param";
+paramEl.className = "cyl-param";
 (window as unknown as Record<string, unknown>).__cylDv = null; // debug hook (MCP debug access)
 const dv = setupDock(layout.dockContainer, {
   graph: layout.graphContainer,
@@ -64,6 +68,7 @@ const dv = setupDock(layout.dockContainer, {
   inspector: layout.inspectorEl,
   log: layout.logEl,
   spreadsheet: spreadsheetEl,
+  param: paramEl,
 });
 (window as unknown as Record<string, unknown>).__cylDv = dv;
 // dockview lazily mounts inactive tab content: the Log panel's .cyl-log element is NOT in
@@ -91,7 +96,10 @@ layout.root.querySelectorAll(".cyl-menu").forEach((menu) => {
 });
 
 let currentLayoutName = DEFAULT_LAYOUT_NAME;
-const getDockJson = () => (dv as unknown as { toJSON(): unknown }).toJSON();
+const getDockJson = () => ({
+  ...(dv as unknown as { toJSON(): Record<string, unknown> }).toJSON(),
+  displaySettings: viewport.getDisplaySettings(),
+});
 const saveCurrentLayout = (name: string) => {
   void client.saveLayout(name, getDockJson()).then((r) => {
     if (r.ok) {
@@ -116,7 +124,9 @@ const refreshLayoutPresets = () => {
               inspector: layout.inspectorEl,
               log: layout.logEl,
               spreadsheet: spreadsheetEl,
+              param: paramEl,
             });
+            applyLayoutSettings(r.layout);
             currentLayoutName = name;
             store.pushLog(`[layout] loaded "${name}"`);
           }
@@ -161,7 +171,9 @@ layout.menuLayout.querySelectorAll("button").forEach((b) => {
           inspector: layout.inspectorEl,
           log: layout.logEl,
           spreadsheet: spreadsheetEl,
+          param: paramEl,
         });
+        applyLayoutSettings(json);
         store.pushLog(`[layout] reloaded "${currentLayoutName}"${r.layout ? "" : " (bundled default)"}`);
       });
     }
@@ -196,6 +208,7 @@ const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuf
     .catch((e) => store.pushLog(`edit failed: ${String(e)}`));
 });
 (window as unknown as Record<string, unknown>).__cylViewport = viewport;
+(window as unknown as Record<string, unknown>).__cylGraph = graph; // debug hook (MCP debug access)
 
 // Default startup layout: bundled Default.json (the user's Desk1 arrangement, versioned in the
 // project). Applied AFTER graph + viewport are created so dockview fromJSON moves panels that
@@ -206,9 +219,59 @@ applyLayout(dv, DEFAULT_LAYOUT, {
   inspector: layout.inspectorEl,
   log: layout.logEl,
   spreadsheet: spreadsheetEl,
+  param: paramEl,
 });
+applyLayoutSettings(DEFAULT_LAYOUT);
 currentLayoutName = DEFAULT_LAYOUT_NAME;
 store.pushLog(`[layout] default layout "${DEFAULT_LAYOUT_NAME}" applied`);
+
+/** Apply viewport display settings persisted inside a layout JSON (if any). */
+function applyLayoutSettings(json: unknown): void {
+  viewport.setDisplaySettings((json as { displaySettings?: { mode?: unknown } } | null)?.displaySettings);
+}
+
+/** Spreadsheet + Params follow the SELECTED node (multi-select -> first), not the
+ *  display flag. null -> its in0 source port (header "in0"); _input_ -> all inputs;
+ *  _output_ -> outputs; no selection -> fall back to the display-flag behaviour. */
+function refreshSelectionPanels(): void {
+  const sel = graph.getSelectedNode();
+  let payloads: Array<InputPayload | OutputBuffer> = store.inputs;
+  let source: "inputs" | "outputs" = "inputs";
+  let focus: SpreadsheetFocus = { kind: null, index: null, label: null };
+  if (sel) {
+    if (sel.kind === "null") {
+      focus =
+        sel.port !== null
+          ? { kind: "null", index: sel.port, label: "in0" }
+          : { kind: null, index: null, label: null };
+      payloads = store.inputs;
+      source = "inputs";
+    } else if (sel.kind === "output") {
+      focus = { kind: null, index: null, label: null };
+      payloads = store.outputs;
+      source = "outputs";
+    } else {
+      focus = { kind: null, index: null, label: null }; // _input_ -> all source inputs
+      payloads = store.inputs;
+      source = "inputs";
+    }
+  } else {
+    // fallback: display flag (previous behaviour)
+    const disp = graph.getDisplayNode();
+    const kind = disp?.kind ?? null;
+    const index = kind === "null" ? graph.getDisplayPortIndex() : kind === "input" ? 0 : null;
+    focus =
+      kind === "null" && index !== null ? { kind, index, label: "in0" } : { kind, index, label: null };
+    payloads = store.inputs;
+    source = "inputs";
+  }
+  renderSpreadsheet(spreadsheetEl, payloads, source, focus);
+  renderParams(paramEl, sel ? { label: sel.label, kind: sel.kind, params: sel.params } : null);
+}
+
+// node selection changes -> refresh Spreadsheet + Params immediately
+// (store.subscribe alone does not fire when only the graph selection changes)
+graph.onSelectionChanged(() => refreshSelectionPanels());
 
 /** Node flags -> viewport: display visibility + reference reference overlays. */
 function refreshNodeFlags(): void {
@@ -301,12 +364,7 @@ store.subscribe(() => {
   layout.statusDot.className = `cyl-status ${store.status}`;
   viewport.refresh();
   refreshNodeFlags();
-  // Spreadsheet follows the node-view display flag: a null/_input_ display shows
-  // only that routed source port (Bacon's SpreadsheetFocus contract), not all 4.
-  const spDisp = graph.getDisplayNode();
-  const spKind = spDisp?.kind ?? null;
-  const spIndex = spKind === "null" ? graph.getDisplayPortIndex() : spKind === "input" ? 0 : null;
-  renderSpreadsheet(spreadsheetEl, store.inputs, "inputs", { kind: spKind, index: spIndex });
+  refreshSelectionPanels(); // Spreadsheet + Params follow the selected node
   scheduleSaveGraph();
   const showHint = !store.serial || store.status === "offline";
   layout.hintEl.classList.toggle("hidden", !showHint);
