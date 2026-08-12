@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-12T07:49:58.730Z",
-  "totalFunctions": 479,
+  "generatedAt": "2026-08-12T08:34:52.651Z",
+  "totalFunctions": 499,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -1886,6 +1886,96 @@
       "functions": []
     },
     {
+      "file": "web/src/app/color.ts",
+      "lineCount": 527,
+      "functions": [
+        {
+          "name": "rgbToHex",
+          "line": 32,
+          "kind": "function",
+          "exported": true,
+          "calls": 3
+        },
+        {
+          "name": "hexToRgb",
+          "line": 38,
+          "kind": "function",
+          "exported": true,
+          "calls": 6
+        },
+        {
+          "name": "rgbToHsl",
+          "line": 59,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "hslToRgb",
+          "line": 79,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "rgbToHsv",
+          "line": 105,
+          "kind": "function",
+          "exported": false,
+          "calls": 5
+        },
+        {
+          "name": "hsvToRgb",
+          "line": 123,
+          "kind": "function",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "loadRecents",
+          "line": 164,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "recordRecent",
+          "line": 178,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "esc",
+          "line": 237,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "valuesForMode",
+          "line": 244,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "colorFromMode",
+          "line": 254,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "openColorPicker",
+          "line": 265,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
       "file": "web/src/app/dock.ts",
       "lineCount": 541,
       "functions": [
@@ -2047,18 +2137,18 @@
     },
     {
       "file": "web/src/app/layout.ts",
-      "lineCount": 208,
+      "lineCount": 211,
       "functions": [
         {
           "name": "buildLayout",
-          "line": 23,
+          "line": 24,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "buildLayoutLegacy",
-          "line": 119,
+          "line": 121,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -2085,53 +2175,74 @@
     },
     {
       "file": "web/src/app/param.ts",
-      "lineCount": 153,
+      "lineCount": 262,
       "functions": [
         {
           "name": "esc",
-          "line": 27,
+          "line": 29,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "attrEscape",
-          "line": 32,
+          "line": 34,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
+          "name": "color3ToRgb",
+          "line": 41,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "color3Hex",
+          "line": 53,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "parseColor3",
+          "line": 59,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
           "name": "controlHtml",
-          "line": 39,
+          "line": 75,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "applyEdit",
-          "line": 55,
+          "line": 100,
           "kind": "function",
           "exported": false,
-          "calls": 3
+          "calls": 5
         },
         {
           "name": "paramDefault",
-          "line": 67,
+          "line": 116,
           "kind": "function",
           "exported": true,
-          "calls": 2
+          "calls": 3
         },
         {
           "name": "renderParams",
-          "line": 81,
+          "line": 131,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "commit",
-          "line": 122,
+          "line": 172,
           "kind": "arrow",
           "exported": false,
           "calls": 1
@@ -2140,46 +2251,60 @@
     },
     {
       "file": "web/src/app/preference.ts",
-      "lineCount": 119,
+      "lineCount": 247,
       "functions": [
         {
           "name": "clampSyncFps",
-          "line": 25,
+          "line": 38,
           "kind": "function",
           "exported": true,
-          "calls": 3
+          "calls": 4
         },
         {
           "name": "parseUpdateMode",
-          "line": 31,
+          "line": 44,
+          "kind": "function",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "parseAutosaveInterval",
+          "line": 49,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
+          "name": "parseViewportBg",
+          "line": 56,
+          "kind": "function",
+          "exported": false,
+          "calls": 4
+        },
+        {
           "name": "loadPreferences",
-          "line": 37,
+          "line": 62,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "savePreferences",
-          "line": 58,
+          "line": 86,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "applyPreferences",
-          "line": 64,
+          "line": 92,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "openPreferenceDialog",
-          "line": 71,
+          "line": 105,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -2353,7 +2478,7 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 1050,
+      "lineCount": 1127,
       "functions": [
         {
           "name": "matchLogFilter",
@@ -2371,213 +2496,234 @@
         },
         {
           "name": "toggle",
-          "line": 100,
+          "line": 104,
           "kind": "arrow",
           "exported": false,
           "calls": 7
         },
         {
-          "name": "getDockJson",
-          "line": 134,
-          "kind": "arrow",
+          "name": "updateLayoutMenuLabel",
+          "line": 139,
+          "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
+          "name": "getDockJson",
+          "line": 143,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 6
+        },
+        {
           "name": "saveCurrentLayout",
-          "line": 138,
+          "line": 147,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "refreshLayoutPresets",
-          "line": 146,
+          "line": 156,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "writeJsonToDir",
-          "line": 250,
+          "line": 263,
           "kind": "function",
           "exported": false,
           "calls": 7
         },
         {
           "name": "readJsonFromDir",
-          "line": 261,
+          "line": 274,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "saveSceneAs",
-          "line": 275,
+          "line": 288,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "openSceneFromDir",
-          "line": 329,
+          "line": 342,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "applyLayoutSettings",
-          "line": 462,
+          "line": 484,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "readParamFloats",
-          "line": 467,
+          "line": 489,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "flushParamUndo",
-          "line": 488,
+          "line": 510,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "refreshSelectionPanels",
-          "line": 499,
+          "line": 521,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "bindGizmoToTransform",
+          "line": 590,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "bindEnterGizmoToSelection",
-          "line": 570,
+          "line": 626,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "applyTransformDrag",
-          "line": 605,
+          "line": 644,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "toggleEnterEdit",
-          "line": 620,
+          "line": 659,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "getDisplayNodeInfo",
-          "line": 645,
+          "line": 685,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "refreshNodeFlags",
-          "line": 661,
+          "line": 701,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "inputStatsText",
-          "line": 721,
+          "line": 761,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "outputStatsText",
-          "line": 730,
+          "line": 770,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderInspector",
-          "line": 739,
+          "line": 779,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "throttledPush",
-          "line": 781,
+          "line": 821,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "runNetwork",
-          "line": 805,
+          "line": 845,
           "kind": "function",
           "exported": false,
           "calls": 6
         },
         {
           "name": "kickHdaOnce",
-          "line": 822,
+          "line": 862,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "startHdaWatch",
-          "line": 835,
+          "line": 875,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "check",
-          "line": 837,
+          "line": 877,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "stopHdaWatch",
-          "line": 855,
+          "line": 895,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "loadSnapshotIntoStore",
-          "line": 864,
+          "line": 904,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "applyLoadedPreference",
-          "line": 895,
+          "line": 941,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "connect",
-          "line": 910,
+          "line": 967,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
-          "name": "scheduleSaveGraph",
-          "line": 1038,
+          "name": "markGraphDirty",
+          "line": 1097,
           "kind": "function",
           "exported": false,
           "calls": 2
+        },
+        {
+          "name": "startAutoSave",
+          "line": 1107,
+          "kind": "function",
+          "exported": false,
+          "calls": 5
         }
       ]
     },
@@ -3424,7 +3570,7 @@
     },
     {
       "file": "web/src/protocol/types.ts",
-      "lineCount": 109,
+      "lineCount": 115,
       "functions": []
     },
     {
@@ -3599,7 +3745,7 @@
     },
     {
       "file": "web/src/viewport/renderer.ts",
-      "lineCount": 775,
+      "lineCount": 780,
       "functions": [
         {
           "name": "Viewport",

@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-12），由 `node scripts/gen-index.mjs` 产出。共 **479** 个函数/类。
+> 机器生成（2026-08-12），由 `node scripts/gen-index.mjs` 产出。共 **499** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -380,6 +380,23 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
+## web/src/app/color.ts（527 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `rgbToHex` | 32 | function | export | 3 |
+| `hexToRgb` | 38 | function | export | 6 |
+| `rgbToHsl` | 59 | function |  | 2 |
+| `hslToRgb` | 79 | function |  | 2 |
+| `rgbToHsv` | 105 | function |  | 5 |
+| `hsvToRgb` | 123 | function |  | 4 |
+| `loadRecents` | 164 | function |  | 3 |
+| `recordRecent` | 178 | function |  | 2 |
+| `esc` | 237 | function |  | 2 |
+| `valuesForMode` | 244 | function |  | 3 |
+| `colorFromMode` | 254 | function |  | 2 |
+| `openColorPicker` | 265 | function | export | 1 |
+
 ## web/src/app/dock.ts（541 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
@@ -407,12 +424,12 @@
 | `onLayoutChange` | 486 | arrow |  | 0 |
 | `applyLayout` | 530 | function | export | 1 |
 
-## web/src/app/layout.ts（208 行）
+## web/src/app/layout.ts（211 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `buildLayout` | 23 | function | export | 1 |
-| `buildLayoutLegacy` | 119 | function | export | 1 |
+| `buildLayout` | 24 | function | export | 1 |
+| `buildLayoutLegacy` | 121 | function | export | 1 |
 
 ## web/src/app/layouts.ts（11 行）
 
@@ -425,28 +442,33 @@
 |---|---|---|---|---|
 | `formatLog` | 2 | function | export | 1 |
 
-## web/src/app/param.ts（153 行）
+## web/src/app/param.ts（262 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `esc` | 27 | function |  | 5 |
-| `attrEscape` | 32 | function |  | 4 |
-| `controlHtml` | 39 | function |  | 2 |
-| `applyEdit` | 55 | function |  | 3 |
-| `paramDefault` | 67 | function | export | 2 |
-| `renderParams` | 81 | function | export | 1 |
-| `commit` | 122 | arrow |  | 1 |
+| `esc` | 29 | function |  | 5 |
+| `attrEscape` | 34 | function |  | 4 |
+| `color3ToRgb` | 41 | function |  | 3 |
+| `color3Hex` | 53 | function |  | 3 |
+| `parseColor3` | 59 | function |  | 3 |
+| `controlHtml` | 75 | function |  | 2 |
+| `applyEdit` | 100 | function |  | 5 |
+| `paramDefault` | 116 | function | export | 3 |
+| `renderParams` | 131 | function | export | 1 |
+| `commit` | 172 | arrow |  | 1 |
 
-## web/src/app/preference.ts（119 行）
+## web/src/app/preference.ts（247 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `clampSyncFps` | 25 | function | export | 3 |
-| `parseUpdateMode` | 31 | function |  | 3 |
-| `loadPreferences` | 37 | function | export | 1 |
-| `savePreferences` | 58 | function | export | 1 |
-| `applyPreferences` | 64 | function | export | 1 |
-| `openPreferenceDialog` | 71 | function | export | 1 |
+| `clampSyncFps` | 38 | function | export | 4 |
+| `parseUpdateMode` | 44 | function |  | 4 |
+| `parseAutosaveInterval` | 49 | function |  | 3 |
+| `parseViewportBg` | 56 | function |  | 4 |
+| `loadPreferences` | 62 | function | export | 1 |
+| `savePreferences` | 86 | function | export | 1 |
+| `applyPreferences` | 92 | function | export | 1 |
+| `openPreferenceDialog` | 105 | function | export | 1 |
 
 ## web/src/app/scrub.ts（270 行）
 
@@ -484,42 +506,45 @@
 | `connectWs` | 201 | function | export | 1 |
 | `connect` | 206 | arrow |  | 1 |
 
-## web/src/main.ts（1050 行）
+## web/src/main.ts（1127 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `matchLogFilter` | 42 | arrow |  | 0 |
 | `renderLog` | 43 | arrow |  | 3 |
-| `toggle` | 100 | arrow |  | 7 |
-| `getDockJson` | 134 | arrow |  | 5 |
-| `saveCurrentLayout` | 138 | arrow |  | 2 |
-| `refreshLayoutPresets` | 146 | arrow |  | 1 |
-| `writeJsonToDir` | 250 | function |  | 7 |
-| `readJsonFromDir` | 261 | function |  | 5 |
-| `saveSceneAs` | 275 | function |  | 3 |
-| `openSceneFromDir` | 329 | function |  | 2 |
-| `applyLayoutSettings` | 462 | function |  | 4 |
-| `readParamFloats` | 467 | function |  | 3 |
-| `flushParamUndo` | 488 | function |  | 2 |
-| `refreshSelectionPanels` | 499 | function |  | 3 |
-| `bindEnterGizmoToSelection` | 570 | function |  | 3 |
-| `applyTransformDrag` | 605 | function |  | 3 |
-| `toggleEnterEdit` | 620 | function |  | 2 |
-| `getDisplayNodeInfo` | 645 | function |  | 2 |
-| `refreshNodeFlags` | 661 | function |  | 4 |
-| `inputStatsText` | 721 | function |  | 2 |
-| `outputStatsText` | 730 | function |  | 2 |
-| `renderInspector` | 739 | function |  | 2 |
-| `throttledPush` | 781 | function |  | 4 |
-| `runNetwork` | 805 | function |  | 6 |
-| `kickHdaOnce` | 822 | function |  | 2 |
-| `startHdaWatch` | 835 | function |  | 2 |
-| `check` | 837 | arrow |  | 1 |
-| `stopHdaWatch` | 855 | function |  | 2 |
-| `loadSnapshotIntoStore` | 864 | function |  | 3 |
-| `applyLoadedPreference` | 895 | function |  | 3 |
-| `connect` | 910 | function |  | 4 |
-| `scheduleSaveGraph` | 1038 | function |  | 2 |
+| `toggle` | 104 | arrow |  | 7 |
+| `updateLayoutMenuLabel` | 139 | function |  | 5 |
+| `getDockJson` | 143 | arrow |  | 6 |
+| `saveCurrentLayout` | 147 | arrow |  | 2 |
+| `refreshLayoutPresets` | 156 | arrow |  | 1 |
+| `writeJsonToDir` | 263 | function |  | 7 |
+| `readJsonFromDir` | 274 | function |  | 5 |
+| `saveSceneAs` | 288 | function |  | 3 |
+| `openSceneFromDir` | 342 | function |  | 2 |
+| `applyLayoutSettings` | 484 | function |  | 4 |
+| `readParamFloats` | 489 | function |  | 3 |
+| `flushParamUndo` | 510 | function |  | 2 |
+| `refreshSelectionPanels` | 521 | function |  | 3 |
+| `bindGizmoToTransform` | 590 | function |  | 3 |
+| `bindEnterGizmoToSelection` | 626 | function |  | 3 |
+| `applyTransformDrag` | 644 | function |  | 3 |
+| `toggleEnterEdit` | 659 | function |  | 2 |
+| `getDisplayNodeInfo` | 685 | function |  | 2 |
+| `refreshNodeFlags` | 701 | function |  | 4 |
+| `inputStatsText` | 761 | function |  | 2 |
+| `outputStatsText` | 770 | function |  | 2 |
+| `renderInspector` | 779 | function |  | 2 |
+| `throttledPush` | 821 | function |  | 4 |
+| `runNetwork` | 845 | function |  | 6 |
+| `kickHdaOnce` | 862 | function |  | 2 |
+| `startHdaWatch` | 875 | function |  | 2 |
+| `check` | 877 | arrow |  | 1 |
+| `stopHdaWatch` | 895 | function |  | 2 |
+| `loadSnapshotIntoStore` | 904 | function |  | 3 |
+| `applyLoadedPreference` | 941 | function |  | 3 |
+| `connect` | 967 | function |  | 4 |
+| `markGraphDirty` | 1097 | function |  | 2 |
+| `startAutoSave` | 1107 | function |  | 5 |
 
 ## web/src/nodes2/graph.ts（1628 行）
 
@@ -666,7 +691,7 @@
 | `payloadEqual` | 3 | function |  | 2 |
 | `inputsEqual` | 15 | function | export | 1 |
 
-## web/src/protocol/types.ts（109 行）
+## web/src/protocol/types.ts（115 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -716,7 +741,7 @@
 | `buildOutputs` | 121 | function | export | 1 |
 | `buildNodeResult` | 138 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（775 行）
+## web/src/viewport/renderer.ts（780 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|

@@ -6,8 +6,9 @@ import { BridgeClient } from "../src/bridge/client";
  * display flag), File/Layout menus close after clicking an item, and the scene
  * File menu is reworked (Reload Scene rename, FSA-based Open/Save Scene As).
  * - Case 1: Enter with a transform -> gizmo bound to it; switching selection to
- *   another transform rebinds; to null/input/output the gizmo drops but Enter
- *   stays active (idle); dragging the gizmo updates the bound node; Esc exits.
+ *   another transform rebinds; selecting null/input/output keeps Enter active and
+ *   the gizmo STAYS attached to the last transform (v0.1.00058: deselect no longer
+ *   drops the gizmo); dragging the gizmo updates the bound node; Esc exits.
  * - Case 2: File menu has Reload Scene / Open Scene / Save Scene As / Overview;
  *   clicking any File/Layout item closes the drop.
  * - Case 3: Save Scene As uses showDirectoryPicker (mocked) to write the whole
@@ -277,9 +278,10 @@ test("Enter mode follows the first selected node: rebinds to new transform, idle
     )
     .toEqual({ tf1: { tx: 2, ty: 0, tz: 0 }, tf2: { tx: 7, ty: -1, tz: 0.5 } });
 
-  // select _input_ (no Enter target) -> mode STAYS active, gizmo dropped
+  // select _input_ (no Enter target) -> mode STAYS active, gizmo STAYS on the
+  // LAST transform (transform2, x=7) - deselect no longer drops it (v0.1.00058)
   await page.locator(".cyl-rp-title", { hasText: "_input_" }).first().click({ timeout: 15000 });
-  await expect.poll(gizmoState, { timeout: 10000 }).toEqual({ active: true, x: null });
+  await expect.poll(gizmoState, { timeout: 10000 }).toEqual({ active: true, x: 7 });
 
   // re-select transform2 -> gizmo reappears at its CURRENT tx (7 after the drag)
   await page.locator(".cyl-rp-title", { hasText: /^transform2$/ }).first().click({ timeout: 15000 });

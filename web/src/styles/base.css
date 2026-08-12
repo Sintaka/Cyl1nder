@@ -188,29 +188,70 @@ html, body, #app { height: 100%; margin: 0; }
   appearance: none;
 }
 
-/* ---- Preference dialog (web/src/app/preference.ts) ---- */
-.cyl-pref-overlay {
+/* ---- Preference floating panel (web/src/app/preference.ts) ---- */
+.cyl-pref-panel {
   position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-}
-.cyl-pref-card {
+  top: 52px;
+  right: 16px;
+  width: 360px;
+  max-height: calc(100vh - 76px);
+  overflow-y: auto;
   background: #1b1e24;
   border: 1px solid #3a3f4a;
   border-radius: 8px;
-  min-width: 320px;
-  padding: 16px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  padding: 12px 14px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
+  color: #cfd2d6;
+  z-index: 100;
+}
+.cyl-pref-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.cyl-pref-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+.cyl-pref-close {
+  background: transparent;
+  border: none;
+  color: #9aa1ab;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.cyl-pref-close:hover {
+  background: #2a2d33;
+  color: #fff;
+}
+/* tab bar (General / Viewport) */
+.cyl-pref-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid #2a2d33;
+  margin-bottom: 12px;
+}
+.cyl-pref-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #9aa1ab;
+  font-size: 12px;
+  padding: 5px 12px;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.cyl-pref-tab:hover {
   color: #cfd2d6;
 }
-.cyl-pref-card h2 {
-  margin: 0 0 12px;
-  font-size: 14px;
+.cyl-pref-tab.is-active {
   color: #fff;
+  border-bottom-color: #2b6cb0;
 }
 .cyl-pref-row {
   display: flex;
@@ -237,11 +278,77 @@ html, body, #app { height: 100%; margin: 0; }
   border-color: #2b6cb0;
   outline: none;
 }
+/* separator + Auto Save block (General tab) */
+.cyl-pref-sep {
+  border-top: 1px solid #2a2d33;
+  margin: 12px 0 10px;
+}
+.cyl-pref-autosave {
+  background: #171a1f;
+  border: 1px solid #2a2d33;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.cyl-pref-autosave-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+.cyl-pref-autosave-head label {
+  color: #cfd2d6;
+  font-size: 12px;
+  font-weight: 600;
+}
+.cyl-pref-autosave-head input[type="checkbox"] {
+  accent-color: #2b6cb0;
+  cursor: pointer;
+}
+.cyl-pref-autosave .cyl-pref-row {
+  margin: 6px 0 0;
+}
+/* Viewport tab: default background color */
+.cyl-pref-viewport {
+  align-items: flex-start;
+}
+.cyl-pref-viewport > label {
+  margin-top: 5px;
+}
+.cyl-pref-color {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cyl-pref-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid #3a3f4a;
+  flex: 0 0 auto;
+}
+.cyl-pref-hex {
+  font: 11px/1 ui-monospace, monospace;
+  color: #cfd2d6;
+  min-width: 58px;
+}
+.cyl-pref-change {
+  background: #1c1e24;
+  border: 1px solid #33363c;
+  color: #cfd2d6;
+  border-radius: 4px;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.cyl-pref-change:hover {
+  background: #232a33;
+}
+/* footer actions */
 .cyl-pref-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 14px;
 }
 .cyl-pref-actions button {
   background: #1c1e24;
@@ -254,6 +361,13 @@ html, body, #app { height: 100%; margin: 0; }
 }
 .cyl-pref-actions button:hover {
   background: #232a33;
+}
+.cyl-pref-actions .cyl-pref-apply {
+  border-color: #2b6cb0;
+  color: #9fd8ff;
+}
+.cyl-pref-actions .cyl-pref-apply:hover {
+  background: #1d2f45;
 }
 .cyl-pref-actions .cyl-pref-save {
   background: #2b6cb0;

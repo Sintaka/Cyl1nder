@@ -4,6 +4,8 @@
 
 - `app/app-config.ts`
   - three/webgpu
+- `app/color.ts`
+  - styles/colorpicker.css
 - `app/dock.ts`
   - bridge/client
   - dockview
@@ -14,8 +16,11 @@
   - app/layouts/Default.json
 - `app/log.ts`
 - `app/param.ts`
+  - app/color
   - app/scrub
+  - r,g,b
 - `app/preference.ts`
+  - app/color
   - app/layout
   - protocol/types
 - `app/scrub.ts`

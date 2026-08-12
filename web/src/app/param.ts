@@ -1,13 +1,15 @@
 /**
  * Param panel (v1): shows the currently selected node's editable input
  * attributes (name / type / value table). v1: float/int -> number input,
- * class -> select, other strings -> text input; edits rebuild the params array
- * and fire onChange (the caller persists them + re-runs the network).
+ * class -> select, other strings -> text input; color3 -> rounded swatch button
+ * + hex text that opens the floating color picker. Edits rebuild the params
+ * array and fire onChange (the caller persists them + re-runs the network).
  * float/int number inputs also get middle-drag scrubbing (attachScrub).
- * Pure DOM string rendering - no imports, no framework.
+ * Pure DOM string rendering - no framework.
  */
 
 import { attachScrub, format4 } from "./scrub";
+import { openColorPicker, rgbToHex, hexToRgb, type RGB } from "./color";
 
 export interface ParamInfo {
   name: string;
@@ -35,11 +37,52 @@ function attrEscape(s: string): string {
   );
 }
 
-/** Editable control markup for one param row: float/int -> number input, class -> select, other strings -> text input. */
+/** color3 param value ([r,g,b] 0..1) -> RGB 0..255; null when malformed. */
+function color3ToRgb(value: unknown): RGB | null {
+  if (!Array.isArray(value) || value.length !== 3) return null;
+  const nums = value.map((x) => Number(x));
+  if (nums.some((n) => !Number.isFinite(n))) return null;
+  return {
+    r: Math.max(0, Math.min(1, nums[0])) * 255,
+    g: Math.max(0, Math.min(1, nums[1])) * 255,
+    b: Math.max(0, Math.min(1, nums[2])) * 255,
+  };
+}
+
+/** Hex display for a color3 param value (malformed -> gray fallback). */
+function color3Hex(value: unknown): string {
+  const rgb = color3ToRgb(value);
+  return rgb ? rgbToHex(rgb) : "#888888";
+}
+
+/** Parse a color3 edit raw string: "r,g,b" (0..1) or "#rrggbb"/"#rgb" -> [r,g,b] 0..1; null when invalid. */
+function parseColor3(raw: string): [number, number, number] | null {
+  const hex = hexToRgb(raw);
+  if (hex) return [hex.r / 255, hex.g / 255, hex.b / 255];
+  const parts = raw.split(",").map((x) => parseFloat(x.trim()));
+  if (parts.length === 3 && parts.every((n) => Number.isFinite(n))) {
+    return [
+      Math.max(0, Math.min(1, parts[0])),
+      Math.max(0, Math.min(1, parts[1])),
+      Math.max(0, Math.min(1, parts[2])),
+    ];
+  }
+  return null;
+}
+
+/** Editable control markup for one param row: float/int -> number input, class -> select,
+ *  color3 -> swatch button + hex text, other strings -> text input. */
 function controlHtml(p: ParamInfo): string {
   const name = attrEscape(p.name);
   if (p.type === "float" || p.type === "int") {
     return `<input type="number" step="any" data-name="${name}" value="${attrEscape(String(p.value))}">`;
+  }
+  if (p.type === "color3") {
+    const hex = color3Hex(p.value);
+    return `<span class="cyl-color3" data-name="${name}">
+      <button type="button" class="cyl-color3-swatch" data-name="${name}" style="background:${hex}" title="pick color"></button>
+      <input type="text" class="cyl-color3-hex" value="${hex}" spellcheck="false" autocomplete="off" aria-label="${name} hex" />
+    </span>`;
   }
   if (p.type === "string" && p.name === "class") {
     const current = String(p.value);
@@ -51,13 +94,19 @@ function controlHtml(p: ParamInfo): string {
   return `<input type="text" data-name="${name}" value="${attrEscape(String(p.value))}">`;
 }
 
-/** Rebuild the params array with `name`'s value replaced by the raw control value (float/int -> number). */
+/** Rebuild the params array with `name`'s value replaced by the raw control value
+ *  (float/int -> number; color3 -> [r,g,b] 0..1 parsed from "r,g,b" or "#rrggbb";
+ *  invalid color3 keeps the previous value). */
 function applyEdit(info: ParamPanelInfo, name: string, raw: string): ParamInfo[] {
   return info.params.map((p) => {
     if (p.name !== name) return p;
     if (p.type === "float" || p.type === "int") {
       const n = parseFloat(raw);
       return { ...p, value: Number.isNaN(n) ? 0 : n };
+    }
+    if (p.type === "color3") {
+      const parsed = parseColor3(raw);
+      return parsed ? { ...p, value: parsed } : p;
     }
     return { ...p, value: raw };
   });
@@ -67,6 +116,7 @@ function applyEdit(info: ParamPanelInfo, name: string, raw: string): ParamInfo[]
 export function paramDefault(p: ParamInfo): unknown {
   if (p.default !== undefined) return p.default;
   if (p.type === "float" || p.type === "int") return 0;
+  if (p.type === "color3") return [0.5, 0.5, 0.5];
   if (p.type === "string" && p.name === "class") return "autoguess";
   return "";
 }
@@ -148,5 +198,64 @@ export function renderParams(
         );
       }
     }
+
+    // color3 rows: swatch button opens the floating picker; the hex input commits
+    // "r,g,b" / "#rrggbb" edits through applyEdit (invalid input is ignored while
+    // typing and reverted on blur/Enter); Ctrl+MMB restores the default.
+    el.querySelectorAll<HTMLElement>(".cyl-color3").forEach((ctl) => {
+      const name = ctl.getAttribute("data-name") ?? "";
+      const p = info.params.find((x) => x.name === name);
+      if (!p) return;
+      const swatch = ctl.querySelector<HTMLButtonElement>(".cyl-color3-swatch");
+      const hexInput = ctl.querySelector<HTMLInputElement>(".cyl-color3-hex");
+      if (!swatch || !hexInput) return;
+      let currentValue: unknown = p.value;
+      const sync = (value: unknown): void => {
+        const hex = color3Hex(value);
+        swatch.style.background = hex;
+        if (hexInput.value !== hex) hexInput.value = hex;
+      };
+      swatch.addEventListener("click", () => {
+        const rgb = color3ToRgb(currentValue) ?? { r: 128, g: 128, b: 128 };
+        const rect = swatch.getBoundingClientRect();
+        const pickerW = 300; // matches .cyl-cp width
+        const left = Math.max(8, Math.min(rect.left - pickerW - 8, window.innerWidth - pickerW - 8));
+        const top = Math.max(8, Math.min(rect.top, window.innerHeight - 360));
+        openColorPicker({
+          initial: rgb,
+          title: `${p.name} color`,
+          position: { left, top },
+          onColor: (nrgb: RGB) => {
+            const val: [number, number, number] = [nrgb.r / 255, nrgb.g / 255, nrgb.b / 255];
+            currentValue = val;
+            onChange(info.params.map((q) => (q.name === p.name ? { ...q, value: val } : q)));
+            sync(val);
+          },
+        });
+      });
+      const commitRaw = (forceReset: boolean): void => {
+        const parsed = parseColor3(hexInput.value);
+        if (!parsed) {
+          if (forceReset) sync(currentValue); // revert invalid on blur/Enter
+          return;
+        }
+        currentValue = parsed;
+        onChange(applyEdit(info, name, hexInput.value));
+        sync(parsed);
+      };
+      hexInput.addEventListener("input", () => commitRaw(false));
+      hexInput.addEventListener("change", () => commitRaw(true));
+      hexInput.addEventListener("pointerdown", (e) => {
+        const pe = e as PointerEvent;
+        if (pe.button === 1 && (pe.ctrlKey || pe.metaKey)) {
+          e.preventDefault();
+          const dv = paramDefault(p);
+          currentValue = dv;
+          hexInput.value = String(dv);
+          onChange(info.params.map((q) => (q.name === p.name ? { ...q, value: dv } : q)));
+          sync(dv);
+        }
+      });
+    });
   }
 }

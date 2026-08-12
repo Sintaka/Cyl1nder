@@ -2,11 +2,16 @@ import { expect, test } from "@playwright/test";
 import { BridgeClient } from "../src/bridge/client";
 
 /**
- * Round 13 (preferences write-set): Edit -> Preference dialog, bottom-bar
- * Sync Max FPS rate cap, update_mode rename (localStorage "cyl1nder.prefs"),
- * Ctrl+S / Ctrl+Alt+S quick save (both preventDefault so Chrome never saves the page).
- * - Edit -> Preference: modal opens; Save persists to localStorage + pushes
- *   PUT /api/hda/{serial}/sync (page.route mock counter).
+ * Round 13 (preferences write-set): Edit -> Preference floating (non-modal)
+ * panel with General/Viewport tabs, Apply (applies without closing) / Save
+ * (closes), bottom-bar Sync Max FPS rate cap, update_mode rename (localStorage
+ * "cyl1nder.prefs"), Ctrl+S / Ctrl+Alt+S quick save (both preventDefault so
+ * Chrome never saves the page).
+ * - Edit -> Preference: floating panel opens (no blocking overlay; the header
+ *   serial input stays clickable behind it, ✕ present); General/Viewport tabs
+ *   exist and switch panes; Apply persists to localStorage + pushes
+ *   PUT /api/hda/{serial}/sync while the panel stays open; Save closes;
+ *   Escape closes without saving.
  * - Bottom-bar Sync Max FPS input: change -> localStorage + PUT /sync.
  * - Ctrl+S: putSnapshot({graph, docking, preference}) + defaultPrevented.
  * - Ctrl+Alt+S: save-as path (prompt dialog accepted + scene/save mock).
@@ -40,7 +45,7 @@ async function mockSnapshot(page: import("@playwright/test").Page): Promise<void
   });
 }
 
-test("Edit -> Preference: dialog opens; Save persists prefs and pushes PUT /sync", async ({ page }) => {
+test("Edit -> Preference: floating panel; tabs; Apply keeps open, Save closes", async ({ page }) => {
   const syncFps: number[] = [];
   await page.route(`**/api/hda/${serial}/sync`, (route) => {
     const body = route.request().postDataJSON() as { fps?: number };
@@ -53,33 +58,52 @@ test("Edit -> Preference: dialog opens; Save persists prefs and pushes PUT /sync
   // open the Edit menu and click Preference…
   await page.locator('.cyl-menu[data-menu="edit"] .cyl-menu-label').click();
   await page.locator('#cyl-menu-edit button[data-act="preference"]').click();
-  await expect(page.locator(".cyl-pref-overlay")).toBeVisible();
-  await expect(page.locator(".cyl-pref-card h2")).toHaveText("Preference");
+  const panel = page.locator(".cyl-pref-panel");
+  await expect(panel).toBeVisible();
+  await expect(panel.locator(".cyl-pref-title")).toHaveText("Preference");
 
-  // change Sync Max FPS + Update Mode, then Save
-  await page.locator("#cyl-pref-fps").fill("45");
-  await page.locator("#cyl-pref-mode").selectOption("mouseup");
-  await page.locator(".cyl-pref-save").click();
-  await expect(page.locator(".cyl-pref-overlay")).toHaveCount(0);
+  // floating non-modal: ✕ present and the header serial input stays clickable behind the panel
+  await expect(panel.locator(".cyl-pref-close")).toBeVisible();
+  await page.locator("#cyl-serial").click();
+  await page.locator("#cyl-serial").fill("C1-e2etest0001-aaaa");
+  await expect(panel).toBeVisible();
 
-  // persisted under the new prefs store
-  const prefs = await page.evaluate(() => JSON.parse(localStorage.getItem("cyl1nder.prefs") || "{}"));
+  // tabs: General active by default; Viewport switches panes and back
+  await expect(panel.locator('.cyl-pref-tab[data-pref-tab="general"]')).toHaveClass(/is-active/);
+  await panel.locator('.cyl-pref-tab[data-pref-tab="viewport"]').click();
+  await expect(panel.locator('[data-pref-pane="viewport"]')).toBeVisible();
+  await expect(panel.locator("#cyl-pref-bg-change")).toBeVisible();
+  await panel.locator('.cyl-pref-tab[data-pref-tab="general"]').click();
+  await expect(panel.locator('[data-pref-pane="general"]')).toBeVisible();
+
+  // change Sync Max FPS + Update Mode, then Apply -> persists + PUT /sync, panel stays open
+  await panel.locator("#cyl-pref-fps").fill("45");
+  await panel.locator("#cyl-pref-mode").selectOption("mouseup");
+  await panel.locator(".cyl-pref-apply").click();
+  await expect(panel).toBeVisible();
+  await expect.poll(() => syncFps, { timeout: 5000 }).toContain(45);
+  let prefs = await page.evaluate(() => JSON.parse(localStorage.getItem("cyl1nder.prefs") || "{}"));
   expect(prefs.sync_max_fps).toBe(45);
   expect(prefs.update_mode).toBe("mouseup");
 
-  // bottom-bar controls are synced to the saved values
+  // bottom-bar controls are synced to the applied values
   await expect(page.locator("#cyl-sync-fps")).toHaveValue("45");
   await expect(page.locator("#cyl-update-mode")).toHaveValue("mouseup");
 
-  // PUT /sync fired with the new fps
-  await expect.poll(() => syncFps, { timeout: 5000 }).toContain(45);
+  // Save -> persists + closes the panel
+  await panel.locator("#cyl-pref-fps").fill("50");
+  await panel.locator(".cyl-pref-save").click();
+  await expect(panel).toHaveCount(0);
+  prefs = await page.evaluate(() => JSON.parse(localStorage.getItem("cyl1nder.prefs") || "{}"));
+  expect(prefs.sync_max_fps).toBe(50);
+  await expect(page.locator("#cyl-sync-fps")).toHaveValue("50");
 
   // Escape path: reopen + Escape closes without saving
   await page.locator('.cyl-menu[data-menu="edit"] .cyl-menu-label').click();
   await page.locator('#cyl-menu-edit button[data-act="preference"]').click();
-  await expect(page.locator(".cyl-pref-overlay")).toBeVisible();
+  await expect(panel).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.locator(".cyl-pref-overlay")).toHaveCount(0);
+  await expect(panel).toHaveCount(0);
 });
 
 test("bottom-bar Sync Max FPS: change persists to localStorage and triggers PUT /sync", async ({ page }) => {

@@ -479,6 +479,11 @@ export class Viewport {
     }
   }
 
+  /** Default 3D viewport background color (Preferences.viewport_bg, #rrggbb). */
+  setBackgroundColor(hex: string): void {
+    this.scene.background = new THREE.Color(hex);
+  }
+
   /** three.js gizmo demo: TransformControls is the gizmo (the project already uses it
    *  for translate editing). G toggles the demo box, Shift+G cycles the gizmo mode. */
   toggleGizmoDemo(): void {

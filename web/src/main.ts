@@ -50,6 +50,10 @@ const client = new BridgeClient();
 /** Preferences (cyl1nder.prefs localStorage + Preference.json v1): sync_max_fps caps
  *  web->bridge push rate (1..60), update_mode picks Enter-gizmo refresh timing. */
 let prefs: Preferences = loadPreferences();
+/** localStorage key remembering which scene's Preference.json was last applied: a plain
+ *  reload of the SAME scene keeps the local (working) prefs; only opening/connecting
+ *  to a DIFFERENT scene re-applies that scene's Preference.json. */
+const LAST_SERIAL_KEY = "cyl1nder.lastSceneSerial";
 applyPreferences(prefs, layout);
 // log filter bar (inserted above the log content inside the dock panel)
 const logFilterBar = document.createElement("div");
@@ -131,6 +135,11 @@ layout.root.querySelectorAll(".cyl-menu").forEach((menu) => {
 }
 
 let currentLayoutName = DEFAULT_LAYOUT_NAME;
+/** Layout menu shows the CURRENT layout name (15ch fixed) instead of "Layout". */
+function updateLayoutMenuLabel(): void {
+  layout.menuLayoutLabel.textContent = currentLayoutName;
+  layout.menuLayoutLabel.style.width = "15ch";
+}
 const getDockJson = () => ({
   ...(dv as unknown as { toJSON(): Record<string, unknown> }).toJSON(),
   displaySettings: viewport.getDisplaySettings(),
@@ -139,6 +148,7 @@ const saveCurrentLayout = (name: string) => {
   void client.saveLayout(name, getDockJson()).then((r) => {
     if (r.ok) {
       currentLayoutName = name;
+      updateLayoutMenuLabel();
       store.pushLog(`[layout] saved "${name}"`);
     }
   });
@@ -163,6 +173,7 @@ const refreshLayoutPresets = () => {
             });
             applyLayoutSettings(r.layout);
             currentLayoutName = name;
+            updateLayoutMenuLabel();
             store.pushLog(`[layout] loaded "${name}"`);
           }
         });
@@ -213,6 +224,7 @@ layout.menuLayout.querySelectorAll("button").forEach((b) => {
           param: paramEl,
         });
         applyLayoutSettings(json);
+        updateLayoutMenuLabel();
         store.pushLog(`[layout] reloaded "${currentLayoutName}"${r.layout ? "" : " (bundled default)"}`);
       });
     }
@@ -224,6 +236,7 @@ layout.menuEdit.querySelectorAll("button").forEach((b) => {
     if (act === "preference") {
       openPreferenceDialog(prefs, (saved) => {
         prefs = saved;
+        startAutoSave();
         syncMaxFps = saved.sync_max_fps;
         updateMode = saved.update_mode;
         savePreferences(prefs);
@@ -342,7 +355,10 @@ async function openSceneFromDir(): Promise<void> {
         readJsonFromDir(dir, "docking-layout.json"),
         readJsonFromDir(dir, "Preference.json"),
       ]);
-      if (prefJson && typeof prefJson === "object") applyLoadedPreference(prefJson);
+      if (prefJson && typeof prefJson === "object") {
+        applyLoadedPreference(prefJson);
+        localStorage.setItem(LAST_SERIAL_KEY, serial);
+      }
       if (Array.isArray(inputs) && inputs.length > 0) {
         await client
           .pushInputs(serial, inputs as InputPayload[])
@@ -412,6 +428,10 @@ let updateMode: UpdateMode = prefs.update_mode;
 let syncMaxFps: number = prefs.sync_max_fps;
 /** mouseup mode: only the latest buffered gizmo value; committed once on drag end. */
 let pendingTransform: { id: string; tx: number; ty: number; tz: number } | null = null;
+/** Last transform node the Enter gizmo is bound to: when the selection moves to a
+ *  non-transform node (or empty), Enter keeps the gizmo on this node instead of
+ *  dropping it. Reset on explicit Enter exit. */
+let lastTransformId: string | null = null;
 layout.updateModeSelect.addEventListener("change", () => {
   updateMode = layout.updateModeSelect.value === "mouseup" ? "mouseup" : "auto";
   prefs = { ...prefs, update_mode: updateMode };
@@ -456,7 +476,9 @@ applyLayout(dv, DEFAULT_LAYOUT, {
 });
 applyLayoutSettings(DEFAULT_LAYOUT);
 currentLayoutName = DEFAULT_LAYOUT_NAME;
+updateLayoutMenuLabel();
 store.pushLog(`[layout] default layout "${DEFAULT_LAYOUT_NAME}" applied`);
+startAutoSave();
 
 /** Apply viewport display settings persisted inside a layout JSON (if any). */
 function applyLayoutSettings(json: unknown): void {
@@ -564,19 +586,16 @@ function refreshSelectionPanels(): void {
   );
 }
 
-/** Bind the translate gizmo to the FIRST SELECTED node while Enter mode is on:
- *  transform -> attach the gizmo at its current tx/ty/tz; null/input/output/none
- *  -> drop the gizmo but keep the mode active (idle until a transform is selected). */
-function bindEnterGizmoToSelection(): void {
-  const sel = graph.getSelectedNode();
-  if (!sel || sel.kind !== "transform") {
-    viewport.endTransformGizmo({ keepActive: true });
-    return;
-  }
-  const v = readParamFloats(sel.params ?? []);
+/** Attach the translate gizmo to a transform node (bound at its current tx/ty/tz). */
+function bindGizmoToTransform(node: {
+  id: string;
+  kind: string;
+  params?: Array<{ name: string; type: string; value: unknown }>;
+}): void {
+  const v = readParamFloats(node.params ?? []);
   pendingTransform = null; // a stale buffered drag must never commit to a re-bound gizmo
   viewport.beginTransformGizmo(
-    sel.id,
+    node.id,
     v.tx ?? 0,
     v.ty ?? 0,
     v.tz ?? 0,
@@ -586,10 +605,10 @@ function bindEnterGizmoToSelection(): void {
     (x, y, z) => {
       if (updateMode === "mouseup") {
         // On Mouse Up: buffer only the latest value - zero network + zero rebuild during the drag.
-        pendingTransform = { id: sel.id, tx: x, ty: y, tz: z };
+        pendingTransform = { id: node.id, tx: x, ty: y, tz: z };
         return;
       }
-      applyTransformDrag(sel.id, x, y, z);
+      applyTransformDrag(node.id, x, y, z);
     },
     () => {
       // drag ended (mouseup mode): commit the single buffered value once.
@@ -599,6 +618,26 @@ function bindEnterGizmoToSelection(): void {
       applyTransformDrag(p.id, p.tx, p.ty, p.tz);
     },
   );
+}
+
+/** Bind the Enter gizmo to the selection: transform -> bind + remember it as the
+ *  last transform; non-transform / empty -> keep Enter active on the LAST transform
+ *  node (when it still exists in the network), else drop the gizmo (idle). */
+function bindEnterGizmoToSelection(): void {
+  const sel = graph.getSelectedNode();
+  if (sel && sel.kind === "transform") {
+    lastTransformId = sel.id;
+    bindGizmoToTransform(sel);
+    return;
+  }
+  if (lastTransformId) {
+    const node = graph.getNetworkSnapshot().nodes.find((n) => n.id === lastTransformId && n.kind === "transform");
+    if (node) {
+      bindGizmoToTransform(node);
+      return;
+    }
+  }
+  viewport.endTransformGizmo({ keepActive: true });
 }
 
 /** setNodeParams + runNetwork for a gizmo translate value (shared by both update modes). */
@@ -619,6 +658,7 @@ function applyTransformDrag(id: string, x: number, y: number, z: number): void {
  *  first selected node - transform -> gizmo, otherwise enter stays active idle. */
 function toggleEnterEdit(): void {
   if (viewport.isEnterActive()) {
+    lastTransformId = null;
     viewport.endTransformGizmo();
     return;
   }
@@ -762,7 +802,7 @@ store.subscribe(() => {
   viewport.refresh();
   refreshNodeFlags();
   refreshSelectionPanels(); // Spreadsheet + Params follow the selected node
-  scheduleSaveGraph();
+  markGraphDirty();
   const showHint = !store.serial || store.status === "offline";
   layout.hintEl.classList.toggle("hidden", !showHint);
   layout.hintEl.textContent = !store.serial
@@ -885,7 +925,13 @@ async function loadSnapshotIntoStore(serial: string): Promise<void> {
       store.pushLog(`[path] restored ${outputs.length} outputs from snapshot`);
     }
     const pref = snapshot.preference as { sync_max_fps?: unknown; update_mode?: unknown } | undefined;
-    if (pref && typeof pref === "object") applyLoadedPreference(pref);
+    // Scene Preference.json applies only when connecting/opening a DIFFERENT scene than
+    // the one already loaded in this browser (lastSceneSerial); a plain reload of the
+    // same scene keeps the local working prefs (localStorage cyl1nder.prefs).
+    if (pref && typeof pref === "object" && localStorage.getItem(LAST_SERIAL_KEY) !== serial) {
+      applyLoadedPreference(pref);
+      localStorage.setItem(LAST_SERIAL_KEY, serial);
+    }
   } catch (e) {
     store.pushLog(`[path] snapshot read failed: ${String(e)}`);
   }
@@ -893,10 +939,20 @@ async function loadSnapshotIntoStore(serial: string): Promise<void> {
 
 /** Apply a Preference.json (from open-scene / snapshot) and push the new rate cap. */
 function applyLoadedPreference(json: unknown): void {
-  const p = (json ?? {}) as { sync_max_fps?: unknown; update_mode?: unknown };
+  const p = (json ?? {}) as {
+    sync_max_fps?: unknown;
+    update_mode?: unknown;
+    autosave_enabled?: unknown;
+    autosave_interval_min?: unknown;
+    viewport_bg?: unknown;
+  };
   const next: Preferences = {
     sync_max_fps: clampSyncFps(p.sync_max_fps),
     update_mode: p.update_mode === "mouseup" ? "mouseup" : p.update_mode === "auto" ? "auto" : prefs.update_mode,
+    autosave_enabled: p.autosave_enabled !== false,
+    autosave_interval_min: Math.max(0.1, Number(p.autosave_interval_min) || 5),
+    viewport_bg:
+      typeof p.viewport_bg === "string" && /^#[0-9a-fA-F]{6}$/.test(p.viewport_bg) ? p.viewport_bg : "#1a1a1a",
   };
   prefs = next;
   syncMaxFps = next.sync_max_fps;
@@ -905,6 +961,7 @@ function applyLoadedPreference(json: unknown): void {
   applyPreferences(prefs, layout);
   store.pushLog(`[pref] loaded: sync_max_fps=${next.sync_max_fps} update_mode=${next.update_mode}`);
   if (store.serial) void client.putSyncFps(store.serial, next.sync_max_fps).catch(() => undefined);
+  startAutoSave();
 }
 
 function connect(serialRaw: string): void {
@@ -1033,18 +1090,38 @@ window.addEventListener("keydown", (e) => {
   store.pushLog("[file] scene saved (Ctrl+S)");
 });
 
-/** Debounced persist of the node graph (nodes/positions/connections) to the path system. */
-var saveGraphTimer: number | undefined; // var: subscribe callback may fire before this line (TDZ-safe)
-function scheduleSaveGraph(): void {
-  if (saveGraphTimer !== undefined) window.clearTimeout(saveGraphTimer);
-  saveGraphTimer = window.setTimeout(() => {
+/** Graph dirty marker: store.subscribe flags changes here, but NOTHING is written to
+ *  disk automatically. Explicit saves (Ctrl+S / Save Scene / Save As) and the timed
+ *  auto-save are the only paths that call putSnapshot. */
+var graphDirty = false; // var: store.subscribe may fire before this line (TDZ-safe)
+function markGraphDirty(): void {
+  if (graphDirty) return;
+  graphDirty = true;
+  store.pushLog("[file] graph dirty - use Ctrl+S to save");
+}
+
+/** Timed auto-save: while prefs.autosave_enabled (default true), persist the full
+ *  scene (graph + docking + preference) every prefs.autosave_interval_min minutes
+ *  (float, clamped >= 0.1; ms = minutes * 60_000). Restarted whenever prefs change. */
+var autoSaveTimer: number | undefined; // var: init startAutoSave() call may fire before this line (TDZ-safe)
+function startAutoSave(): void {
+  if (autoSaveTimer !== undefined) window.clearInterval(autoSaveTimer);
+  autoSaveTimer = undefined;
+  if (prefs.autosave_enabled === false) return;
+  const minutes = Math.max(0.1, Number(prefs.autosave_interval_min) || 5);
+  autoSaveTimer = window.setInterval(() => {
     if (!store.serial) return;
     try {
-      void client.putSnapshot(store.serial, { graph: graph.serializeGraph() }).catch(() => undefined);
+      void client.putSnapshot(store.serial, {
+        graph: graph.serializeGraph(),
+        docking: getDockJson(),
+        preference: prefs,
+      });
+      store.pushLog(`[file] autosaved (${minutes}min)`);
     } catch {
       /* ignore */
     }
-  }, 1500);
+  }, minutes * 60_000);
 }
 
 store.pushLog(`Cyl1nder web v${APP_VERSION} · Tab=搜索 Y=剪切 右键=flags F=frame`);

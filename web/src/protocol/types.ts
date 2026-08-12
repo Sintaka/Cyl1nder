@@ -13,6 +13,11 @@ export interface CurveData {
   widths: number[] | null;
 }
 
+// Unified color attribute type: a vector float RGB triplet stored in normalized
+// 0..1 space (e.g. [0.2, 0.4, 0.8]). color3 is a new unified-param-system type:
+// usable both as a node param (Param panel) and in Preference.json values.
+export type Color3Value = [number, number, number];
+
 export interface InputPayload {
   index: number;
   name: string;

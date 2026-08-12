@@ -6,6 +6,7 @@ export interface Layout {
   autoRunCheck: HTMLInputElement;
   menuFile: HTMLElement;
   menuLayout: HTMLElement;
+  menuLayoutLabel: HTMLElement;
   layoutPresets: HTMLElement;
   dockContainer: HTMLElement;
   graphContainer: HTMLElement;
@@ -34,20 +35,20 @@ export function buildLayout(app: HTMLElement): Layout {
               <button data-act="saveas">Save Scene As…</button>
             </div>
           </div>
+          <div class="cyl-menu" data-menu="edit">
+            <span class="cyl-menu-label">Edit</span>
+            <div class="cyl-menu-drop" id="cyl-menu-edit">
+              <button data-act="preference">Preference…</button>
+            </div>
+          </div>
           <div class="cyl-menu" data-menu="layout">
-            <span class="cyl-menu-label">Layout</span>
+            <span class="cyl-menu-label" id="cyl-menu-layout-label">Layout</span>
             <div class="cyl-menu-drop" id="cyl-menu-layout">
               <div class="cyl-menu-presets" id="cyl-menu-presets"></div>
               <div class="cyl-menu-sep"></div>
               <button data-act="save-layout">Save current layout</button>
               <button data-act="save-layout-as">Save current layout as…</button>
               <button data-act="reload-layout">Reload current layout</button>
-            </div>
-          </div>
-          <div class="cyl-menu" data-menu="edit">
-            <span class="cyl-menu-label">Edit</span>
-            <div class="cyl-menu-drop" id="cyl-menu-edit">
-              <button data-act="preference">Preference…</button>
             </div>
           </div>
         </div>
@@ -102,6 +103,7 @@ export function buildLayout(app: HTMLElement): Layout {
     menuFile: $("#cyl-menu-file"),
     menuEdit: $("#cyl-menu-edit"),
     menuLayout: $("#cyl-menu-layout"),
+    menuLayoutLabel: $("#cyl-menu-layout-label"),
     layoutPresets: $("#cyl-menu-presets"),
     dockContainer: $("#cyl-dock"),
     graphContainer,
@@ -130,20 +132,20 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
               <button data-act="saveas">Save Scene As…</button>
             </div>
           </div>
+          <div class="cyl-menu" data-menu="edit">
+            <span class="cyl-menu-label">Edit</span>
+            <div class="cyl-menu-drop" id="cyl-menu-edit">
+              <button data-act="preference">Preference…</button>
+            </div>
+          </div>
           <div class="cyl-menu" data-menu="layout">
-            <span class="cyl-menu-label">Layout</span>
+            <span class="cyl-menu-label" id="cyl-menu-layout-label">Layout</span>
             <div class="cyl-menu-drop" id="cyl-menu-layout">
               <div class="cyl-menu-presets" id="cyl-menu-presets"></div>
               <div class="cyl-menu-sep"></div>
               <button data-act="save-layout">Save current layout</button>
               <button data-act="save-layout-as">Save current layout as…</button>
               <button data-act="reload-layout">Reload current layout</button>
-            </div>
-          </div>
-          <div class="cyl-menu" data-menu="edit">
-            <span class="cyl-menu-label">Edit</span>
-            <div class="cyl-menu-drop" id="cyl-menu-edit">
-              <button data-act="preference">Preference…</button>
             </div>
           </div>
         </div>
@@ -193,6 +195,7 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
     menuFile: app,
     menuEdit: app,
     menuLayout: app,
+    menuLayoutLabel: app.querySelector("#cyl-menu-layout-label") as HTMLElement,
     layoutPresets: app,
     dockContainer: app,
     graphContainer: $("#cyl-graph"),

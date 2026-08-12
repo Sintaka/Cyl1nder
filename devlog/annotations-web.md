@@ -460,3 +460,11 @@
   - **Preference.json**：Edit→Preference 保存、Save Scene / Save Scene As（FS Access 写 `<serial>/Preference.json`）/ Ctrl+S / Ctrl+Alt+S 一并保存；打开场景（FS Access 或快照）读取并 apply + `putSyncFps`。
   - **推流节流**：`throttledPush` 统一节流点（runNetwork 4 路 + viewport 编辑 1 路），≤ syncMaxFps/s、latest-wins、到点 flush。
   - 验证：tsc 0；vitest 82；e2e round12（去灰字/update_mode/Sync Max FPS）+ round13（Preference 对话框 / Ctrl+S / Ctrl+Alt+S）7 项全过。
+## v0.1.00058（2026-08-12）
+- **自动保存系统 + 平常不写盘**（devlog/autosave-color-prefs-ui.md）：移除 `scheduleSaveGraph` 1.5s 自动写盘（改 `markGraphDirty` 只标记）；只有 Ctrl+S / Save Scene / Save As / **定时自动保存**写盘（默认 5min，General 首选项「Auto Save」块：启用 toggle + 间隔分钟，可小数≥0.1）；`startAutoSave` 在 prefs 变化时重启。
+- **首选项浮动窗口（非模态）+ 分类标签**：Preference 面板不再全屏遮罩（背后可继续操作），标签 **General | Viewport**；General = Sync Max FPS + Update Mode + 分隔线 + Auto Save 块；Viewport = 默认背景颜色（色块 + hex + Change… 调共享拾取器）；按钮 Cancel / **Apply**（应用不关闭）/ Save。
+- **统一颜色属性系统**：param 新增 **color3**（vector float normalize，存储 rgb [0..1]）；Params 面板 color3 渲染色块，左键弹出**现代颜色拾取器**（`web/src/app/color.ts` + `colorpicker.css`：色相轮盘 + SV 方板、预置调色板 + 最近色块（localStorage）、RGB/HSL/HSV 三模式数值、#hex 直接输入实时同步、非模态）。
+- **菜单/标签**：菜单顺序 **File/Edit/Layout**；Layout 菜单直接显示当前布局名（15ch 固定，不再显示 "Layout"）；**dock 活跃标签底部凹角 bug 修复**（Round 8：凹角伪元素此前画到 tab 外侧覆盖相邻标签，改为 tab 自身内凹并画栏色 #1c1e22，像素验证蓝色覆盖 0/0）。
+- **Enter 模式**：取消选择不再丢 gizmo——挂在**上一个 transform** 并保持 enter；只有主动换选/删除该节点/显式退出才改变（round8 e2e 更新为新行为）。
+- **偏好优先级**：localStorage 为工作态（reload 保留）；场景 Preference.json 仅在打开/连接**不同**场景时应用（`cyl1nder.lastSceneSerial` 门控）。
+- 验证：tsc 0；vitest 82；e2e round8/12/13/14/15/10/9/smoke **25 全过**；pytest 50（无 bridge/hda 改动）。
