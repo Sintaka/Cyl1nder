@@ -57,7 +57,7 @@
   border: 1px solid #3a3f4a;
   border-radius: 6px;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03), 0 4px 14px rgba(0,0,0,.45);
-  font-family: system-ui, sans-serif;
+  font-family: var(--cyl-font-ui);
   color: #cfd2d6;
   min-width: 264px;
   padding: 4px 6px 6px;

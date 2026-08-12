@@ -504,3 +504,14 @@
   - **颜色拾取器大改造**：Recent 右键删/一键清空；色相环→**全圆盘**（圆心去饱和、半径=饱和度）；三角/矩形共用 132×132 同尺寸（切换零跳动）；RGB/HSL/HSV 加可拖动滑块；PALETTE=简单模式 + **Simple/Advanced** pill 切换（高级=11 个通用色名分类）；**原生 EyeDropper** 拾色器按钮（不支持隐藏）；**Adobe 和谐色轮**（Monochrome/Complementary/Analogous/Triadic/Compound/Shades 预设、5 联动点拖一带动、基础明度关联 HSL L、联动色块）；`.cyl-cp` 标题栏可拖动。
   - **param.ts 统一属性重置（P8）**：Ctrl+中键重置扩展到 **vector / color3 / string / class 等所有类型**（优先 `param.default`；color3 重置显示 hex）。**理念写入 devlog：属性操作属于统一属性系统，float/vector/color3 等一律通用**。
   - 验证：tsc 0；vitest 82；全量 e2e **71 passed / 1 skipped**；hython SMOKE OK（含 stop_all_sync）；pytest 50（registry 防抖测试用可注入时钟加固，消除时间敏感 flaky）。
+## v0.1.00064（2026-08-12）——视口中断系统重设计 + 本地新鲜度 + kick 限流（详见 devlog/viewport-interrupt-redesign.md）
+- **本地乐观应用 + 过时请求丢弃（中断系统）**：`runNetwork` 先本地 `store.upsertOutputs(预测 rev)` 立即重建视口（本地刷新与 bridge Sync Max FPS 解耦），再 fire-and-forget 推桥；`networkEpoch` 代际计数，过时 push 响应整体丢弃（不 log 不 emit）；换 serial/重连时 epoch 失效。
+- **rAF 合帧刷新**：`store.subscribe` 改为每帧一次 `flushStoreView()`（viewport.refresh + refreshNodeFlags + panels + inspector + log + dirty），拖动爆发不再每次 emit 同步全量重建。
+- **WS outputs 去重 + rev 单调**：`store.applyOutputs` 内容去重（镜像 bridge `_same_content`），仅 `msg.rev > outputRev` 应用——fps 合帧的中间帧回显不会倒灌覆盖本地乐观状态。
+- **Sync Max FPS 首次生效**：`connect()` 每次（含重连）推 `putSyncFps(prefs.sync_max_fps)`，bridge 不再停在默认 30。
+- **kick 策略**：每 serial ≥5s 一次；仅 wsWasUp 真掉线（桥重启）清 `kickedSerials` 允许 re-kick；普通重连不再 re-kick。
+- **撤销 gizmo 归位**：graph.ts 新增 `onParamsApplied(nodeId, params)`（undo/redo params + group 递归触发），main.ts 对 Enter 活动且 bound 节点调 `viewport.setEnterPosition(tx,ty,tz)` + `refreshSelectionPanels()`；renderer.ts 新增 `setEnterPosition`。
+- **首选项文案**：删两行提示（Ctrl+中键重置 / UI chrome font）；"Default Background Color"→"Viewport Background Color"；aria-label 同步。
+- **字体全同步**：所有 CSS 硬编码 `ui-monospace`/`system-ui` 统一换 `var(--cyl-font-ui)`（log/param/spreadsheet/nodeview/dock log/overview/colorpicker/hex 读值），首选项 code/system 切换影响全部组件（含 hex）。
+- **e2e**：round17 新增（fps=1 本地即时刷新 + 30 帧突发过时丢弃）；round16 加撤销/重做 gizmo 归位断言；round10 改 kick 5s 限流断言。
+- 验证：tsc 0；vitest 82；e2e 73 passed / 1 skipped。

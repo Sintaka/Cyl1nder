@@ -35,7 +35,7 @@ test.beforeAll(async () => {
   test.skip(!(await kickEndpointAvailable()), "kick endpoint 404 on running bridge - web kick not testable");
 });
 
-test("first connect kicks the HDA; a dropped reconnect re-kicks (bridge-restart recovery)", async ({ page }) => {
+test("first connect kicks; reconnects within 5s do NOT re-kick, after 5s they do (rate limit)", async ({ page }) => {
   // Ground truth: count the page's own POST /kick requests (the kick is a fetch
   // from page JS) - independent of the windowed log panel.
   let kickRequests = 0;
@@ -72,10 +72,18 @@ test("first connect kicks the HDA; a dropped reconnect re-kicks (bridge-restart 
   await expect.poll(() => kickRequests, { timeout: 15000 }).toBe(1);
   await expect.poll(kickMarkerVisible, { timeout: 15000 }).toBe(true);
 
-  // Reconnect the SAME serial (Connect closes + reopens the WS -> a drop followed
-  // by a fresh hello). Round 0.1.00054: a dropped reconnect re-kicks so the HDA
-  // recooks after a bridge restart without a page reload -> now 2 kicks total.
+  // New kick policy (round 17): per-serial 5s rate limit + no re-kick on plain
+  // reconnects. Clicking Connect again closes + reopens the WS, but the fresh
+  // hello must NOT re-kick while inside the 5s window (still 1 kick).
+  const kicksBeforeReconnect = kickRequests;
   await page.locator("#cyl-connect").click();
   await expect.poll(wsConnects, { timeout: 15000 }).toBeGreaterThanOrEqual(2); // a new WS connection landed
-  await expect.poll(() => kickRequests, { timeout: 5000 }).toBe(2); // first + drop-reconnect kick (POST = truth)
+  await page.waitForTimeout(1000); // well inside the 5s rate-limit window
+  expect(kickRequests).toBe(kicksBeforeReconnect); // rate-limited: no immediate re-kick
+
+  // After the 5s window passes, a reconnect re-kicks again (rate limit allowed).
+  await page.waitForTimeout(5500);
+  await page.locator("#cyl-connect").click();
+  await expect.poll(wsConnects, { timeout: 15000 }).toBeGreaterThanOrEqual(3); // another new WS connection landed
+  await expect.poll(() => kickRequests, { timeout: 15000 }).toBe(kicksBeforeReconnect + 1); // re-kick (POST = truth)
 });

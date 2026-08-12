@@ -1,5 +1,38 @@
 import { InputPayload, OutputBuffer } from "../protocol/types";
 
+/** Deep content equality for JSON-serializable data (arrays, objects, primitives). */
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (!deepEqual(a[i], b[i])) return false;
+    return true;
+  }
+  if (a && b && typeof a === "object" && typeof b === "object") {
+    const ka = Object.keys(a);
+    const kb = Object.keys(b);
+    if (ka.length !== kb.length) return false;
+    for (const k of ka) {
+      if (!Object.prototype.hasOwnProperty.call(b, k)) return false;
+      if (!deepEqual((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k])) return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+/** Content equality for output buffers (mirror bridge workspace._same_content:
+ *  pointCount / primCount / points / curves / attributes; rev + index ignored). */
+export function outputsEqual(a: OutputBuffer, b: OutputBuffer): boolean {
+  return (
+    a.pointCount === b.pointCount &&
+    a.primCount === b.primCount &&
+    deepEqual(a.points, b.points) &&
+    deepEqual(a.curves, b.curves) &&
+    deepEqual(a.attributes, b.attributes)
+  );
+}
+
 type Listener = () => void;
 
 /** Tiny pub-sub workspace store (per serial). No framework - matches AHS store idea. */
@@ -48,6 +81,33 @@ export class WorkspaceStore {
     }
     this.outputRev = rev;
     this.emit();
+  }
+
+  /** Align the local outputRev with the bridge without re-applying content
+   *  (used when a push response confirms a rev we already applied optimistically). */
+  setOutputRev(rev: number): void {
+    if (rev === this.outputRev) return;
+    this.outputRev = rev;
+    this.emit();
+  }
+
+  /** Bridge WS echo path: content-dedup + monotonic rev. Buffers with IDENTICAL
+   *  content to the stored one are skipped (no replace, no change count) so
+   *  fps-coalesced echoes of local optimistic applies are no-ops; rev advances
+   *  monotonically. Emits once when anything changed OR the rev advanced. */
+  applyOutputs(outputs: OutputBuffer[], rev: number): void {
+    let changed = false;
+    for (const buf of outputs) {
+      const i = this.outputs.findIndex((o) => o.index === buf.index);
+      const existing = i >= 0 ? this.outputs[i] : undefined;
+      if (existing && outputsEqual(existing, buf)) continue;
+      if (i >= 0) this.outputs[i] = buf;
+      else this.outputs.push(buf);
+      changed = true;
+    }
+    const revAdvanced = rev > this.outputRev;
+    if (revAdvanced) this.outputRev = rev;
+    if (changed || revAdvanced) this.emit();
   }
 
   clearOutputs(): void {

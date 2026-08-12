@@ -4,7 +4,7 @@ html, body { height: 100%; margin: 0; }
 body {
   background: #141518;
   color: #cfd2d6;
-  font: 12px/1.4 system-ui, sans-serif;
+  font: 12px/1.4 var(--cyl-font-ui);
 }
 
 /* ---- header ---- */
@@ -113,7 +113,7 @@ body {
 }
 .ov-row.history { grid-template-columns: minmax(150px, 1fr) 160px 70px; }
 .ov-cell { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ov-serial { font: 11px/1.4 ui-monospace, monospace; color: #9fd8ff; }
+.ov-serial { font: 11px/1.4 var(--cyl-font-ui); color: #9fd8ff; }
 .ov-label { font-weight: 600; color: #e5e7eb; }
 .ov-path { display: block; color: #7a7f87; font-weight: 400; font-size: 11px; }
 .ov-seen { color: #8f959e; }
@@ -123,7 +123,7 @@ body {
 .ov-seen.offline .ov-state { color: #f87171; }
 .ov-seen.uncooked .ov-state { color: #fbbf24; }
 .ov-seen.online .ov-state { color: #7ce3a8; }
-.ov-revs { display: flex; gap: 8px; font: 10px/1.4 ui-monospace, monospace; color: #8f959e; }
+.ov-revs { display: flex; gap: 8px; font: 10px/1.4 var(--cyl-font-ui); color: #8f959e; }
 .ov-revs .rev { background: #0f1012; border: 1px solid #33363c; border-radius: 3px; padding: 1px 5px; }
 .ov-open {
   background: #2e4f7d;

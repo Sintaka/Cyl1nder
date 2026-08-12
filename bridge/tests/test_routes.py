@@ -317,3 +317,68 @@ def test_notify_stream_coalesced_to_sync_fps(tmp_path: Path) -> None:
         st.unsubscribe(serial, ev)
 
     asyncio.run(scenario())
+
+
+def test_kick_rate_limited(tmp_path: Path) -> None:
+    """POST /kick twice quickly: the second is throttled and must not arm a fresh kick."""
+    c = _client(tmp_path)
+    serial = generate_serial()
+    # register first: kick requires an existing registry record
+    assert c.get(f"/api/hda/{serial}/pending").json()["pending"] is False
+    r1 = c.post(f"/api/hda/{serial}/kick")
+    assert r1.status_code == 200
+    assert r1.json() == {"ok": True, "serial": serial}
+    st = get_state()
+    assert st.take_kick(serial) is True  # first kick armed
+    r2 = c.post(f"/api/hda/{serial}/kick")
+    assert r2.status_code == 200
+    assert r2.json() == {"ok": True, "serial": serial, "throttled": True}
+    assert st.take_kick(serial) is False  # second did not arm a fresh kick
+
+
+def test_kick_after_interval_allowed(tmp_path: Path) -> None:
+    """Once the rate-limit window passes, POST /kick arms again."""
+    import time
+
+    c = _client(tmp_path)
+    serial = generate_serial()
+    assert c.get(f"/api/hda/{serial}/pending").json()["pending"] is False
+    r1 = c.post(f"/api/hda/{serial}/kick")
+    assert r1.status_code == 200
+    assert r1.json() == {"ok": True, "serial": serial}
+    st = get_state()
+    assert st.take_kick(serial) is True
+    # simulate the interval passing without sleeping
+    with st._kick_lock:
+        st._kick_last[serial] = time.monotonic() - 3
+    r2 = c.post(f"/api/hda/{serial}/kick")
+    assert r2.status_code == 200
+    assert r2.json() == {"ok": True, "serial": serial}
+    assert st.take_kick(serial) is True
+
+
+def test_put_outputs_noop_not_logged(tmp_path: Path) -> None:
+    """Identical output echo (no accepted change) produces no new log entry."""
+    c = _client(tmp_path)
+    serial = generate_serial()
+    out = {
+        "outputs": [
+            {
+                "index": 0,
+                "rev": 0,
+                "pointCount": 2,
+                "points": [[0, 0, 0], [1, 0, 0]],
+                "curves": [{"pointIndices": [0, 1]}],
+            }
+        ]
+    }
+    r1 = c.put(f"/api/hda/{serial}/outputs", json=out)
+    assert r1.status_code == 200
+    st = get_state()
+    assert any("outputs pushed" in e["message"] for e in st.logs.query(serial=serial))
+    n1 = len(st.logs.query(serial=serial))
+    r2 = c.put(f"/api/hda/{serial}/outputs", json=out)
+    assert r2.status_code == 200
+    logs = st.logs.query(serial=serial)
+    assert len(logs) == n1  # identical echo produced no new log entry
+    assert not any(e["message"].startswith("outputs pushed") for e in logs[n1:])

@@ -64,6 +64,9 @@ export interface ReteGraphHandlers {
   onSelectionChanged?: () => void;
   /** network topology changed (cut / insert / shake) -> caller re-runs the network */
   onNetworkChanged?: () => void;
+  /** param undo/redo applied -> caller refreshes the Enter gizmo position + panels
+   *  (params of the affected node AFTER the undo/redo mutation). */
+  onParamsApplied?: (nodeId: string, params: Array<{ name: string; type: string; value: unknown }>) => void;
 }
 
 export interface ReteGraph {
@@ -369,6 +372,17 @@ export async function createReteGraph(
 ): Promise<ReteGraph> {
   const g = await buildGraph(container, handlers);
 
+  // param undo/redo applied -> notify the affected node(s) so the caller can
+  // refresh the Enter gizmo position + panels (params AFTER the mutation).
+  const notifyParamsApplied = (action: UndoAction): void => {
+    if (action.type === "params") {
+      const n = g.editor.getNode(action.nodeId);
+      if (n) handlers.onParamsApplied?.(action.nodeId, (n as any).params);
+    } else if (action.type === "group") {
+      for (const sub of action.actions) notifyParamsApplied(sub);
+    }
+  };
+
   // Undo/redo stack for topology edits (cut / insert / shake); apply is chained so
   // rapid Ctrl+Z/Y cannot interleave the async rete connection mutations.
   let undoChain: Promise<void> = Promise.resolve();
@@ -381,6 +395,7 @@ export async function createReteGraph(
           // fires both ONCE at the end (no per-sub-action repeats)
           handlers.onNetworkChanged?.();
           handlers.onSelectionChanged?.();
+          notifyParamsApplied(action);
         }
       })
       .catch(() => undefined);

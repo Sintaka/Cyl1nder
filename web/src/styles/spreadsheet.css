@@ -1,6 +1,6 @@
 /* Geometry Spreadsheet panel (moved from dock.css so spreadsheet work has its own write set) */
 /* Geometry Spreadsheet */
-.cyl-spreadsheet { width: 100%; height: 100%; overflow: auto; background: #101114; color: #cfd2d6; font: 10px/1.4 ui-monospace, monospace; }
+.cyl-spreadsheet { width: 100%; height: 100%; overflow: auto; background: #101114; color: #cfd2d6; font: 10px/1.4 var(--cyl-font-ui); }
 .cyl-sp-section { border-bottom: 1px solid #22252a; padding: 4px 8px; background: #101114; }
 .cyl-sp-head { color: #7ce3a8; font-weight: 700; margin: 2px 0 4px; background: #101114; }
 .cyl-sp-tabs { display: flex; gap: 4px; margin-bottom: 4px; }

@@ -25,7 +25,7 @@ body { font-family: var(--cyl-font-ui); }
 .insp-row b { color: #9fd8ff; }
 .insp-row.out b { color: #ff9e9e; }
 .insp-row.hint { color: #6b7280; font-style: italic; border: none; margin-top: 8px; }
-.cyl-log { height: 90px; overflow: auto; background: #0c0d0f; border-top: 1px solid #2a2d33; padding: 4px 10px; font: 10px/1.5 ui-monospace, monospace; color: #8f959e; white-space: pre-wrap; }
+.cyl-log { height: 90px; overflow: auto; background: #0c0d0f; border-top: 1px solid #2a2d33; padding: 4px 10px; font: 10px/1.5 var(--cyl-font-ui); color: #8f959e; white-space: pre-wrap; }
 /* ---- resizable splitters (docking-ready sizing) ---- */
 .cyl-splitter { background: #1c1e22; }
 .cyl-splitter:hover { background: #2b6cb0; }
@@ -124,7 +124,7 @@ body { font-family: var(--cyl-font-ui); }
 }
 
 /* ---- Param panel (web/src/app/param.ts) ---- */
-.cyl-param { width: 100%; height: 100%; overflow: auto; background: #101114; font: 10px/1.5 ui-monospace, monospace; color: #cfd2d6; padding: 6px 10px; }
+.cyl-param { width: 100%; height: 100%; overflow: auto; background: #101114; font: 10px/1.5 var(--cyl-font-ui); color: #cfd2d6; padding: 6px 10px; }
 .cyl-param-head { color: #7ce3a8; font-weight: 700; margin: 2px 0 4px; }
 .cyl-param-empty { color: #6b7280; padding: 6px 0; }
 .cyl-param-table { width: 100%; border-collapse: collapse; table-layout: auto; }
@@ -165,7 +165,7 @@ body { font-family: var(--cyl-font-ui); }
   border-radius: 6px;
   padding: 4px;
   box-shadow: 0 8px 24px rgba(0,0,0,.5);
-  font: 10px/1.5 ui-monospace, monospace;
+  font: 10px/1.5 var(--cyl-font-ui);
   color: #cfd2d6;
   user-select: none;
   -webkit-user-select: none;
@@ -418,7 +418,7 @@ body { font-family: var(--cyl-font-ui); }
   flex: 0 0 auto;
 }
 .cyl-pref-hex {
-  font: 11px/1 var(--cyl-font-code);
+  font: 11px/1 var(--cyl-font-ui);
   color: #cfd2d6;
   min-width: 58px;
 }
@@ -467,9 +467,9 @@ body { font-family: var(--cyl-font-ui); }
 }
 .cyl-pref-actions .cyl-pref-save:hover {
   background: #3583cc;
-}/* ---- hex inputs share the code font (v0.1.00062 font contract) ----
-   colorpicker.css styles .cyl-cp-hex / .cyl-color3-hex with ui-monospace;
-   these higher-specificity selectors override them to --cyl-font-code
-   (Fira Code first, Chinese fallback Noto Sans SC). */
-.cyl-cp .cyl-cp-hex { font-family: var(--cyl-font-code); }
-.cyl-color3 .cyl-color3-hex { font-family: var(--cyl-font-code); }
+}/* ---- hex readouts follow the UI font preference (--cyl-font-ui) ----
+   colorpicker.css styles .cyl-cp-hex / .cyl-color3-hex; base.css overrides the
+   family stack (base.css carries the source of truth) so the preference
+   font swap (code <-> system) restyles hex readouts too. */
+.cyl-cp .cyl-cp-hex { font-family: var(--cyl-font-ui); }
+.cyl-color3 .cyl-color3-hex { font-family: var(--cyl-font-ui); }

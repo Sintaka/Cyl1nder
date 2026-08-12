@@ -56,3 +56,9 @@
   - `notify_stream` 合帧（≤ fps，`loop.call_later`）；WS 广播合帧（`stage_broadcast` 按 index latest-wins，≤ fps flush）。
   - 快照新增 **Preference.json** 部件（`_PARTS` + write/read），`putSnapshot` 透传 `preference`。
   - 测试：pytest **50 全绿**（+7：save 防抖 / /sync / stream 带 fps / preference 部件 / stage_broadcast 合帧 / notify 合帧）。
+## v0.1.00064（2026-08-12）——kick 限流 + 快照移线程 + no-op 不 log（详见 devlog/viewport-interrupt-redesign.md）
+- **POST /kick 每 serial 2s 去重**：`BridgeState.try_arm_kick(serial)`（monotonic 时间窗，命中返回 False 不 arm 不 touch 不 notify）；限流时仍 200 `{"ok":true,"throttled":true}`——客户端风暴（WS 重连 churn 反复 kick）不再打爆 bridge cmd、不再强迫 HDA 无效 recook。
+- **`_maybe_snapshot` 移出事件循环**：`write_snapshot` 经 `await asyncio.to_thread(...)`，5s 节流 + 内容对比不变——拖拽期同步磁盘 I/O 不再阻塞 WS 广播 / stream 唤醒（配合 v0.1.00057 registry 防抖，根除"猛写盘"拖后腿）。
+- **日志降噪**：`put_outputs` / ws `edit` 仅 accepted 非空（真实内容变化）时记录，no-op 回显不再刷 LogRing。
+- 测试：pytest **53 全绿**（+3：kick 限流 / 窗口过后可再 kick / 相同输出不产生新日志）。
+- **注意**：需重启 bridge 生效（HDA /stream 自动重连恢复）。

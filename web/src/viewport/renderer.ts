@@ -589,6 +589,12 @@ export class Viewport {
     if (this.enterMarker) this.enterMarker.position.set(x, y, z);
   }
 
+  /** Move the Enter gizmo temp object (tx/ty/tz) - used after param undo/redo so the
+   *  gizmo snaps back to the reverted node params. No-op when no gizmo is bound. */
+  setEnterPosition(x: number, y: number, z: number): void {
+    if (this.enterObject) this.enterObject.position.set(x, y, z);
+  }
+
   /** Leave Enter edit mode: detach, drop the temp object/marker, restore G demo / curve.
    *  With keepActive the MODE stays on (button lit, isEnterActive() true) and only the
    *  gizmo is dropped - used when the selection has no edit target (null/input/output). */

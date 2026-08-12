@@ -62,6 +62,7 @@
 | 流式推送 dirty + 内存缓存方案讨论 | [streaming-push-dirty.md](streaming-push-dirty.md) |
 | Houdini Python Runtime 接口设计 + transform 流式 panel 原型 | [python-runtime-design.md](python-runtime-design.md) |
 | three.js gizmo 拖拽延迟调研（TS/three.js/WASM 澄清 + 改进方向） | [viewport-gizmo-latency.md](viewport-gizmo-latency.md) |
+| 视口中断系统重设计 + 本地新鲜度 + kick 限流 | [viewport-interrupt-redesign.md](viewport-interrupt-redesign.md) |
 | 时间轴系统设计（30fps / HDA 锚定门控 / 双向同步） | [timeline-design.md](timeline-design.md) |
 | no geometry 诊断与 HDA 热重载恢复 | [no-geometry-diagnosis.md](no-geometry-diagnosis.md) |
 
@@ -96,6 +97,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00064：视口中断系统重设计 + 本地新鲜度 + kick 限流——web 本地乐观应用（runNetwork 先本地重建再推桥，与 Sync Max FPS 解耦）+ networkEpoch 过时请求整体丢弃 + rAF 合帧刷新 + WS outputs 内容去重/rev 单调；Sync Max FPS 首次 connect 即推（bridge 不再停默认 30）；kick 双端限流（web ≥5s/仅桥重启 re-kick，bridge 2s 去重 throttled）；撤销/重做 Enter gizmo 归位（onParamsApplied + setEnterPosition）；首选项删两行提示 + Default→Viewport Background Color；全部字体跟首选项（CSS 统一 --cyl-font-ui）；bridge _maybe_snapshot 移线程 + no-op 不 log；浮动面板跳出页面=大改不做（记录）；4 路并行（Russell=bridge / Franklin=web核心 / Peirce=undo-gizmo / Meitner=UI）+主进程合并；pytest 53, tsc 0, vitest 82, e2e 73 passed/1 skipped。
 - v0.1.00063：归档前文档同步——根 README 版本（0.1.00041→0.1.00063 + 当前架构一行）；sync-rate-limit-and-preference.md §2.3 过时表述修正（modal/Save-Cancel/推流节流→浮动面板 Apply-Accept/无上限）；sync-heartbeat-redesign.md sync_fps 注记（v0.1.00057 起为 HDA 接收端上限）；streaming-sync-gap.md / timeline-design.md 加「状态注记」（/stream 已落地、/pending 降 fallback、timeline 设计未实现）；annotations-hda/web 4 处历史条目加「已过时」标记。
 - v0.1.00062：大改造轮——HDA 崩溃根治（后台线程不再调 hou + reload 前停线程 + stop_all_sync + 恢复闭环）+ dock 底角黑点根治（删内凹 notch，底角纯活动蓝）+ 菜单加高 + Sync Max FPS ▲▼ 步进 + 字体内嵌（Fira Code + Noto Sans SC，UI 分类字体选项 + hex 同步）+ 首选项单实例/背景色 Ctrl+中键重置/背景色应用修复 + pivot 去绿盒 + 颜色拾取器大改造（全圆盘/滑块/Simple-Advanced/原生拾色器/Adobe 和谐色轮联动点/可拖动）+ 统一属性系统（Ctrl+中键重置扩展到 vector/color3 等）；4 路并行（Parfit=HDA / Boyle=CSS+字体 / Goodall=首选项+viewport / Archimedes=颜色）+主进程合并（registry 防抖测试加固）；tsc 0, vitest 82, e2e 71 passed/1 skipped, hython SMOKE OK, pytest 50。
 - v0.1.00061：UI/颜色微调——dock 底角内侧残留修复（notch 渐变圆心移到真正底角 + 硬边去近黑像素）+ 菜单 File/Edit 垂直居中 + 颜色拾取器体验（点色块即开调色板、移除 Change 按钮、hex 大写 + 小写自动转大写、Adobe 风色轮 △/□ 切换）；2 路并行（Heisenberg=dock+菜单 / Schrodinger=颜色）+主进程合并（round13/15 e2e 同步、Escape 优先关拾取器）；tsc 0, vitest 82, e2e 64 passed/1 skipped, pytest 50。

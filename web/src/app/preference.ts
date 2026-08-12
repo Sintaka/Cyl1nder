@@ -178,13 +178,12 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
       </section>
       <section class="cyl-pref-section" data-pref-pane="viewport" hidden>
         <div class="cyl-pref-row cyl-pref-viewport">
-          <label>Default Background Color</label>
+          <label>Viewport Background Color</label>
           <div class="cyl-pref-color">
-            <span class="cyl-pref-swatch" id="cyl-pref-bg-swatch" style="background:${initial.viewport_bg}" role="button" tabindex="0" title="Click to change color" aria-label="Change default background color"></span>
+            <span class="cyl-pref-swatch" id="cyl-pref-bg-swatch" style="background:${initial.viewport_bg}" role="button" tabindex="0" title="Click to change color" aria-label="Change viewport background color"></span>
             <span class="cyl-pref-hex" id="cyl-pref-bg-hex">${initial.viewport_bg}</span>
           </div>
         </div>
-        <p class="cyl-pref-hint">Ctrl + middle-click resets to default (#1A1A1A).</p>
       </section>
       <section class="cyl-pref-section" data-pref-pane="ui" hidden>
         <div class="cyl-pref-row">
@@ -194,7 +193,6 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
             <option value="system"${initial.ui_font === "system" ? " selected" : ""}>System</option>
           </select>
         </div>
-        <p class="cyl-pref-hint">UI chrome font. Hex readouts always use the code font.</p>
       </section>
     </div>
     <div class="cyl-pref-actions">

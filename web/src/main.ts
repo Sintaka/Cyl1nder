@@ -398,6 +398,16 @@ const handlers: ReteGraphHandlers = {
     void runNetwork();
     refreshNodeFlags(); // topology changed -> refresh display focus right away
   },
+  /** param undo/redo applied -> snap the Enter gizmo back to the reverted node
+   *  params (when it is the one being edited) + refresh the selection panels.
+   *  params are the affected node's values AFTER the undo/redo mutation. */
+  onParamsApplied: (nodeId, params) => {
+    if (viewport.isEnterActive() && nodeId === lastTransformId) {
+      const v = readParamFloats(params);
+      viewport.setEnterPosition(v.tx ?? 0, v.ty ?? 0, v.tz ?? 0);
+    }
+    refreshSelectionPanels();
+  },
 };
 const graph = await createReteGraph(layout.graphContainer, handlers);
 
@@ -406,8 +416,13 @@ let autoRun = layout.autoRunCheck.checked;
 let replayPending = false;  // first inputs after connect = replay, do NOT auto-run (avoids clobbering outputs/edits)
 /** Serials already kicked in THIS page session: only the first connect to a serial
  *  gets a one-shot HDA kick (freshly spawned bridge -> force recook -> offline->ok);
- *  WS auto-reconnects deliver more hellos but must never kick again. */
+ *  auto-reconnects deliver more hellos but must never kick again, and a per-serial
+ *  rate limit (>=5s between kicks) stops WS reconnect churn from hammering the HDA.
+ *  The marker is cleared ONLY on a real drop after the WS was up (wsWasUp=false
+ *  path, e.g. bridge restart) so the next hello re-kicks the HDA. */
 const kickedSerials = new Set<string>();
+const KICK_MIN_INTERVAL_MS = 5000; // at least 5s between HDA kicks per serial
+const lastKickAt = new Map<string, number>();
 let wsWasUp = false; // true once a WS has been up this session (drop-reconnect re-kick)
 
 layout.autoRunCheck.addEventListener("change", () => {
@@ -827,7 +842,13 @@ function renderInspector(): void {
   layout.inspectorEl.innerHTML = rows.join("");
 }
 
-store.subscribe(() => {
+/** Store emit -> ONE viewport/UI refresh pass per animation frame. The heavy body
+ *  (viewport rebuild + node flags + selection panels + inspector + log + dirty
+ *  marker) runs at most once per rAF, batching every emit within a frame (drag
+ *  bursts, pushLog spam, echo dedup). Initial render still happens on the next
+ *  frame; tests poll so timing is fine. */
+let pendingFlush = false;
+function flushStoreView(): void {
   graph.setStats("input", inputStatsText());
   graph.setStats("output", outputStatsText());
   renderInspector();
@@ -844,18 +865,46 @@ store.subscribe(() => {
     : store.status === "offline"
       ? "桥离线（127.0.0.1:8375）——请启动 bridge。"
       : "";
+}
+store.subscribe(() => {
+  if (pendingFlush) return;
+  pendingFlush = true;
+  requestAnimationFrame(() => {
+    pendingFlush = false;
+    flushStoreView();
+  });
 });
 
-/** v1 network: trace the graph topology (input -> null/transform -> output) into 4 output buffers. */
+/** Monotonic run counter: a push response whose epoch is no longer current is a
+ *  stale frame from a fast drag burst - discard it entirely (no log/emit). */
+let networkEpoch = 0;
+
+/** v1 network: trace the graph topology (input -> null/transform -> output) into 4
+ *  output buffers. Local optimistic apply FIRST (viewport rebuilds at the full local
+ *  rate via the rAF-coalesced store emit, decoupled from the bridge's Sync Max FPS
+ *  forward path), then fire-and-forget push to the bridge. */
 async function runNetwork(): Promise<void> {
-  if (!store.serial || store.inputs.length === 0) return;
   const serial = store.serial;
+  if (!serial || store.inputs.length === 0) return;
+  const epoch = ++networkEpoch;
   const snap = graph.getNetworkSnapshot();
   const outputs: OutputBuffer[] = computeOutputs(store.inputs, snap);
+  // a) local optimistic apply: predicted rev so the viewport rebuilds immediately
+  const predictedRev = store.outputRev + 1;
+  for (const buf of outputs) buf.rev = predictedRev;
+  store.upsertOutputs(outputs, predictedRev);
+  // b) fire-and-forget bridge push; stale responses (older epochs) are discarded
   client
     .pushOutputs(serial, outputs)
-    .then((r) => store.pushLog(`network ran: ${outputs.length} outputs → rev=${r.rev}`))
-    .catch((e) => store.pushLog(`network run failed: ${String(e)}`));
+    .then((r) => {
+      if (epoch !== networkEpoch || store.serial !== serial) return; // stale - discard entirely
+      if (r.rev > store.outputRev) store.setOutputRev(r.rev); // align rev, no content re-apply
+      store.pushLog(`network ran: ${outputs.length} outputs → rev=${r.rev}`);
+    })
+    .catch((e) => {
+      if (epoch !== networkEpoch || store.serial !== serial) return;
+      store.pushLog(`network run failed: ${String(e)}`);
+    });
 }
 
 /** One-shot HDA kick on the session's first connect to a serial: the bridge sets a
@@ -973,11 +1022,13 @@ function applyLoadedPreference(json: unknown): void {
 function connect(serialRaw: string): void {
   const serial = serialRaw.trim();
   if (!serial) return;
-  const isReconnect = !!wsDisconnect;
   wsDisconnect?.();
-  if (isReconnect) kickedSerials.delete(serial); // dropped WS -> next hello re-kicks the HDA
   replayPending = true;
   store.setSerial(serial);
+  networkEpoch++; // discard in-flight runs from the previous serial
+  // Push the persisted Sync Max FPS on EVERY (re)connect: the bridge keeps its
+  // default 30 until the web tells it otherwise (first connect + reconnect).
+  void client.putSyncFps(serial, prefs.sync_max_fps).catch(() => undefined);
   startHdaWatch(serial);
   store.pushLog(`connect ${serial}`);
   void loadSnapshotIntoStore(serial);
@@ -991,9 +1042,12 @@ function connect(serialRaw: string): void {
         store.pushLog(`hello inputRev=${msg.inputRev} outputRev=${msg.outputRev}`);
         // First hello for this serial in this page session: kick the HDA once so a
         // freshly spawned bridge forces a recook (HDA offline -> ok). Auto-reconnects
-        // bring more hellos but must not kick again.
-        if (!kickedSerials.has(serial)) {
+        // bring more hellos but must not kick again, and the per-serial rate limit
+        // (>=5s) stops reconnect churn from hammering the HDA. Only a real drop
+        // (wsWasUp=false path cleared the marker) re-arms the kick.
+        if (!kickedSerials.has(serial) && (lastKickAt.get(serial) ?? 0) + KICK_MIN_INTERVAL_MS <= Date.now()) {
           kickedSerials.add(serial);
+          lastKickAt.set(serial, Date.now());
           void kickHdaOnce(serial);
         }
       } else if (msg.type === "inputs") {
@@ -1008,7 +1062,13 @@ function connect(serialRaw: string): void {
         // gate auto-run on real content change: breaks the Force Cook <-> echo feedback loop
         if (autoRun && changed) void runNetwork();
       } else if (msg.type === "outputs") {
-        store.upsertOutputs(msg.outputs, msg.rev);
+        // content-dedup + monotonic rev: applyOutputs skips echoes identical to
+        // local optimistic applies; the rev guard below additionally drops echoes
+        // that are NOT newer than the local state, so a fps-coalesced broadcast
+        // carrying an INTERMEDIATE drag frame can never regress the local viewport.
+        if (msg.rev > store.outputRev) {
+          store.applyOutputs(msg.outputs, msg.rev);
+        }
         store.pushLog(`outputs rev=${msg.rev} (${msg.outputs.length})`);
       }
     },

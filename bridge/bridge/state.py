@@ -19,6 +19,11 @@ from .ui_layout import UiLayoutStore
 from .workspace import WorkspaceStore
 
 
+# per-serial kick rate limit: at most one armed kick per window per serial (defensive
+# against client storms re-posting /kick on WS reconnect churn)
+_KICK_MIN_INTERVAL = 2.0
+
+
 class BridgeState:
     def __init__(self, data_dir: Path) -> None:
         self.data_dir = data_dir
@@ -28,6 +33,7 @@ class BridgeState:
         self.ui_layout = UiLayoutStore(data_dir / "ui-layout.json")
         self._kick_lock = threading.Lock()
         self._kicks: dict[str, bool] = {}
+        self._kick_last: dict[str, float] = {}  # monotonic ts of last armed kick
         # per-serial sync max fps (bridge-side receive+forward cap), in-memory only
         # (the web Preference.json is the persistent source)
         self._sync_fps_lock = threading.Lock()
@@ -72,6 +78,21 @@ class BridgeState:
         """Consume the force marker (one-shot) - True while a kick is pending."""
         with self._kick_lock:
             return self._kicks.pop(serial, False)
+
+    def try_arm_kick(self, serial: str) -> bool:
+        """Rate-limited one-shot kick arming (POST /kick defensive throttle).
+
+        Returns True when the kick was armed (and the per-serial timestamp recorded);
+        returns False when a kick was armed within the last _KICK_MIN_INTERVAL seconds
+        for this serial (client storm guard - no arm, no touch, no notify)."""
+        now = time.monotonic()
+        with self._kick_lock:
+            last = self._kick_last.get(serial)
+            if last is not None and now - last < _KICK_MIN_INTERVAL:
+                return False
+            self._kick_last[serial] = now
+            self._kicks[serial] = True
+            return True
 
     # --- /stream long-poll waiters ------------------------------------------
 

@@ -46,7 +46,9 @@ async def _maybe_snapshot(serial: str) -> None:
         return
     _SNAP_LAST[serial] = now
     ws = st.workspaces.get_or_create(serial)
-    write_snapshot(
+    # disk I/O off the event loop: blocks would delay WS broadcast / stream wake
+    await asyncio.to_thread(
+        write_snapshot,
         serial,
         rec.hip,
         meta=build_meta(serial, rec.hip, rec.nodePath, VERSION, ws.input_rev, ws.output_rev()),
@@ -126,8 +128,8 @@ async def put_outputs(serial: str, payload: OutputsPut) -> dict:
     rev, accepted = ws.put_outputs(payload.outputs)
     if accepted:
         st.registry.mark_activity(serial)
-    st.logs.info("routes", f"outputs pushed ({len(payload.outputs)}, accepted {len(accepted)}), rev={rev}", serial)
-    if accepted:
+        # log only real content changes - no-op echo pushes would flood the log ring
+        st.logs.info("routes", f"outputs pushed ({len(payload.outputs)}, accepted {len(accepted)}), rev={rev}", serial)
         st.stage_broadcast(serial, accepted, rev)
         st.notify_stream(serial)
     await _maybe_snapshot(serial)
@@ -234,7 +236,9 @@ async def kick(serial: str) -> dict:
     st = get_state()
     if st.registry.get(serial) is None:
         raise HTTPException(status_code=404, detail="serial not registered")
-    st.set_kick(serial)
+    if not st.try_arm_kick(serial):
+        # rate-limited (kick storm guard): quiet no-op, still 200 so web treats it as success
+        return {"ok": True, "serial": serial, "throttled": True}
     st.registry.touch(serial)
     st.notify_stream(serial)
     st.logs.info("routes", f"kick armed for {serial}", serial)

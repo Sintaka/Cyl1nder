@@ -181,6 +181,14 @@ test("Auto Update: multi-frame gizmo drag = ONE undo entry; Ctrl+Z reverts the w
   );
   expect(await undoLogCount(page, "undo")).toBe(1); // exactly ONE undo entry
 
+  // Enter gizmo temp object snaps back to the reverted params (undo)
+  const gizmoPos = await page.evaluate(() => {
+    const v: any = (window as any).__cylViewport;
+    const obj = v.scene.getObjectByName("cyl-enter-gizmo");
+    return obj ? [obj.position.x, obj.position.y, obj.position.z] : null;
+  });
+  expect(gizmoPos).toEqual([0, 0, 0]);
+
   // a second Ctrl+Z is a no-op: no second entry exists
   await page.keyboard.press("Control+z");
   expect(await undoLogCount(page, "undo")).toBe(1);
@@ -190,6 +198,14 @@ test("Auto Update: multi-frame gizmo drag = ONE undo entry; Ctrl+Z reverts the w
   await page.keyboard.press("Control+Shift+z");
   await expect.poll(() => nodeParams(page), { timeout: 10000 }).toMatchObject({ tx: 2.5, ty: 0.5, tz: 0.75 });
   expect(await undoLogCount(page, "redo")).toBe(1);
+
+  // Enter gizmo temp object follows the re-applied params (redo)
+  const gizmoPosRedo = await page.evaluate(() => {
+    const v: any = (window as any).__cylViewport;
+    const obj = v.scene.getObjectByName("cyl-enter-gizmo");
+    return obj ? [obj.position.x, obj.position.y, obj.position.z] : null;
+  });
+  expect(gizmoPosRedo).toEqual([2.5, 0.5, 0.75]);
 
   // Esc exits Enter mode
   await page.keyboard.press("Escape");
