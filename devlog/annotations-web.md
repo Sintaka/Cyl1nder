@@ -448,3 +448,6 @@
 - **底部非 docking 栏 + 更新模式（Ohm）**：dock 之下新增 `.cyl-bottom-bar`（28px，右对齐），右侧 15ch 宽下拉 `Auto Update / On Mouse Up`（localStorage 记忆）。**Auto Update**：gizmo 拖动每帧 setNodeParams+runNetwork（现状）；**On Mouse Up**：拖动期 gizmo 实时跟手但只缓冲最后 tx/ty/tz（零网络零几何重建），松手（dragging-changed false）一次性提交（一次 setNodeParams+runNetwork）；重绑 gizmo 清脏缓冲防串。renderer `beginTransformGizmo` 增 `onDragEnd` 回调。
 - **时间轴系统设计（Hegel，仅设计）**：devlog/timeline-design.md——默认 30fps、启动与 Houdini 场景 fps 同步、双向同步以 **HDA 锚定（engaged = 选中 OR 最近 1s 内 cook，由 HDA 回传）** 为门控（lastSeen/lastActivity 都不能作门控）；复用 /pending + WS 传输（H→C 捎带 frame/fps/engaged，C→H 发帧号 → hdefereval.setFrame）；拖动节流/latest-wins/回显抑制；Phase1 单向读+启动 fps 同步 → Phase2 双向拖帧 → Phase3 播放/循环。
 - 验证：tsc 0；vitest 82；pytest 37；Playwright 全量 52 项 **51 passed / 1 skipped**（--workers=3；6 workers 时共享 serial 并行争用导致 round2/6/12 偶发 flake，顺序跑全过）。
+## v0.1.00056（2026-08-12）
+- **HDA 心跳离线判定改慢时钟**（配合 HDA 侧 /stream 长轮询 hold=60s、心跳 1/min）：`main.ts` `startHdaWatch` stale 15s → **150s**、检查间隔 5s → 15s；`overview.ts` `OFFLINE_MS` 15_000 → **150_000**（`STALE_ACTIVITY_MS` 不变，未 cook 判定不受影响）；`protocol/types.ts` 新增 `StreamEvent` 镜像（三处同步）；e2e round9 offline fixture `lastSeen: now-30` → `now-300`。
+- 验证：tsc 0；vitest 82；e2e round9/10/12/smoke **11 全过**。

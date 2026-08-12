@@ -88,3 +88,10 @@ export type WsServerMessage =
   | { type: "inputs"; inputs: InputPayload[]; rev: number }
   | { type: "outputs"; outputs: OutputBuffer[]; rev: number }
   | { type: "pong" };
+
+// NDJSON long-poll events (HDA -> bridge GET /stream; web does not consume)
+export type StreamEvent =
+  | { type: "outputs"; rev: number }
+  | { type: "reset"; rev: number }
+  | { type: "kick"; force: true; rev: number }
+  | { type: "timeout"; rev: number };

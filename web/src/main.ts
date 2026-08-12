@@ -750,7 +750,8 @@ async function kickHdaOnce(serial: string): Promise<void> {
   if (store.inputs.length > 0) void runNetwork();
 }
 
-/** HDA heartbeat watchdog: registry.lastSeen goes stale when Houdini crashes. */
+/** HDA 心跳 watchdog：lastSeen 由 HDA 心跳维持（/stream 长轮询约 1min 一次），
+ *  超过 150s（2.5×心跳间隔）未更新即判 Houdini 离线（慢时钟，避免长轮询空闲误报）。 */
 let hdaWatch: number | undefined;
 let hdaWasStale = false;
 function startHdaWatch(serial: string): void {
@@ -759,7 +760,8 @@ function startHdaWatch(serial: string): void {
     try {
       const st = await client.getStatus(serial);
       const lastSeen = (st.registry as { lastSeen?: number } | undefined)?.lastSeen ?? 0;
-      const stale = Date.now() / 1000 - lastSeen > 15;
+      // 心跳 1min（/stream hold=60s）；离线阈值 150s = 2.5×60，慢时钟避免长轮询空闲误报
+      const stale = Date.now() / 1000 - lastSeen > 150;
       layout.hdaOffline.classList.toggle("hidden", !stale);
       if (stale !== hdaWasStale) {
         hdaWasStale = stale;
@@ -770,7 +772,7 @@ function startHdaWatch(serial: string): void {
     }
   };
   void check();
-  hdaWatch = window.setInterval(check, 5000);
+  hdaWatch = window.setInterval(check, 15000); // 检查间隔 15s，远小于 150s 阈值
 }
 function stopHdaWatch(): void {
   if (hdaWatch !== undefined) window.clearInterval(hdaWatch);

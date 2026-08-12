@@ -216,3 +216,7 @@ store 现状（`web/src/stores/workspace.ts`）：`inputs`/`outputs` 按 index �
 ### 8.5 范围标注
 
 **本轮仅计划不实现**（大改：独立分支 + 专题 devlog + 三处协议同步 protocol.py / types.ts / protocol.md）。落地拆两步：先 `/stream`（bridge + HDA 后台线程 + hython 冒烟），再评估是否移除自适应 `/pending`（建议保留作 fallback）。
+
+### 8.6 落地（v0.1.00056）
+
+> `/stream` 已实现并成为 HDA 主同步通道，心跳与数据轮询解耦，详见 [sync-heartbeat-redesign.md](sync-heartbeat-redesign.md)。自适应 `/pending` 保留作 fallback；web 离线判定改 150s 慢时钟；hython 冒烟 + pytest + e2e 全绿。

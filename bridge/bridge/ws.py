@@ -96,6 +96,7 @@ async def ws_endpoint(websocket: WebSocket) -> None:
                             serial,
                             {"type": "outputs", "outputs": [o.model_dump() for o in accepted], "rev": rev},
                         )
+                        st.notify_stream(serial)
     except WebSocketDisconnect:
         st.logs.info("ws", "client disconnected", serial)
         await manager.disconnect(serial, websocket)

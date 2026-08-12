@@ -3,6 +3,14 @@
 Keep in sync with:
 - web/src/protocol/types.ts (TS mirror)
 - devlog/protocol.md (human-readable spec)
+
+GET /api/hda/{serial}/stream (NDJSON long-poll, see devlog/sync-heartbeat-redesign.md §3.1):
+- single-line JSON per poll, Content-Type: application/x-ndjson
+- immediate hits: since > rev -> {"type":"reset","rev"}; rev > since -> {"type":"outputs","rev"};
+  kick armed -> {"type":"kick","force":true,"rev"}
+- otherwise hold up to `hold` seconds (default 20, max 60); put_outputs accepted / kick armed
+  wake the poll early; timeout -> {"type":"timeout","rev"}
+- request arrival touches the registry (liveness heartbeat, same auto-register as /pending)
 """
 from __future__ import annotations
 
@@ -12,12 +20,16 @@ import time
 
 from pydantic import BaseModel, Field
 
-VERSION = "0.1.00055"
+VERSION = "0.1.00056"
 HOST = "127.0.0.1"
 PORT = 8375
 BASE_URL = f"http://{HOST}:{PORT}"
 # Web frontend (Vite dev server) - NOT the bridge. The bridge is data-only (REST/WS).
 WEB_UI_URL = "http://127.0.0.1:8376"
+
+# GET /api/hda/{serial}/stream long-poll hold bounds (seconds)
+STREAM_HOLD_DEFAULT = 20
+STREAM_HOLD_MAX = 60
 
 # serial: C1-<base36(ms) 8+ chars>-<4 base36 random>
 _SERIAL_RE = re.compile(r"^C1-[0-9a-z]{8,}-[0-9a-z]{4}$")

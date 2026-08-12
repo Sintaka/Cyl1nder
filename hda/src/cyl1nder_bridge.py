@@ -105,6 +105,23 @@ class BridgeClient:
         except Exception:  # noqa: BLE001
             return False, since, False, False
 
+    def stream_once(self, since: int, hold: float = 60.0) -> dict | None:
+        """Long-poll one NDJSON stream event from /stream (hold ~= idle heartbeat).
+
+        Returns the parsed event dict, or None on any connection error - the
+        caller backs off and retries. A connection error is distinct from a
+        {"type":"timeout"} event dict, which is the idle keep-alive.
+        """
+        try:
+            url = f"{self.bridge_url}/api/hda/{self.serial}/stream?since={int(since or 0)}&hold={float(hold)}"
+            with urllib.request.urlopen(url, timeout=hold + 5.0) as resp:
+                line = resp.readline().decode("utf-8").strip()
+            if not line:
+                return None
+            return json.loads(line)
+        except Exception:  # noqa: BLE001 - connection errors -> None (caller retries)
+            return None
+
     def pull_outputs(self, since: int) -> tuple[list[dict] | None, int]:
         """Returns (outputs, new_rev) or (None, since) when the bridge is unreachable."""
         try:

@@ -75,8 +75,8 @@ test("active rows render three states: offline / uncooked / online", async ({ pa
       contentType: "application/json",
       body: JSON.stringify({
         active: [
-          // lastSeen 过期 -> 离线
-          { serial: "C1-e2eround9-0001", label: "offline-scene", nodePath: "/obj/off", lastSeen: now - 30, lastActivity: now - 60, inputRev: 1, outputRev: 1 },
+          // lastSeen 过期 -> 离线（150s 阈值下 now-300 仍判离线）
+          { serial: "C1-e2eround9-0001", label: "offline-scene", nodePath: "/obj/off", lastSeen: now - 300, lastActivity: now - 60, inputRev: 1, outputRev: 1 },
           // lastSeen 新鲜但 lastActivity 陈旧 -> 未cook
           { serial: "C1-e2eround9-0002", label: "stale-activity", nodePath: "/obj/stale", lastSeen: now - 2, lastActivity: now - 10, inputRev: 1, outputRev: 0 },
           // lastSeen 新鲜、lastActivity 缺失/0、rev 全 0 -> 未cook

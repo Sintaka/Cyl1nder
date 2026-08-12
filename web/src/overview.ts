@@ -38,7 +38,7 @@ class HttpError extends Error {
   }
 }
 
-const OFFLINE_MS = 15_000; // lastSeen 超过 15s -> 离线（Houdini 心跳断）
+const OFFLINE_MS = 150_000; // lastSeen 超过 150s -> 离线（心跳约 1min 一次，阈值 2.5×60=150s；慢时钟，避免长轮询空闲误报）
 const STALE_ACTIVITY_MS = 5_000; // lastActivity 超过 5s 未推数据 -> 未cook
 
 type ActiveState = "offline" | "uncooked" | "online";

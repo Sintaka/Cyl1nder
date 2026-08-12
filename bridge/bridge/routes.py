@@ -1,10 +1,21 @@
 """REST routes: health / serials / per-serial inputs / outputs / logs / scenes / usdz."""
 from __future__ import annotations
 
+import asyncio
+import json
+
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import RedirectResponse, Response
 
-from .protocol import InputsPut, OutputsPut, VERSION, WEB_UI_URL, is_valid_serial
+from .protocol import (
+    InputsPut,
+    OutputsPut,
+    STREAM_HOLD_DEFAULT,
+    STREAM_HOLD_MAX,
+    VERSION,
+    WEB_UI_URL,
+    is_valid_serial,
+)
 from .scenes import cleanup_scenes, create_scene, list_scenes, open_scene, save_scene
 from .snapshot import build_meta, read_snapshot, write_snapshot
 from .usdz import build_usdz_bytes
@@ -116,6 +127,7 @@ async def put_outputs(serial: str, payload: OutputsPut) -> dict:
             serial,
             {"type": "outputs", "outputs": [o.model_dump() for o in accepted], "rev": rev},
         )
+        st.notify_stream(serial)
     await _maybe_snapshot(serial)
     return {"ok": True, "serial": serial, "rev": rev}
 
@@ -142,6 +154,56 @@ async def pending(serial: str, since: int = Query(0, ge=0)) -> dict:
     }
 
 
+def _ndjson(payload: dict) -> Response:
+    """Single-line NDJSON response body for the /stream long-poll."""
+    return Response(content=json.dumps(payload) + "\n", media_type="application/x-ndjson")
+
+
+@router.get("/api/hda/{serial}/stream")
+async def stream(
+    serial: str,
+    since: int = Query(0, ge=0),
+    hold: float = Query(STREAM_HOLD_DEFAULT, ge=0, le=STREAM_HOLD_MAX),
+) -> Response:
+    """NDJSON long-poll - HDA primary sync channel (see sync-heartbeat-redesign.md §3.1).
+
+    Heartbeat: request arrival touches the registry (liveness, same auto-register
+    semantics as /pending). Returns immediately when the rev moved (outputs), when
+    the bridge restarted and rev fell back (reset), or when a one-shot kick is
+    armed; otherwise holds up to hold seconds and wakes on put_outputs accepted
+    or kick armed, else reports timeout (HDA reconnects right away as keep-alive).
+    """
+    _check_serial(serial)
+    st = get_state()
+    st.registry.touch(serial)
+    event = st.subscribe(serial)
+    try:
+        rev = st.workspaces.get_or_create(serial).output_rev()
+        # immediate hits (priority: reset > outputs > kick)
+        if since > rev:
+            return _ndjson({"type": "reset", "rev": rev})
+        if rev > since:
+            return _ndjson({"type": "outputs", "rev": rev})
+        if st.take_kick(serial):
+            return _ndjson({"type": "kick", "force": True, "rev": rev})
+        # hold: wake on put_outputs accepted / kick armed, else timeout
+        try:
+            await asyncio.wait_for(event.wait(), timeout=hold)
+        except asyncio.TimeoutError:
+            return _ndjson({"type": "timeout", "rev": rev})
+        rev = st.workspaces.get_or_create(serial).output_rev()
+        if since > rev:
+            return _ndjson({"type": "reset", "rev": rev})
+        if rev > since:
+            return _ndjson({"type": "outputs", "rev": rev})
+        if st.take_kick(serial):
+            return _ndjson({"type": "kick", "force": True, "rev": rev})
+        # spurious wake (e.g. another poller consumed the kick): report timeout
+        return _ndjson({"type": "timeout", "rev": rev})
+    finally:
+        st.unsubscribe(serial, event)
+
+
 @router.post("/api/hda/{serial}/kick")
 async def kick(serial: str) -> dict:
     """One-shot force marker: Cyl1nder 侧更新后踹 HDA 一脚.
@@ -157,6 +219,7 @@ async def kick(serial: str) -> dict:
         raise HTTPException(status_code=404, detail="serial not registered")
     st.set_kick(serial)
     st.registry.touch(serial)
+    st.notify_stream(serial)
     st.logs.info("routes", f"kick armed for {serial}", serial)
     return {"ok": True, "serial": serial}
 

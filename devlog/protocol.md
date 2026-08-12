@@ -1,4 +1,4 @@
-﻿# Cyl1nder 通信协议 v1
+# Cyl1nder 通信协议 v1
 
 > 本文件是**人读规范**；机器可读单源在 `bridge/bridge/protocol.py`，web 端类型镜像在 `web/src/protocol/types.ts`。
 > 任何改动三处同步：protocol.py / types.ts / 本文件。
@@ -22,6 +22,15 @@
 - `GET  /api/hda/{serial}/logs?level=&limit=`
 - `GET  /api/logs?level=&limit=`（全局日志）
 
+### 同步端点（HDA ⇄ bridge，事件驱动）
+- `GET /api/hda/{serial}/pending?since=N`：轻量脏检查 `{pending, rev, reset, force}`。**fallback**：HDA 主同步通道已改 `/stream`，本端点保留兼容与回退（自适应轮询时兼心跳）。
+- `POST /api/hda/{serial}/kick`：一次性 force 标记（web 首连/重连踢 HDA）；立即唤醒 `/stream`（返回 `{type:"kick", force:true}`）或 `/pending`（`force:true`）。
+- `GET /api/hda/{serial}/stream?since=0&hold=20`：**NDJSON 长轮询（HDA 主同步通道）**：
+  - 请求到达即 `registry.touch`（liveness = 心跳，auto-register 语义同 /pending）。
+  - 立即返回（任一命中）：`since>rev → {type:"reset", rev}` / `rev>since → {type:"outputs", rev}` / kick armed（一次性消费）→ `{type:"kick", force:true, rev}`。
+  - 否则 hold 至超时（默认 20s、上限 60s；HDA 用 60s）；`put_outputs` accepted 或 kick armed 立即唤醒；超时 → `{type:"timeout", rev}`。
+  - 响应单行 NDJSON，`Content-Type: application/x-ndjson`。
+- **心跳语义（LiveLink 原则：数据帧即心跳）**：高传输时事件本身即 liveness，**零额外心跳**；静默期 stream hold=60s → 心跳约 **1 次/分**。web 端离线判定为**慢时钟**：lastSeen 超 **150s**（2.5×60）判 Houdini 离线。
 ## WebSocket `/ws?serial=<serial>`
 - 服务端 → 客户端：`{type:"hello", serial, rev}` / `{type:"inputs", inputs}` / `{type:"outputs", outputs}` / `{type:"log", ...}`
 - 客户端 → 服务端：`{type:"ping"}` / `{type:"edit", outputs:[...]}`

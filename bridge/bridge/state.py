@@ -1,6 +1,7 @@
 """Shared bridge state singleton used by REST / WS / MCP."""
 from __future__ import annotations
 
+import asyncio
 import os
 import threading
 from pathlib import Path
@@ -20,9 +21,11 @@ class BridgeState:
         self.ui_layout = UiLayoutStore(data_dir / "ui-layout.json")
         self._kick_lock = threading.Lock()
         self._kicks: dict[str, bool] = {}
+        self._stream_lock = threading.Lock()
+        self._stream_events: dict[str, set[asyncio.Event]] = {}
 
     def set_kick(self, serial: str) -> None:
-        """Arm a one-shot force marker: the next /pending for this serial returns force=True."""
+        """Arm a one-shot force marker: the next /pending or /stream for this serial returns force=True."""
         with self._kick_lock:
             self._kicks[serial] = True
 
@@ -30,6 +33,35 @@ class BridgeState:
         """Consume the force marker (one-shot) - True while a kick is pending."""
         with self._kick_lock:
             return self._kicks.pop(serial, False)
+
+    def subscribe(self, serial: str) -> asyncio.Event:
+        """Register a /stream long-poll waiter for this serial; returns a fresh Event.
+
+        The caller must await event.wait() and then unsubscribe (finally)."""
+        event = asyncio.Event()
+        with self._stream_lock:
+            self._stream_events.setdefault(serial, set()).add(event)
+        return event
+
+    def unsubscribe(self, serial: str, event: asyncio.Event) -> None:
+        """Remove a /stream waiter (idempotent; called when the poll returns)."""
+        with self._stream_lock:
+            events = self._stream_events.get(serial)
+            if events:
+                events.discard(event)
+                if not events:
+                    self._stream_events.pop(serial, None)
+
+    def notify_stream(self, serial: str) -> None:
+        """Wake every /stream long-poll waiter for this serial.
+
+        Called only from the main event loop (routes.put_outputs accepted,
+        ws.py edit branch accepted, routes.kick armed) - asyncio.Event is
+        single-loop safe there; a waiter re-evaluates rev/kick on wake."""
+        with self._stream_lock:
+            events = list(self._stream_events.get(serial, ()))
+        for event in events:
+            event.set()
 
 
 _state: BridgeState | None = None

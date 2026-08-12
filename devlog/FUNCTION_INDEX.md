@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-12），由 `node scripts/gen-index.mjs` 产出。共 **456** 个函数/类。
+> 机器生成（2026-08-12），由 `node scripts/gen-index.mjs` 产出。共 **462** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -87,19 +87,19 @@
 | `cyl1nder_index_query` | 274 | def |  | 1 |
 | `run_stdio` | 297 | def |  | 2 |
 
-## bridge/bridge/protocol.py（96 行）
+## bridge/bridge/protocol.py（108 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_b36` | 26 | def |  | 3 |
-| `generate_serial` | 37 | def |  | 1 |
-| `is_valid_serial` | 48 | def |  | 1 |
-| `AttributeData` | 52 | class |  | 1 |
-| `CurveData` | 58 | class |  | 1 |
-| `InputPayload` | 63 | class |  | 1 |
-| `OutputBuffer` | 74 | class |  | 1 |
-| `InputsPut` | 85 | class |  | 1 |
-| `OutputsPut` | 93 | class |  | 1 |
+| `_b36` | 38 | def |  | 3 |
+| `generate_serial` | 49 | def |  | 1 |
+| `is_valid_serial` | 60 | def |  | 1 |
+| `AttributeData` | 64 | class |  | 1 |
+| `CurveData` | 70 | class |  | 1 |
+| `InputPayload` | 75 | class |  | 1 |
+| `OutputBuffer` | 86 | class |  | 1 |
+| `InputsPut` | 97 | class |  | 1 |
+| `OutputsPut` | 105 | class |  | 1 |
 
 ## bridge/bridge/registry.py（173 行）
 
@@ -121,36 +121,38 @@
 | `_save` | 155 | def |  | 5 |
 | `_load` | 164 | def |  | 2 |
 
-## bridge/bridge/routes.py（304 行）
+## bridge/bridge/routes.py（367 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_maybe_snapshot` | 22 | def |  | 3 |
-| `root` | 43 | def |  | 1 |
-| `_check_serial` | 50 | def |  | 12 |
-| `health` | 56 | def |  | 1 |
-| `list_serials` | 62 | def |  | 1 |
-| `status` | 67 | def |  | 2 |
-| `put_inputs` | 79 | def |  | 1 |
-| `get_outputs` | 97 | def |  | 1 |
-| `put_outputs` | 106 | def |  | 2 |
-| `pending` | 124 | def |  | 1 |
-| `kick` | 146 | def |  | 1 |
-| `serial_logs` | 165 | def |  | 1 |
-| `get_snapshot` | 175 | def |  | 1 |
-| `get_ui_layout` | 186 | def |  | 1 |
-| `put_ui_layout` | 193 | def |  | 1 |
-| `put_snapshot` | 201 | def |  | 1 |
-| `ui_layouts` | 218 | def |  | 1 |
-| `ui_layout_save` | 224 | def |  | 1 |
-| `ui_layout_load` | 231 | def |  | 1 |
-| `global_logs` | 238 | def |  | 1 |
-| `scenes_list` | 249 | def |  | 1 |
-| `scenes_create` | 255 | def |  | 1 |
-| `scenes_cleanup` | 262 | def |  | 1 |
-| `scene_save` | 268 | def |  | 1 |
-| `scenes_open` | 279 | def |  | 1 |
-| `get_usdz` | 292 | def |  | 1 |
+| `_maybe_snapshot` | 33 | def |  | 3 |
+| `root` | 54 | def |  | 1 |
+| `_check_serial` | 61 | def |  | 13 |
+| `health` | 67 | def |  | 1 |
+| `list_serials` | 73 | def |  | 1 |
+| `status` | 78 | def |  | 2 |
+| `put_inputs` | 90 | def |  | 1 |
+| `get_outputs` | 108 | def |  | 1 |
+| `put_outputs` | 117 | def |  | 2 |
+| `pending` | 136 | def |  | 1 |
+| `_ndjson` | 157 | def |  | 9 |
+| `stream` | 163 | def |  | 1 |
+| `kick` | 208 | def |  | 1 |
+| `serial_logs` | 228 | def |  | 1 |
+| `get_snapshot` | 238 | def |  | 1 |
+| `get_ui_layout` | 249 | def |  | 1 |
+| `put_ui_layout` | 256 | def |  | 1 |
+| `put_snapshot` | 264 | def |  | 1 |
+| `ui_layouts` | 281 | def |  | 1 |
+| `ui_layout_save` | 287 | def |  | 1 |
+| `ui_layout_load` | 294 | def |  | 1 |
+| `global_logs` | 301 | def |  | 1 |
+| `scenes_list` | 312 | def |  | 1 |
+| `scenes_create` | 318 | def |  | 1 |
+| `scenes_cleanup` | 325 | def |  | 1 |
+| `scene_save` | 331 | def |  | 1 |
+| `scenes_open` | 342 | def |  | 1 |
+| `get_usdz` | 355 | def |  | 1 |
 
 ## bridge/bridge/scenes.py（188 行）
 
@@ -175,17 +177,20 @@
 | `write_snapshot` | 78 | def |  | 1 |
 | `build_meta` | 124 | def |  | 1 |
 
-## bridge/bridge/state.py（57 行）
+## bridge/bridge/state.py（89 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `BridgeState` | 14 | class |  | 2 |
-| `__init__` | 15 | def |  | 1 |
-| `set_kick` | 24 | def |  | 1 |
-| `take_kick` | 29 | def |  | 1 |
-| `default_data_dir` | 38 | def |  | 2 |
-| `get_state` | 45 | def |  | 1 |
-| `reset_state` | 52 | def |  | 1 |
+| `BridgeState` | 15 | class |  | 2 |
+| `__init__` | 16 | def |  | 1 |
+| `set_kick` | 27 | def |  | 1 |
+| `take_kick` | 32 | def |  | 1 |
+| `subscribe` | 37 | def |  | 1 |
+| `unsubscribe` | 46 | def |  | 2 |
+| `notify_stream` | 55 | def |  | 1 |
+| `default_data_dir` | 70 | def |  | 2 |
+| `get_state` | 77 | def |  | 1 |
+| `reset_state` | 84 | def |  | 1 |
 
 ## bridge/bridge/ui_layout.py（75 行）
 
@@ -235,7 +240,7 @@
 | `serials` | 117 | def |  | 1 |
 | `status` | 121 | def |  | 1 |
 
-## bridge/bridge/ws.py（105 行）
+## bridge/bridge/ws.py（106 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -275,27 +280,27 @@
 | `_parm_group` | 57 | def |  | 3 |
 | `build` | 116 | def |  | 2 |
 
-## hda/scripts/hython_smoke.py（383 行）
+## hda/scripts/hython_smoke.py（436 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `_req` | 29 | def |  | 7 |
 | `_make_curve_input` | 38 | def |  | 2 |
 | `_wait_ready_rev` | 56 | def |  | 4 |
-| `_FakeClock` | 71 | class |  | 2 |
-| `__init__` | 74 | def |  | 4 |
-| `now` | 77 | def |  | 1 |
-| `_test_adaptive_polling` | 81 | def |  | 2 |
-| `_FakeClient` | 92 | class |  | 2 |
-| `pull_outputs` | 99 | def |  | 2 |
-| `pending_outputs` | 102 | def |  | 2 |
-| `_Gate` | 109 | class |  | 1 |
-| `__call__` | 116 | def |  | 1 |
-| `step` | 121 | def |  | 3 |
-| `wait_len` | 125 | def |  | 4 |
-| `_test_kick_force_recook` | 164 | def |  | 2 |
-| `main` | 217 | def |  | 2 |
-| `_stats` | 286 | def |  | 5 |
+| `_FakeClock` | 72 | class |  | 2 |
+| `__init__` | 75 | def |  | 4 |
+| `now` | 78 | def |  | 1 |
+| `_test_stream_loop` | 82 | def |  | 2 |
+| `_FakeClient` | 98 | class |  | 3 |
+| `stream_once` | 106 | def |  | 2 |
+| `pull_outputs` | 111 | def |  | 2 |
+| `_Gate` | 115 | class |  | 1 |
+| `__call__` | 122 | def |  | 1 |
+| `step` | 127 | def |  | 5 |
+| `wait_len` | 130 | def |  | 6 |
+| `_test_kick_force_recook` | 218 | def |  | 2 |
+| `main` | 270 | def |  | 2 |
+| `_stats` | 339 | def |  | 5 |
 
 ## hda/scripts/reload_hda.py（89 行）
 
@@ -308,7 +313,7 @@
 | `_reload_definition` | 69 | def |  | 2 |
 | `reload_cyl1nder` | 76 | def |  | 3 |
 
-## hda/src/cyl1nder_bridge.py（117 行）
+## hda/src/cyl1nder_bridge.py（134 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -319,9 +324,10 @@
 | `push_inputs` | 52 | def |  | 1 |
 | `_pump` | 59 | def |  | 1 |
 | `pending_outputs` | 87 | def |  | 1 |
-| `pull_outputs` | 108 | def |  | 1 |
+| `stream_once` | 108 | def |  | 1 |
+| `pull_outputs` | 125 | def |  | 1 |
 
-## hda/src/cyl1nder_hda.py（734 行）
+## hda/src/cyl1nder_hda.py（741 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -332,26 +338,26 @@
 | `_ready_state` | 151 | def |  | 2 |
 | `_refresh_ready` | 161 | def |  | 4 |
 | `_reset_ready` | 188 | def |  | 2 |
-| `_sync_loop` | 198 | def |  | 1 |
-| `_schedule_recook` | 254 | def |  | 3 |
-| `_force_cook_node` | 262 | def |  | 1 |
-| `ensure_sync` | 290 | def |  | 3 |
-| `_root` | 314 | def |  | 4 |
-| `_ensure_serial` | 318 | def |  | 3 |
-| `_parm` | 331 | def |  | 14 |
-| `_set_status` | 341 | def |  | 6 |
-| `_serialize_geo` | 350 | def |  | 3 |
-| `_build_detail` | 360 | def |  | 2 |
-| `_buffer_sig` | 391 | def |  | 2 |
-| `_apply_output` | 407 | def |  | 2 |
-| `_snapshot_parts` | 451 | def |  | 2 |
-| `_flat_signature` | 499 | def |  | 2 |
-| `_build_core_detail` | 511 | def |  | 3 |
-| `cook_core` | 535 | def |  | 2 |
-| `_same_geo` | 599 | def |  | 2 |
-| `_role_buffer` | 610 | def |  | 2 |
-| `_input_signature` | 629 | def |  | 2 |
-| `cook` | 664 | def |  | 5 |
+| `_stream_loop` | 198 | def |  | 1 |
+| `_schedule_recook` | 259 | def |  | 3 |
+| `_force_cook_node` | 267 | def |  | 1 |
+| `ensure_sync` | 295 | def |  | 3 |
+| `_root` | 321 | def |  | 4 |
+| `_ensure_serial` | 325 | def |  | 3 |
+| `_parm` | 338 | def |  | 13 |
+| `_set_status` | 348 | def |  | 6 |
+| `_serialize_geo` | 357 | def |  | 3 |
+| `_build_detail` | 367 | def |  | 2 |
+| `_buffer_sig` | 398 | def |  | 2 |
+| `_apply_output` | 414 | def |  | 2 |
+| `_snapshot_parts` | 458 | def |  | 2 |
+| `_flat_signature` | 506 | def |  | 2 |
+| `_build_core_detail` | 518 | def |  | 3 |
+| `cook_core` | 542 | def |  | 2 |
+| `_same_geo` | 606 | def |  | 2 |
+| `_role_buffer` | 617 | def |  | 2 |
+| `_input_signature` | 636 | def |  | 2 |
+| `cook` | 671 | def |  | 5 |
 
 ## hda/src/cyl1nder_serializer.py（63 行）
 
@@ -458,7 +464,7 @@
 | `connectWs` | 188 | function | export | 1 |
 | `connect` | 193 | arrow |  | 1 |
 
-## web/src/main.ts（935 行）
+## web/src/main.ts（937 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -486,12 +492,12 @@
 | `renderInspector` | 691 | function |  | 2 |
 | `runNetwork` | 728 | function |  | 6 |
 | `kickHdaOnce` | 744 | function |  | 2 |
-| `startHdaWatch` | 756 | function |  | 2 |
-| `check` | 758 | arrow |  | 1 |
-| `stopHdaWatch` | 775 | function |  | 2 |
-| `loadSnapshotIntoStore` | 784 | function |  | 3 |
-| `connect` | 812 | function |  | 4 |
-| `scheduleSaveGraph` | 923 | function |  | 2 |
+| `startHdaWatch` | 757 | function |  | 2 |
+| `check` | 759 | arrow |  | 1 |
+| `stopHdaWatch` | 777 | function |  | 2 |
+| `loadSnapshotIntoStore` | 786 | function |  | 3 |
+| `connect` | 814 | function |  | 4 |
+| `scheduleSaveGraph` | 925 | function |  | 2 |
 
 ## web/src/nodes2/graph.ts（1628 行）
 
@@ -638,7 +644,7 @@
 | `payloadEqual` | 3 | function |  | 2 |
 | `inputsEqual` | 15 | function | export | 1 |
 
-## web/src/protocol/types.ts（90 行）
+## web/src/protocol/types.ts（97 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|

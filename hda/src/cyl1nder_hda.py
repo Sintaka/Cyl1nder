@@ -28,15 +28,15 @@ from cyl1nder_serializer import serialize_input
 ROLE_PUSH = 0
 INPUT_COUNT = 4
 
-# bidirectional sync: web edits -> bridge pending -> adaptive poller -> dirty -> recook
+# bidirectional sync: web edits -> bridge stream events -> dirty -> recook
 _SYNC: dict[str, dict] = {}
 
-# adaptive sync polling: fast (1/sync_fps) while the scene is recently active,
-# back off to _SYNC_IDLE_INTERVAL after _SYNC_ACTIVE_AFTER s of quiet (the idle
-# /pending poll still keeps registry.lastSeen fresh). pending/reset/force flips
-# back to fast immediately.
-_SYNC_IDLE_INTERVAL = 0.5
-_SYNC_ACTIVE_AFTER = 2.0
+# event-driven /stream long-poll (hold=_STREAM_HOLD): a held request IS the idle
+# heartbeat (~1 req/min when quiet) and outputs/kick/reset events wake it
+# immediately - no extra polling (LiveLink: data frames are the heartbeat).
+# _STREAM_RETRY is the reconnect backoff after a connection error.
+_STREAM_HOLD = 60.0
+_STREAM_RETRY = 0.5
 
 # content cache for the merged core detail (per serial) - prevents viewport flicker
 # on unchanged Force Cooks; rebuild decision stays content-based (sync-architecture rule).
@@ -195,39 +195,45 @@ def _reset_ready(serial: str) -> None:
             st["gen"] += 1
 
 
-def _sync_loop(
+def _stream_loop(
     serial: str,
     node_path: str,
-    interval: float,
     bridge_url: str,
     client: BridgeClient | None = None,
     sleep_fn=time.sleep,
     now_fn=time.time,
 ) -> None:
-    """Bidirectional sync pump: /pending dirty check with adaptive interval.
+    """Bidirectional sync pump: event-driven NDJSON long-poll /stream.
 
-    Active (pending/reset/force, or < _SYNC_ACTIVE_AFTER s since the last
-    activity) polls at interval (1/sync_fps); idle backs off to
-    _SYNC_IDLE_INTERVAL so a quiet HDA stops hammering the bridge while the
-    heartbeat (/pending touch) stays fresh. sleep_fn/now_fn/client are
+    Each iteration issues one held GET /stream?since=&hold=_STREAM_HOLD; data
+    events (outputs/kick/reset) wake immediately and double as the heartbeat
+    (LiveLink principle) - no extra polling, and an idle hold is ~1 req/min.
+    Connection errors back off _STREAM_RETRY before retrying; a
+    {"type":"timeout"} event reconnects immediately (idle keep-alive). The loop
+    exits cleanly on stop / _SYNC removal, or when node_path's Houdini node is
+    gone (RequestSourceShutdown semantics). sleep_fn/now_fn/client are
     injectable for the hython smoke.
     """
     client = client if client is not None else BridgeClient(serial, bridge_url=bridge_url)
     last_seen = 0
-    last_activity = now_fn()
     _refresh_ready(client, serial)  # warm the ready buffer at startup (background)
     while True:
         state = _SYNC.get(serial)
         if state is None or state["stop"].is_set():
             return
-        now = now_fn()
-        active = now - last_activity < _SYNC_ACTIVE_AFTER
-        sleep_fn(interval if active else _SYNC_IDLE_INTERVAL)
-        pending, rev, reset, force = client.pending_outputs(last_seen)
-        now = now_fn()
-        if reset:
+        if node_path and hou.node(node_path) is None:
+            return  # node deleted -> clean shutdown (LiveLink RequestSourceShutdown)
+        ev = client.stream_once(last_seen, hold=_STREAM_HOLD)
+        if ev is None:
+            # connection error (bridge down / malformed line) -> back off, retry
+            sleep_fn(_STREAM_RETRY)
+            continue
+        etype = ev.get("type")
+        rev = int(ev.get("rev", 0) or 0)
+        if etype == "timeout":
+            continue  # idle keep-alive: reconnect immediately, no sleep
+        if etype == "reset":
             # bridge restarted: rev went backwards - re-pull everything from 0
-            last_activity = now
             last_seen = 0
             _reset_ready(serial)
             _refresh_ready(client, serial)
@@ -236,8 +242,7 @@ def _sync_loop(
                 state["scheduled"] = True
                 _schedule_recook(node_path)
             continue
-        if force or (pending and rev > last_seen):
-            last_activity = now
+        if etype in ("outputs", "kick"):
             last_seen = max(last_seen, rev)
             if client.last_error:
                 # self-heal: a previous push failed (e.g. bridge still starting);
@@ -288,21 +293,23 @@ def _force_cook_node(node_path: str) -> None:
 
 
 def ensure_sync(root: hou.Node, serial: str) -> None:
-    """Start the adaptive sync poller (fast = 1/sync_fps, default 30)."""
+    """Start the event-driven /stream sync loop (idempotent).
+
+    sync_fps is a historical parameter (kept in build_hda.py / the HDA UI for
+    compatibility) - it no longer drives polling: /stream events arrive as they
+    happen, so there is no poll interval to compute.
+    """
     if not serial:
         return
     state = _SYNC.get(serial)
     if state is not None and state["thread"].is_alive():
         return
-    fps = float(_parm(root, "sync_fps", 30) or 30)
-    interval = 1.0 / max(1.0, fps)
     stop = threading.Event()
     thread = threading.Thread(
-        target=_sync_loop,
+        target=_stream_loop,
         args=(
             serial,
             root.path(),
-            interval,
             _parm(root, "bridge_url", "http://127.0.0.1:8375"),
         ),
         daemon=True,
@@ -574,7 +581,7 @@ def cook_core() -> None:
         _set_status(root, "ok" if not client.last_error else "offline")
 
     if auto_pull:
-        ensure_sync(root, serial)  # bidirectional: web edit -> dirty -> recook (<= sync_fps)
+        ensure_sync(root, serial)  # bidirectional: web edit -> stream event -> dirty -> recook
         parts = _snapshot_parts(root, node)
         _build_core_detail(geo, parts, serial)
         _set_status(root, "ok" if not client.last_error else "offline")
@@ -702,7 +709,7 @@ def cook(role: int) -> None:
         _set_status(root, "ok" if not client.last_error else "offline")
 
     if auto_pull:
-        ensure_sync(root, serial)  # bidirectional: web edit -> dirty -> recook (<= sync_fps)
+        ensure_sync(root, serial)  # bidirectional: web edit -> stream event -> dirty -> recook
         with _READY_LOCK:
             ready = _READY.get(serial)
         if ready is None:

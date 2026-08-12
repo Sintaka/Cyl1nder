@@ -105,3 +105,9 @@
 ## v0.1.00023（2026-08-10）
 - HDA 输入侧加 **4 个 Convert 节点**（`fromtype=all, totype=poly`）：程序化 prim（Sphere/Tube 等）→ polygon mesh（faces 可序列化）；开口 polyline 保持开口（hair 无损）。python SOP 输入改接 convert。
 - `_build_detail` 支持重建 faces（闭合 polygon prim）。
+## v0.1.00056（2026-08-12）
+- **同步从自适应 /pending 轮询改为事件驱动 /stream 长轮询**（devlog/sync-heartbeat-redesign.md）：
+  - `_sync_loop` → `_stream_loop`；`BridgeClient.stream_once(since, hold=60.0)`（urllib 读一行 NDJSON，连接错误返回 None，与 timeout 事件 dict 区分）。
+  - 循环语义：error → 0.5s 退避重连；`timeout` 事件 → 立即重连（空闲 keep-alive，1 req/min）；`outputs`/`kick` → `_refresh_ready` + scheduled 门控 recook（kick 即使 rev 未变也 recook；`last_error` 时弹 push cache self-heal）；`reset` → 从 0 全量重拉 + recook；**node 消失/stop → 干净退出线程**（RequestSourceShutdown 语义，消灭孤儿轮询）。
+  - 删除自适应常量（`_SYNC_IDLE_INTERVAL`/`_SYNC_ACTIVE_AFTER`）；`sync_fps` 参数保留但不再驱动轮询（历史参数）。
+  - 验证：hython 冒烟全绿（stream timeout / outputs / kick / reset / clean-exit / self-heal，连真实新桥）。

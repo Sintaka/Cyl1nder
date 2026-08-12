@@ -28,6 +28,7 @@
 | 临时开发场景日志 | [temp-scene-log.md](temp-scene-log.md) |
 | 同步架构与脏几何教训 | [sync-architecture.md](sync-architecture.md) |
 | livelink 级同步路线图 | [livelink-roadmap.md](livelink-roadmap.md) |
+| 同步信号重设计（事件驱动 + 心跳解耦） | [sync-heartbeat-redesign.md](sync-heartbeat-redesign.md) |
 | AHS 约定提炼（拆分/并行/验证/选型） | [ahs-conventions.md](ahs-conventions.md) |
 | Agent 代码库检索流程/函数引导/结构 | [agent-codebase-guide.md](agent-codebase-guide.md) |
 | Zeno 技术遗产调研 | [zeno-legacy.md](zeno-legacy.md) |
@@ -88,6 +89,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00056：同步信号重设计——HDA 主通道改 NDJSON 长轮询 /stream（事件即数据、空闲 hold=60s=心跳 1/min、高传输零额外心跳，LiveLink 原则）；心跳与数据轮询解耦（web 离线阈值 15s→150s 慢时钟）；stream 干净生命周期（node 删除/stop 退出线程）；3 路并行（Mill=bridge / Hegel=hda / Godel=web）+主进程合并；pytest 43、tsc 0、vitest 82、hython SMOKE OK、e2e 11 全过。
 - v0.1.00055：no geometry 诊断恢复(HDA 旧代码不处理 kick → 热重载 reload_cyl1nder 恢复 inputs)；底部非 docking 栏+更新模式(Auto Update/On Mouse Up，松手一次性提交零网络)；时间轴系统设计(HDA 锚定门控 engaged)。
 - v0.1.00054：bridge 中断修复(registry touch 自动注册，HDA 轮询即重连)；web 掉线重连自动再 kick；three.js gizmo 延迟调研(TS 非解释执行/three.js 非 WASM，延迟来自每帧全量网络+重建)。
 - v0.1.00053：左上角品牌点击跳转 /overview.html；非当前 tab 配色饱和度 -0.1/亮度 +0.1（更亮更灰）。
