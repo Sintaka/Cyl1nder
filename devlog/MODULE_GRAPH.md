@@ -15,6 +15,9 @@
 - `app/log.ts`
 - `app/param.ts`
   - app/scrub
+- `app/preference.ts`
+  - app/layout
+  - protocol/types
 - `app/scrub.ts`
 - `app/spreadsheet.ts`
   - protocol/types
@@ -26,6 +29,7 @@
   - app/layout
   - app/layouts
   - app/param
+  - app/preference
   - app/spreadsheet
   - bridge/client
   - nodes2/graph

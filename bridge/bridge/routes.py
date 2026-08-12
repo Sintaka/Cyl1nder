@@ -7,10 +7,15 @@ import json
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import RedirectResponse, Response
 
+from pydantic import BaseModel, Field
+
 from .protocol import (
     InputsPut,
     OutputsPut,
     STREAM_HOLD_DEFAULT,
+    SYNC_FPS_DEFAULT,
+    SYNC_FPS_MAX,
+    SYNC_FPS_MIN,
     STREAM_HOLD_MAX,
     VERSION,
     WEB_UI_URL,
@@ -123,13 +128,24 @@ async def put_outputs(serial: str, payload: OutputsPut) -> dict:
         st.registry.mark_activity(serial)
     st.logs.info("routes", f"outputs pushed ({len(payload.outputs)}, accepted {len(accepted)}), rev={rev}", serial)
     if accepted:
-        await manager.broadcast(
-            serial,
-            {"type": "outputs", "outputs": [o.model_dump() for o in accepted], "rev": rev},
-        )
+        st.stage_broadcast(serial, accepted, rev)
         st.notify_stream(serial)
     await _maybe_snapshot(serial)
     return {"ok": True, "serial": serial, "rev": rev}
+
+
+class SyncFpsPut(BaseModel):
+    """PUT /api/hda/{serial}/sync body: per-serial Sync Max FPS (1..60, default 30)."""
+    fps: int = Field(SYNC_FPS_DEFAULT, ge=SYNC_FPS_MIN, le=SYNC_FPS_MAX)
+
+
+@router.put("/api/hda/{serial}/sync")
+async def put_sync_fps(serial: str, payload: SyncFpsPut) -> dict:
+    """Set the per-serial bridge-side receive+forward cap (in-memory; web persists
+    it in Preference.json). Returns the stored (clamped) value."""
+    _check_serial(serial)
+    fps = get_state().set_sync_fps(serial, payload.fps)
+    return {"ok": True, "serial": serial, "fps": fps}
 
 
 @router.get("/api/hda/{serial}/pending")
@@ -176,30 +192,31 @@ async def stream(
     _check_serial(serial)
     st = get_state()
     st.registry.touch(serial)
+    fps = st.get_sync_fps(serial)
     event = st.subscribe(serial)
     try:
         rev = st.workspaces.get_or_create(serial).output_rev()
         # immediate hits (priority: reset > outputs > kick)
         if since > rev:
-            return _ndjson({"type": "reset", "rev": rev})
+            return _ndjson({"type": "reset", "rev": rev, "fps": fps})
         if rev > since:
-            return _ndjson({"type": "outputs", "rev": rev})
+            return _ndjson({"type": "outputs", "rev": rev, "fps": fps})
         if st.take_kick(serial):
-            return _ndjson({"type": "kick", "force": True, "rev": rev})
+            return _ndjson({"type": "kick", "force": True, "rev": rev, "fps": fps})
         # hold: wake on put_outputs accepted / kick armed, else timeout
         try:
             await asyncio.wait_for(event.wait(), timeout=hold)
         except asyncio.TimeoutError:
-            return _ndjson({"type": "timeout", "rev": rev})
+            return _ndjson({"type": "timeout", "rev": rev, "fps": fps})
         rev = st.workspaces.get_or_create(serial).output_rev()
         if since > rev:
-            return _ndjson({"type": "reset", "rev": rev})
+            return _ndjson({"type": "reset", "rev": rev, "fps": fps})
         if rev > since:
-            return _ndjson({"type": "outputs", "rev": rev})
+            return _ndjson({"type": "outputs", "rev": rev, "fps": fps})
         if st.take_kick(serial):
-            return _ndjson({"type": "kick", "force": True, "rev": rev})
+            return _ndjson({"type": "kick", "force": True, "rev": rev, "fps": fps})
         # spurious wake (e.g. another poller consumed the kick): report timeout
-        return _ndjson({"type": "timeout", "rev": rev})
+        return _ndjson({"type": "timeout", "rev": rev, "fps": fps})
     finally:
         st.unsubscribe(serial, event)
 
@@ -273,6 +290,7 @@ async def put_snapshot(serial: str, payload: dict) -> dict:
         graph=payload.get("graph"),
         parm=payload.get("parm"),
         docking=payload.get("docking"),
+        preference=payload.get("preference"),
     )
     return {"ok": True, "serial": serial}
 

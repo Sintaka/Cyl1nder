@@ -96,20 +96,33 @@ export class BridgeClient {
   /** Unified path system: read the disk snapshot (cyl://<serial>/snapshot). */
   async getSnapshot(
     serial: string,
-  ): Promise<{ serial: string; snapshot: { inputs?: unknown[]; outputs?: unknown[]; graph?: unknown; parm?: unknown; docking?: unknown } | null }> {
+  ): Promise<{ serial: string; snapshot: { inputs?: unknown[]; outputs?: unknown[]; graph?: unknown; parm?: unknown; docking?: unknown; preference?: unknown } | null }> {
     return json(await fetch(`${this.base}/api/hda/${serial}/snapshot`));
   }
 
   /** Persist the scene part: node graph / node params / docking layout. */
   async putSnapshot(
     serial: string,
-    data: { graph?: unknown; parm?: unknown; docking?: unknown },
+    data: { graph?: unknown; parm?: unknown; docking?: unknown; preference?: unknown },
   ): Promise<{ ok: boolean; serial: string }> {
     return json(
       await fetch(`${this.base}/api/hda/${serial}/snapshot`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
+      }),
+    );
+  }
+
+  /** Push the per-serial sync rate cap to the bridge (PUT /api/hda/{serial}/sync).
+   *  Bridge applies it to notify/broadcast/stream forwarding; web Preference.json
+   *  is the durable source. */
+  async putSyncFps(serial: string, fps: number): Promise<{ ok: boolean; fps: number }> {
+    return json(
+      await fetch(`${this.base}/api/hda/${serial}/sync`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fps }),
       }),
     );
   }

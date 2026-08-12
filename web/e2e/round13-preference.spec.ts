@@ -1,0 +1,166 @@
+import { expect, test } from "@playwright/test";
+import { BridgeClient } from "../src/bridge/client";
+
+/**
+ * Round 13 (preferences write-set): Edit -> Preference dialog, bottom-bar
+ * Sync Max FPS rate cap, update_mode rename (localStorage "cyl1nder.prefs"),
+ * Ctrl+S / Ctrl+Alt+S quick save (both preventDefault so Chrome never saves the page).
+ * - Edit -> Preference: modal opens; Save persists to localStorage + pushes
+ *   PUT /api/hda/{serial}/sync (page.route mock counter).
+ * - Bottom-bar Sync Max FPS input: change -> localStorage + PUT /sync.
+ * - Ctrl+S: putSnapshot({graph, docking, preference}) + defaultPrevented.
+ * - Ctrl+Alt+S: save-as path (prompt dialog accepted + scene/save mock).
+ */
+const client = new BridgeClient();
+let serial = "";
+
+test.beforeAll(async () => {
+  const bridgeOk = await client.health().then(() => true).catch(() => false);
+  test.skip(!bridgeOk, "bridge not running on 127.0.0.1:8375");
+  const serials = await client.listSerials();
+  serial =
+    process.env.CYL1NDER_E2E_SERIAL ||
+    serials.find((s) => s === "C1-e2etest0001-aaaa") ||
+    serials[serials.length - 1] ||
+    "";
+  test.skip(!serial, "no serial registered in bridge");
+});
+
+/** Load the main app with the live serial (bridge + WS must come up). */
+async function openGraph(page: import("@playwright/test").Page): Promise<void> {
+  await page.goto(`http://127.0.0.1:8376/?serial=${serial}`);
+  await expect(page.locator(".cyl-app")).toBeVisible({ timeout: 15000 });
+  await expect(page.locator(".cyl-status")).toHaveClass(/ok/, { timeout: 15000 });
+}
+
+/** Mock snapshot GET/PUT so tests never touch real bridge scene files. */
+async function mockSnapshot(page: import("@playwright/test").Page): Promise<void> {
+  await page.route(`**/api/hda/${serial}/snapshot`, (route) => {
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, serial }) });
+  });
+}
+
+test("Edit -> Preference: dialog opens; Save persists prefs and pushes PUT /sync", async ({ page }) => {
+  const syncFps: number[] = [];
+  await page.route(`**/api/hda/${serial}/sync`, (route) => {
+    const body = route.request().postDataJSON() as { fps?: number };
+    if (typeof body.fps === "number") syncFps.push(body.fps);
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, fps: body.fps }) });
+  });
+  await mockSnapshot(page);
+  await openGraph(page);
+
+  // open the Edit menu and click Preference…
+  await page.locator('.cyl-menu[data-menu="edit"] .cyl-menu-label').click();
+  await page.locator('#cyl-menu-edit button[data-act="preference"]').click();
+  await expect(page.locator(".cyl-pref-overlay")).toBeVisible();
+  await expect(page.locator(".cyl-pref-card h2")).toHaveText("Preference");
+
+  // change Sync Max FPS + Update Mode, then Save
+  await page.locator("#cyl-pref-fps").fill("45");
+  await page.locator("#cyl-pref-mode").selectOption("mouseup");
+  await page.locator(".cyl-pref-save").click();
+  await expect(page.locator(".cyl-pref-overlay")).toHaveCount(0);
+
+  // persisted under the new prefs store
+  const prefs = await page.evaluate(() => JSON.parse(localStorage.getItem("cyl1nder.prefs") || "{}"));
+  expect(prefs.sync_max_fps).toBe(45);
+  expect(prefs.update_mode).toBe("mouseup");
+
+  // bottom-bar controls are synced to the saved values
+  await expect(page.locator("#cyl-sync-fps")).toHaveValue("45");
+  await expect(page.locator("#cyl-update-mode")).toHaveValue("mouseup");
+
+  // PUT /sync fired with the new fps
+  await expect.poll(() => syncFps, { timeout: 5000 }).toContain(45);
+
+  // Escape path: reopen + Escape closes without saving
+  await page.locator('.cyl-menu[data-menu="edit"] .cyl-menu-label').click();
+  await page.locator('#cyl-menu-edit button[data-act="preference"]').click();
+  await expect(page.locator(".cyl-pref-overlay")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".cyl-pref-overlay")).toHaveCount(0);
+});
+
+test("bottom-bar Sync Max FPS: change persists to localStorage and triggers PUT /sync", async ({ page }) => {
+  const syncFps: number[] = [];
+  await page.route(`**/api/hda/${serial}/sync`, (route) => {
+    const body = route.request().postDataJSON() as { fps?: number };
+    if (typeof body.fps === "number") syncFps.push(body.fps);
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, fps: body.fps }) });
+  });
+  await mockSnapshot(page);
+  await openGraph(page);
+
+  const fpsInput = page.locator("#cyl-sync-fps");
+  await expect(fpsInput).toHaveValue("30");
+  await fpsInput.fill("60");
+  await fpsInput.evaluate((el) => (el as HTMLInputElement).blur()); // number inputs fire change on blur
+
+  const prefs = await page.evaluate(() => JSON.parse(localStorage.getItem("cyl1nder.prefs") || "{}"));
+  expect(prefs.sync_max_fps).toBe(60);
+  await expect.poll(() => syncFps, { timeout: 5000 }).toContain(60);
+});
+
+test("Ctrl+S: quick-save snapshot (graph+docking+preference) and prevents browser save", async ({ page }) => {
+  const snapshots: Array<Record<string, unknown>> = [];
+  await page.route(`**/api/hda/${serial}/snapshot`, (route) => {
+    if (route.request().method() === "PUT") snapshots.push(route.request().postDataJSON() as Record<string, unknown>);
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, serial }) });
+  });
+  await openGraph(page);
+
+  // registered AFTER main.ts's handler -> sees the already-prevented event
+  await page.evaluate(() => {
+    (window as any).__sPrevented = null;
+    window.addEventListener("keydown", (e) => {
+      if (e.key.toLowerCase() === "s" && (e.ctrlKey || e.metaKey)) (window as any).__sPrevented = e.defaultPrevented;
+    });
+  });
+
+  await page.keyboard.press("Control+s");
+
+  // the Ctrl+S save carries graph + docking + preference (scheduleSaveGraph only sends graph)
+  await expect
+    .poll(() => snapshots.filter((s) => s && s.docking && s.preference).length, { timeout: 5000 })
+    .toBeGreaterThan(0);
+  const saved = snapshots.find((s) => s && s.docking && s.preference)!;
+  expect(saved.graph).toBeDefined();
+  expect(saved.preference).toMatchObject({
+    sync_max_fps: expect.any(Number),
+    update_mode: expect.stringMatching(/auto|mouseup/),
+  });
+  // Chrome's "save webpage" is suppressed
+  expect(await page.evaluate(() => (window as any).__sPrevented)).toBe(true);
+});
+
+test("Ctrl+Alt+S: triggers Save Scene As (prompt + scene/save mock) and prevents browser save", async ({ page }) => {
+  let saveSceneCalls = 0;
+  await page.route(`**/api/hda/${serial}/scene/save`, (route) => {
+    saveSceneCalls += 1;
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true, path: "D:/scenes/" + serial }),
+    });
+  });
+  await mockSnapshot(page);
+  await openGraph(page);
+  // headless Edge exposes showDirectoryPicker -> saveSceneAs would hang on the native
+  // directory chooser. Disable it so save-as falls through to the prompt fallback path.
+  await page.evaluate(() => {
+    Object.defineProperty(window, "showDirectoryPicker", { configurable: true, value: undefined });
+  });
+  page.on("dialog", (d) => d.accept("D:/scenes/" + serial));
+
+  await page.evaluate(() => {
+    (window as any).__sPrevented = null;
+    window.addEventListener("keydown", (e) => {
+      if (e.key.toLowerCase() === "s" && (e.ctrlKey || e.metaKey)) (window as any).__sPrevented = e.defaultPrevented;
+    });
+  });
+
+  await page.keyboard.press("Control+Alt+s");
+  await expect.poll(() => saveSceneCalls, { timeout: 5000 }).toBe(1);
+  expect(await page.evaluate(() => (window as any).__sPrevented)).toBe(true);
+});

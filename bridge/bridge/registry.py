@@ -6,6 +6,11 @@ Rules (see devlog/decisions.md):
   lastSeen + mutable identity fields (nodePath/label/hip).
 - duplicate creation with a *new* serial never happens from the HDA; copy/paste nodes get
   a freshly generated serial.
+
+Save policy (v0.1.00057): touch()/mark_activity() are heartbeat/footprint updates that
+happen every frame during 60Hz drags - they only mark the registry dirty and the actual
+disk write is debounced to at most one save per second so synchronous disk I/O never
+blocks the event loop. register()/remove() are persistence-critical and save immediately.
 """
 from __future__ import annotations
 
@@ -16,6 +21,9 @@ from pathlib import Path
 from typing import Any
 
 from .protocol import is_valid_serial
+
+# touch/mark_activity writes are debounced: at most one disk save per second.
+_SAVE_DEBOUNCE = 1.0  # seconds
 
 
 class RegistryError(Exception):
@@ -73,6 +81,8 @@ class SerialRegistry:
         self._path = path
         self._records: dict[str, RegistryRecord] = {}
         self._lock = threading.Lock()
+        self._dirty = False
+        self._last_saved = 0.0
         if path is not None and path.exists():
             self._load(path)
 
@@ -100,7 +110,7 @@ class SerialRegistry:
             else:
                 rec = RegistryRecord(serial, hip=hip, nodePath=nodePath, label=label)
                 self._records[serial] = rec
-            self._save()
+            self._save(force=True)
             return rec
 
     def get(self, serial: str) -> RegistryRecord | None:
@@ -120,6 +130,7 @@ class SerialRegistry:
                 rec = RegistryRecord(serial=serial)
                 self._records[serial] = rec
             rec.lastSeen = time.time()
+            self._dirty = True
             self._save()
 
     def mark_activity(self, serial: str) -> None:
@@ -133,6 +144,7 @@ class SerialRegistry:
                 rec = RegistryRecord(serial=serial)
                 self._records[serial] = rec
             rec.lastActivity = time.time()
+            self._dirty = True
             self._save()
 
     def remove(self, serial: str) -> bool:
@@ -141,7 +153,7 @@ class SerialRegistry:
             if serial not in self._records:
                 return False
             del self._records[serial]
-            self._save()
+            self._save(force=True)
             return True
 
     def list(self) -> list[RegistryRecord]:
@@ -152,9 +164,24 @@ class SerialRegistry:
         with self._lock:
             return sorted(self._records)
 
-    def _save(self) -> None:
+    def _save(self, force: bool = False) -> None:
+        """Persist records atomically (tmp + replace).
+
+        Debounce: touch()/mark_activity() only mark dirty and skip the write while
+        the last actual save is < _SAVE_DEBOUNCE ago, so 60Hz drags don't block the
+        event loop with synchronous disk I/O. register()/remove() pass force=True to
+        keep persistence on the critical path (a freshly registered/removed serial
+        must survive a crash immediately). Callers hold self._lock."""
         if self._path is None:
             return
+        now = time.time()
+        if not force:
+            if not self._dirty:
+                return
+            if now - self._last_saved < _SAVE_DEBOUNCE:
+                return
+        self._dirty = False
+        self._last_saved = now
         self._path.parent.mkdir(parents=True, exist_ok=True)
         payload = [r.to_dict() for r in self._records.values()]
         tmp = self._path.with_suffix(".json.tmp")

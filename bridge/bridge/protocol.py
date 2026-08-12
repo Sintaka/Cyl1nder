@@ -6,11 +6,22 @@ Keep in sync with:
 
 GET /api/hda/{serial}/stream (NDJSON long-poll, see devlog/sync-heartbeat-redesign.md §3.1):
 - single-line JSON per poll, Content-Type: application/x-ndjson
-- immediate hits: since > rev -> {"type":"reset","rev"}; rev > since -> {"type":"outputs","rev"};
-  kick armed -> {"type":"kick","force":true,"rev"}
-- otherwise hold up to `hold` seconds (default 20, max 60); put_outputs accepted / kick armed
-  wake the poll early; timeout -> {"type":"timeout","rev"}
+- every event carries the current per-serial sync cap: {"fps": <1..60>} (HDA uses it to
+  update its runtime receive cap; default 30)
+- immediate hits: since > rev -> {"type":"reset","rev","fps"}; rev > since ->
+  {"type":"outputs","rev","fps"}; kick armed -> {"type":"kick","force":true,"rev","fps"}
+- otherwise hold up to `hold` seconds (default 20, max 60); put_outputs accepted / kick
+  armed wake the poll early; timeout -> {"type":"timeout","rev","fps"}
 - request arrival touches the registry (liveness heartbeat, same auto-register as /pending)
+
+PUT /api/hda/{serial}/sync (body {"fps": int}, 1..60, default 30):
+- stores the per-serial bridge-side receive+forward cap (in-memory; the web Preference.json
+  is the persistent source), returns {"ok":true,"serial","fps"}. Bridge throttles
+  notify_stream + WS broadcast to <= fps, and registry disk saves are debounced to 1/s.
+
+Snapshot parts (see devlog/snapshot-design.md): io/inputs.json, io/outputs.json,
+scene/meta.json, scene/node-graph.json, scene/node-parm.json, docking-layout.json and
+Preference.json (web preferences: {"schemaVersion":1,"sync_max_fps":30,"update_mode":"auto"}).
 """
 from __future__ import annotations
 
@@ -20,7 +31,7 @@ import time
 
 from pydantic import BaseModel, Field
 
-VERSION = "0.1.00056"
+VERSION = "0.1.00057"
 HOST = "127.0.0.1"
 PORT = 8375
 BASE_URL = f"http://{HOST}:{PORT}"
@@ -30,6 +41,11 @@ WEB_UI_URL = "http://127.0.0.1:8376"
 # GET /api/hda/{serial}/stream long-poll hold bounds (seconds)
 STREAM_HOLD_DEFAULT = 20
 STREAM_HOLD_MAX = 60
+
+# per-serial Sync Max FPS bounds (web bottom bar -> PUT /sync -> bridge + HDA caps)
+SYNC_FPS_DEFAULT = 30
+SYNC_FPS_MIN = 1
+SYNC_FPS_MAX = 60
 
 # serial: C1-<base36(ms) 8+ chars>-<4 base36 random>
 _SERIAL_RE = re.compile(r"^C1-[0-9a-z]{8,}-[0-9a-z]{4}$")

@@ -111,3 +111,8 @@
   - 循环语义：error → 0.5s 退避重连；`timeout` 事件 → 立即重连（空闲 keep-alive，1 req/min）；`outputs`/`kick` → `_refresh_ready` + scheduled 门控 recook（kick 即使 rev 未变也 recook；`last_error` 时弹 push cache self-heal）；`reset` → 从 0 全量重拉 + recook；**node 消失/stop → 干净退出线程**（RequestSourceShutdown 语义，消灭孤儿轮询）。
   - 删除自适应常量（`_SYNC_IDLE_INTERVAL`/`_SYNC_ACTIVE_AFTER`）；`sync_fps` 参数保留但不再驱动轮询（历史参数）。
   - 验证：hython 冒烟全绿（stream timeout / outputs / kick / reset / clean-exit / self-heal，连真实新桥）。
+## v0.1.00057（2026-08-12）
+- **HDA 接收端 Sync Max FPS 防守**（devlog/sync-rate-limit-and-preference.md）：
+  - `sync_fps` 参数（默认 30，clamp 1..60）重新启用为**接收端速率上限**：`_stream_loop` 对 outputs/kick/reset 的「拉取 + recook 调度」≤ fps（latest-wins：窗口内事件只推进 last_seen，到点后下一次事件拉最新；`scheduled` 门控保留）。
+  - `/stream` 事件 `fps` 字段可覆盖运行时上限（bridge 转发 web 的 Sync Max FPS）；无 web 时用 HDA 本地参数兜底。
+  - 验证：hython 冒烟全绿（背靠背突发 5 连发 → 1 拉取/1 recook、窗口后拉最新 since=24、fps=10 事件更新运行时上限并节流、既有 stream/kick/cache/fast-path 不回归）。

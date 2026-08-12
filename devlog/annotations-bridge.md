@@ -49,3 +49,10 @@
   - `BridgeState` 新增 asyncio.Event waiter 集（`subscribe/unsubscribe/notify_stream`；put_outputs / ws edit / kick 均在主事件循环内 notify，单循环内安全）。
   - `/pending` 保留为 fallback（语义不变）；`POST /kick` 现在同时唤醒 /stream。
   - 测试：test_routes.py 追加 6 个 stream 用例（立即 outputs / reset / 小 hold 超时 / touch 更新 lastSeen / hold 边界 422 / kick 唤醒 hold），**pytest 43 全绿**。
+## v0.1.00057（2026-08-12）
+- **bridge 阻塞修复 + 每端 Sync Max FPS**（devlog/sync-rate-limit-and-preference.md）：
+  - **registry._save 防抖**：`touch`/`mark_activity` 只置 dirty，磁盘写 ≤1 次/秒（`register`/`remove` 立即保存）——消灭「60Hz 拖动时事件循环被同步写盘阻塞」（压测：touch 0.78ms / mark_activity 0.82ms / put_outputs 0.004ms，60Hz ≈ 96ms/s 阻塞）。
+  - 新端点 `PUT /api/hda/{serial}/sync {fps}`（1..60，默认 30，内存态）：bridge 每-serial 接收+转发速率上限；`/stream` 事件全部带 `"fps"`。
+  - `notify_stream` 合帧（≤ fps，`loop.call_later`）；WS 广播合帧（`stage_broadcast` 按 index latest-wins，≤ fps flush）。
+  - 快照新增 **Preference.json** 部件（`_PARTS` + write/read），`putSnapshot` 透传 `preference`。
+  - 测试：pytest **50 全绿**（+7：save 防抖 / /sync / stream 带 fps / preference 部件 / stage_broadcast 合帧 / notify 合帧）。

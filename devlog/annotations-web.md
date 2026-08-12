@@ -451,3 +451,12 @@
 ## v0.1.00056（2026-08-12）
 - **HDA 心跳离线判定改慢时钟**（配合 HDA 侧 /stream 长轮询 hold=60s、心跳 1/min）：`main.ts` `startHdaWatch` stale 15s → **150s**、检查间隔 5s → 15s；`overview.ts` `OFFLINE_MS` 15_000 → **150_000**（`STALE_ACTIVITY_MS` 不变，未 cook 判定不受影响）；`protocol/types.ts` 新增 `StreamEvent` 镜像（三处同步）；e2e round9 offline fixture `lastSeen: now-30` → `now-300`。
 - 验证：tsc 0；vitest 82；e2e round9/10/12/smoke **11 全过**。
+## v0.1.00057（2026-08-12）
+- **底部栏 Sync Max FPS + 首选项系统 + 快捷键**（devlog/sync-rate-limit-and-preference.md）：
+  - 底部栏：删除 `Update` 灰字 label（仅保留下拉框）；右侧新增 `Sync Max FPS`（number，1..60，默认 30）→ 变更即存 Preference + `PUT /sync` + 应用推流节流。
+  - `update_mode` enum（`"auto"|"mouseup"`）：localStorage 新 key `cyl1nder.prefs`（旧 `cyl1nder.updateMode` 一次性迁移）；`protocol/types.ts` 新增 `UpdateMode`/`SyncConfig`/`PreferenceJson`，`StreamEvent` 加 `fps?`。
+  - **Edit 菜单 → Preference…** 对话框（app/preference.ts 新建：dark modal，Sync Max FPS + Update Mode + Save/Cancel，Escape/遮罩关闭）。
+  - **快捷键**：`Ctrl+S`=快速保存（graph+docking+preference）、`Ctrl+Alt+S`=另存为，均 `preventDefault()` 阻止 Chrome 保存网页（输入框聚焦也拦截）。
+  - **Preference.json**：Edit→Preference 保存、Save Scene / Save Scene As（FS Access 写 `<serial>/Preference.json`）/ Ctrl+S / Ctrl+Alt+S 一并保存；打开场景（FS Access 或快照）读取并 apply + `putSyncFps`。
+  - **推流节流**：`throttledPush` 统一节流点（runNetwork 4 路 + viewport 编辑 1 路），≤ syncMaxFps/s、latest-wins、到点 flush。
+  - 验证：tsc 0；vitest 82；e2e round12（去灰字/update_mode/Sync Max FPS）+ round13（Preference 对话框 / Ctrl+S / Ctrl+Alt+S）7 项全过。

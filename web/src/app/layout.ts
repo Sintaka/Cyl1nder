@@ -15,6 +15,8 @@ export interface Layout {
   inspectorEl: HTMLElement;
   logEl: HTMLElement;
   updateModeSelect: HTMLSelectElement;
+  menuEdit: HTMLElement;
+  syncFpsInput: HTMLInputElement;
 }
 
 /** DOM shell: left node graph / center viewport / right inspector / bottom log. */
@@ -42,6 +44,12 @@ export function buildLayout(app: HTMLElement): Layout {
               <button data-act="reload-layout">Reload current layout</button>
             </div>
           </div>
+          <div class="cyl-menu" data-menu="edit">
+            <span class="cyl-menu-label">Edit</span>
+            <div class="cyl-menu-drop" id="cyl-menu-edit">
+              <button data-act="preference">Preference…</button>
+            </div>
+          </div>
         </div>
         <input id="cyl-serial" class="cyl-serial-input" placeholder="C1-xxxxxxxx-xxxx" spellcheck="false" />
         <button id="cyl-connect" class="cyl-connect" type="button">Connect</button>
@@ -52,11 +60,12 @@ export function buildLayout(app: HTMLElement): Layout {
       </header>
       <div id="cyl-dock" class="cyl-dock"></div>
       <div class="cyl-bottom-bar">
-        <label class="cyl-bottom-label" for="cyl-update-mode" title="Enter 拖动时几何体刷新时机">Update</label>
         <select id="cyl-update-mode" class="cyl-update-mode">
           <option value="auto" selected>Auto Update</option>
           <option value="mouseup">On Mouse Up</option>
         </select>
+        <label class="cyl-bottom-label" for="cyl-sync-fps" title="推流速率上限（1..60，默认 30）">Sync Max FPS</label>
+        <input type="number" id="cyl-sync-fps" min="1" max="60" value="30" class="cyl-sync-fps" />
       </div>
     </div>`;
   const $ = <T extends HTMLElement>(sel: string): T => app.querySelector(sel) as T;
@@ -91,6 +100,7 @@ export function buildLayout(app: HTMLElement): Layout {
     statusDot: $("#cyl-status"),
     autoRunCheck: $("#cyl-autorun"),
     menuFile: $("#cyl-menu-file"),
+    menuEdit: $("#cyl-menu-edit"),
     menuLayout: $("#cyl-menu-layout"),
     layoutPresets: $("#cyl-menu-presets"),
     dockContainer: $("#cyl-dock"),
@@ -101,6 +111,7 @@ export function buildLayout(app: HTMLElement): Layout {
     inspectorEl,
     logEl,
     updateModeSelect: $("#cyl-update-mode"),
+    syncFpsInput: $("#cyl-sync-fps"),
   };
 }
 
@@ -127,6 +138,12 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
               <button data-act="save-layout">Save current layout</button>
               <button data-act="save-layout-as">Save current layout as…</button>
               <button data-act="reload-layout">Reload current layout</button>
+            </div>
+          </div>
+          <div class="cyl-menu" data-menu="edit">
+            <span class="cyl-menu-label">Edit</span>
+            <div class="cyl-menu-drop" id="cyl-menu-edit">
+              <button data-act="preference">Preference…</button>
             </div>
           </div>
         </div>
@@ -158,11 +175,12 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
       <div class="cyl-splitter splitter-h" data-splitter="log"></div>
       <footer id="cyl-log" class="cyl-log"></footer>
       <div class="cyl-bottom-bar">
-        <label class="cyl-bottom-label" for="cyl-update-mode" title="Enter 拖动时几何体刷新时机">Update</label>
         <select id="cyl-update-mode" class="cyl-update-mode">
           <option value="auto" selected>Auto Update</option>
           <option value="mouseup">On Mouse Up</option>
         </select>
+        <label class="cyl-bottom-label" for="cyl-sync-fps" title="推流速率上限（1..60，默认 30）">Sync Max FPS</label>
+        <input type="number" id="cyl-sync-fps" min="1" max="60" value="30" class="cyl-sync-fps" />
       </div>
     </div>`;
   const $ = <T extends HTMLElement>(sel: string): T => app.querySelector(sel) as T;
@@ -173,6 +191,7 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
     statusDot: $("#cyl-status"),
     autoRunCheck: $("#cyl-autorun"),
     menuFile: app,
+    menuEdit: app,
     menuLayout: app,
     layoutPresets: app,
     dockContainer: app,
@@ -183,5 +202,6 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
     inspectorEl: $("#cyl-inspector"),
     logEl: $("#cyl-log"),
     updateModeSelect: $("#cyl-update-mode"),
+    syncFpsInput: $("#cyl-sync-fps"),
   };
 }

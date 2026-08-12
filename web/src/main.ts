@@ -11,7 +11,15 @@ import { computeNodeResult, computeOutputs } from "./nodes2/network";
 import { Viewport, type ReferenceItem } from "./viewport/renderer";
 import { APP_VERSION } from "./app/app-config";
 import { inputsEqual } from "./protocol/compare";
-import type { InputPayload, OutputBuffer } from "./protocol/types";
+import type { InputPayload, OutputBuffer, UpdateMode } from "./protocol/types";
+import {
+  applyPreferences,
+  clampSyncFps,
+  loadPreferences,
+  openPreferenceDialog,
+  savePreferences,
+  type Preferences,
+} from "./app/preference";
 
 /** Log categories: geo data / viewport / ui / bridge(python runtime). */
 let logFilter = "all";
@@ -39,6 +47,10 @@ const renderLog = () => {
 
 const layout = buildLayout(document.getElementById("app")!);
 const client = new BridgeClient();
+/** Preferences (cyl1nder.prefs localStorage + Preference.json v1): sync_max_fps caps
+ *  web->bridge push rate (1..60), update_mode picks Enter-gizmo refresh timing. */
+let prefs: Preferences = loadPreferences();
+applyPreferences(prefs, layout);
 // log filter bar (inserted above the log content inside the dock panel)
 const logFilterBar = document.createElement("div");
 logFilterBar.className = "cyl-log-filter";
@@ -165,7 +177,7 @@ layout.menuFile.querySelectorAll("button").forEach((b) => {
     const act = (b as HTMLElement).dataset.act;
     if (act === "save") {
       if (!store.serial) return;
-      void client.putSnapshot(store.serial, { graph: graph.serializeGraph(), docking: getDockJson() });
+      void client.putSnapshot(store.serial, { graph: graph.serializeGraph(), docking: getDockJson(), preference: prefs });
       store.pushLog("[file] scene saved");
     } else if (act === "open") {
       // Reload Scene: re-read the current serial's disk snapshot.
@@ -202,6 +214,25 @@ layout.menuLayout.querySelectorAll("button").forEach((b) => {
         });
         applyLayoutSettings(json);
         store.pushLog(`[layout] reloaded "${currentLayoutName}"${r.layout ? "" : " (bundled default)"}`);
+      });
+    }
+  });
+});
+layout.menuEdit.querySelectorAll("button").forEach((b) => {
+  b.addEventListener("click", () => {
+    const act = (b as HTMLElement).dataset.act;
+    if (act === "preference") {
+      openPreferenceDialog(prefs, (saved) => {
+        prefs = saved;
+        syncMaxFps = saved.sync_max_fps;
+        updateMode = saved.update_mode;
+        savePreferences(prefs);
+        applyPreferences(prefs, layout);
+        store.pushLog(`[pref] saved: sync_max_fps=${saved.sync_max_fps} update_mode=${saved.update_mode}`);
+        if (store.serial) {
+          void client.putSnapshot(store.serial, { preference: prefs }).catch(() => undefined);
+          void client.putSyncFps(store.serial, saved.sync_max_fps).catch(() => undefined);
+        }
       });
     }
   });
@@ -245,7 +276,7 @@ async function saveSceneAs(): Promise<void> {
   const serial = store.serial;
   if (!serial) return;
   try {
-    await client.putSnapshot(serial, { graph: graph.serializeGraph(), docking: getDockJson() });
+    await client.putSnapshot(serial, { graph: graph.serializeGraph(), docking: getDockJson(), preference: prefs });
   } catch (e) {
     store.pushLog(`[file] scene snapshot failed: ${String(e)}`);
   }
@@ -268,6 +299,7 @@ async function saveSceneAs(): Promise<void> {
       await writeJsonToDir(dir, `${serial}/io/outputs.json`, store.outputs);
       await writeJsonToDir(dir, `${serial}/scene/node-graph.json`, graph.serializeGraph());
       if (Object.keys(parm).length) await writeJsonToDir(dir, `${serial}/scene/node-parm.json`, parm);
+      await writeJsonToDir(dir, `${serial}/Preference.json`, prefs);
       await writeJsonToDir(dir, `${serial}/docking-layout.json`, getDockJson());
       store.pushLog(`[file] scene saved to ${dir.name}/${serial}`);
       return;
@@ -304,11 +336,13 @@ async function openSceneFromDir(): Promise<void> {
         store.pushLog(`[file] open scene failed: folder name is not a serial: ${serial}`);
         return;
       }
-      const [inputs, graphJson, docking] = await Promise.all([
+      const [inputs, graphJson, docking, prefJson] = await Promise.all([
         readJsonFromDir(dir, "io/inputs.json"),
         readJsonFromDir(dir, "scene/node-graph.json"),
         readJsonFromDir(dir, "docking-layout.json"),
+        readJsonFromDir(dir, "Preference.json"),
       ]);
+      if (prefJson && typeof prefJson === "object") applyLoadedPreference(prefJson);
       if (Array.isArray(inputs) && inputs.length > 0) {
         await client
           .pushInputs(serial, inputs as InputPayload[])
@@ -318,6 +352,7 @@ async function openSceneFromDir(): Promise<void> {
         .putSnapshot(serial, {
           graph: graphJson && typeof graphJson === "object" ? graphJson : undefined,
           docking: docking && typeof docking === "object" ? docking : undefined,
+          preference: prefs,
         })
         .catch((e) => store.pushLog(`[file] push snapshot failed: ${String(e)}`));
       location.href = `?serial=${encodeURIComponent(serial)}`;
@@ -369,26 +404,39 @@ layout.autoRunCheck.addEventListener("change", () => {
 });
 
 /** Enter gizmo update mode: auto = realtime per drag frame; mouseup = geometry
- *  refreshes only when the mouse is released (gizmo still follows the pointer). */
-let updateMode: "auto" | "mouseup" = "auto";
+ *  refreshes only when the mouse is released (gizmo still follows the pointer).
+ *  Source of truth: the preference store (cyl1nder.prefs.update_mode). */
+let updateMode: UpdateMode = prefs.update_mode;
+/** web->bridge push rate cap (1..60): runNetwork + viewport edit pushes coalesce
+ *  to <= syncMaxFps pushes/second through throttledPush() (latest-wins). */
+let syncMaxFps: number = prefs.sync_max_fps;
 /** mouseup mode: only the latest buffered gizmo value; committed once on drag end. */
 let pendingTransform: { id: string; tx: number; ty: number; tz: number } | null = null;
-const savedUpdateMode = localStorage.getItem("cyl1nder.updateMode");
-if (savedUpdateMode === "auto" || savedUpdateMode === "mouseup") updateMode = savedUpdateMode;
-layout.updateModeSelect.value = updateMode;
 layout.updateModeSelect.addEventListener("change", () => {
   updateMode = layout.updateModeSelect.value === "mouseup" ? "mouseup" : "auto";
-  localStorage.setItem("cyl1nder.updateMode", updateMode);
+  prefs = { ...prefs, update_mode: updateMode };
+  savePreferences(prefs);
   store.pushLog(`update mode: ${updateMode === "auto" ? "Auto Update" : "On Mouse Up"}`);
+});
+layout.syncFpsInput.addEventListener("change", () => {
+  syncMaxFps = clampSyncFps(layout.syncFpsInput.value);
+  prefs = { ...prefs, sync_max_fps: syncMaxFps };
+  savePreferences(prefs);
+  applyPreferences(prefs, layout);
+  store.pushLog(`sync max fps: ${syncMaxFps}`);
+  if (store.serial) void client.putSyncFps(store.serial, syncMaxFps).catch(() => undefined);
 });
 
 (window as unknown as Record<string, unknown>).__cylViewport = null; // debug hook
 const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuffer) => {
   if (!store.serial) return;
-  client
-    .pushOutputs(store.serial, [out])
-    .then((r) => store.pushLog(`edit out${out.index} pushed rev=${r.rev}`))
-    .catch((e) => store.pushLog(`edit failed: ${String(e)}`));
+  const serial = store.serial;
+  throttledPush(() => {
+    client
+      .pushOutputs(serial, [out])
+      .then((r) => store.pushLog(`edit out${out.index} pushed rev=${r.rev}`))
+      .catch((e) => store.pushLog(`edit failed: ${String(e)}`));
+  });
 });
 (window as unknown as Record<string, unknown>).__cylViewport = viewport;
 (window as unknown as Record<string, unknown>).__cylGraph = graph; // debug hook (MCP debug access)
@@ -724,17 +772,47 @@ store.subscribe(() => {
       : "";
 });
 
+/** latest-wins push throttle: coalesce pushOutputs traffic to <= syncMaxFps/s.
+ *  BOTH push sites (runNetwork's 4-output push + viewport edit's 1-output push)
+ *  go through this single gate; the buffered LATEST payload always flushes. */
+let lastPushAt = 0;
+let pushFlushTimer: number | undefined;
+let pendingPushFn: (() => void) | null = null;
+function throttledPush(fn: () => void): void {
+  const minInterval = 1000 / Math.max(1, syncMaxFps);
+  const now = Date.now();
+  const wait = Math.max(0, lastPushAt + minInterval - now);
+  if (wait <= 0) {
+    lastPushAt = now;
+    fn();
+    return;
+  }
+  pendingPushFn = fn; // latest wins: replace any still-buffered payload
+  if (pushFlushTimer === undefined) {
+    pushFlushTimer = window.setTimeout(() => {
+      pushFlushTimer = undefined;
+      const run = pendingPushFn;
+      pendingPushFn = null;
+      if (run) {
+        lastPushAt = Date.now();
+        run();
+      }
+    }, wait);
+  }
+}
+
 /** v1 network: trace the graph topology (input -> null/transform -> output) into 4 output buffers. */
 async function runNetwork(): Promise<void> {
   if (!store.serial || store.inputs.length === 0) return;
+  const serial = store.serial;
   const snap = graph.getNetworkSnapshot();
   const outputs: OutputBuffer[] = computeOutputs(store.inputs, snap);
-  try {
-    const r = await client.pushOutputs(store.serial, outputs);
-    store.pushLog(`network ran: ${outputs.length} outputs → rev=${r.rev}`);
-  } catch (e) {
-    store.pushLog(`network run failed: ${String(e)}`);
-  }
+  throttledPush(() => {
+    client
+      .pushOutputs(serial, outputs)
+      .then((r) => store.pushLog(`network ran: ${outputs.length} outputs → rev=${r.rev}`))
+      .catch((e) => store.pushLog(`network run failed: ${String(e)}`));
+  });
 }
 
 /** One-shot HDA kick on the session's first connect to a serial: the bridge sets a
@@ -806,9 +884,27 @@ async function loadSnapshotIntoStore(serial: string): Promise<void> {
       store.upsertOutputs(outputs as never, store.outputRev + 1);
       store.pushLog(`[path] restored ${outputs.length} outputs from snapshot`);
     }
+    const pref = snapshot.preference as { sync_max_fps?: unknown; update_mode?: unknown } | undefined;
+    if (pref && typeof pref === "object") applyLoadedPreference(pref);
   } catch (e) {
     store.pushLog(`[path] snapshot read failed: ${String(e)}`);
   }
+}
+
+/** Apply a Preference.json (from open-scene / snapshot) and push the new rate cap. */
+function applyLoadedPreference(json: unknown): void {
+  const p = (json ?? {}) as { sync_max_fps?: unknown; update_mode?: unknown };
+  const next: Preferences = {
+    sync_max_fps: clampSyncFps(p.sync_max_fps),
+    update_mode: p.update_mode === "mouseup" ? "mouseup" : p.update_mode === "auto" ? "auto" : prefs.update_mode,
+  };
+  prefs = next;
+  syncMaxFps = next.sync_max_fps;
+  updateMode = next.update_mode;
+  savePreferences(prefs);
+  applyPreferences(prefs, layout);
+  store.pushLog(`[pref] loaded: sync_max_fps=${next.sync_max_fps} update_mode=${next.update_mode}`);
+  if (store.serial) void client.putSyncFps(store.serial, next.sync_max_fps).catch(() => undefined);
 }
 
 function connect(serialRaw: string): void {
@@ -918,6 +1014,23 @@ window.addEventListener("keydown", (e) => {
   if (!viewport.isHovered()) return;
   e.preventDefault();
   toggleEnterEdit();
+});
+// Ctrl+S = quick save (current serial snapshot), Ctrl+Alt+S = Save Scene As.
+// Always preventDefault (even while typing in inputs) so Chrome never saves the page.
+window.addEventListener("keydown", (e) => {
+  if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "s") return;
+  e.preventDefault();
+  if (e.altKey) {
+    void saveSceneAs();
+    return;
+  }
+  if (!store.serial) return;
+  void client.putSnapshot(store.serial, {
+    graph: graph.serializeGraph(),
+    docking: getDockJson(),
+    preference: prefs,
+  });
+  store.pushLog("[file] scene saved (Ctrl+S)");
 });
 
 /** Debounced persist of the node graph (nodes/positions/connections) to the path system. */

@@ -78,18 +78,24 @@ class _FakeClock:
     def now(self) -> float:
         return self.t
 
+    def step(self, dt: float = 1.0) -> None:
+        """Advance the injected clock (crosses the 1/fps throttle window)."""
+        self.t += dt
+
 
 def _test_stream_loop() -> None:
-    """Event-driven /stream loop: timeout/outputs/kick/error/reset + clean exit.
+    """Event-driven /stream loop: timeout/outputs/kick/error/reset + fps throttle.
 
     stream_once returns a programmable event sequence; pull_outputs is a stub.
     A blocking gate parks each loop sleep (only error backoff sleeps) so the
-    test can feed events deterministically; now_fn is injected for parity with
-    the loop signature.
+    test can feed events deterministically; now_fn is injected and stepped to
+    cross the 1/fps throttle window between single events.
     """
     serial = cyl1nder_hda.generate_serial()
     stop = threading.Event()
-    cyl1nder_hda._SYNC[serial] = {"thread": None, "stop": stop, "node_path": "", "scheduled": False}
+    cyl1nder_hda._SYNC[serial] = {
+        "thread": None, "stop": stop, "node_path": "", "scheduled": False, "fps": 30,
+    }
     recooked: list[str] = []
     orig_schedule = cyl1nder_hda._schedule_recook
     cyl1nder_hda._schedule_recook = lambda node_path: recooked.append(node_path)  # type: ignore[assignment]
@@ -100,11 +106,13 @@ def _test_stream_loop() -> None:
             self.last_error = ""
             self.events: list[dict | None] = []
             self.stream_calls = 0
+            self.stream_sinces: list[int] = []
             self.pull_sinces: list[int] = []
             self.pull_rev = 7
 
         def stream_once(self, since: int, hold: float = 60.0):
             self.stream_calls += 1
+            self.stream_sinces.append(int(since or 0))
             assert abs(hold - cyl1nder_hda._STREAM_HOLD) < 1e-9, f"hold={hold}"
             return self.events.pop(0) if self.events else None
 
@@ -142,6 +150,13 @@ def _test_stream_loop() -> None:
         daemon=True,
     )
     th.start()
+
+    def _feed(events: list[dict | None], park_at: int) -> None:
+        """Queue events, unblock the parked loop, wait until it re-parks (consumed all)."""
+        client.events.extend(events)
+        gate.step()
+        gate.wait_len(park_at)
+
     try:
         # empty queue -> first stream_once returns None -> parked at backoff sleep
         gate.wait_len(1)
@@ -150,36 +165,83 @@ def _test_stream_loop() -> None:
             f"expected {cyl1nder_hda._STREAM_RETRY}s backoff, got {gate.values[-1]}"
 
         # timeout: idle keep-alive -> no recook, loop continues (next sleep = 2nd backoff)
-        client.events.append({"type": "timeout", "rev": 0})
-        gate.step()
-        gate.wait_len(2)
+        _feed([{"type": "timeout", "rev": 0}], 2)
         assert recooked == [], f"timeout must not recook: {recooked}"
         print("stream timeout -> keep-alive, no recook OK")
 
-        # outputs: data event -> recook scheduled
+        # outputs: data event -> recook scheduled (first action is never rate-capped)
         cyl1nder_hda._SYNC[serial]["scheduled"] = False
-        client.events.append({"type": "outputs", "rev": 5})
-        gate.step()
-        gate.wait_len(3)
+        _feed([{"type": "outputs", "rev": 5}], 3)
         assert recooked == [""], f"outputs did not schedule recook: {recooked}"
         print("stream outputs -> recook scheduled OK")
 
-        # kick with rev unchanged -> recook scheduled anyway
+        # kick with rev unchanged -> recook scheduled anyway (clock stepped past 1/fps)
         cyl1nder_hda._SYNC[serial]["scheduled"] = False
-        client.events.append({"type": "kick", "force": True, "rev": 5})
-        gate.step()
-        gate.wait_len(4)
+        clock.step(1.0)
+        _feed([{"type": "kick", "force": True, "rev": 5}], 4)
         assert recooked == ["", ""], f"kick (rev unchanged) did not recook: {recooked}"
         print("stream kick (rev unchanged) -> recook scheduled OK")
 
-        # reset -> last_seen back to 0, full re-pull from 0 + recook
+        # reset -> last_seen back to 0, full re-pull from 0 + recook (clock stepped)
         cyl1nder_hda._SYNC[serial]["scheduled"] = False
-        client.events.append({"type": "reset", "rev": 0})
-        gate.step()
-        gate.wait_len(5)
+        clock.step(1.0)
+        _feed([{"type": "reset", "rev": 0}], 5)
         assert recooked == ["", "", ""], f"reset did not recook: {recooked}"
         assert client.pull_sinces[-1] == 0, f"reset must re-pull from 0, got since={client.pull_sinces[-1]}"
         print("stream reset -> full re-pull from 0 + recook OK")
+        clock.step(1.0)  # move the burst outside the reset action's throttle window
+
+        # ---- fps throttle: back-to-back outputs burst (same injected now) causes
+        #      only ONE pull + one recook; last_seen reaches the newest rev (latest-wins)
+        baseline_pulls = len(client.pull_sinces)
+        baseline_recs = len(recooked)
+        cyl1nder_hda._SYNC[serial]["scheduled"] = False
+        client.pull_rev = 24  # simulate the bridge advancing to the burst's newest rev
+        _feed([{"type": "outputs", "rev": r} for r in (20, 21, 22, 23, 24)], 6)
+        assert len(client.pull_sinces) - baseline_pulls == 1, \
+            f"burst must pull once, pulled {len(client.pull_sinces) - baseline_pulls}x"
+        assert len(recooked) - baseline_recs == 1, \
+            f"burst must schedule one recook, scheduled {len(recooked) - baseline_recs}"
+        assert client.stream_sinces[-1] == 24, \
+            f"latest-wins: stream since must reach 24, got {client.stream_sinces[-1]}"
+        assert cyl1nder_hda._READY[serial]["rev"] == 24, \
+            f"ready buffer rev must be 24 after the burst, got {cyl1nder_hda._READY[serial]['rev']}"
+        print("fps throttle: back-to-back outputs burst -> 1 pull / 1 recook, latest-wins OK")
+
+        # window passed (clock stepped > 1/30) -> next outputs event pulls + recooks again
+        baseline_pulls = len(client.pull_sinces)
+        baseline_recs = len(recooked)
+        cyl1nder_hda._SYNC[serial]["scheduled"] = False
+        client.pull_rev = 25
+        clock.step(0.1)
+        _feed([{"type": "outputs", "rev": 25}], 7)
+        assert len(client.pull_sinces) - baseline_pulls == 1, "event after window must pull"
+        assert len(recooked) - baseline_recs == 1, "event after window must schedule recook"
+        assert client.pull_sinces[-1] == 24, \
+            f"next pull must start from ready rev 24 (latest-wins), got {client.pull_sinces[-1]}"
+        print("fps throttle: event after window -> pull latest (since=24) + recook OK")
+
+        # ---- a numeric fps on an event overrides the runtime cap ----
+        baseline_pulls = len(client.pull_sinces)
+        baseline_recs = len(recooked)
+        cyl1nder_hda._SYNC[serial]["scheduled"] = False
+        client.pull_rev = 26
+        clock.step(0.1)  # > 1/30: this event acts and applies fps=10 for the NEXT one
+        _feed([{"type": "outputs", "rev": 26, "fps": 10}], 8)
+        assert cyl1nder_hda._SYNC[serial]["fps"] == 10, \
+            f"runtime fps not updated: {cyl1nder_hda._SYNC[serial]['fps']}"
+        assert len(client.pull_sinces) - baseline_pulls == 1, "fps event must pull"
+        # cap is now 10 -> 1/10 = 0.1s: a back-to-back event (same now) is throttled
+        baseline_pulls = len(client.pull_sinces)
+        baseline_recs = len(recooked)
+        cyl1nder_hda._SYNC[serial]["scheduled"] = False
+        client.pull_rev = 27
+        _feed([{"type": "outputs", "rev": 27}], 9)
+        assert len(client.pull_sinces) - baseline_pulls == 0, \
+            f"event inside 1/10s window must be throttled, pulled {len(client.pull_sinces) - baseline_pulls}x"
+        assert len(recooked) - baseline_recs == 0, "throttled event must not recook"
+        assert client.stream_sinces[-1] == 27, "throttled event still advances last_seen"
+        print("stream event fps=10 -> runtime cap updated; back-to-back event throttled OK")
     finally:
         stop.set()
         gate._go.set()  # unblock any parked sleep so the loop thread exits
@@ -192,7 +254,7 @@ def _test_stream_loop() -> None:
     # ---- node deleted -> clean thread exit (RequestSourceShutdown semantics) ----
     serial2 = cyl1nder_hda.generate_serial()
     stop2 = threading.Event()
-    cyl1nder_hda._SYNC[serial2] = {"thread": None, "stop": stop2, "node_path": "/obj/gone", "scheduled": False}
+    cyl1nder_hda._SYNC[serial2] = {"thread": None, "stop": stop2, "node_path": "/obj/gone", "scheduled": False, "fps": 30}
     real_hou_node = cyl1nder_hda.hou.node
     cyl1nder_hda.hou.node = lambda path: None  # type: ignore[assignment] - simulate deleted node
     try:
@@ -220,7 +282,7 @@ def _test_kick_force_recook() -> None:
     cache is dropped so the recook re-pushes (heals a failed first push -> ok)."""
     serial = cyl1nder_hda.generate_serial()
     stop = threading.Event()
-    cyl1nder_hda._SYNC[serial] = {"thread": None, "stop": stop, "node_path": "", "scheduled": False}
+    cyl1nder_hda._SYNC[serial] = {"thread": None, "stop": stop, "node_path": "", "scheduled": False, "fps": 30}
     cyl1nder_hda._PUSH_CACHE[serial] = ("stale-sig",)  # inputs were already pushed once
     recooked: list[str] = []
     orig_schedule = cyl1nder_hda._schedule_recook

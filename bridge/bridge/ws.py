@@ -92,10 +92,7 @@ async def ws_endpoint(websocket: WebSocket) -> None:
                     rev, accepted = st.workspaces.get_or_create(serial).put_outputs(parsed)
                     st.logs.info("ws", f"edit pushed ({len(parsed)}, accepted {len(accepted)}), rev={rev}", serial)
                     if accepted:
-                        await manager.broadcast(
-                            serial,
-                            {"type": "outputs", "outputs": [o.model_dump() for o in accepted], "rev": rev},
-                        )
+                        st.stage_broadcast(serial, accepted, rev)
                         st.notify_stream(serial)
     except WebSocketDisconnect:
         st.logs.info("ws", "client disconnected", serial)

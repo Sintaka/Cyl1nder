@@ -11,6 +11,7 @@ Rules (devlog/snapshot-design.md + scene-snapshot-research.md):
     scene/node-graph.json   node network (logic: nodes/connections/viewport)
     scene/node-parm.json    per-node parameters (absolute path keyed)
     docking-layout.json     dockview desktop layout
+    Preference.json         web preferences ({"schemaVersion":1,"sync_max_fps":30,"update_mode":"auto"})
 - Single writer (bridge only); atomic tmp+replace; content-compare before write (R5).
 """
 from __future__ import annotations
@@ -31,6 +32,7 @@ _PARTS: dict[str, tuple[str, str]] = {
     "inputs": ("io", "inputs.json"),
     "outputs": ("io", "outputs.json"),
     "docking": (".", "docking-layout.json"),
+    "preference": (".", "Preference.json"),
 }
 
 
@@ -85,8 +87,9 @@ def write_snapshot(
     inputs: list[dict[str, Any]] | None = None,
     outputs: list[dict[str, Any]] | None = None,
     docking: dict[str, Any] | None = None,
+    preference: dict[str, Any] | None = None,
 ) -> bool:
-    """Atomically write snapshot parts under io/ scene/ + docking-layout.json.
+    """Atomically write snapshot parts under io/ scene/ + docking-layout.json + Preference.json.
     Returns True if anything changed on disk."""
     root = snapshot_root(hip, serial)
     try:
@@ -103,6 +106,7 @@ def write_snapshot(
         "inputs": inputs,
         "outputs": outputs,
         "docking": docking,
+        "preference": preference,
     }
     for part, payload in parts.items():
         if payload is None:

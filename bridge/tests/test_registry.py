@@ -81,3 +81,54 @@ def test_mark_activity_auto_registers(tmp_path: Path) -> None:
     reg.mark_activity(s)
     rec = reg.get(s)
     assert rec is not None and rec.lastActivity > 0
+
+
+def _read_records(path: Path) -> list[dict]:
+    import json
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+
+def test_save_debounced_touch_and_mark_activity(tmp_path: Path) -> None:
+    """Rapid touch/mark_activity must not write registry.json every call (sync disk
+    I/O at 60Hz blocked the event loop); the file only changes once per second."""
+    path = tmp_path / "registry.json"
+    reg = SerialRegistry(path)
+    s = generate_serial()
+    reg.register(s, nodePath="/obj/x")  # register saves immediately
+    assert path.exists()
+    on_disk = _read_records(path)  # lastSeen snapshot as of register()
+    before = reg.get(s).lastSeen
+    for _ in range(30):
+        reg.touch(s)
+        reg.mark_activity(s)
+    # in-memory state still updates ...
+    assert reg.get(s).lastSeen > before
+    # ... but the file is untouched inside the debounce window (no disk write)
+    assert _read_records(path) == on_disk
+    # after the window a touch persists (single write -> lastSeen moves on disk)
+    time.sleep(1.05)
+    reg.touch(s)
+    assert _read_records(path) != on_disk
+    reg2 = SerialRegistry(path)
+    assert reg2.get(s) is not None and reg2.get(s).lastSeen >= reg.get(s).lastSeen
+
+
+
+def test_register_saves_immediately_after_debounced_touch(tmp_path: Path) -> None:
+    """register() is persistence-critical: it writes even right after a debounced touch."""
+    path = tmp_path / "registry.json"
+    reg = SerialRegistry(path)
+    s1 = generate_serial()
+    reg.touch(s1)  # first heartbeat auto-registers + saves
+    assert path.exists()
+    on_disk = _read_records(path)
+    reg.touch(s1)  # within the debounce window -> no write
+    assert _read_records(path) == on_disk
+    s2 = generate_serial()
+    reg.register(s2, nodePath="/obj/new")  # must persist immediately
+    assert len(_read_records(path)) == len(on_disk) + 1
+    reg2 = SerialRegistry(path)
+    assert reg2.get(s2) is not None
+
+

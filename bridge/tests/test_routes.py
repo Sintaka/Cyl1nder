@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -140,7 +141,7 @@ def test_stream_reset_when_rev_fell_back(tmp_path: Path) -> None:
     r = c.get(f"/api/hda/{serial}/stream", params={"since": 5, "hold": 5})
     assert r.status_code == 200
     body = r.json()
-    assert body == {"type": "reset", "rev": 0}
+    assert body == {"type": "reset", "rev": 0, "fps": 30}
 
 
 def test_stream_timeout_with_small_hold(tmp_path: Path) -> None:
@@ -149,7 +150,7 @@ def test_stream_timeout_with_small_hold(tmp_path: Path) -> None:
     r = c.get(f"/api/hda/{serial}/stream", params={"since": 0, "hold": 0.05})
     assert r.status_code == 200
     body = r.json()
-    assert body == {"type": "timeout", "rev": 0}
+    assert body == {"type": "timeout", "rev": 0, "fps": 30}
 
 
 def test_stream_touch_updates_last_seen(tmp_path: Path) -> None:
@@ -196,7 +197,123 @@ def test_stream_kick_wakes_held_poll(tmp_path: Path) -> None:
             assert r.status_code == 200
             resp = await asyncio.wait_for(held, timeout=2)
             body = resp.json()
-            assert body == {"type": "kick", "force": True, "rev": 0}
+            assert body == {"type": "kick", "force": True, "rev": 0, "fps": 30}
             assert not st._stream_events.get(serial), "stream waiter not cleaned up"
+
+    asyncio.run(scenario())
+
+
+def test_put_sync_fps_sets_and_streams(tmp_path: Path) -> None:
+    """PUT /api/hda/{serial}/sync stores the per-serial cap; /stream events carry fps."""
+    c = _client(tmp_path)
+    serial = generate_serial()
+    r = c.put(f"/api/hda/{serial}/sync", json={"fps": 45})
+    assert r.status_code == 200
+    assert r.json() == {"ok": True, "serial": serial, "fps": 45}
+    assert get_state().get_sync_fps(serial) == 45
+    # /stream events carry the current fps
+    c.put(f"/api/hda/{serial}/outputs", json={"outputs": [{"index": 0, "rev": 0, "points": [[0, 0, 0]]}]})
+    body = c.get(f"/api/hda/{serial}/stream", params={"since": 0, "hold": 5}).json()
+    assert body["type"] == "outputs"
+    assert body["fps"] == 45
+    # out-of-range is rejected (422) and never stored
+    assert c.put(f"/api/hda/{serial}/sync", json={"fps": 0}).status_code == 422
+    assert c.put(f"/api/hda/{serial}/sync", json={"fps": 61}).status_code == 422
+    assert get_state().get_sync_fps(serial) == 45
+
+
+def test_stream_events_include_default_fps(tmp_path: Path) -> None:
+    c = _client(tmp_path)
+    serial = generate_serial()
+    body = c.get(f"/api/hda/{serial}/stream", params={"since": 0, "hold": 0.05}).json()
+    assert body["type"] == "timeout"
+    assert body["fps"] == 30
+
+
+def test_put_snapshot_preference(tmp_path: Path, monkeypatch) -> None:
+    """putSnapshot with a preference part writes Preference.json and read_snapshot returns it."""
+    monkeypatch.setenv("CYL1NDER_SNAPSHOT_ROOT", str(tmp_path / "snaps"))
+    c = _client(tmp_path)
+    serial = generate_serial()
+    pref = {"schemaVersion": 1, "sync_max_fps": 45, "update_mode": "auto"}
+    r = c.put(f"/api/hda/{serial}/snapshot", json={"preference": pref})
+    assert r.status_code == 200
+    snap = c.get(f"/api/hda/{serial}/snapshot").json()["snapshot"]
+    assert snap["preference"] == pref
+    p = tmp_path / "snaps" / serial / "Preference.json"
+    assert p.exists()
+    assert json.loads(p.read_text(encoding="utf-8")) == pref
+
+
+def test_stage_broadcast_latest_wins_coalesced(tmp_path: Path, monkeypatch) -> None:
+    """stage_broadcast merges by index (latest-wins) and flushes once per fps window."""
+    import asyncio
+    import time
+
+    import bridge.ws as ws_mod
+    from bridge.protocol import OutputBuffer
+
+    reset_state(tmp_path / "data")
+    st = get_state()
+    serial = generate_serial()
+    st.set_sync_fps(serial, 1)  # 1s window
+
+    class FakeManager:
+        def __init__(self) -> None:
+            self.messages: list[tuple[str, dict]] = []
+
+        async def broadcast(self, serial: str, message: dict) -> None:
+            self.messages.append((serial, message))
+
+    fake = FakeManager()
+    monkeypatch.setattr(ws_mod, "manager", fake)
+
+    a = OutputBuffer(index=0, rev=0, points=[[0, 0, 0]])
+    b = OutputBuffer(index=1, rev=0, points=[[1, 1, 1]])
+    c2 = OutputBuffer(index=0, rev=0, points=[[2, 2, 2]])
+
+    async def scenario() -> None:
+        # pretend a flush just happened so both stages fall inside one window
+        with st._bcast_lock:
+            st._bcast_last[serial] = time.monotonic()
+        st.stage_broadcast(serial, [a, b], 1)
+        st.stage_broadcast(serial, [c2], 2)  # same index 0 -> replaces a
+        await asyncio.sleep(0.05)
+        assert fake.messages == []  # still inside the window: nothing flushed
+        await asyncio.sleep(1.1)  # past the window edge -> single coalesced flush
+        assert len(fake.messages) == 1
+        got_serial, msg = fake.messages[0]
+        assert got_serial == serial
+        assert msg["type"] == "outputs"
+        assert msg["rev"] == 2
+        by_index = {o["index"]: o for o in msg["outputs"]}
+        assert by_index[0]["points"] == [[2, 2, 2]]  # latest-wins
+        assert by_index[1]["points"] == [[1, 1, 1]]
+
+    asyncio.run(scenario())
+
+
+def test_notify_stream_coalesced_to_sync_fps(tmp_path: Path) -> None:
+    """notify_stream wakes at most once per 1/fps window (latest state at the edge)."""
+    import asyncio
+
+    reset_state(tmp_path / "data")
+    st = get_state()
+    serial = generate_serial()
+    st.set_sync_fps(serial, 1)  # 1s window
+
+    async def scenario() -> None:
+        ev = st.subscribe(serial)
+        st.notify_stream(serial)  # first wake: immediate
+        assert ev.is_set()
+        ev.clear()
+        st.notify_stream(serial)  # within window -> one coalesced wake scheduled
+        st.notify_stream(serial)  # still within window -> no extra schedule
+        assert not ev.is_set()
+        await asyncio.sleep(0.05)
+        assert not ev.is_set()
+        await asyncio.sleep(1.1)
+        assert ev.is_set()
+        st.unsubscribe(serial, ev)
 
     asyncio.run(scenario())

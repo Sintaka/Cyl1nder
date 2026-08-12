@@ -5,7 +5,9 @@ import { BridgeClient } from "../src/bridge/client";
  * Round 12 (update-mode write-set): non-docking bottom bar + 15ch "Auto Update /
  * On Mouse Up" dropdown that picks when Enter-gizmo drags refresh the geometry.
  * - UI: bottom bar exists under the dock, the dropdown is 15ch wide, defaults to
- *   Auto Update, and the choice survives reload (localStorage "cyl1nder.updateMode").
+ *   Auto Update, the old "Update" gray label is removed (dropdown only), and the
+ *   choice survives reload (localStorage "cyl1nder.prefs" -> update_mode; the bottom
+ *   bar also gains a Sync Max FPS number input defaulting to 30).
  * - On Mouse Up: during a gizmo drag only the LATEST tx/ty/tz is buffered (no
  *   runNetwork, no bridge outputs, no param writes); releasing the mouse commits
  *   that single value once (one setNodeParams + runNetwork).
@@ -186,9 +188,18 @@ test("bottom bar: non-docking strip + 15ch update-mode dropdown, default Auto Up
   });
   expect(Math.abs(widths.selectW - widths.probeW)).toBeLessThan(1);
 
-  // switching persists to localStorage
+  // the old "Update" gray label is gone; only the dropdown + Sync Max FPS remain
+  await expect(bar.locator(".cyl-bottom-label", { hasText: "Update" })).toHaveCount(0);
+
+  // Sync Max FPS input: present in the bottom bar, defaults to 30
+  const fpsInput = page.locator("#cyl-sync-fps");
+  await expect(fpsInput).toBeVisible();
+  await expect(fpsInput).toHaveValue("30");
+
+  // switching persists to the prefs store (cyl1nder.prefs.update_mode)
   await select.selectOption("mouseup");
-  expect(await page.evaluate(() => localStorage.getItem("cyl1nder.updateMode"))).toBe("mouseup");
+  const prefs = await page.evaluate(() => JSON.parse(localStorage.getItem("cyl1nder.prefs") || "{}"));
+  expect(prefs.update_mode).toBe("mouseup");
 
   // reload -> the stored mode is restored
   await page.reload();

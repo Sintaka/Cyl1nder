@@ -164,3 +164,102 @@ html, body, #app { height: 100%; margin: 0; }
   font-size: 11px;
 }
 .cyl-update-mode:focus { border-color: #2b6cb0; outline: none; }
+
+/* ---- Sync Max FPS input (bottom bar, right of the update-mode dropdown) ---- */
+.cyl-sync-fps {
+  width: 6ch;
+  background: #0f1012;
+  color: #cfd2d6;
+  border: 1px solid #33363c;
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 11px;
+  text-align: center;
+}
+.cyl-sync-fps:focus { border-color: #2b6cb0; outline: none; }
+/* hide native number spin arrows (keyboard input stays) */
+.cyl-sync-fps::-webkit-inner-spin-button,
+.cyl-sync-fps::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.cyl-sync-fps {
+  -moz-appearance: textfield;
+  appearance: none;
+}
+
+/* ---- Preference dialog (web/src/app/preference.ts) ---- */
+.cyl-pref-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.cyl-pref-card {
+  background: #1b1e24;
+  border: 1px solid #3a3f4a;
+  border-radius: 8px;
+  min-width: 320px;
+  padding: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  color: #cfd2d6;
+}
+.cyl-pref-card h2 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: #fff;
+}
+.cyl-pref-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0;
+}
+.cyl-pref-row label {
+  color: #cfd2d6;
+  font-size: 12px;
+}
+.cyl-pref-row input[type="number"],
+.cyl-pref-row select {
+  background: #0f1012;
+  color: #cfd2d6;
+  border: 1px solid #33363c;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 12px;
+}
+.cyl-pref-row input[type="number"]:focus,
+.cyl-pref-row select:focus {
+  border-color: #2b6cb0;
+  outline: none;
+}
+.cyl-pref-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.cyl-pref-actions button {
+  background: #1c1e24;
+  border: 1px solid #33363c;
+  color: #cfd2d6;
+  border-radius: 4px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.cyl-pref-actions button:hover {
+  background: #232a33;
+}
+.cyl-pref-actions .cyl-pref-save {
+  background: #2b6cb0;
+  border-color: #2b6cb0;
+  color: #fff;
+}
+.cyl-pref-actions .cyl-pref-save:hover {
+  background: #3583cc;
+}

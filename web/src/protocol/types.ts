@@ -82,6 +82,18 @@ export interface LogEntry {
   message: string;
 }
 
+// Sync / preference types (bridge PUT /api/hda/{serial}/sync + Preference.json v1).
+export type UpdateMode = "auto" | "mouseup";
+
+export interface SyncConfig {
+  fps: number;
+}
+
+export interface PreferenceJson {
+  schemaVersion?: number;
+  sync_max_fps?: number;
+  update_mode?: UpdateMode;
+}
 // WS messages
 export type WsServerMessage =
   | { type: "hello"; serial: string; inputRev: number; outputRev: number }
@@ -91,7 +103,7 @@ export type WsServerMessage =
 
 // NDJSON long-poll events (HDA -> bridge GET /stream; web does not consume)
 export type StreamEvent =
-  | { type: "outputs"; rev: number }
-  | { type: "reset"; rev: number }
-  | { type: "kick"; force: true; rev: number }
-  | { type: "timeout"; rev: number };
+  | { type: "outputs"; rev: number; fps?: number }
+  | { type: "reset"; rev: number; fps?: number }
+  | { type: "kick"; force: true; rev: number; fps?: number }
+  | { type: "timeout"; rev: number; fps?: number };

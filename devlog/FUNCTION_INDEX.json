@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-12T07:08:05.497Z",
-  "totalFunctions": 462,
+  "generatedAt": "2026-08-12T07:49:58.730Z",
+  "totalFunctions": 479,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -359,67 +359,67 @@
     },
     {
       "file": "bridge/bridge/protocol.py",
-      "lineCount": 108,
+      "lineCount": 124,
       "functions": [
         {
           "name": "_b36",
-          "line": 38,
+          "line": 54,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "generate_serial",
-          "line": 49,
+          "line": 65,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "is_valid_serial",
-          "line": 60,
+          "line": 76,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "AttributeData",
-          "line": 64,
+          "line": 80,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "CurveData",
-          "line": 70,
-          "kind": "class",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "InputPayload",
-          "line": 75,
-          "kind": "class",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "OutputBuffer",
           "line": 86,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
+          "name": "InputPayload",
+          "line": 91,
+          "kind": "class",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "OutputBuffer",
+          "line": 102,
+          "kind": "class",
+          "exported": false,
+          "calls": 1
+        },
+        {
           "name": "InputsPut",
-          "line": 97,
+          "line": 113,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "OutputsPut",
-          "line": 105,
+          "line": 121,
           "kind": "class",
           "exported": false,
           "calls": 1
@@ -428,109 +428,109 @@
     },
     {
       "file": "bridge/bridge/registry.py",
-      "lineCount": 173,
+      "lineCount": 200,
       "functions": [
         {
           "name": "RegistryError",
-          "line": 21,
+          "line": 29,
           "kind": "class",
           "exported": false,
           "calls": 2
         },
         {
           "name": "RegistryRecord",
-          "line": 25,
+          "line": 33,
           "kind": "class",
           "exported": false,
           "calls": 3
         },
         {
           "name": "__init__",
-          "line": 28,
+          "line": 36,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "to_dict",
-          "line": 47,
+          "line": 55,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "from_dict",
-          "line": 59,
+          "line": 67,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "SerialRegistry",
-          "line": 71,
+          "line": 79,
           "kind": "class",
           "exported": false,
           "calls": 0
         },
         {
           "name": "register",
-          "line": 79,
+          "line": 89,
           "kind": "def",
           "exported": false,
-          "calls": 1
+          "calls": 3
         },
         {
           "name": "get",
-          "line": 106,
+          "line": 116,
           "kind": "def",
           "exported": false,
           "calls": 11
         },
         {
           "name": "touch",
-          "line": 110,
+          "line": 120,
           "kind": "def",
           "exported": false,
-          "calls": 1
+          "calls": 3
         },
         {
           "name": "mark_activity",
-          "line": 125,
+          "line": 136,
           "kind": "def",
           "exported": false,
-          "calls": 1
+          "calls": 3
         },
         {
           "name": "remove",
-          "line": 138,
+          "line": 150,
           "kind": "def",
           "exported": false,
-          "calls": 1
+          "calls": 3
         },
         {
           "name": "list",
-          "line": 147,
+          "line": 159,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "serials",
-          "line": 151,
+          "line": 163,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_save",
-          "line": 155,
+          "line": 167,
           "kind": "def",
           "exported": false,
           "calls": 5
         },
         {
           "name": "_load",
-          "line": 164,
+          "line": 191,
           "kind": "def",
           "exported": false,
           "calls": 2
@@ -539,200 +539,214 @@
     },
     {
       "file": "bridge/bridge/routes.py",
-      "lineCount": 367,
+      "lineCount": 385,
       "functions": [
         {
           "name": "_maybe_snapshot",
-          "line": 33,
+          "line": 38,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "root",
-          "line": 54,
+          "line": 59,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_check_serial",
-          "line": 61,
+          "line": 66,
           "kind": "def",
           "exported": false,
-          "calls": 13
+          "calls": 14
         },
         {
           "name": "health",
-          "line": 67,
+          "line": 72,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "list_serials",
-          "line": 73,
+          "line": 78,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "status",
-          "line": 78,
+          "line": 83,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "put_inputs",
-          "line": 90,
+          "line": 95,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get_outputs",
-          "line": 108,
+          "line": 113,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_outputs",
-          "line": 117,
+          "line": 122,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
+          "name": "SyncFpsPut",
+          "line": 137,
+          "kind": "class",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "put_sync_fps",
+          "line": 143,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
           "name": "pending",
-          "line": 136,
+          "line": 152,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_ndjson",
-          "line": 157,
+          "line": 173,
           "kind": "def",
           "exported": false,
           "calls": 9
         },
         {
           "name": "stream",
-          "line": 163,
+          "line": 179,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "kick",
-          "line": 208,
+          "line": 225,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "serial_logs",
-          "line": 228,
+          "line": 245,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get_snapshot",
-          "line": 238,
+          "line": 255,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get_ui_layout",
-          "line": 249,
+          "line": 266,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_ui_layout",
-          "line": 256,
+          "line": 273,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_snapshot",
-          "line": 264,
-          "kind": "def",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "ui_layouts",
           "line": 281,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
+          "name": "ui_layouts",
+          "line": 299,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
           "name": "ui_layout_save",
-          "line": 287,
+          "line": 305,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "ui_layout_load",
-          "line": 294,
-          "kind": "def",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "global_logs",
-          "line": 301,
-          "kind": "def",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "scenes_list",
           "line": 312,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
+          "name": "global_logs",
+          "line": 319,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "scenes_list",
+          "line": 330,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
           "name": "scenes_create",
-          "line": 318,
+          "line": 336,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "scenes_cleanup",
-          "line": 325,
+          "line": 343,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "scene_save",
-          "line": 331,
+          "line": 349,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "scenes_open",
-          "line": 342,
+          "line": 360,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get_usdz",
-          "line": 355,
+          "line": 373,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -803,39 +817,39 @@
     },
     {
       "file": "bridge/bridge/snapshot.py",
-      "lineCount": 135,
+      "lineCount": 140,
       "functions": [
         {
           "name": "snapshot_root",
-          "line": 37,
+          "line": 39,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_part_path",
-          "line": 49,
+          "line": 51,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "read_snapshot",
-          "line": 54,
+          "line": 56,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "write_snapshot",
-          "line": 78,
+          "line": 80,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "build_meta",
-          "line": 124,
+          "line": 128,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -844,74 +858,116 @@
     },
     {
       "file": "bridge/bridge/state.py",
-      "lineCount": 89,
+      "lineCount": 214,
       "functions": [
         {
           "name": "BridgeState",
-          "line": 15,
+          "line": 22,
           "kind": "class",
           "exported": false,
           "calls": 2
         },
         {
           "name": "__init__",
-          "line": 16,
+          "line": 23,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
+          "name": "set_sync_fps",
+          "line": 49,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "get_sync_fps",
+          "line": 60,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
           "name": "set_kick",
-          "line": 27,
+          "line": 66,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "take_kick",
-          "line": 32,
+          "line": 71,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "subscribe",
-          "line": 37,
+          "line": 78,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "unsubscribe",
-          "line": 46,
+          "line": 87,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "notify_stream",
-          "line": 55,
+          "line": 96,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
+          "name": "_wake_stream",
+          "line": 125,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "stage_broadcast",
+          "line": 136,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "_arm_broadcast_flush",
+          "line": 168,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "_flush_broadcast",
+          "line": 175,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
           "name": "default_data_dir",
-          "line": 70,
+          "line": 195,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "get_state",
-          "line": 77,
+          "line": 202,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "reset_state",
-          "line": 84,
+          "line": 209,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -1169,7 +1225,7 @@
     },
     {
       "file": "bridge/bridge/ws.py",
-      "lineCount": 106,
+      "lineCount": 103,
       "functions": [
         {
           "name": "ConnectionManager",
@@ -1204,7 +1260,7 @@
           "line": 32,
           "kind": "def",
           "exported": false,
-          "calls": 2
+          "calls": 1
         },
         {
           "name": "ws_endpoint",
@@ -1362,7 +1418,7 @@
     },
     {
       "file": "hda/scripts/hython_smoke.py",
-      "lineCount": 436,
+      "lineCount": 498,
       "functions": [
         {
           "name": "_req",
@@ -1407,78 +1463,85 @@
           "calls": 1
         },
         {
+          "name": "step",
+          "line": 81,
+          "kind": "def",
+          "exported": false,
+          "calls": 8
+        },
+        {
           "name": "_test_stream_loop",
-          "line": 82,
+          "line": 86,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_FakeClient",
-          "line": 98,
+          "line": 104,
           "kind": "class",
           "exported": false,
           "calls": 3
         },
         {
           "name": "stream_once",
-          "line": 106,
+          "line": 113,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "pull_outputs",
-          "line": 111,
+          "line": 119,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_Gate",
-          "line": 115,
+          "line": 123,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "__call__",
-          "line": 122,
+          "line": 130,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
-          "name": "step",
-          "line": 127,
+          "name": "wait_len",
+          "line": 138,
           "kind": "def",
           "exported": false,
-          "calls": 5
+          "calls": 3
         },
         {
-          "name": "wait_len",
-          "line": 130,
+          "name": "_feed",
+          "line": 154,
           "kind": "def",
           "exported": false,
-          "calls": 6
+          "calls": 9
         },
         {
           "name": "_test_kick_force_recook",
-          "line": 218,
+          "line": 280,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "main",
-          "line": 270,
+          "line": 332,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_stats",
-          "line": 339,
+          "line": 401,
           "kind": "def",
           "exported": false,
           "calls": 5
@@ -1604,193 +1667,193 @@
     },
     {
       "file": "hda/src/cyl1nder_hda.py",
-      "lineCount": 741,
+      "lineCount": 789,
       "functions": [
         {
           "name": "_ui_healthy",
-          "line": 82,
+          "line": 92,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_ensure_frontend",
-          "line": 91,
+          "line": 101,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_bridge_healthy",
-          "line": 116,
+          "line": 126,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_ensure_bridge",
-          "line": 124,
+          "line": 134,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_ready_state",
-          "line": 151,
+          "line": 161,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_refresh_ready",
-          "line": 161,
+          "line": 171,
           "kind": "def",
           "exported": false,
           "calls": 4
         },
         {
           "name": "_reset_ready",
-          "line": 188,
+          "line": 198,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_stream_loop",
-          "line": 198,
+          "line": 208,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_schedule_recook",
-          "line": 259,
+          "line": 293,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_force_cook_node",
-          "line": 267,
+          "line": 301,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "ensure_sync",
-          "line": 295,
+          "line": 329,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_root",
-          "line": 321,
+          "line": 369,
           "kind": "def",
           "exported": false,
           "calls": 4
         },
         {
           "name": "_ensure_serial",
-          "line": 325,
+          "line": 373,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_parm",
-          "line": 338,
+          "line": 386,
           "kind": "def",
           "exported": false,
-          "calls": 13
+          "calls": 14
         },
         {
           "name": "_set_status",
-          "line": 348,
+          "line": 396,
           "kind": "def",
           "exported": false,
           "calls": 6
         },
         {
           "name": "_serialize_geo",
-          "line": 357,
+          "line": 405,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_build_detail",
-          "line": 367,
+          "line": 415,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_buffer_sig",
-          "line": 398,
+          "line": 446,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_apply_output",
-          "line": 414,
+          "line": 462,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_snapshot_parts",
-          "line": 458,
-          "kind": "def",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "_flat_signature",
           "line": 506,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
+          "name": "_flat_signature",
+          "line": 554,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "_build_core_detail",
-          "line": 518,
+          "line": 566,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "cook_core",
-          "line": 542,
+          "line": 590,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_same_geo",
-          "line": 606,
+          "line": 654,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_role_buffer",
-          "line": 617,
+          "line": 665,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_input_signature",
-          "line": 636,
+          "line": 684,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "cook",
-          "line": 671,
+          "line": 719,
           "kind": "def",
           "exported": false,
           "calls": 5
@@ -1984,18 +2047,18 @@
     },
     {
       "file": "web/src/app/layout.ts",
-      "lineCount": 188,
+      "lineCount": 208,
       "functions": [
         {
           "name": "buildLayout",
-          "line": 21,
+          "line": 23,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "buildLayoutLegacy",
-          "line": 108,
+          "line": 119,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -2071,6 +2134,54 @@
           "line": 122,
           "kind": "arrow",
           "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/app/preference.ts",
+      "lineCount": 119,
+      "functions": [
+        {
+          "name": "clampSyncFps",
+          "line": 25,
+          "kind": "function",
+          "exported": true,
+          "calls": 3
+        },
+        {
+          "name": "parseUpdateMode",
+          "line": 31,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "loadPreferences",
+          "line": 37,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "savePreferences",
+          "line": 58,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "applyPreferences",
+          "line": 64,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "openPreferenceDialog",
+          "line": 71,
+          "kind": "function",
+          "exported": true,
           "calls": 1
         }
       ]
@@ -2215,7 +2326,7 @@
     },
     {
       "file": "web/src/bridge/client.ts",
-      "lineCount": 224,
+      "lineCount": 237,
       "functions": [
         {
           "name": "BridgeClient",
@@ -2226,14 +2337,14 @@
         },
         {
           "name": "connectWs",
-          "line": 188,
+          "line": 201,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "connect",
-          "line": 193,
+          "line": 206,
           "kind": "arrow",
           "exported": false,
           "calls": 1
@@ -2242,214 +2353,228 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 937,
+      "lineCount": 1050,
       "functions": [
         {
           "name": "matchLogFilter",
-          "line": 34,
+          "line": 42,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "renderLog",
-          "line": 35,
+          "line": 43,
           "kind": "arrow",
           "exported": false,
           "calls": 3
         },
         {
           "name": "toggle",
-          "line": 88,
+          "line": 100,
           "kind": "arrow",
           "exported": false,
           "calls": 7
         },
         {
           "name": "getDockJson",
-          "line": 122,
+          "line": 134,
           "kind": "arrow",
           "exported": false,
-          "calls": 4
+          "calls": 5
         },
         {
           "name": "saveCurrentLayout",
-          "line": 126,
+          "line": 138,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "refreshLayoutPresets",
-          "line": 134,
+          "line": 146,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "writeJsonToDir",
-          "line": 219,
+          "line": 250,
           "kind": "function",
           "exported": false,
-          "calls": 6
+          "calls": 7
         },
         {
           "name": "readJsonFromDir",
-          "line": 230,
+          "line": 261,
           "kind": "function",
           "exported": false,
-          "calls": 4
+          "calls": 5
         },
         {
           "name": "saveSceneAs",
-          "line": 244,
+          "line": 275,
           "kind": "function",
           "exported": false,
-          "calls": 2
+          "calls": 3
         },
         {
           "name": "openSceneFromDir",
-          "line": 297,
+          "line": 329,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "applyLayoutSettings",
-          "line": 414,
+          "line": 462,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "readParamFloats",
-          "line": 419,
+          "line": 467,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "flushParamUndo",
-          "line": 440,
+          "line": 488,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "refreshSelectionPanels",
-          "line": 451,
+          "line": 499,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "bindEnterGizmoToSelection",
-          "line": 522,
+          "line": 570,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "applyTransformDrag",
-          "line": 557,
+          "line": 605,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "toggleEnterEdit",
-          "line": 572,
+          "line": 620,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "getDisplayNodeInfo",
-          "line": 597,
+          "line": 645,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "refreshNodeFlags",
-          "line": 613,
+          "line": 661,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "inputStatsText",
-          "line": 673,
+          "line": 721,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "outputStatsText",
-          "line": 682,
+          "line": 730,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderInspector",
-          "line": 691,
+          "line": 739,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
+          "name": "throttledPush",
+          "line": 781,
+          "kind": "function",
+          "exported": false,
+          "calls": 4
+        },
+        {
           "name": "runNetwork",
-          "line": 728,
+          "line": 805,
           "kind": "function",
           "exported": false,
           "calls": 6
         },
         {
           "name": "kickHdaOnce",
-          "line": 744,
+          "line": 822,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "startHdaWatch",
-          "line": 757,
+          "line": 835,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "check",
-          "line": 759,
+          "line": 837,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "stopHdaWatch",
-          "line": 777,
+          "line": 855,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "loadSnapshotIntoStore",
-          "line": 786,
+          "line": 864,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "applyLoadedPreference",
+          "line": 895,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "connect",
-          "line": 814,
+          "line": 910,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "scheduleSaveGraph",
-          "line": 925,
+          "line": 1038,
           "kind": "function",
           "exported": false,
           "calls": 2
@@ -3299,7 +3424,7 @@
     },
     {
       "file": "web/src/protocol/types.ts",
-      "lineCount": 97,
+      "lineCount": 109,
       "functions": []
     },
     {
