@@ -122,16 +122,43 @@ async def put_outputs(serial: str, payload: OutputsPut) -> dict:
 
 @router.get("/api/hda/{serial}/pending")
 async def pending(serial: str, since: int = Query(0, ge=0)) -> dict:
-    """Lightweight dirty check used by the HDA 30fps sync poller.
+    """Lightweight dirty check used by the HDA adaptive sync poller.
 
-    Doubles as a heartbeat: the poller calls this every ~33ms while Houdini is
-    alive, so registry.lastSeen stays fresh. When Houdini crashes, the poller
-    stops and lastSeen goes stale -> the web UI flags the HDA as offline.
+    Doubles as a heartbeat: the poller calls this regularly while Houdini is
+    alive (fast ~33ms active / 500ms idle), so registry.lastSeen stays fresh.
+    When Houdini crashes, the poller stops and lastSeen goes stale -> the web
+    UI flags the HDA as offline. force is a one-shot kick marker (POST /kick):
+    it is returned once as True, then consumed.
     """
     _check_serial(serial)
-    get_state().registry.touch(serial)
-    rev = get_state().workspaces.get_or_create(serial).output_rev()
-    return {"pending": rev > since, "rev": rev, "reset": since > rev}
+    st = get_state()
+    st.registry.touch(serial)
+    rev = st.workspaces.get_or_create(serial).output_rev()
+    return {
+        "pending": rev > since,
+        "rev": rev,
+        "reset": since > rev,
+        "force": st.take_kick(serial),
+    }
+
+
+@router.post("/api/hda/{serial}/kick")
+async def kick(serial: str) -> dict:
+    """One-shot force marker: Cyl1nder 侧更新后踹 HDA 一脚.
+
+    Sets a kick marker consumed by the HDA's next /pending poll (force=True):
+    the HDA recooks even when rev did not advance, re-pushing inputs so a
+    failed first push (bridge still starting) clears last_error -> status ok.
+    touch() makes the web watchdog see the HDA online immediately.
+    """
+    _check_serial(serial)
+    st = get_state()
+    if st.registry.get(serial) is None:
+        raise HTTPException(status_code=404, detail="serial not registered")
+    st.set_kick(serial)
+    st.registry.touch(serial)
+    st.logs.info("routes", f"kick armed for {serial}", serial)
+    return {"ok": True, "serial": serial}
 
 
 @router.get("/api/hda/{serial}/logs")

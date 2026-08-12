@@ -35,6 +35,23 @@ export class BridgeClient {
     return json<StatusResponse>(await fetch(`${this.base}/api/hda/${serial}/status`));
   }
 
+  /**
+   * One-shot HDA kick: asks the bridge to set a transient force flag and touch
+   * lastSeen so the HDA recooks on its next /pending poll (offline -> ok).
+   * Never throws: an old bridge without the endpoint (404) or a disconnect
+   * yields { ok: false }.
+   */
+  async kick(serial: string): Promise<{ ok: boolean }> {
+    try {
+      const res = await fetch(`${this.base}/api/hda/${serial}/kick`, { method: "POST" });
+      if (!res.ok) return { ok: false };
+      const body = (await res.json().catch(() => null)) as { ok?: boolean } | null;
+      return { ok: body?.ok ?? true };
+    } catch {
+      return { ok: false };
+    }
+  }
+
   async pushInputs(
     serial: string,
     inputs: InputPayload[],

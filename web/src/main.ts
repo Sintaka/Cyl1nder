@@ -357,6 +357,10 @@ const graph = await createReteGraph(layout.graphContainer, handlers);
 let wsDisconnect: (() => void) | null = null;
 let autoRun = layout.autoRunCheck.checked;
 let replayPending = false;  // first inputs after connect = replay, do NOT auto-run (avoids clobbering outputs/edits)
+/** Serials already kicked in THIS page session: only the first connect to a serial
+ *  gets a one-shot HDA kick (freshly spawned bridge -> force recook -> offline->ok);
+ *  WS auto-reconnects deliver more hellos but must never kick again. */
+const kickedSerials = new Set<string>();
 
 layout.autoRunCheck.addEventListener("change", () => {
   autoRun = layout.autoRunCheck.checked;
@@ -373,6 +377,7 @@ const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuf
 });
 (window as unknown as Record<string, unknown>).__cylViewport = viewport;
 (window as unknown as Record<string, unknown>).__cylGraph = graph; // debug hook (MCP debug access)
+(window as unknown as Record<string, unknown>).__cylStore = store; // debug hook (full logs for tests)
 viewport.setEnterEditHandler(toggleEnterEdit); // left toolbar Enter icon -> activation
 
 // Default startup layout: bundled Default.json (the user's Desk1 arrangement, versioned in the
@@ -690,6 +695,19 @@ async function runNetwork(): Promise<void> {
   }
 }
 
+/** One-shot HDA kick on the session's first connect to a serial: the bridge sets a
+ *  transient force flag + touches lastSeen, so the HDA recooks on its next /pending
+ *  poll (offline -> ok). When we already hold inputs, push them back too to drive the
+ *  recook path immediately; with empty inputs the kick alone triggers the HDA recook. */
+async function kickHdaOnce(serial: string): Promise<void> {
+  // best-effort kick: silent when the endpoint is unavailable (old bridge) so it
+  // does not add log noise that pushes the connect "hello" out of the panel.
+  const res = await client.kick(serial);
+  if (!res.ok) return;
+  store.pushLog("[bridge] kick HDA (first connect)");
+  if (store.inputs.length > 0) void runNetwork();
+}
+
 /** HDA heartbeat watchdog: registry.lastSeen goes stale when Houdini crashes. */
 let hdaWatch: number | undefined;
 let hdaWasStale = false;
@@ -766,6 +784,13 @@ function connect(serialRaw: string): void {
         replayPending = true;  // a replay follows on every (re)connect - never auto-run on it
         store.setStatus("ok");
         store.pushLog(`hello inputRev=${msg.inputRev} outputRev=${msg.outputRev}`);
+        // First hello for this serial in this page session: kick the HDA once so a
+        // freshly spawned bridge forces a recook (HDA offline -> ok). Auto-reconnects
+        // bring more hellos but must not kick again.
+        if (!kickedSerials.has(serial)) {
+          kickedSerials.add(serial);
+          void kickHdaOnce(serial);
+        }
       } else if (msg.type === "inputs") {
         const changed = !inputsEqual(store.inputs, msg.inputs);
         store.setInputs(msg.inputs, msg.rev);

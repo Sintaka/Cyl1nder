@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import threading
 import time
 import urllib.request
 
@@ -50,6 +51,167 @@ def _make_curve_input(geo: hou.Node, name: str, offset: float) -> hou.Node:
         )
         n = p
     return n
+
+
+def _wait_ready_rev(serial: str, rev: int, timeout: float = 4.0) -> None:
+    """Wait until the background sync thread pulled outputs rev into the ready buffer.
+
+    The sync poller is adaptive (fast while active, idle 0.5s backoff), so fixed
+    sleeps are racy - wait on the ready-buffer rev instead.
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        st = cyl1nder_hda._READY.get(serial)
+        if st is not None and st.get("rev", 0) >= rev:
+            return
+        time.sleep(0.05)
+    raise AssertionError(f"ready buffer rev never reached {rev}: {cyl1nder_hda._READY.get(serial)}")
+
+
+class _FakeClock:
+    """Injectable clock for the _sync_loop adaptive-interval test."""
+
+    def __init__(self) -> None:
+        self.t = 1000.0
+
+    def now(self) -> float:
+        return self.t
+
+
+def _test_adaptive_polling() -> None:
+    """fast (1/sync_fps) while active -> idle 0.5s after ~2s quiet -> fast on pending.
+
+    A blocking gate parks each loop sleep so the test can step the fake clock
+    deterministically (the loop would otherwise spin far ahead of the clock).
+    """
+    serial = cyl1nder_hda.generate_serial()
+    stop = threading.Event()
+    cyl1nder_hda._SYNC[serial] = {"thread": None, "stop": stop, "node_path": "", "scheduled": False}
+    clock = _FakeClock()
+
+    class _FakeClient:
+        def __init__(self) -> None:
+            self.last_error = ""
+            self.polls = 0
+            self._pending = False
+            self.pending_rev = 0
+
+        def pull_outputs(self, since: int):
+            return [], int(since or 0)
+
+        def pending_outputs(self, since: int):
+            self.polls += 1
+            if self._pending:
+                self._pending = False
+                return True, self.pending_rev, False, False
+            return False, int(since or 0), False, False
+
+    class _Gate:
+        """Blocks each loop sleep until the test steps the fake clock."""
+
+        def __init__(self) -> None:
+            self.values: list[float] = []
+            self._go = threading.Event()
+
+        def __call__(self, t: float) -> None:
+            self.values.append(t)
+            self._go.wait()
+            self._go.clear()
+
+        def step(self, advance: float) -> None:
+            clock.t += advance
+            self._go.set()
+
+        def wait_len(self, n: int, timeout: float = 5.0) -> None:
+            deadline = time.time() + timeout
+            while len(self.values) < n and time.time() < deadline:
+                time.sleep(0.005)
+            assert len(self.values) >= n, f"only {len(self.values)}/{n} sleeps before timeout"
+
+    client = _FakeClient()
+    gate = _Gate()
+    th = threading.Thread(
+        target=cyl1nder_hda._sync_loop,
+        args=(serial, "", 1.0 / 30.0, "http://127.0.0.1:9", client),
+        kwargs={"sleep_fn": gate, "now_fn": clock.now},
+        daemon=True,
+    )
+    th.start()
+    try:
+        fast = 1.0 / 30.0
+        gate.wait_len(1)
+        assert abs(gate.values[-1] - fast) < 1e-9, f"expected fast sleep, got {gate.values[-1]:.4f}"
+        # >2s quiet -> idle backoff (3 consecutive idle cycles)
+        for _ in range(3):
+            gate.step(3.0)
+            gate.wait_len(len(gate.values) + 1)
+        assert all(abs(v - 0.5) < 1e-9 for v in gate.values[1:4]), f"no idle backoff: {gate.values}"
+        # pending activity -> next sleep is fast again
+        client._pending = True
+        client.pending_rev = 1
+        gate.step(0.0)
+        gate.wait_len(len(gate.values) + 1)
+        assert abs(gate.values[-1] - fast) < 1e-9, f"did not resume fast: {gate.values[-3:]}"
+        print("adaptive polling (fast -> idle 0.5s -> fast on pending) OK")
+    finally:
+        stop.set()
+        gate._go.set()  # unblock any parked sleep so the loop thread exits
+        th.join(timeout=2)
+        cyl1nder_hda._SYNC.pop(serial, None)
+        cyl1nder_hda._READY.pop(serial, None)
+
+
+def _test_kick_force_recook() -> None:
+    """force (POST /kick) -> recook scheduled even with rev unchanged; the push
+    cache is dropped so the recook re-pushes (heals a failed first push -> ok)."""
+    serial = cyl1nder_hda.generate_serial()
+    stop = threading.Event()
+    cyl1nder_hda._SYNC[serial] = {"thread": None, "stop": stop, "node_path": "", "scheduled": False}
+    cyl1nder_hda._PUSH_CACHE[serial] = ("stale-sig",)  # inputs were already pushed once
+    recooked: list[str] = []
+    orig_schedule = cyl1nder_hda._schedule_recook
+    cyl1nder_hda._schedule_recook = lambda node_path: recooked.append(node_path)  # type: ignore[assignment]
+    th = None
+
+    class _FakeClient:
+        def __init__(self) -> None:
+            self.last_error = "Connection refused"  # simulate a failed first push
+            self.polls = 0
+
+        def pull_outputs(self, since: int):
+            return [], int(since or 0)
+
+        def pending_outputs(self, since: int):
+            self.polls += 1
+            if self.polls == 1:
+                return False, 0, False, True  # kick force, rev unchanged
+            return False, int(since or 0), False, False
+
+    try:
+        client = _FakeClient()
+        sleeps: list[float] = []
+        th = threading.Thread(
+            target=cyl1nder_hda._sync_loop,
+            args=(serial, "/obj/geo1/kicktest", 1.0 / 30.0, "http://127.0.0.1:9", client),
+            kwargs={"sleep_fn": sleeps.append, "now_fn": _FakeClock().now},
+            daemon=True,
+        )
+        th.start()
+        deadline = time.time() + 5.0
+        while client.polls < 2 and time.time() < deadline:
+            time.sleep(0.005)
+        assert client.polls >= 2, "sync loop did not poll"
+        assert recooked == ["/obj/geo1/kicktest"], f"force did not schedule recook: {recooked}"
+        assert serial not in cyl1nder_hda._PUSH_CACHE, "force should drop the push cache (re-push to heal)"
+        print("kick force -> recook scheduled + push cache dropped (self-heal) OK")
+    finally:
+        cyl1nder_hda._schedule_recook = orig_schedule
+        stop.set()
+        if th is not None:
+            th.join(timeout=2)
+        cyl1nder_hda._SYNC.pop(serial, None)
+        cyl1nder_hda._READY.pop(serial, None)
+        cyl1nder_hda._PUSH_CACHE.pop(serial, None)
 
 
 def main() -> int:
@@ -105,8 +267,8 @@ def main() -> int:
             }
         ]
     }
-    _req("PUT", f"{BRIDGE}/api/hda/{serial}/outputs", edit)
-    time.sleep(0.5)  # let the 30fps sync thread refresh the ready buffer (background)
+    r = _req("PUT", f"{BRIDGE}/api/hda/{serial}/outputs", edit)
+    _wait_ready_rev(serial, r["rev"])  # sync thread refreshed _READY (adaptive poller)
     node.parm("force_cook").pressButton()  # fires callback -> cook reads the ready buffer
     time.sleep(0.6)
 
@@ -152,8 +314,8 @@ def main() -> int:
             }
         ]
     }
-    _req("PUT", f"{BRIDGE}/api/hda/{serial}/outputs", moved)
-    time.sleep(0.5)
+    r = _req("PUT", f"{BRIDGE}/api/hda/{serial}/outputs", moved)
+    _wait_ready_rev(serial, r["rev"])
     node.parm("force_cook").pressButton()
     time.sleep(0.5)
     st = _stats()
@@ -177,8 +339,8 @@ def main() -> int:
             }
         ]
     }
-    _req("PUT", f"{BRIDGE}/api/hda/{serial}/outputs", topo)
-    time.sleep(0.5)
+    r = _req("PUT", f"{BRIDGE}/api/hda/{serial}/outputs", topo)
+    _wait_ready_rev(serial, r["rev"])
     node.parm("force_cook").pressButton()
     time.sleep(0.5)
     st = _stats()
@@ -209,6 +371,9 @@ def main() -> int:
     ws = _req("GET", f"{BRIDGE}/api/hda/{serial}/status")["workspace"]
     assert ws["inputRev"] >= 2, f"input change not pushed: inputRev={ws['inputRev']}"
     print("input change -> re-push (cache invalidated) OK")
+
+    _test_adaptive_polling()
+    _test_kick_force_recook()
 
     print("SMOKE OK")
     return 0

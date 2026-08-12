@@ -175,3 +175,44 @@ store 现状（`web/src/stores/workspace.ts`）：`inputs`/`outputs` 按 index �
 
 - 新建：`devlog/streaming-push-dirty.md`（本文，UTF-8 无 BOM，Node writeFileSync 写入）。
 - 未触碰：`bridge/`、`web/`、`hda/` 源码；未改其它 devlog；工作树其余未跟踪文件 `web/overview.html` 属其他并行 agent，非本写集。
+
+## 8. /stream 长轮询取代 /pending 轮询（计划，v0.1.00052 候选）
+
+> 追加日期：2026-08-12
+> 角色：并行子智能体（bridge/HDA 流式优化写集；本小节**仅计划不实现**）
+> 用户原话：「过于密集的动捕同步不了，而无数据的稀疏又有开销……搜索合适的技术栈」；「轮询端口的速度明显变快了……减少通讯流量和计算开销，做到即用即更新，我始终认为轮询是没有必要的」
+> 前置（同写集已落地 v0.1.00051）：HDA `_sync_loop` 自适应轮询（活跃 ~33ms / 空闲退避 500ms，`/pending` 心跳保留）+ bridge `POST /api/hda/{serial}/kick`（一次性 force → `/pending` 返回 `force:true` → HDA 无 rev 变化也 recook，自愈「首次拉起桥时失败 push → offline」）。
+
+### 8.1 技术栈对比
+
+| 方案 | 连接形态 | Houdini 侧依赖 | 结论 |
+|---|---|---|---|
+| WebSocket | 全双工长连接 | Houdini 内置 python 无 WS 依赖，需第三方库 | 排除：违背「HDA 纯 stdlib urllib」铁律，为单向推送引入双向协议复杂度 |
+| SSE（Server-Sent Events） | HTTP 流，连接常驻 | urllib 可 stream-read，可行 | 可行但连接常驻 + 需解析 `data:` 帧；Houdini 侧超时/重连逻辑更重 |
+| **NDJSON 长轮询**（推荐） | 短请求：有事件立即返回一条 JSON；无事件 hold 到超时返回空 | urllib 最简（read timeout 略大于 hold，`json.loads` 即用） | **推荐**：沿用 plan-b / stream 的 since+rev 语义，HDA 侧零新依赖 |
+
+### 8.2 设计（bridge 端）
+
+- `GET /api/hda/{serial}/stream?since=&hold=15`：注册等待者（asyncio.Event / condition）。
+  - outputs rev 变化或 kick/force 触发 → 立即返回一条 NDJSON：`{type: "outputs"|"kick", rev, force, outputs?}`（事件级 ~ms）。
+  - 否则 hold 至 `hold`（15-30s）超时 → 返回空；`since` 语义与 `/pending` 一致（`since > rev` → reset，返回全量）。
+- 心跳：由长轮询连接本身维持——连接在即 HDA 活；每次 stream 请求到达时 `registry.touch(serial)`。
+- 兼容：保留 `/pending`（自适应轮询）作 fallback；`/stream` 与 `/pending` 共享 `force` 一次性标记。
+
+### 8.3 设计（HDA 端）
+
+- urllib 长轮询：`urlopen(..., timeout=hold+1)`；有事件 → `json.loads` → `_refresh_ready` + `_schedule_recook`（`scheduled` 门控保留防风暴）。
+- 无事件超时 / 连接断开 → **立即重连**（不 sleep 33ms）。
+- 新 serial 或 stream 连续失败 → 回退到现有自适应 `/pending`。
+
+### 8.4 收益预估
+
+| 指标 | /pending 轮询（现状） | /stream 长轮询（目标） |
+|---|---|---|
+| 空闲流量 | 20-30 次/秒（fast 33ms；空闲退避后 ~2 次/秒） | ~0（无事件零请求） |
+| 同步延迟 | 33ms 轮询粒度（+ scheduled 门控） | 事件到达即推（~ms 级） |
+| 动捕场景 | 事件率被轮询上限压住，密集更新丢失 | 事件率 = 实际变化率（稀疏零开销、密集即用即更新） |
+
+### 8.5 范围标注
+
+**本轮仅计划不实现**（大改：独立分支 + 专题 devlog + 三处协议同步 protocol.py / types.ts / protocol.md）。落地拆两步：先 `/stream`（bridge + HDA 后台线程 + hython 冒烟），再评估是否移除自适应 `/pending`（建议保留作 fallback）。

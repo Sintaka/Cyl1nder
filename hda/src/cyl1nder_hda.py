@@ -28,8 +28,15 @@ from cyl1nder_serializer import serialize_input
 ROLE_PUSH = 0
 INPUT_COUNT = 4
 
-# bidirectional sync: web edits -> bridge pending -> 30fps poller -> dirty -> recook
+# bidirectional sync: web edits -> bridge pending -> adaptive poller -> dirty -> recook
 _SYNC: dict[str, dict] = {}
+
+# adaptive sync polling: fast (1/sync_fps) while the scene is recently active,
+# back off to _SYNC_IDLE_INTERVAL after _SYNC_ACTIVE_AFTER s of quiet (the idle
+# /pending poll still keeps registry.lastSeen fresh). pending/reset/force flips
+# back to fast immediately.
+_SYNC_IDLE_INTERVAL = 0.5
+_SYNC_ACTIVE_AFTER = 2.0
 
 # content cache for the merged core detail (per serial) - prevents viewport flicker
 # on unchanged Force Cooks; rebuild decision stays content-based (sync-architecture rule).
@@ -188,18 +195,39 @@ def _reset_ready(serial: str) -> None:
             st["gen"] += 1
 
 
-def _sync_loop(serial: str, node_path: str, interval: float, bridge_url: str) -> None:
-    client = BridgeClient(serial, bridge_url=bridge_url)
+def _sync_loop(
+    serial: str,
+    node_path: str,
+    interval: float,
+    bridge_url: str,
+    client: BridgeClient | None = None,
+    sleep_fn=time.sleep,
+    now_fn=time.time,
+) -> None:
+    """Bidirectional sync pump: /pending dirty check with adaptive interval.
+
+    Active (pending/reset/force, or < _SYNC_ACTIVE_AFTER s since the last
+    activity) polls at interval (1/sync_fps); idle backs off to
+    _SYNC_IDLE_INTERVAL so a quiet HDA stops hammering the bridge while the
+    heartbeat (/pending touch) stays fresh. sleep_fn/now_fn/client are
+    injectable for the hython smoke.
+    """
+    client = client if client is not None else BridgeClient(serial, bridge_url=bridge_url)
     last_seen = 0
+    last_activity = now_fn()
     _refresh_ready(client, serial)  # warm the ready buffer at startup (background)
     while True:
         state = _SYNC.get(serial)
         if state is None or state["stop"].is_set():
             return
-        time.sleep(interval)
-        pending, rev, reset = client.pending_outputs(last_seen)
+        now = now_fn()
+        active = now - last_activity < _SYNC_ACTIVE_AFTER
+        sleep_fn(interval if active else _SYNC_IDLE_INTERVAL)
+        pending, rev, reset, force = client.pending_outputs(last_seen)
+        now = now_fn()
         if reset:
             # bridge restarted: rev went backwards - re-pull everything from 0
+            last_activity = now
             last_seen = 0
             _reset_ready(serial)
             _refresh_ready(client, serial)
@@ -208,8 +236,13 @@ def _sync_loop(serial: str, node_path: str, interval: float, bridge_url: str) ->
                 state["scheduled"] = True
                 _schedule_recook(node_path)
             continue
-        if pending and rev > last_seen:
-            last_seen = rev
+        if force or (pending and rev > last_seen):
+            last_activity = now
+            last_seen = max(last_seen, rev)
+            if client.last_error:
+                # self-heal: a previous push failed (e.g. bridge still starting);
+                # drop the push cache so this recook re-pushes and clears last_error.
+                _PUSH_CACHE.pop(serial, None)
             _refresh_ready(client, serial)  # ready buffer fresh before the recook lands
             state = _SYNC.get(serial)
             if state is None or state["scheduled"]:
@@ -255,7 +288,7 @@ def _force_cook_node(node_path: str) -> None:
 
 
 def ensure_sync(root: hou.Node, serial: str) -> None:
-    """Start the 30fps-capped sync poller (sync_fps parm, default 30)."""
+    """Start the adaptive sync poller (fast = 1/sync_fps, default 30)."""
     if not serial:
         return
     state = _SYNC.get(serial)

@@ -84,9 +84,14 @@ class BridgeClient:
         except Exception as exc:  # noqa: BLE001 - bridge down must never break the cook
             self.last_error = str(exc)
 
-    def pending_outputs(self, since: int) -> tuple[bool, int, bool]:
-        """Lightweight dirty check: (pending, rev, reset). reset=True when the bridge
-        restarted and rev went backwards (since > rev) - caller should re-pull from 0."""
+    def pending_outputs(self, since: int) -> tuple[bool, int, bool, bool]:
+        """Lightweight dirty check: (pending, rev, reset, force).
+
+        reset=True when the bridge restarted and rev went backwards (since > rev) -
+        caller should re-pull from 0. force=True is a one-shot kick (POST /kick):
+        caller should recook even when rev did not advance (heals a failed first
+        push when the bridge was still starting).
+        """
         try:
             url = f"{self.bridge_url}/api/hda/{self.serial}/pending?since={int(since or 0)}"
             with urllib.request.urlopen(url, timeout=1.0) as resp:
@@ -95,9 +100,10 @@ class BridgeClient:
                 bool(data.get("pending", False)),
                 int(data.get("rev", 0)),
                 bool(data.get("reset", False)),
+                bool(data.get("force", False)),
             )
         except Exception:  # noqa: BLE001
-            return False, since, False
+            return False, since, False, False
 
     def pull_outputs(self, since: int) -> tuple[list[dict] | None, int]:
         """Returns (outputs, new_rev) or (None, since) when the bridge is unreachable."""

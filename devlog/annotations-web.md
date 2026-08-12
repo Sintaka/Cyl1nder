@@ -413,3 +413,18 @@
 ### 验证
 - tsc 0 错误；vitest 7 文件 82 通过；bridge pytest 34 通过；hython smoke SMOKE OK；Playwright 44 passed / 2 skipped（smoke 在 10 worker 全量跑时偶发 flake，单独跑通过）。
 - round9-overview：裸 / 重定向 overview、?serial= 不重定向、新建置顶、清理按钮、三态渲染。
+
+## v0.1.00052（2026-08-12）
+**2 路并行**（Descartes=bridge/HDA 流式 + kick / Archimedes=web kick 首连触发）。
+
+### bridge/HDA 流式优化（cyl1nder_hda.py / cyl1nder_bridge.py / routes.py / state.py / hython_smoke.py）
+- **自适应轮询（减少通讯流量，小改已落地）**：`_sync_loop` 活跃（pending/reset/force，或距上次活动 <2s）用 fast interval（1/sync_fps）；空闲退避到 500ms；有活动立即回 fast。空闲 /pending 流量从 ~20-30 次/秒 降到 ~2 次/秒，心跳（lastSeen）语义保留。client/sleep_fn/now_fn 可注入，hython 冒烟确定性断言。
+- **kick 踹 HDA（任务 2，已落地）**：bridge 新增 `POST /api/hda/{serial}/kick`（一次性 force 标记 + registry.touch）；`/pending` 返回一次 `force:True` 后消费。HDA `pending_outputs` 改 4 元组，`_sync_loop` 收到 force 无论 rev 是否前进都 schedule recook；且 last_error 非空时弹掉 `_PUSH_CACHE` → recook 重新 push → push 成功清 last_error → HDA 状态从 offline 转 ok（force/pending 两条路径都自愈）。
+- **web 首连 kick**（main.ts/client.ts）：WS hello 首次到达该 serial 时 `client.kick(serial)` 一次（重连不重复）；成功且 inputs 非空则 runNetwork（cook 一下）；失败静默（避免 log 噪声）。
+- **pytest 34 通过**（新增 kick force one-shot 400/404 + touch registry）；hython SMOKE OK（新增 adaptive polling + kick force recook 断言）。
+
+### /stream 长轮询计划（大改，仅计划）
+- devlog/streaming-push-dirty.md 追加第 8 节：技术栈对比（WebSocket 排除 / SSE 可行但连接常驻 / **NDJSON 长轮询推荐**）；bridge `GET /api/hda/{serial}/stream?since=&hold=15`（asyncio 等待者，事件立即返回、超时返回空）；HDA urllib 长轮询、断线立即重连、自适应 /pending 作 fallback；收益：空闲流量 20-30 次/秒 → ~0，33ms 轮询 → 事件级 ~ms（动捕事件率 = 实际变化率）。
+
+### 测试加固（主进程合并时）
+- 发现 smoke 依赖 Log 面板"最近 40 行"，被 viewport 的 visibility/focus 静默日志淹没导致偶发失败；加 `window.__cylStore` debug hook（完整日志），smoke 改为从完整 store 日志断言 hello（面板 40 行不再脆弱）；kick 失败日志改静默。e2e 46 passed / 2 skipped（overview 与 kick 端点依赖用例，运行中旧 bridge 未含新端点则跳过）。

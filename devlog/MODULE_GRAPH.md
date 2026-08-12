@@ -1,6 +1,6 @@
 # 模块依赖图 / MODULE GRAPH (web/src)
 
-> 机器生成（2026-08-11），由 `node scripts/gen-graph.mjs` 产出。
+> 机器生成（2026-08-12），由 `node scripts/gen-graph.mjs` 产出。
 
 - `app/app-config.ts`
   - three/webgpu

@@ -1,6 +1,6 @@
 # API 索引 / API INDEX
 
-> 机器生成（2026-08-11），由 `node scripts/gen-api-index.mjs` 产出。单源：bridge/bridge/*.py
+> 机器生成（2026-08-12），由 `node scripts/gen-api-index.mjs` 产出。单源：bridge/bridge/*.py
 
 ## REST (127.0.0.1:8375)
 
@@ -12,21 +12,22 @@
 - `GET` `/api/hda/{serial}/outputs` (routes.py:96)
 - `PUT` `/api/hda/{serial}/outputs` (routes.py:105)
 - `GET` `/api/hda/{serial}/pending` (routes.py:123)
-- `GET` `/api/hda/{serial}/logs` (routes.py:137)
-- `GET` `/api/hda/{serial}/snapshot` (routes.py:147)
-- `GET` `/api/ui/layout` (routes.py:158)
-- `PUT` `/api/ui/layout` (routes.py:165)
-- `PUT` `/api/hda/{serial}/snapshot` (routes.py:173)
-- `GET` `/api/ui/layouts` (routes.py:190)
-- `PUT` `/api/ui/layouts/{name}` (routes.py:196)
-- `GET` `/api/ui/layouts/{name}` (routes.py:203)
-- `GET` `/api/logs` (routes.py:210)
-- `GET` `/api/scenes` (routes.py:221)
-- `POST` `/api/scenes` (routes.py:227)
-- `POST` `/api/scenes/cleanup` (routes.py:234)
-- `POST` `/api/hda/{serial}/scene/save` (routes.py:240)
-- `POST` `/api/scenes/open` (routes.py:251)
-- `GET` `/api/hda/{serial}/usdz` (routes.py:264)
+- `POST` `/api/hda/{serial}/kick` (routes.py:145)
+- `GET` `/api/hda/{serial}/logs` (routes.py:164)
+- `GET` `/api/hda/{serial}/snapshot` (routes.py:174)
+- `GET` `/api/ui/layout` (routes.py:185)
+- `PUT` `/api/ui/layout` (routes.py:192)
+- `PUT` `/api/hda/{serial}/snapshot` (routes.py:200)
+- `GET` `/api/ui/layouts` (routes.py:217)
+- `PUT` `/api/ui/layouts/{name}` (routes.py:223)
+- `GET` `/api/ui/layouts/{name}` (routes.py:230)
+- `GET` `/api/logs` (routes.py:237)
+- `GET` `/api/scenes` (routes.py:248)
+- `POST` `/api/scenes` (routes.py:254)
+- `POST` `/api/scenes/cleanup` (routes.py:261)
+- `POST` `/api/hda/{serial}/scene/save` (routes.py:267)
+- `POST` `/api/scenes/open` (routes.py:278)
+- `GET` `/api/hda/{serial}/usdz` (routes.py:291)
 - `WEBSOCKET` `/ws` (ws.py:52)
 
 ## MCP tools (bridge.mcp_server)

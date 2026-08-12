@@ -85,6 +85,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00052：2 路并行（Descartes/Archimedes）——HDA 自适应轮询(活跃 33ms/空闲 500ms，流量大降)；kick 踹 HDA(首连 web 触发，force 强制 recook + last_error 自愈，解决首拉桥后 HDA 显示 offline)；/stream 长轮询取代轮询计划(NDJSON，仅计划)；smoke 测试加固(__cylStore 完整日志)。
 - v0.1.00051：4 路并行（Hegel/Socrates/Banach/Huygens）——Overview 默认入口重定向 + 新建置顶 + 离线/未cook 三态 + 清理无效场景；bridge lastActivity + /api/scenes/cleanup；HDA 就绪缓冲+缓存-直到输入变化+位置快速路径（20fps→60fps 级，hython 实测）；Houdini python runtime 接口设计 + transform 流式 panel 原型（含 Apex Animation Layer 最终目标）；streaming-sync-gap §8。
 - v0.1.00050：4 路并行（Turing/Halley/Pauli/Darwin）——Enter 模式跟随选中节点(无 transform 时 gizmo idle)；File/Layout 菜单点击关闭、Open Scene 改名 Reload、真正 Open Scene/Save Scene As(FS Access 保存整个 serial 文件夹+同名覆盖确认)、Overview 菜单入口；新增 /overview.html 总管页(活跃/历史/新建场景，无 Houdini 可开)；bridge 场景端点(api/scenes 列表/新建/open/save)+最小 usdz 导出(usda+zipfile 零依赖)；流式推送 dirty 讨论(streaming-push-dirty.md)。
 - v0.1.00049：3 路并行（Godel/Tesla/Bacon）——tab 底部圆角抗锯齿软边(1.0px 带, 半径 3.5px)；中键 scrubbing 重做(鼠标为浮层中点/出框锁定/灵敏度减半/轨迹归一化)；Ctrl+中键恢复默认值+transform 参数默认值；parms 数值修改进撤销系统(params undo)；Log 新增 Parameter 类；viewport 真正读取节点 geo(computeNodeResult+showNodeResult, display null/transform 显示链路真实输出几何)；新建 Params 用户手册。
