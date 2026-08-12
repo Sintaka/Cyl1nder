@@ -33,7 +33,8 @@
 | 同步速率上限 + bridge 阻塞修复 + 首选项系统 | [sync-rate-limit-and-preference.md](sync-rate-limit-and-preference.md) |
 | 自动保存 + 颜色系统 + 首选项浮动窗 | [autosave-color-prefs-ui.md](autosave-color-prefs-ui.md) |
 | 浮动面板 pop-out 调研（已取消，改视口钳制） | [popout-windows.md](popout-windows.md) |
-| 石山代码（monolith）标注 | [stone-mountains.md](stone-mountains.md) |
+| 屎山代码（legacy spaghetti）标注 | [shit-mountains.md](shit-mountains.md) |
+| 架构优化持续改进计划 | [refactor-plan.md](refactor-plan.md) |
 | 优化轮 00059（dock 角标重做/File 菜单/Sync 语义/Layout 框） | [optimize-round-00059.md](optimize-round-00059.md) |
 | 优化轮 00060（dock 外折/点阵层级/Overview 新标签/HDA 重启恢复/视口 Undo） | [optimize-round-00060.md](optimize-round-00060.md) |
 | 优化轮 00061（dock 内侧残留/菜单居中/颜色拾取器体验） | [optimize-round-00061.md](optimize-round-00061.md) |
@@ -100,7 +101,8 @@
 
 ## 最近版本
 - v0.1.00065：bridge 控制台降噪 + 心跳统一 1min——uvicorn access_log 关闭（web 推流无上限，gizmo 拖动不再刷屏 cmd）；STREAM_HOLD_DEFAULT 20→60（/stream 缺省 hold=60s）；web HDA watchdog 15s→60s（离线阈值仍 150s）；主进程 2 路并行（Huygens=bridge / Hypatia=web）+ 主进程合并；pytest 53, tsc 0, vitest 82（e2e 本次未重跑：改动不涉及 e2e 断言覆盖路径）。
-- v0.1.00069：UI 下拉/数值输入统一——所有下拉改 Layout 盒风格自定义下拉（createDropdown：圆角盒 + ▲▼ caret + 名称块 + dark popup，替代原生 select：底部栏 Update Mode、首选项 Update Mode/UI Font、调色板 harmony、File/Edit 菜单触发钮）；所有带箭头数值输入改 Sync Max FPS 步进风格（createStepper：首选项 fps/autosave interval）；新增 widgets.ts/widgets.css；UI 规范写入 development-standards；石山代码标注 stone-mountains.md；e2e round12/13/15 同步 16 passed；tsc 0, vitest 82。
+- v0.1.00070：屎山代码改名并纳入持续改进计划——stone-mountains→shit-mountains（术语 石山→屎山）；新增 devlog/refactor-plan.md（架构优化分析 + 分期路线图：阶段1 纯函数/薄文件 → 阶段2 main/graph/viewport 中拆 → 阶段3 hda/color/跨端大拆）；README 字典同步。
+- v0.1.00069：UI 下拉/数值输入统一——所有下拉改 Layout 盒风格自定义下拉（createDropdown：圆角盒 + ▲▼ caret + 名称块 + dark popup，替代原生 select：底部栏 Update Mode、首选项 Update Mode/UI Font、调色板 harmony、File/Edit 菜单触发钮）；所有带箭头数值输入改 Sync Max FPS 步进风格（createStepper：首选项 fps/autosave interval）；新增 widgets.ts/widgets.css；UI 规范写入 development-standards；屎山代码标注（现 shit-mountains.md）；e2e round12/13/15 同步 16 passed；tsc 0, vitest 82。
 - v0.1.00068：调色板 Ctrl+Z 撤回（含 Recent 精确清理，不误删已手删项）+ HSL L=100 归零修复（state.hsl/preserveHsl）+ 色轮/Adobe 关联点 H 错位修复（0° 顶部顺时针）+ 取消 Document PiP popup（pop 回即关）+ 浮窗视口钳制（拖拽不越界、越界下次召唤回默认）；e2e round15 8 passed；tsc 0, vitest 82。
 - v0.1.00067：调色板 UI 再优化 + pop-out——点击新颜色直接 retarget 已开面板（保持位置，不再回右上角）；Advanced Palette 复用 Simple（去重复/去 5 列单独版）；新增 Document PiP pop-out（⧉ 按钮，isPopoutSupported 主动判断、不支持自动隐藏，调色板与 Preference 都能弹出成独立置顶窗口；拖拽监听改 ownerDocument 跨文档可用）；e2e round15 8 passed；tsc 0, vitest 82。
 - v0.1.00066：调色板 UI 优化——Advanced Palette 改成「Simple 预设(20)+Neutrals(5)」扁平 5 列网格（去英文分类/标签）；harmony 下拉右侧新增自绘关联点 SVG 提示（随 base 颜色实时着色）；调色板不再点外关闭，点击另一 color3 swatch 即 retarget；浮动面板跳出浏览器=Document PiP 方案已调研并记录 popout-windows.md（本轮未实现，待单独开轮）；e2e round15 断言同步；tsc 0, vitest 82。
