@@ -101,6 +101,7 @@
 
 ## 最近版本
 - v0.1.00065：bridge 控制台降噪 + 心跳统一 1min——uvicorn access_log 关闭（web 推流无上限，gizmo 拖动不再刷屏 cmd）；STREAM_HOLD_DEFAULT 20→60（/stream 缺省 hold=60s）；web HDA watchdog 15s→60s（离线阈值仍 150s）；主进程 2 路并行（Huygens=bridge / Hypatia=web）+ 主进程合并；pytest 53, tsc 0, vitest 82（e2e 本次未重跑：改动不涉及 e2e 断言覆盖路径）。
+- v0.1.00074：架构重构阶段2.1 第三刀——main.ts 抽 `core/params.ts`（readParamFloats/cloneParams/paramsEqual + ParamLike 类型统一）；修复 round16 旧原生 select 断言；round16 3 passed。
 - v0.1.00073：架构重构阶段2.1 第二刀——main.ts 抽 `core/shortcuts.ts`（F/B/Enter/Ctrl+S·Ctrl+Alt+S 依赖注入）；round5/8/12/14 e2e 13 passed；refactor-plan.md 更新进度。
 - v0.1.00072：架构重构阶段2.1 第一刀——main.ts 抽 `core/lifecycle.ts`（autosave + hda watchdog 工厂化，闭包状态）；round8/9/13/14 e2e 19 passed；refactor-plan.md 更新进度。
 - v0.1.00071：架构重构阶段1——color.ts 拆出纯色彩数学 color-math.ts（+19 vitest）；nodes2/groups.ts 拆 parser.ts/matcher.ts（barrel 保持外部 import 不变）；mcp_server 顺延；refactor-plan.md 更新进度。
