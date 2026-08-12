@@ -23,6 +23,7 @@ import {
 import { createAutosave, createHdaWatchdog } from "./core/lifecycle";
 import { bindShortcuts } from "./core/shortcuts";
 import { cloneParams, paramsEqual, readParamFloats, type ParamLike } from "./core/params";
+import { createParamUndo } from "./core/param-undo";
 
 /** Log categories: geo data / viewport / ui / bridge(python runtime). */
 let logFilter = "all";
@@ -430,6 +431,8 @@ const autosave = createAutosave({
   log: (msg) => store.pushLog(msg),
 });
 
+const paramUndo = createParamUndo({ pushUndo: (entry) => graph.pushUndo(entry) });
+
 let wsDisconnect: (() => void) | null = null;
 let autoRun = layout.autoRunCheck.checked;
 let replayPending = false;  // first inputs after connect = replay, do NOT auto-run (avoids clobbering outputs/edits)
@@ -523,20 +526,6 @@ function applyLayoutSettings(json: unknown): void {
   viewport.setDisplaySettings((json as { displaySettings?: { mode?: unknown } } | null)?.displaySettings);
 }
 
-/** Session-scoped param edit undo: consecutive edits on the SAME node within
- *  600ms merge into one { type: "params" } undo entry (before = pre-session
- *  params, after = latest). Selection switch flushes it immediately. */
-let pendingParamUndo: { nodeId: string; before: ParamLike[]; after: ParamLike[]; timer: number } | null = null;
-
-/** Flush the pending param edit into the shared undo stack (debounce / selection switch). */
-function flushParamUndo(): void {
-  if (!pendingParamUndo) return;
-  const p = pendingParamUndo;
-  pendingParamUndo = null;
-  if (p.timer) window.clearTimeout(p.timer);
-  graph.pushUndo({ type: "params", nodeId: p.nodeId, before: p.before, after: p.after });
-}
-
 /** Spreadsheet + Params follow the SELECTED node (multi-select -> first), not the
  *  display flag. null -> its in0 source port (header "in0"); _input_ -> all inputs;
  *  _output_ -> outputs; no selection -> fall back to the display-flag behaviour. */
@@ -586,13 +575,7 @@ function refreshSelectionPanels(): void {
           // session undo: the first edit on this node captures the PRE-edit params
           // as `before`; later edits update `after`; 600ms debounce merges them into
           // a single { type: "params" } undo entry (selection switch flushes early)
-          if (!pendingParamUndo || pendingParamUndo.nodeId !== cur.id) {
-            pendingParamUndo = { nodeId: cur.id, before: prevParams, after: params, timer: 0 };
-          } else {
-            pendingParamUndo.after = params;
-          }
-          if (pendingParamUndo.timer) window.clearTimeout(pendingParamUndo.timer);
-          pendingParamUndo.timer = window.setTimeout(flushParamUndo, 600);
+          paramUndo.startOrMerge(cur.id, prevParams, params);
           graph.setNodeParams(cur.id, params);
           const prevValue = new Map(prevParams.map((q) => [q.name, q.value]));
           const changed = params.find((q) => prevValue.get(q.name) !== q.value);
@@ -709,7 +692,7 @@ function toggleEnterEdit(): void {
 // node selection changes -> refresh Spreadsheet + Params immediately
 // (store.subscribe alone does not fire when only the graph selection changes)
 graph.onSelectionChanged(() => {
-  flushParamUndo(); // selection switched -> close the pending param undo session
+  paramUndo.flush(); // selection switched -> close the pending param undo session
   refreshSelectionPanels();
   // Enter mode follows the FIRST SELECTED node: transform -> rebind the gizmo to
   // it; null/input/output/none -> drop the gizmo but keep Enter mode active.
