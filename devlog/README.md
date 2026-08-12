@@ -101,6 +101,7 @@
 
 ## 最近版本
 - v0.1.00065：bridge 控制台降噪 + 心跳统一 1min——uvicorn access_log 关闭（web 推流无上限，gizmo 拖动不再刷屏 cmd）；STREAM_HOLD_DEFAULT 20→60（/stream 缺省 hold=60s）；web HDA watchdog 15s→60s（离线阈值仍 150s）；主进程 2 路并行（Huygens=bridge / Hypatia=web）+ 主进程合并；pytest 53, tsc 0, vitest 82（e2e 本次未重跑：改动不涉及 e2e 断言覆盖路径）。
+- v0.1.00073：架构重构阶段2.1 第二刀——main.ts 抽 `core/shortcuts.ts`（F/B/Enter/Ctrl+S·Ctrl+Alt+S 依赖注入）；round5/8/12/14 e2e 13 passed；refactor-plan.md 更新进度。
 - v0.1.00072：架构重构阶段2.1 第一刀——main.ts 抽 `core/lifecycle.ts`（autosave + hda watchdog 工厂化，闭包状态）；round8/9/13/14 e2e 19 passed；refactor-plan.md 更新进度。
 - v0.1.00071：架构重构阶段1——color.ts 拆出纯色彩数学 color-math.ts（+19 vitest）；nodes2/groups.ts 拆 parser.ts/matcher.ts（barrel 保持外部 import 不变）；mcp_server 顺延；refactor-plan.md 更新进度。
 - v0.1.00070：屎山代码改名并纳入持续改进计划——stone-mountains→shit-mountains（术语 石山→屎山）；新增 devlog/refactor-plan.md（架构优化分析 + 分期路线图：阶段1 纯函数/薄文件 → 阶段2 main/graph/viewport 中拆 → 阶段3 hda/color/跨端大拆）；README 字典同步。
