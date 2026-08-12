@@ -44,7 +44,7 @@
 - 验收：tsc 0 + vitest 增量 + e2e round15/round12 不回归；行为零变化。
 
 ### 阶段 2（中拆，分模块）
-- [~] 2.1 `main.ts` 抽 core：已完成 `core/lifecycle.ts` + `core/shortcuts.ts` + `core/params.ts` + `core/param-undo.ts`；待续 `core/session.ts`（连接/WS/网络）、`core/gizmo.ts`。
+- [~] 2.1 `main.ts` 抽 core：已完成 `core/lifecycle.ts` + `core/shortcuts.ts` + `core/params.ts` + `core/param-undo.ts` + `core/gizmo.ts`；待续 `core/session.ts`（连接/WS/网络）。
 - [ ] 2.2 `graph.ts` 拆 `nodes2/graph-view.ts` / `graph-interact.ts` / `undo.ts` 强化；先定函数签名契约再并行。
 - [ ] 2.3 `viewport/renderer.ts` 拆 `scene` / `camera` / `gizmo` / `picking` / `modes`。
 - 验收：tsc 0 + vitest + 全量 e2e；主进程 merge 前 review 写集不越界。
@@ -65,7 +65,7 @@
 - 2026-08-13：阶段 1 完成；阶段 2.1 已抽出 `core/lifecycle.ts` + `core/shortcuts.ts` + `core/params.ts` + `core/param-undo.ts`（round5/8/12/14/16 e2e 通过）；2.1 其余（session/gizmo）待续。
 ## 七、当前执行（in progress，检查点 2026-08-13）
 - 分支：`codex/0.1.00075-refactor-gizmo-session`（已从 `codex/cyl1nder-v0` 切出）。
-- 下一步：**2.1-gizmo** 抽 `web/src/core/gizmo.ts`。
+- 已完成：**2.1-gizmo** 抽 `web/src/core/gizmo.ts`（round12/16 6 passed）。\n- 下一步：**2.1-session** 抽 `web/src/core/session.ts`（connect/WS/networkEpoch/runNetwork/applyOutputs），继续本分支。
   - 状态收拢为闭包对象：`pendingTransform / dragNodeId / dragBefore / dragAfter / lastTransformId`。
   - 工厂签名（契约，主进程先定骨架）：
     ```ts
