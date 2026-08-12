@@ -50,6 +50,7 @@
 /* ---- custom rete node view (NodeView.tsx) ---- */
 .cyl-graph .cyl-rp-node {
   position: relative;
+  z-index: 1; /* above the z-index:-1 dot grid; the insert preview (z-index:0) stays below nodes */
   background: rgba(46, 51, 60, 0.5);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
@@ -79,9 +80,14 @@
   width: 10px; height: 10px; border-radius: 50%; background: #2b0b0b; border: 1.5px solid #ff6b6b;
   box-sizing: border-box;
 }
-/* dot-grid background (screen-space, zoom LOD handled by JS opacity) */
+/* dot-grid background (screen-space, zoom LOD handled by JS opacity).
+   isolation: isolate makes .cyl-graph its own stacking context so the dot grid's
+   negative z-index stays behind graph content but still above the (transparent)
+   graph background; without it, z-index:-1 would fall behind the opaque dock
+   panel backgrounds (#141518) and vanish. */
 .cyl-graph {
   position: relative;
+  isolation: isolate;
   user-select: none;
   -webkit-user-select: none; /* dragging hits the node, not its text */
 }
@@ -91,12 +97,16 @@
   -webkit-user-select: text;
 }
 .cyl-dotgrid {
-  position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  position: absolute; inset: 0; pointer-events: none; z-index: -1; /* behind nodes/text (see isolation above) */
   background-image: radial-gradient(circle, #3a3f4a 1px, transparent 1.5px);
   background-size: 22px 22px;
   transition: opacity 120ms ease;
 }
-.cyl-graph .x6-graph, .cyl-graph .rete-area, .cyl-graph .cyl-rp-node { position: relative; z-index: 1; }
+/* NOTE: rete.js 2's area container is an unclassed div (no .rete-area) and each node
+   wrapper carries a transform (its own stacking context at z-index auto), so the old
+   .x6-graph/.rete-area/.cyl-rp-node z-index:1 rule never lifted content above the dot
+   grid. Nodes are painted above the grid simply because the grid now sits at
+   z-index:-1 inside .cyl-graph's isolated stacking context. */
 /* custom floating tooltip (dark rounded chip) */
 .cyl-tooltip {
   position: absolute; z-index: 50; pointer-events: none;

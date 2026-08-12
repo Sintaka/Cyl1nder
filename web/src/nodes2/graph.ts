@@ -95,9 +95,21 @@ export interface ReteGraph {
   redo(): void;
   /** Push a custom undo action (e.g. param edits) into the shared undo stack. */
   pushUndo(action: UndoAction): void;
+  /** Push a batch of actions as ONE undo entry ({ type: "group" }): undo reverts
+   *  them in reverse order, redo replays them forward. For batch script buttons. */
+  pushUndoGroup(actions: UndoAction[]): void;
 }
 
 const GEO = "geo";
+
+/** Does an action contain a params edit (recursively through group children)?
+ *  Group undo/redo refreshes the network once at the end when a child is a params
+ *  edit, instead of re-running per sub-action. */
+function actionContainsParams(action: UndoAction): boolean {
+  if (action.type === "params") return true;
+  if (action.type === "group") return action.actions.some(actionContainsParams);
+  return false;
+}
 const log = (m: string) => store.pushLog(`[node] ${m}`);
 
 /** Selection-change listeners (panels that follow the selected node). */
@@ -364,8 +376,9 @@ export async function createReteGraph(
     undoChain = undoChain
       .then(() => applyUndoAction(g.editor, action, direction))
       .then(() => {
-        if (action.type === "params") {
-          // param undo/redo re-runs the network and refreshes the panels
+        if (actionContainsParams(action)) {
+          // param undo/redo re-runs the network and refreshes the panels; a group
+          // fires both ONCE at the end (no per-sub-action repeats)
           handlers.onNetworkChanged?.();
           handlers.onSelectionChanged?.();
         }
@@ -449,6 +462,10 @@ export async function createReteGraph(
     redo: () => undoManager.redo(),
     pushUndo: (action) => {
       undoManager.push(action);
+    },
+    pushUndoGroup: (actions) => {
+      if (actions.length === 0) return;
+      undoManager.push({ type: "group", actions });
     },
     destroy: () => (g.editor as unknown as { destroy?: () => void }).destroy?.(),
     setStats: (kind, stats) => {
@@ -845,6 +862,13 @@ async function applyUndoAction(
       notifyNodeChanged();
     }
     log(`${direction} params on ${n ? n.label : action.nodeId}`);
+  } else if (action.type === "group") {
+    // Batch: undo applies children in REVERSE order, redo in FORWARD order.
+    // Nested groups recurse; params children notify the caller once at the end
+    // via the createUndoManager apply wrapper (actionContainsParams).
+    const ordered = direction === "undo" ? [...action.actions].reverse() : action.actions;
+    for (const sub of ordered) await applyUndoAction(editor, sub, direction);
+    log(`${direction} group (${action.actions.length} actions)`);
   } else if (action.type === "shake") {
     if (direction === "undo") {
       for (const ref of action.added) await delConn(ref);

@@ -38,12 +38,15 @@ _SYNC: dict[str, dict] = {}
 _STREAM_HOLD = 60.0
 _STREAM_RETRY = 0.5
 
-# HDA receive-side rate cap (defensive): the outputs/kick/reset "pull + schedule
+# HDA receive-side rate cap (defensive): the outputs/kick "pull + schedule
 # recook" action runs at most `fps` times/second (latest-wins - events inside the
 # window only bump last_seen, the next event after the window pulls the newest
-# state). The runtime value starts from the HDA `sync_fps` parameter (default 30,
-# clamp 1..60) and can be overridden by a numeric `fps` on any /stream event
-# (bridge forwards the per-serial sync fps).
+# state). reset (bridge restart) is a rare critical path that bypasses the cap:
+# it always clears the per-serial caches, pulls and schedules a recook (the
+# `scheduled` gate still prevents overlapping recooks). The runtime value starts
+# from the HDA `sync_fps` parameter (default 30, clamp 1..60) and can be
+# overridden by a numeric `fps` on any /stream event (bridge forwards the
+# per-serial sync fps).
 _SYNC_FPS_DEFAULT = 30
 _SYNC_FPS_MIN = 1
 _SYNC_FPS_MAX = 60
@@ -205,6 +208,21 @@ def _reset_ready(serial: str) -> None:
             st["gen"] += 1
 
 
+def _reset_caches(serial: str) -> None:
+    """Bridge restart: drop this serial's push/content caches.
+
+    The bridge workspace was rebuilt empty, so the next recook must re-push the
+    inputs (push cache gone) and must not reuse stale output topology/geometry
+    (geo/core/out caches gone). Runs on the sync thread before the recook is
+    scheduled; like the rest of the module, the plain dicts mutate in place.
+    """
+    _PUSH_CACHE.pop(serial, None)  # -> recook re-pushes inputs into the fresh workspace
+    _CORE_CACHE.pop(serial, None)  # stale merged-detail signature (old topology)
+    _OUT_CACHE.pop(serial, None)   # legacy role output cache (old outputs)
+    for key in [k for k in _GEO_CACHE if k[0] == serial]:
+        _GEO_CACHE.pop(key, None)  # cached output geometry must not be reused
+
+
 def _stream_loop(
     serial: str,
     node_path: str,
@@ -224,11 +242,14 @@ def _stream_loop(
     gone (RequestSourceShutdown semantics).
 
     The HDA receive-side rate cap (sync_fps, default 30, clamp 1..60) throttles
-    the outputs/kick/reset "pull + schedule recook" action to at most `fps`
+    the outputs/kick "pull + schedule recook" action to at most `fps`
     times/second (latest-wins): an event inside the window only bumps last_seen
-    (plus reset's in-memory _reset_ready) and is dropped - the next event after
-    the window pulls the newest state. A numeric `fps` on any event overrides
-    the runtime cap. sleep_fn/now_fn/client are injectable for the hython smoke.
+    and is dropped - the next event after the window pulls the newest state.
+    reset (bridge restart) is a rare critical path that bypasses the cap: it
+    always drops the per-serial caches and pulls + schedules a recook (the
+    `scheduled` gate still prevents overlapping recooks). A numeric `fps` on any
+    event overrides the runtime cap. sleep_fn/now_fn/client are injectable for
+    the hython smoke.
     """
     client = client if client is not None else BridgeClient(serial, bridge_url=bridge_url)
     last_seen = 0
@@ -256,16 +277,16 @@ def _stream_loop(
         if etype == "timeout":
             continue  # idle keep-alive: reconnect immediately, no sleep
         if etype == "reset":
-            # bridge restarted: rev went backwards - re-pull everything from 0
+            # bridge restarted: rev went backwards - re-pull everything from 0.
             last_seen = 0
             _reset_ready(serial)  # in-memory op - always applied, no HTTP
+            _reset_caches(serial)  # -> next recook re-pushes inputs, rebuilds outputs
             state = _SYNC.get(serial)
             if state is None:
                 continue
-            now = now_fn()
-            if now - last_action < 1.0 / state.get("fps", _SYNC_FPS_DEFAULT):
-                continue  # rate-capped: next event after the window pulls latest
-            last_action = now
+            # reset is a rare critical path: bypass the fps throttle (the
+            # `scheduled` gate still prevents overlapping recooks) and act now.
+            last_action = now_fn()
             _refresh_ready(client, serial)
             if not state["scheduled"]:
                 state["scheduled"] = True
@@ -330,9 +351,11 @@ def ensure_sync(root: hou.Node, serial: str) -> None:
     """Start the event-driven /stream sync loop (idempotent).
 
     sync_fps is the HDA receive-side rate cap (default 30, clamp 1..60): each
-    outputs/kick/reset event refreshes the ready buffer and schedules a recook at
-    most `fps` times/second (latest-wins; the `scheduled` gate still prevents
-    overlapping recooks). A numeric `fps` on /stream events overrides the runtime
+    outputs/kick event refreshes the ready buffer and schedules a recook at most
+    `fps` times/second (latest-wins; the `scheduled` gate still prevents
+    overlapping recooks). reset (bridge restart) bypasses the cap: it always
+    clears the per-serial caches and refreshes + schedules a recook (rare
+    critical path). A numeric `fps` on /stream events overrides the runtime
     value, so the parameter is the local defensive fallback when no web is
     driving the sync.
     """

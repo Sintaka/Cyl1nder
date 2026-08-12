@@ -425,6 +425,13 @@ let updateMode: UpdateMode = prefs.update_mode;
 let syncMaxFps: number = prefs.sync_max_fps;
 /** mouseup mode: only the latest buffered gizmo value; committed once on drag end. */
 let pendingTransform: { id: string; tx: number; ty: number; tz: number } | null = null;
+/** Gizmo drag undo session: `before` = the node's full params captured when the
+ *  gizmo was bound, `after` = the latest params applied during the drag. The
+ *  session commits as ONE { type: "params" } undo entry on drag end (one drag =
+ *  one undo step, both auto and mouseup modes); rebinding starts a fresh session. */
+let dragNodeId: string | null = null;
+let dragBefore: Array<{ name: string; type: string; value: unknown }> | null = null;
+let dragAfter: Array<{ name: string; type: string; value: unknown }> | null = null;
 /** Last transform node the Enter gizmo is bound to: when the selection moves to a
  *  non-transform node (or empty), Enter keeps the gizmo on this node instead of
  *  dropping it. Reset on explicit Enter exit. */
@@ -489,6 +496,23 @@ function readParamFloats(params: Array<{ name: string; type: string; value: unkn
     out[p.name] = Number.isFinite(n) ? n : 0;
   }
   return out;
+}
+
+/** Deep-copy a params array (values are plain JSON data) - snapshots for drag undo. */
+function cloneParams(params: Array<{ name: string; type: string; value: unknown }>): Array<{ name: string; type: string; value: unknown }> {
+  return JSON.parse(JSON.stringify(params));
+}
+
+/** Params content equality (same order; name/type/value only) - skips no-op drag undo. */
+function paramsEqual(
+  a: Array<{ name: string; type: string; value: unknown }>,
+  b: Array<{ name: string; type: string; value: unknown }>,
+): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((p, i) => {
+    const q = b[i];
+    return p.name === q.name && p.type === q.type && p.value === q.value;
+  });
 }
 
 /** Session-scoped param edit undo: consecutive edits on the SAME node within
@@ -589,6 +613,11 @@ function bindGizmoToTransform(node: {
 }): void {
   const v = readParamFloats(node.params ?? []);
   pendingTransform = null; // a stale buffered drag must never commit to a re-bound gizmo
+  // Start a drag undo session: capture the node's params BEFORE the gizmo edits
+  // them; the session commits as ONE { type: "params" } undo entry on drag end.
+  dragNodeId = node.id;
+  dragBefore = cloneParams(node.params ?? []);
+  dragAfter = null;
   viewport.beginTransformGizmo(
     node.id,
     v.tx ?? 0,
@@ -606,11 +635,19 @@ function bindGizmoToTransform(node: {
       applyTransformDrag(node.id, x, y, z);
     },
     () => {
-      // drag ended (mouseup mode): commit the single buffered value once.
-      if (updateMode !== "mouseup" || !pendingTransform) return;
-      const p = pendingTransform;
-      pendingTransform = null;
-      applyTransformDrag(p.id, p.tx, p.ty, p.tz);
+      // drag ended: mouseup commits the single buffered value once first, then BOTH
+      // modes close the drag session as ONE undo entry (one drag = one undo step).
+      if (updateMode === "mouseup" && pendingTransform) {
+        const p = pendingTransform;
+        pendingTransform = null;
+        applyTransformDrag(p.id, p.tx, p.ty, p.tz);
+      }
+      if (dragNodeId && dragBefore && dragAfter && !paramsEqual(dragBefore, dragAfter)) {
+        graph.pushUndo({ type: "params", nodeId: dragNodeId, before: dragBefore, after: dragAfter });
+      }
+      dragNodeId = null;
+      dragBefore = null;
+      dragAfter = null;
     },
   );
 }
@@ -640,12 +677,12 @@ function applyTransformDrag(id: string, x: number, y: number, z: number): void {
   // Enter follows the CURRENT selection: read the bound node's live params.
   const node = graph.getNetworkSnapshot().nodes.find((n) => n.id === id);
   if (!node) return; // node deleted mid-edit
-  graph.setNodeParams(
-    id,
-    (node.params ?? []).map((q) =>
-      q.name === "tx" ? { ...q, value: x } : q.name === "ty" ? { ...q, value: y } : q.name === "tz" ? { ...q, value: z } : q,
-    ),
+  const next = (node.params ?? []).map((q) =>
+    q.name === "tx" ? { ...q, value: x } : q.name === "ty" ? { ...q, value: y } : q.name === "tz" ? { ...q, value: z } : q,
   );
+  graph.setNodeParams(id, next);
+  // keep the drag session's `after` = the latest applied params (undo commit on drag end)
+  if (dragNodeId === id) dragAfter = cloneParams(next);
   void runNetwork();
 }
 

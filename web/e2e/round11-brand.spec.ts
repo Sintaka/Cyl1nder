@@ -23,15 +23,16 @@ test.beforeAll(async () => {
   test.skip(!serial, "no serial available (bridge down or empty)");
 });
 
-test("clicking .cyl-brand jumps to /overview.html", async ({ page }) => {
+test("clicking .cyl-brand opens Overview in a NEW tab (v0.1.00060)", async ({ page }) => {
   await page.goto(`${BASE}/?serial=${serial}`);
   // 主应用加载（带 serial 不应被重定向到 overview）
   await expect(page.locator(".cyl-app")).toBeVisible({ timeout: 15000 });
   const brand = page.locator(".cyl-brand");
   await expect(brand).toContainText("Cyl1nder");
   await expect(brand.locator("small")).toHaveText("0.1");
-  // 点击品牌 -> 跳转 overview（等 URL 变化 + 页面元素出现）
-  await brand.click();
-  await expect(page).toHaveURL(/\/overview\.html/, { timeout: 15000 });
-  await expect(page.locator(".ov-brand")).toContainText("Cyl1nder 总管");
+  // 点击品牌 -> 新标签页打开 overview，原页保持主应用（不再是本页面跳转）
+  const [popup] = await Promise.all([page.waitForEvent("popup"), brand.click()]);
+  await expect(popup).toHaveURL(/\/overview\.html/, { timeout: 15000 });
+  await expect(popup.locator(".ov-brand")).toContainText("Cyl1nder 总管");
+  await expect(page.locator(".cyl-app")).toBeVisible({ timeout: 15000 });
 });

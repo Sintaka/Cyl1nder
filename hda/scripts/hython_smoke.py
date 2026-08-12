@@ -157,6 +157,25 @@ def _test_stream_loop() -> None:
         gate.step()
         gate.wait_len(park_at)
 
+    def _seed_caches() -> None:
+        """Simulate a working HDA that pushed inputs / built geometry pre-restart."""
+        cyl1nder_hda._PUSH_CACHE[serial] = ("stale-sig",)
+        cyl1nder_hda._CORE_CACHE[serial] = {"stale": True}
+        cyl1nder_hda._OUT_CACHE[serial] = {"rev": 5, "outputs": {}}
+        cyl1nder_hda._GEO_CACHE[(serial, 0)] = {"geo": None, "sig": (), "buf_gen": 0}
+        cyl1nder_hda._GEO_CACHE[(serial, 1)] = {"geo": None, "sig": (), "buf_gen": 0}
+        cyl1nder_hda._GEO_CACHE[("other-" + serial, 0)] = {"geo": None, "sig": (), "buf_gen": 0}
+
+    def _assert_caches_cleared() -> None:
+        """reset must drop every cache entry of this serial (and only this serial)."""
+        assert serial not in cyl1nder_hda._PUSH_CACHE, "reset must drop the push cache (re-push inputs)"
+        assert serial not in cyl1nder_hda._CORE_CACHE, "reset must drop the core cache (old topology)"
+        assert serial not in cyl1nder_hda._OUT_CACHE, "reset must drop the out cache (old outputs)"
+        assert all(k[0] != serial for k in cyl1nder_hda._GEO_CACHE), \
+            "reset must drop this serial's geo cache entries"
+        assert ("other-" + serial, 0) in cyl1nder_hda._GEO_CACHE, \
+            "reset must not touch other serials' caches"
+
     try:
         # empty queue -> first stream_once returns None -> parked at backoff sleep
         gate.wait_len(1)
@@ -182,13 +201,35 @@ def _test_stream_loop() -> None:
         assert recooked == ["", ""], f"kick (rev unchanged) did not recook: {recooked}"
         print("stream kick (rev unchanged) -> recook scheduled OK")
 
-        # reset -> last_seen back to 0, full re-pull from 0 + recook (clock stepped)
+        # reset (bridge restart) -> last_seen back to 0, full re-pull from 0,
+        # recook scheduled, and every per-serial cache dropped so the recook
+        # re-pushes the inputs and rebuilds outputs instead of reusing old data.
+        _seed_caches()
         cyl1nder_hda._SYNC[serial]["scheduled"] = False
         clock.step(1.0)
         _feed([{"type": "reset", "rev": 0}], 5)
         assert recooked == ["", "", ""], f"reset did not recook: {recooked}"
         assert client.pull_sinces[-1] == 0, f"reset must re-pull from 0, got since={client.pull_sinces[-1]}"
-        print("stream reset -> full re-pull from 0 + recook OK")
+        _assert_caches_cleared()
+        print("stream reset -> full re-pull from 0 + caches cleared + recook OK")
+        clock.step(1.0)  # move the burst outside the reset action's throttle window
+
+        # reset inside the throttle window (same injected now as the previous
+        # action) is a rare critical path: it must STILL pull + schedule a recook
+        # (bypass the fps cap; the `scheduled` gate still prevents overlap)
+        baseline_pulls = len(client.pull_sinces)
+        baseline_recs = len(recooked)
+        _seed_caches()
+        cyl1nder_hda._SYNC[serial]["scheduled"] = False
+        _feed([{"type": "reset", "rev": 0}], 6)
+        assert len(client.pull_sinces) - baseline_pulls == 1, \
+            f"reset inside the throttle window must still pull, pulled {len(client.pull_sinces) - baseline_pulls}x"
+        assert len(recooked) - baseline_recs == 1, \
+            "reset inside the throttle window must still schedule a recook"
+        assert client.pull_sinces[-1] == 0, \
+            f"reset must re-pull from 0, got since={client.pull_sinces[-1]}"
+        _assert_caches_cleared()
+        print("stream reset inside throttle window -> bypass fps cap (pull + recook) OK")
         clock.step(1.0)  # move the burst outside the reset action's throttle window
 
         # ---- fps throttle: back-to-back outputs burst (same injected now) causes
@@ -197,7 +238,7 @@ def _test_stream_loop() -> None:
         baseline_recs = len(recooked)
         cyl1nder_hda._SYNC[serial]["scheduled"] = False
         client.pull_rev = 24  # simulate the bridge advancing to the burst's newest rev
-        _feed([{"type": "outputs", "rev": r} for r in (20, 21, 22, 23, 24)], 6)
+        _feed([{"type": "outputs", "rev": r} for r in (20, 21, 22, 23, 24)], 7)
         assert len(client.pull_sinces) - baseline_pulls == 1, \
             f"burst must pull once, pulled {len(client.pull_sinces) - baseline_pulls}x"
         assert len(recooked) - baseline_recs == 1, \
@@ -214,7 +255,7 @@ def _test_stream_loop() -> None:
         cyl1nder_hda._SYNC[serial]["scheduled"] = False
         client.pull_rev = 25
         clock.step(0.1)
-        _feed([{"type": "outputs", "rev": 25}], 7)
+        _feed([{"type": "outputs", "rev": 25}], 8)
         assert len(client.pull_sinces) - baseline_pulls == 1, "event after window must pull"
         assert len(recooked) - baseline_recs == 1, "event after window must schedule recook"
         assert client.pull_sinces[-1] == 24, \
@@ -227,7 +268,7 @@ def _test_stream_loop() -> None:
         cyl1nder_hda._SYNC[serial]["scheduled"] = False
         client.pull_rev = 26
         clock.step(0.1)  # > 1/30: this event acts and applies fps=10 for the NEXT one
-        _feed([{"type": "outputs", "rev": 26, "fps": 10}], 8)
+        _feed([{"type": "outputs", "rev": 26, "fps": 10}], 9)
         assert cyl1nder_hda._SYNC[serial]["fps"] == 10, \
             f"runtime fps not updated: {cyl1nder_hda._SYNC[serial]['fps']}"
         assert len(client.pull_sinces) - baseline_pulls == 1, "fps event must pull"
@@ -236,7 +277,7 @@ def _test_stream_loop() -> None:
         baseline_recs = len(recooked)
         cyl1nder_hda._SYNC[serial]["scheduled"] = False
         client.pull_rev = 27
-        _feed([{"type": "outputs", "rev": 27}], 9)
+        _feed([{"type": "outputs", "rev": 27}], 10)
         assert len(client.pull_sinces) - baseline_pulls == 0, \
             f"event inside 1/10s window must be throttled, pulled {len(client.pull_sinces) - baseline_pulls}x"
         assert len(recooked) - baseline_recs == 0, "throttled event must not recook"
@@ -250,6 +291,12 @@ def _test_stream_loop() -> None:
         cyl1nder_hda._schedule_recook = orig_schedule
         cyl1nder_hda._SYNC.pop(serial, None)
         cyl1nder_hda._READY.pop(serial, None)
+        cyl1nder_hda._PUSH_CACHE.pop(serial, None)
+        cyl1nder_hda._CORE_CACHE.pop(serial, None)
+        cyl1nder_hda._OUT_CACHE.pop(serial, None)
+        for key in [k for k in cyl1nder_hda._GEO_CACHE if k[0] == serial]:
+            cyl1nder_hda._GEO_CACHE.pop(key, None)
+        cyl1nder_hda._GEO_CACHE.pop(("other-" + serial, 0), None)
 
     # ---- node deleted -> clean thread exit (RequestSourceShutdown semantics) ----
     serial2 = cyl1nder_hda.generate_serial()

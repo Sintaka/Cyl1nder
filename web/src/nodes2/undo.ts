@@ -17,6 +17,12 @@ export type UndoAction =
   | { type: "cut-many"; connections: ConnectionRef[] }
   | { type: "params"; nodeId: string; before: Array<{ name: string; type: string; value: unknown }>; after: Array<{ name: string; type: string; value: unknown }> }
   | {
+      /** A batch of actions applied as ONE undo step: undo runs them in REVERSE
+       *  order, redo runs them FORWARD (e.g. one gizmo drag / one batch script). */
+      type: "group";
+      actions: UndoAction[];
+    }
+  | {
       type: "insert";
       nodeId: string;
       nodeLabel: string;

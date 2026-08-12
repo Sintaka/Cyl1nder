@@ -25,55 +25,70 @@
   margin: 3px 4px 0; /* horizontal gap (4px/side -> 8px between inactive tabs); bottom flush so tabs sit on the panel */
 }
 /* Active tab: Chrome-style silhouette — top corners convex (7px), bottom edge
-   straight and flush with the content below. The bottom corners are painted with
-   ::before/::after as CONCAVE (inward) rounded corners: the notch (quarter-disc)
-   is painted with the CONTENT-PANEL colour (#141518) so the blue tab surface that
-   remains around it reads as a crescent hugging the actual corner point, and the
-   tab visually merges with the content area below (Chrome "toolbar merge" effect)
-   instead of showing a tab-bar-coloured notch.
-   Round 9 fix: box is 6x4, INSIDE the tab's own rectangle (left:0/right:0), and
-   the notch is painted with #141518 (content) at radius 3.5px with a soft 1px
-   edge. This keeps a clearly visible ~2-3px blue crescent at the corner AND
-   guarantees nothing (blue OR dark) is ever painted over the adjacent inactive
-   tabs' corners or the gaps between tabs. */
+   straight and flush with the content below. The bottom corners carry an
+   OUTWARD blue crescent (Round 10): a small 4x4 box sits OUTSIDE the tab at each
+   bottom corner (right:100% / left:100%) and paints the blue surface (#2e4f7d)
+   wrapping around the corner point, so the crescent flips OUT over the adjacent
+   gap/inactive-tab corner (Chrome-style silhouette, like v0.1.00057). The box's
+   FAR corner (away from the tab) is left transparent, so the crescent is a thin
+   arc — never a solid block. Unlike v0.1.00057 there is NO solid #1c1e22 notch
+   disc painted on the adjacent inactive tabs (Round 10: neighbour corners/gaps
+   stay clean — nothing dark or blue is painted over them except the small
+   outward crescent itself). */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab {
   position: relative;
   z-index: 10;            /* overlap adjacent inactive tabs */
   border-radius: 7px 7px 0 0;  /* top corners convex, bottom straight */
   margin: 3px -2px 0;     /* flush with the content bottom + slight side overlap; net 2px gap to each neighbour */
+  /* Round 9 inner notch (kept): a 6x4 content-coloured (#141518) quarter-disc is
+     carved at each bottom corner INSIDE the tab so the tab merges with the content
+     below (Chrome toolbar-merge). Painted on the tab's own background-image (two
+     6x4 layers, left-bottom / right-bottom) because ::before/::after are now used
+     for the OUTWARD crescents. */
+  background-image:
+    radial-gradient(circle at 100% 0%, #141518 0 3.5px, rgba(20,21,24,0.5) 4px, rgba(46,79,125,0) 4.5px),
+    radial-gradient(circle at 0% 0%, #141518 0 3.5px, rgba(20,21,24,0.5) 4px, rgba(46,79,125,0) 4.5px);
+  background-size: 6px 4px, 6px 4px;
+  background-position: left bottom, right bottom;
+  background-repeat: no-repeat, no-repeat;
 }
-/* bottom-LEFT CONCAVE corner: 6x4 box spans the TAB'S OWN bottom-left corner
-   square (INSIDE the tab). The radial gradient is centred on the FAR corner of
-   that square (box top-right, 100% 0%): the quarter-disc it paints (radius
-   3.5px, solid #141518) is the carved notch, and the remaining blue surface is a
-   crescent that hugs the actual corner point. #141518 matches the content panel
-   below so the notch reads as the content showing through at the corner (not a
-   tab-bar-coloured notch). */
+/* bottom-LEFT OUTWARD crescent: 4x4 box extends 4px LEFT of the tab's bottom-left
+   corner. The radial gradient is centred on the box's FAR corner (top-left, 0% 0%)
+   with a transparent disc (solid edge ~3.5px) carving that far quarter out, so the
+   remaining blue surface is a crescent hugging the actual corner point and flaring
+   outward over the neighbour/gap. */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab::before {
   content: "";
   position: absolute;
   top: auto;              /* neutralize dockview's :not(:first-child) divider rule */
-  left: 0;               /* box left edge = tab left edge (INSIDE the tab) */
-  right: auto;           /* neutralize dockview :not(:first-child) divider rule */
+  right: 100%; /* box right edge = tab left edge; extends 4px left */
+  left: auto;           /* neutralize dockview :not(:first-child) divider rule */
   bottom: 0;
-  width: 6px;
+  width: 4px;
   height: 4px;
-  background: radial-gradient(circle at 100% 0%, #141518 0 3.5px, rgba(20,21,24,0.5) 4px, rgba(46,79,125,0) 4.5px);
+  /* transparent disc (solid edge ~3.5px) centred on the FAR corner (0% 0%) cuts the
+     corner square; #2e4f7d outside the disc => outward concave crescent A->B with
+     soft 1.0px AA band (Round 7 style: transparent 0 2.5px -> rgba(46,79,125,.4)
+     3px -> #2e4f7d 3.5px). */
+  background: radial-gradient(circle at 0% 0%, transparent 0 2.5px, rgba(46,79,125,0.4) 3px, #2e4f7d 3.5px);
   pointer-events: none;
 }
-/* bottom-RIGHT CONCAVE corner: symmetric mirror of ::before — same 6x4 box over
-   the tab's own bottom-right corner square, gradient centred on the FAR corner
-   (box top-left, 0% 0%). */
+/* bottom-RIGHT OUTWARD crescent: symmetric mirror of ::before — 4x4 box extends
+   4px RIGHT of the tab's bottom-right corner; gradient centred on the box's FAR
+   corner (top-right, 100% 0%). */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab::after {
   content: "";
   position: absolute;
   top: auto;              /* neutralize dockview's focus/divider pseudo-element rules */
-  right: 0;              /* box right edge = tab right edge (INSIDE the tab) */
-  left: auto;            /* neutralize dockview focus/divider pseudo rules */
+  left: 100%; /* box left edge = tab right edge; extends 4px right */
+  right: auto;          /* neutralize dockview focus/divider pseudo rules */
   bottom: 0;
-  width: 6px;
+  width: 4px;
   height: 4px;
-  background: radial-gradient(circle at 0% 0%, #141518 0 3.5px, rgba(20,21,24,0.5) 4px, rgba(46,79,125,0) 4.5px);
+  /* transparent disc (solid edge ~3.5px) centred on the FAR corner (100% 0%) cuts
+     the corner square; #2e4f7d outside the disc => outward concave crescent with
+     soft 1.0px AA band. */
+  background: radial-gradient(circle at 100% 0%, transparent 0 2.5px, rgba(46,79,125,0.4) 3px, #2e4f7d 3.5px);
   pointer-events: none;
 }
 /* Active tab is the FIRST tab: extra left margin keeps the bottom-left
@@ -85,41 +100,6 @@
    bottom-right corner clear of the button. */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab:has(+ .cyl-dock-add) {
   margin-right: 4px;
-}
-/* Inactive tab immediately BEFORE the active tab: concave (inward) notch at its
-   bottom-RIGHT corner (the side the active tab overlaps). Painted with the TAB-BAR
-   background (#1c1e22) so the active tab's rounded corner looks nested in. */
-.cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab:has(+ .dv-active-tab) {
-  position: relative; /* anchor for the notch */
-}
-.cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab:has(+ .dv-active-tab)::after {
-  content: "";
-  position: absolute;
-  top: auto;              /* neutralizes dockview's :not(:first-child) divider rule */
-  right: 0;
-  bottom: 0;
-  width: 6px;
-  height: 6px;
-  background: radial-gradient(circle at 100% 100%, #1c1e22 0 6px, transparent 6.5px);
-  pointer-events: none;
-  z-index: 5;
-}
-/* Inactive tab immediately AFTER the active tab: concave notch at its bottom-LEFT
-   corner (same tab-bar-background trick). */
-.cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-active-tab + .dv-tab {
-  position: relative; /* anchor for the notch */
-}
-.cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-active-tab + .dv-tab::after {
-  content: "";
-  position: absolute;
-  top: auto;              /* neutralizes dockview's :not(:first-child) divider rule */
-  left: 0;
-  bottom: 0;
-  width: 6px;
-  height: 6px;
-  background: radial-gradient(circle at 0 100%, #1c1e22 0 6px, transparent 6.5px);
-  pointer-events: none;
-  z-index: 5;
 }
 /* hover background for inactive tabs (dockview theme rule is very specific,
    so !important is needed to reliably override the bundled stylesheet) */

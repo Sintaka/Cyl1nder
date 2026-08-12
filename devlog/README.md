@@ -32,6 +32,7 @@
 | 同步速率上限 + bridge 阻塞修复 + 首选项系统 | [sync-rate-limit-and-preference.md](sync-rate-limit-and-preference.md) |
 | 自动保存 + 颜色系统 + 首选项浮动窗 | [autosave-color-prefs-ui.md](autosave-color-prefs-ui.md) |
 | 优化轮 00059（dock 角标重做/File 菜单/Sync 语义/Layout 框） | [optimize-round-00059.md](optimize-round-00059.md) |
+| 优化轮 00060（dock 外折/点阵层级/Overview 新标签/HDA 重启恢复/视口 Undo） | [optimize-round-00060.md](optimize-round-00060.md) |
 | AHS 约定提炼（拆分/并行/验证/选型） | [ahs-conventions.md](ahs-conventions.md) |
 | Agent 代码库检索流程/函数引导/结构 | [agent-codebase-guide.md](agent-codebase-guide.md) |
 | Zeno 技术遗产调研 | [zeno-legacy.md](zeno-legacy.md) |
@@ -92,6 +93,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00060：优化轮 2——dock 活跃标签底部圆角 Round10（蓝色外翻 crescent 恢复 + 消除背后实心阴影）+ nodeview 点阵层级修复（isolation + z-index:-1 + 保留节点 z-index:1）+ Overview 左上角 brand 改新标签页 + bridge 重启后几何自动恢复（HDA reset 清 PUSH/GEO 等缓存并绕过 fps 节流重推 inputs）+ 视口参数 Undo（一次拖动一步撤回，undo group 支持批量一步回退）；5 路并行（Ohm=dock / Beauvoir=点阵 / Ramanujan=Overview / Laplace=HDA / Peirce=Undo）+主进程合并（round11 新标签断言、round4/5 z-index 修复）；tsc 0, vitest 82, e2e 64 passed/1 skipped, hython SMOKE OK, pytest 50。
 - v0.1.00059：优化轮——Sync Max FPS 语义修正（非本体运作上限，Auto Update 推流无上限；Sync Max FPS = kick bridge 上限）+ File 菜单快捷键灰字（Ctrl+S/Ctrl+Alt+S）+ 移除 Overview（仅左上角 brand）+ Layout 菜单圆角框（▲▼ 装饰 + 15ch 深色名称补空格）+ Preference 面板可拖动 + Save→Accept + dock 活跃 tab 底部圆角 Round9 重做（恢复蓝色强调、消除栏色凹口/阴影）；2 路并行（Newton=dock 角标 / Russell=web 语义+UI）+主进程合并；tsc 0, vitest 82, e2e 61 passed/1 skipped, pytest 50。
 - v0.1.00058：自动保存系统（平常不写盘，默认 5min 定时 + General「Auto Save」toggle/间隔）+ 首选项浮动非模态窗口（分类标签 General/Viewport、Apply 不关闭）+ 统一颜色系统（color3 属性 + 现代拾取器：色相轮盘/SV 方板/色块/RGB-HSL-HSV/#hex 实时同步）+ Viewport 默认背景色 + 菜单 File/Edit/Layout + Layout 菜单显布局名 15ch + dock 活跃标签凹角 bug 修复 + Enter 取消选择挂上个 transform；4 路并行（Banach=保存/菜单/Enter / Hilbert=首选项浮动窗 / James=颜色系统 / Gibbs=dock 角标）+主进程合并；tsc 0, vitest 82, e2e 25 全过, pytest 50。
 - v0.1.00057：每端 Sync Max FPS（默认 30，1..60）防守——web 推流节流（throttledPush latest-wins）+ bridge 接收/转发合帧 + registry 写盘防抖（修复 60Hz 拖动阻塞事件循环根因：touch/mark_activity 同步写盘）+ HDA 接收端 recook/拉取节流（sync_fps 重新启用，/stream 事件 fps 覆盖）；首选项系统（Edit→Preference 对话框，Preference.json 随场景保存，update_mode enum）；底部栏 Sync Max FPS + 去 Update 灰字；Ctrl+S/Ctrl+Alt+S 快速保存/另存为（阻止 Chrome 保存网页）；3 路并行（Zeno=bridge / Arendt=hda / Ampere=web）+主进程合并；pytest 50、tsc 0、vitest 82、hython SMOKE OK、e2e 15 全过。

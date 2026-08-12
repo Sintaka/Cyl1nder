@@ -477,3 +477,11 @@
   - **dock 活跃 tab 底部圆角（Round 9 重做）**：凹角颜色从栏色 #1c1e22 改为内容区色 #141518（tab 融入内容区），6×4 盒仍在 tab 自身矩形内；恢复蓝色 crescent 贴角强调，矩形外无蓝/深色覆盖（像素验证 0/0 + 角部蓝 23/23）。
   - e2e：round8（File 菜单快捷键/无 Overview/Layout 框）+ round6（Enter 取消选择 gizmo 保留，更新过时断言）。
   - 验证：tsc 0；vitest 82；全量 e2e **61 passed / 1 skipped**；pytest 50（无 bridge/hda 改动）。
+## v0.1.00060（2026-08-12）
+- **优化轮 2**（devlog/optimize-round-00060.md）：
+  - **dock 活跃标签底部圆角 Round 10**：蓝色 crescent **向外翻折**（恢复 v0.1.00057 Chrome 式外翻观感，越出 tab 矩形盖过邻标签角），同时**消除背后的实心阴影**（删除邻标签 #1c1e22 6×6 凹口盘；凹口改用 tab 自身 background-image 以 #141518 内容区色衔接）；像素验证：矩形外蓝色新月 0→8、邻角实心补丁 42→7、内凹衔接 23/23。
+  - **nodeview 点阵层级修复**：根因 = `.rete-area`/`.x6-graph` 选择器永不命中（rete 容器无 class），node wrapper 的 transform 自带 stacking context 困住 `.cyl-rp-node` 的 z-index，点阵（树序靠后、z-index:0）盖在节点/标题文本上。修复：`.cyl-graph { isolation:isolate }` + `.cyl-dotgrid { z-index:-1 }` + 删死选择器 + **保留 `.cyl-rp-node { z-index:1 }`**（insertion preview z-index:0 仍低于节点，round4/5 断言保持）。
+  - **Overview 新标签**：左上角 brand 改 `target="_blank" rel="noopener"`（不再本页面跳转）；round11-brand e2e 改为 popup 断言。
+  - **bridge 重启后几何自动恢复**：HDA `_stream_loop` reset 分支新增 `_reset_caches(serial)`（清 `_PUSH_CACHE`/`_CORE_CACHE`/`_OUT_CACHE`/`_GEO_CACHE`，**重推 inputs 到新 workspace**）并**绕过 fps 节流直接调度 recook**；hython 新增 reset 断言（含节流窗口内 reset）。
+  - **视口参数 Undo**：undo.ts 新增 `{type:"group"}`（undo 逆序/redo 顺序）；graph.ts `pushUndoGroup` + group 应用（params 子 action 只触发一次网络刷新）；main.ts gizmo 拖动捕获 before/after，**一次拖动 = 一步 Ctrl+Z 撤回**（auto/mouseup 均一次）；新 e2e round16-undo（3 用例）。
+  - 验证：tsc 0；vitest 82；全量 e2e **64 passed / 1 skipped**；hython SMOKE OK（含 reset）；pytest 50。

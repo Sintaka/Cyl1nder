@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-12），由 `node scripts/gen-index.mjs` 产出。共 **498** 个函数/类。
+> 机器生成（2026-08-12），由 `node scripts/gen-index.mjs` 产出。共 **504** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -288,7 +288,7 @@
 | `_parm_group` | 57 | def |  | 3 |
 | `build` | 116 | def |  | 2 |
 
-## hda/scripts/hython_smoke.py（498 行）
+## hda/scripts/hython_smoke.py（545 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -298,7 +298,7 @@
 | `_FakeClock` | 72 | class |  | 2 |
 | `__init__` | 75 | def |  | 4 |
 | `now` | 78 | def |  | 1 |
-| `step` | 81 | def |  | 8 |
+| `step` | 81 | def |  | 9 |
 | `_test_stream_loop` | 86 | def |  | 2 |
 | `_FakeClient` | 104 | class |  | 3 |
 | `stream_once` | 113 | def |  | 2 |
@@ -306,10 +306,12 @@
 | `_Gate` | 123 | class |  | 1 |
 | `__call__` | 130 | def |  | 1 |
 | `wait_len` | 138 | def |  | 3 |
-| `_feed` | 154 | def |  | 9 |
-| `_test_kick_force_recook` | 280 | def |  | 2 |
-| `main` | 332 | def |  | 2 |
-| `_stats` | 401 | def |  | 5 |
+| `_feed` | 154 | def |  | 10 |
+| `_seed_caches` | 160 | def |  | 3 |
+| `_assert_caches_cleared` | 169 | def |  | 3 |
+| `_test_kick_force_recook` | 327 | def |  | 2 |
+| `main` | 379 | def |  | 2 |
+| `_stats` | 448 | def |  | 5 |
 
 ## hda/scripts/reload_hda.py（89 行）
 
@@ -336,37 +338,38 @@
 | `stream_once` | 108 | def |  | 1 |
 | `pull_outputs` | 125 | def |  | 1 |
 
-## hda/src/cyl1nder_hda.py（789 行）
+## hda/src/cyl1nder_hda.py（812 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_ui_healthy` | 92 | def |  | 2 |
-| `_ensure_frontend` | 101 | def |  | 3 |
-| `_bridge_healthy` | 126 | def |  | 2 |
-| `_ensure_bridge` | 134 | def |  | 3 |
-| `_ready_state` | 161 | def |  | 2 |
-| `_refresh_ready` | 171 | def |  | 4 |
-| `_reset_ready` | 198 | def |  | 2 |
-| `_stream_loop` | 208 | def |  | 1 |
-| `_schedule_recook` | 293 | def |  | 3 |
-| `_force_cook_node` | 301 | def |  | 1 |
-| `ensure_sync` | 329 | def |  | 3 |
-| `_root` | 369 | def |  | 4 |
-| `_ensure_serial` | 373 | def |  | 3 |
-| `_parm` | 386 | def |  | 14 |
-| `_set_status` | 396 | def |  | 6 |
-| `_serialize_geo` | 405 | def |  | 3 |
-| `_build_detail` | 415 | def |  | 2 |
-| `_buffer_sig` | 446 | def |  | 2 |
-| `_apply_output` | 462 | def |  | 2 |
-| `_snapshot_parts` | 506 | def |  | 2 |
-| `_flat_signature` | 554 | def |  | 2 |
-| `_build_core_detail` | 566 | def |  | 3 |
-| `cook_core` | 590 | def |  | 2 |
-| `_same_geo` | 654 | def |  | 2 |
-| `_role_buffer` | 665 | def |  | 2 |
-| `_input_signature` | 684 | def |  | 2 |
-| `cook` | 719 | def |  | 5 |
+| `_ui_healthy` | 95 | def |  | 2 |
+| `_ensure_frontend` | 104 | def |  | 3 |
+| `_bridge_healthy` | 129 | def |  | 2 |
+| `_ensure_bridge` | 137 | def |  | 3 |
+| `_ready_state` | 164 | def |  | 2 |
+| `_refresh_ready` | 174 | def |  | 4 |
+| `_reset_ready` | 201 | def |  | 2 |
+| `_reset_caches` | 211 | def |  | 2 |
+| `_stream_loop` | 226 | def |  | 1 |
+| `_schedule_recook` | 314 | def |  | 3 |
+| `_force_cook_node` | 322 | def |  | 1 |
+| `ensure_sync` | 350 | def |  | 3 |
+| `_root` | 392 | def |  | 4 |
+| `_ensure_serial` | 396 | def |  | 3 |
+| `_parm` | 409 | def |  | 14 |
+| `_set_status` | 419 | def |  | 6 |
+| `_serialize_geo` | 428 | def |  | 3 |
+| `_build_detail` | 438 | def |  | 2 |
+| `_buffer_sig` | 469 | def |  | 2 |
+| `_apply_output` | 485 | def |  | 2 |
+| `_snapshot_parts` | 529 | def |  | 2 |
+| `_flat_signature` | 577 | def |  | 2 |
+| `_build_core_detail` | 589 | def |  | 3 |
+| `cook_core` | 613 | def |  | 2 |
+| `_same_geo` | 677 | def |  | 2 |
+| `_role_buffer` | 688 | def |  | 2 |
+| `_input_signature` | 707 | def |  | 2 |
+| `cook` | 742 | def |  | 5 |
 
 ## hda/src/cyl1nder_serializer.py（63 行）
 
@@ -506,7 +509,7 @@
 | `connectWs` | 201 | function | export | 1 |
 | `connect` | 206 | arrow |  | 1 |
 
-## web/src/main.ts（1091 行）
+## web/src/main.ts（1128 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -521,92 +524,95 @@
 | `readJsonFromDir` | 269 | function |  | 5 |
 | `saveSceneAs` | 283 | function |  | 3 |
 | `openSceneFromDir` | 337 | function |  | 2 |
-| `applyLayoutSettings` | 479 | function |  | 4 |
-| `readParamFloats` | 484 | function |  | 3 |
-| `flushParamUndo` | 505 | function |  | 2 |
-| `refreshSelectionPanels` | 516 | function |  | 3 |
-| `bindGizmoToTransform` | 585 | function |  | 3 |
-| `bindEnterGizmoToSelection` | 621 | function |  | 3 |
-| `applyTransformDrag` | 639 | function |  | 3 |
-| `toggleEnterEdit` | 654 | function |  | 2 |
-| `getDisplayNodeInfo` | 680 | function |  | 2 |
-| `refreshNodeFlags` | 696 | function |  | 4 |
-| `inputStatsText` | 756 | function |  | 2 |
-| `outputStatsText` | 765 | function |  | 2 |
-| `renderInspector` | 774 | function |  | 2 |
-| `runNetwork` | 811 | function |  | 6 |
-| `kickHdaOnce` | 826 | function |  | 2 |
-| `startHdaWatch` | 839 | function |  | 2 |
-| `check` | 841 | arrow |  | 1 |
-| `stopHdaWatch` | 859 | function |  | 2 |
-| `loadSnapshotIntoStore` | 868 | function |  | 3 |
-| `applyLoadedPreference` | 905 | function |  | 3 |
-| `connect` | 931 | function |  | 4 |
-| `markGraphDirty` | 1061 | function |  | 2 |
-| `startAutoSave` | 1071 | function |  | 5 |
+| `applyLayoutSettings` | 486 | function |  | 4 |
+| `readParamFloats` | 491 | function |  | 3 |
+| `cloneParams` | 502 | function |  | 3 |
+| `paramsEqual` | 507 | function |  | 2 |
+| `flushParamUndo` | 529 | function |  | 2 |
+| `refreshSelectionPanels` | 540 | function |  | 3 |
+| `bindGizmoToTransform` | 609 | function |  | 3 |
+| `bindEnterGizmoToSelection` | 658 | function |  | 3 |
+| `applyTransformDrag` | 676 | function |  | 3 |
+| `toggleEnterEdit` | 691 | function |  | 2 |
+| `getDisplayNodeInfo` | 717 | function |  | 2 |
+| `refreshNodeFlags` | 733 | function |  | 4 |
+| `inputStatsText` | 793 | function |  | 2 |
+| `outputStatsText` | 802 | function |  | 2 |
+| `renderInspector` | 811 | function |  | 2 |
+| `runNetwork` | 848 | function |  | 6 |
+| `kickHdaOnce` | 863 | function |  | 2 |
+| `startHdaWatch` | 876 | function |  | 2 |
+| `check` | 878 | arrow |  | 1 |
+| `stopHdaWatch` | 896 | function |  | 2 |
+| `loadSnapshotIntoStore` | 905 | function |  | 3 |
+| `applyLoadedPreference` | 942 | function |  | 3 |
+| `connect` | 968 | function |  | 4 |
+| `markGraphDirty` | 1098 | function |  | 2 |
+| `startAutoSave` | 1108 | function |  | 5 |
 
-## web/src/nodes2/graph.ts（1628 行）
+## web/src/nodes2/graph.ts（1652 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `log` | 101 | arrow |  | 16 |
-| `notifySelection` | 105 | function |  | 3 |
-| `nodeByKind` | 112 | function |  | 4 |
-| `resolveInputSourcePort` | 123 | function |  | 4 |
-| `nodeFromTarget` | 147 | function |  | 7 |
-| `renderNode` | 163 | function |  | 1 |
-| `portIndexFromTarget` | 178 | function |  | 2 |
-| `CylNode` | 190 | class | export | 4 |
-| `makeInputNode` | 221 | function |  | 3 |
-| `makeOutputNode` | 226 | function |  | 3 |
-| `makeNullNode` | 233 | function | export | 2 |
-| `makeTransformNode` | 244 | function | export | 2 |
-| `buildGraph` | 268 | function |  | 2 |
-| `createReteGraph` | 354 | function | export | 1 |
-| `attachTabSearch` | 644 | function |  | 2 |
-| `render` | 660 | arrow |  | 4 |
-| `create` | 675 | arrow |  | 2 |
-| `close` | 704 | arrow |  | 6 |
-| `update` | 710 | arrow |  | 3 |
-| `distToSegment` | 740 | function |  | 2 |
-| `sampleConnectionPath` | 750 | function |  | 2 |
-| `findConnectionByRef` | 772 | function |  | 2 |
-| `applyUndoAction` | 783 | function |  | 2 |
-| `addConn` | 788 | arrow |  | 8 |
-| `delConn` | 796 | arrow |  | 8 |
-| `lbl` | 800 | arrow |  | 2 |
-| `attachCutMode` | 860 | function |  | 2 |
-| `isTyping` | 886 | arrow |  | 1 |
-| `pathLen` | 892 | arrow |  | 1 |
-| `setPoints` | 897 | arrow |  | 2 |
-| `clear` | 901 | arrow |  | 2 |
-| `cutConnection` | 906 | arrow |  | 1 |
-| `cutByPolyline` | 921 | arrow |  | 1 |
-| `up` | 1000 | arrow |  | 0 |
-| `attachFlagMenu` | 1022 | function |  | 2 |
-| `show` | 1034 | arrow |  | 2 |
-| `setNodeStateHandler` | 1088 | function | export | 2 |
-| `fireNodeState` | 1091 | function | export | 1 |
-| `setRenameHandler` | 1097 | function | export | 2 |
-| `fireRename` | 1100 | function | export | 1 |
-| `initTooltip` | 1106 | function | export | 2 |
-| `showTooltip` | 1112 | function | export | 1 |
-| `hideTooltip` | 1125 | function | export | 1 |
-| `attachMMBPan` | 1133 | function |  | 2 |
-| `onMove` | 1141 | arrow |  | 0 |
-| `onUp` | 1144 | arrow |  | 0 |
-| `attachDotGrid` | 1162 | function |  | 2 |
-| `hitTestConnection` | 1193 | function |  | 3 |
-| `connectionPathD` | 1222 | function |  | 3 |
-| `isInsertable` | 1230 | function |  | 2 |
-| `attachInsertion` | 1234 | function |  | 2 |
-| `refreshPreview` | 1282 | arrow |  | 2 |
-| `updatePreview` | 1290 | arrow |  | 1 |
-| `setHover` | 1313 | arrow |  | 2 |
-| `attachRectSelect` | 1433 | function |  | 2 |
-| `attachShakeDisconnect` | 1507 | function |  | 2 |
-| `reset` | 1518 | arrow |  | 0 |
-| `shakeNode` | 1524 | arrow |  | 1 |
+| `actionContainsParams` | 108 | function |  | 2 |
+| `log` | 113 | arrow |  | 17 |
+| `notifySelection` | 117 | function |  | 3 |
+| `nodeByKind` | 124 | function |  | 4 |
+| `resolveInputSourcePort` | 135 | function |  | 4 |
+| `nodeFromTarget` | 159 | function |  | 7 |
+| `renderNode` | 175 | function |  | 1 |
+| `portIndexFromTarget` | 190 | function |  | 2 |
+| `CylNode` | 202 | class | export | 4 |
+| `makeInputNode` | 233 | function |  | 3 |
+| `makeOutputNode` | 238 | function |  | 3 |
+| `makeNullNode` | 245 | function | export | 2 |
+| `makeTransformNode` | 256 | function | export | 2 |
+| `buildGraph` | 280 | function |  | 2 |
+| `createReteGraph` | 366 | function | export | 1 |
+| `attachTabSearch` | 661 | function |  | 2 |
+| `render` | 677 | arrow |  | 4 |
+| `create` | 692 | arrow |  | 2 |
+| `close` | 721 | arrow |  | 6 |
+| `update` | 727 | arrow |  | 3 |
+| `distToSegment` | 757 | function |  | 2 |
+| `sampleConnectionPath` | 767 | function |  | 2 |
+| `findConnectionByRef` | 789 | function |  | 2 |
+| `applyUndoAction` | 800 | function |  | 3 |
+| `addConn` | 805 | arrow |  | 8 |
+| `delConn` | 813 | arrow |  | 8 |
+| `lbl` | 817 | arrow |  | 2 |
+| `attachCutMode` | 884 | function |  | 2 |
+| `isTyping` | 910 | arrow |  | 1 |
+| `pathLen` | 916 | arrow |  | 1 |
+| `setPoints` | 921 | arrow |  | 2 |
+| `clear` | 925 | arrow |  | 2 |
+| `cutConnection` | 930 | arrow |  | 1 |
+| `cutByPolyline` | 945 | arrow |  | 1 |
+| `up` | 1024 | arrow |  | 0 |
+| `attachFlagMenu` | 1046 | function |  | 2 |
+| `show` | 1058 | arrow |  | 2 |
+| `setNodeStateHandler` | 1112 | function | export | 2 |
+| `fireNodeState` | 1115 | function | export | 1 |
+| `setRenameHandler` | 1121 | function | export | 2 |
+| `fireRename` | 1124 | function | export | 1 |
+| `initTooltip` | 1130 | function | export | 2 |
+| `showTooltip` | 1136 | function | export | 1 |
+| `hideTooltip` | 1149 | function | export | 1 |
+| `attachMMBPan` | 1157 | function |  | 2 |
+| `onMove` | 1165 | arrow |  | 0 |
+| `onUp` | 1168 | arrow |  | 0 |
+| `attachDotGrid` | 1186 | function |  | 2 |
+| `hitTestConnection` | 1217 | function |  | 3 |
+| `connectionPathD` | 1246 | function |  | 3 |
+| `isInsertable` | 1254 | function |  | 2 |
+| `attachInsertion` | 1258 | function |  | 2 |
+| `refreshPreview` | 1306 | arrow |  | 2 |
+| `updatePreview` | 1314 | arrow |  | 1 |
+| `setHover` | 1337 | arrow |  | 2 |
+| `attachRectSelect` | 1457 | function |  | 2 |
+| `attachShakeDisconnect` | 1531 | function |  | 2 |
+| `reset` | 1542 | arrow |  | 0 |
+| `shakeNode` | 1548 | arrow |  | 1 |
 
 ## web/src/nodes2/groups.ts（537 行）
 
@@ -655,11 +661,11 @@
 | `computeOutputs` | 168 | function | export | 1 |
 | `computeNodeResult` | 191 | function | export | 1 |
 
-## web/src/nodes2/undo.ts（109 行）
+## web/src/nodes2/undo.ts（115 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `createUndoManager` | 50 | function | export | 2 |
+| `createUndoManager` | 56 | function | export | 2 |
 
 ## web/src/overview.ts（271 行）
 
