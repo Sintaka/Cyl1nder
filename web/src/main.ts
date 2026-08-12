@@ -21,6 +21,7 @@ import {
   type Preferences,
 } from "./app/preference";
 import { createAutosave, createHdaWatchdog } from "./core/lifecycle";
+import { bindShortcuts } from "./core/shortcuts";
 
 /** Log categories: geo data / viewport / ui / bridge(python runtime). */
 let logFilter = "all";
@@ -1093,53 +1094,23 @@ if (qs) {
     .catch((e) => store.pushLog(`bridge unreachable: ${String(e)}`));
 }
 
-/** F = frame, dispatched by hover area:
- *  node graph -> frame selected nodes (or all when none selected)
- *  3D viewport -> frame geometry (or default view when nothing shown) */
-window.addEventListener("keydown", (e) => {
-  if (e.key.toLowerCase() !== "f" || e.repeat) return;
-  const el = document.activeElement;
-  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
-  e.preventDefault();
-  const overGraph = layout.graphContainer.matches(":hover");
-  if (overGraph) graph.frameSelection();
-  else viewport.frame();
-});
-// B = toggle debug reference boxes (viewport capability check)
-window.addEventListener("keydown", (e) => {
-  if (e.key.toLowerCase() !== "b" || e.repeat) return;
-  const el = document.activeElement;
-  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
-  viewport.toggleDebugBoxes();
-});
-// Enter = node viewport edit activation (same handler as the toolbar icon).
-// Only responds while the pointer hovers the viewport (Enter toggles in/out there);
-// skipped while typing in inputs or when a button is focused (Enter clicks it natively).
-window.addEventListener("keydown", (e) => {
-  if (e.key !== "Enter" || e.repeat) return;
-  const el = document.activeElement;
-  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
-  if (el instanceof HTMLButtonElement) return;
-  if (!viewport.isHovered()) return;
-  e.preventDefault();
-  toggleEnterEdit();
-});
-// Ctrl+S = quick save (current serial snapshot), Ctrl+Alt+S = Save Scene As.
-// Always preventDefault (even while typing in inputs) so Chrome never saves the page.
-window.addEventListener("keydown", (e) => {
-  if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "s") return;
-  e.preventDefault();
-  if (e.altKey) {
-    void saveSceneAs();
-    return;
-  }
-  if (!store.serial) return;
-  void client.putSnapshot(store.serial, {
-    graph: graph.serializeGraph(),
-    docking: getDockJson(),
-    preference: prefs,
-  });
-  store.pushLog("[file] scene saved (Ctrl+S)");
+bindShortcuts({
+  frameGraph: () => graph.frameSelection(),
+  frameViewport: () => viewport.frame(),
+  toggleDebug: () => viewport.toggleDebugBoxes(),
+  toggleEnter: () => toggleEnterEdit(),
+  quickSave: () => {
+    if (!store.serial) return;
+    void client.putSnapshot(store.serial, {
+      graph: graph.serializeGraph(),
+      docking: getDockJson(),
+      preference: prefs,
+    });
+    store.pushLog("[file] scene saved (Ctrl+S)");
+  },
+  saveAs: () => { void saveSceneAs(); },
+  isGraphHovered: () => layout.graphContainer.matches(":hover"),
+  isEnterHovered: () => viewport.isHovered(),
 });
 
 /** Graph dirty marker: store.subscribe flags changes here, but NOTHING is written to
