@@ -24,6 +24,7 @@ import { createAutosave, createHdaWatchdog } from "./core/lifecycle";
 import { bindShortcuts } from "./core/shortcuts";
 import { cloneParams, paramsEqual, readParamFloats, type ParamLike } from "./core/params";
 import { createParamUndo } from "./core/param-undo";
+import { createGizmoController } from "./core/gizmo";
 
 /** Log categories: geo data / viewport / ui / bridge(python runtime). */
 let logFilter = "all";
@@ -411,10 +412,7 @@ const handlers: ReteGraphHandlers = {
    *  params (when it is the one being edited) + refresh the selection panels.
    *  params are the affected node's values AFTER the undo/redo mutation. */
   onParamsApplied: (nodeId, params) => {
-    if (viewport.isEnterActive() && nodeId === lastTransformId) {
-      const v = readParamFloats(params);
-      viewport.setEnterPosition(v.tx ?? 0, v.ty ?? 0, v.tz ?? 0);
-    }
+    gizmo.onParamsApplied(nodeId, params);
     refreshSelectionPanels();
   },
 };
@@ -461,19 +459,6 @@ let updateMode: UpdateMode = prefs.update_mode;
  *  NOT a cap on the web Auto Update push path - runNetwork and viewport edits
  *  push outputs as fast as possible. */
 let syncMaxFps: number = prefs.sync_max_fps;
-/** mouseup mode: only the latest buffered gizmo value; committed once on drag end. */
-let pendingTransform: { id: string; tx: number; ty: number; tz: number } | null = null;
-/** Gizmo drag undo session: `before` = the node's full params captured when the
- *  gizmo was bound, `after` = the latest params applied during the drag. The
- *  session commits as ONE { type: "params" } undo entry on drag end (one drag =
- *  one undo step, both auto and mouseup modes); rebinding starts a fresh session. */
-let dragNodeId: string | null = null;
-let dragBefore: ParamLike[] | null = null;
-let dragAfter: ParamLike[] | null = null;
-/** Last transform node the Enter gizmo is bound to: when the selection moves to a
- *  non-transform node (or empty), Enter keeps the gizmo on this node instead of
- *  dropping it. Reset on explicit Enter exit. */
-let lastTransformId: string | null = null;
 layout.updateModeSelect.onChange((v) => {
   updateMode = v === "mouseup" ? "mouseup" : "auto";
   prefs = { ...prefs, update_mode: updateMode };
@@ -501,7 +486,19 @@ const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuf
 (window as unknown as Record<string, unknown>).__cylViewport = viewport;
 (window as unknown as Record<string, unknown>).__cylGraph = graph; // debug hook (MCP debug access)
 (window as unknown as Record<string, unknown>).__cylStore = store; // debug hook (full logs for tests)
-viewport.setEnterEditHandler(toggleEnterEdit); // left toolbar Enter icon -> activation
+const gizmo = createGizmoController({
+  viewport,
+  graph: {
+    getSelectedNode: () => graph.getSelectedNode(),
+    getNetworkSnapshot: () => graph.getNetworkSnapshot(),
+    setNodeParams: (id, params) => graph.setNodeParams(id, params),
+    pushUndo: (entry) => graph.pushUndo(entry),
+  },
+  runNetwork: () => { void runNetwork(); },
+  log: (msg) => store.pushLog(msg),
+  getUpdateMode: () => updateMode,
+});
+viewport.setEnterEditHandler(gizmo.toggle); // left toolbar Enter icon -> activation
 viewport.setBackgroundColor(prefs.viewport_bg); // V2: apply loaded viewport background at startup
 
 // Default startup layout: bundled Default.json (the user's Desk1 arrangement, versioned in the
@@ -591,104 +588,6 @@ function refreshSelectionPanels(): void {
   );
 }
 
-/** Attach the translate gizmo to a transform node (bound at its current tx/ty/tz). */
-function bindGizmoToTransform(node: {
-  id: string;
-  kind: string;
-  params?: ParamLike[];
-}): void {
-  const v = readParamFloats(node.params ?? []);
-  pendingTransform = null; // a stale buffered drag must never commit to a re-bound gizmo
-  // Start a drag undo session: capture the node's params BEFORE the gizmo edits
-  // them; the session commits as ONE { type: "params" } undo entry on drag end.
-  dragNodeId = node.id;
-  dragBefore = cloneParams(node.params ?? []);
-  dragAfter = null;
-  viewport.beginTransformGizmo(
-    node.id,
-    v.tx ?? 0,
-    v.ty ?? 0,
-    v.tz ?? 0,
-    v.px ?? 0,
-    v.py ?? 0,
-    v.pz ?? 0,
-    (x, y, z) => {
-      if (updateMode === "mouseup") {
-        // On Mouse Up: buffer only the latest value - zero network + zero rebuild during the drag.
-        pendingTransform = { id: node.id, tx: x, ty: y, tz: z };
-        return;
-      }
-      applyTransformDrag(node.id, x, y, z);
-    },
-    () => {
-      // drag ended: mouseup commits the single buffered value once first, then BOTH
-      // modes close the drag session as ONE undo entry (one drag = one undo step).
-      if (updateMode === "mouseup" && pendingTransform) {
-        const p = pendingTransform;
-        pendingTransform = null;
-        applyTransformDrag(p.id, p.tx, p.ty, p.tz);
-      }
-      if (dragNodeId && dragBefore && dragAfter && !paramsEqual(dragBefore, dragAfter)) {
-        graph.pushUndo({ type: "params", nodeId: dragNodeId, before: dragBefore, after: dragAfter });
-      }
-      dragNodeId = null;
-      dragBefore = null;
-      dragAfter = null;
-    },
-  );
-}
-
-/** Bind the Enter gizmo to the selection: transform -> bind + remember it as the
- *  last transform; non-transform / empty -> keep Enter active on the LAST transform
- *  node (when it still exists in the network), else drop the gizmo (idle). */
-function bindEnterGizmoToSelection(): void {
-  const sel = graph.getSelectedNode();
-  if (sel && sel.kind === "transform") {
-    lastTransformId = sel.id;
-    bindGizmoToTransform(sel);
-    return;
-  }
-  if (lastTransformId) {
-    const node = graph.getNetworkSnapshot().nodes.find((n) => n.id === lastTransformId && n.kind === "transform");
-    if (node) {
-      bindGizmoToTransform(node);
-      return;
-    }
-  }
-  viewport.endTransformGizmo({ keepActive: true });
-}
-
-/** setNodeParams + runNetwork for a gizmo translate value (shared by both update modes). */
-function applyTransformDrag(id: string, x: number, y: number, z: number): void {
-  // Enter follows the CURRENT selection: read the bound node's live params.
-  const node = graph.getNetworkSnapshot().nodes.find((n) => n.id === id);
-  if (!node) return; // node deleted mid-edit
-  const next = (node.params ?? []).map((q) =>
-    q.name === "tx" ? { ...q, value: x } : q.name === "ty" ? { ...q, value: y } : q.name === "tz" ? { ...q, value: z } : q,
-  );
-  graph.setNodeParams(id, next);
-  // keep the drag session's `after` = the latest applied params (undo commit on drag end)
-  if (dragNodeId === id) dragAfter = cloneParams(next);
-  void runNetwork();
-}
-
-/** Enter node viewport edit activation (toolbar icon + Enter key): follows the
- *  first selected node - transform -> gizmo, otherwise enter stays active idle. */
-function toggleEnterEdit(): void {
-  if (viewport.isEnterActive()) {
-    lastTransformId = null;
-    viewport.endTransformGizmo();
-    return;
-  }
-  const sel = graph.getSelectedNode();
-  if (!sel || sel.kind !== "transform") {
-    viewport.setEnterActive(true); // enter mode on, gizmo idle until a transform is selected
-    store.pushLog("[viewport] enter: no transform selected - gizmo idle");
-    return;
-  }
-  bindEnterGizmoToSelection();
-}
-
 // node selection changes -> refresh Spreadsheet + Params immediately
 // (store.subscribe alone does not fire when only the graph selection changes)
 graph.onSelectionChanged(() => {
@@ -696,7 +595,7 @@ graph.onSelectionChanged(() => {
   refreshSelectionPanels();
   // Enter mode follows the FIRST SELECTED node: transform -> rebind the gizmo to
   // it; null/input/output/none -> drop the gizmo but keep Enter mode active.
-  if (viewport.isEnterActive()) bindEnterGizmoToSelection();
+  if (viewport.isEnterActive()) gizmo.bindToSelection();
 });
 
 /** Display node object (id + params) via the live editor (ReteGraph exposes editor). */
@@ -1049,7 +948,7 @@ bindShortcuts({
   frameGraph: () => graph.frameSelection(),
   frameViewport: () => viewport.frame(),
   toggleDebug: () => viewport.toggleDebugBoxes(),
-  toggleEnter: () => toggleEnterEdit(),
+  toggleEnter: () => gizmo.toggle(),
   quickSave: () => {
     if (!store.serial) return;
     void client.putSnapshot(store.serial, {
