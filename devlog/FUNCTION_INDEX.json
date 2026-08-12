@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-12T08:34:52.651Z",
-  "totalFunctions": 499,
+  "generatedAt": "2026-08-12T09:03:07.055Z",
+  "totalFunctions": 498,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -2137,7 +2137,7 @@
     },
     {
       "file": "web/src/app/layout.ts",
-      "lineCount": 211,
+      "lineCount": 217,
       "functions": [
         {
           "name": "buildLayout",
@@ -2148,7 +2148,7 @@
         },
         {
           "name": "buildLayoutLegacy",
-          "line": 121,
+          "line": 124,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -2251,60 +2251,60 @@
     },
     {
       "file": "web/src/app/preference.ts",
-      "lineCount": 247,
+      "lineCount": 276,
       "functions": [
         {
           "name": "clampSyncFps",
-          "line": 38,
+          "line": 39,
           "kind": "function",
           "exported": true,
           "calls": 4
         },
         {
           "name": "parseUpdateMode",
-          "line": 44,
+          "line": 45,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "parseAutosaveInterval",
-          "line": 49,
+          "line": 50,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "parseViewportBg",
-          "line": 56,
+          "line": 57,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "loadPreferences",
-          "line": 62,
+          "line": 63,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "savePreferences",
-          "line": 86,
+          "line": 87,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "applyPreferences",
-          "line": 92,
+          "line": 93,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "openPreferenceDialog",
-          "line": 105,
+          "line": 107,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -2478,7 +2478,7 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 1127,
+      "lineCount": 1091,
       "functions": [
         {
           "name": "matchLogFilter",
@@ -2496,231 +2496,224 @@
         },
         {
           "name": "toggle",
-          "line": 104,
+          "line": 105,
           "kind": "arrow",
           "exported": false,
           "calls": 7
         },
         {
           "name": "updateLayoutMenuLabel",
-          "line": 139,
+          "line": 137,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "getDockJson",
-          "line": 143,
+          "line": 140,
           "kind": "arrow",
           "exported": false,
           "calls": 6
         },
         {
           "name": "saveCurrentLayout",
-          "line": 147,
+          "line": 144,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "refreshLayoutPresets",
-          "line": 156,
+          "line": 153,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "writeJsonToDir",
-          "line": 263,
+          "line": 258,
           "kind": "function",
           "exported": false,
           "calls": 7
         },
         {
           "name": "readJsonFromDir",
-          "line": 274,
+          "line": 269,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "saveSceneAs",
-          "line": 288,
+          "line": 283,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "openSceneFromDir",
-          "line": 342,
+          "line": 337,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "applyLayoutSettings",
-          "line": 484,
+          "line": 479,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "readParamFloats",
-          "line": 489,
+          "line": 484,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "flushParamUndo",
-          "line": 510,
+          "line": 505,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "refreshSelectionPanels",
-          "line": 521,
+          "line": 516,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "bindGizmoToTransform",
-          "line": 590,
+          "line": 585,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "bindEnterGizmoToSelection",
-          "line": 626,
+          "line": 621,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "applyTransformDrag",
-          "line": 644,
+          "line": 639,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "toggleEnterEdit",
-          "line": 659,
+          "line": 654,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "getDisplayNodeInfo",
-          "line": 685,
+          "line": 680,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "refreshNodeFlags",
-          "line": 701,
+          "line": 696,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "inputStatsText",
-          "line": 761,
+          "line": 756,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "outputStatsText",
-          "line": 770,
+          "line": 765,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderInspector",
-          "line": 779,
+          "line": 774,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
-          "name": "throttledPush",
-          "line": 821,
-          "kind": "function",
-          "exported": false,
-          "calls": 4
-        },
-        {
           "name": "runNetwork",
-          "line": 845,
+          "line": 811,
           "kind": "function",
           "exported": false,
           "calls": 6
         },
         {
           "name": "kickHdaOnce",
-          "line": 862,
+          "line": 826,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "startHdaWatch",
-          "line": 875,
+          "line": 839,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "check",
-          "line": 877,
+          "line": 841,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "stopHdaWatch",
-          "line": 895,
+          "line": 859,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "loadSnapshotIntoStore",
-          "line": 904,
+          "line": 868,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "applyLoadedPreference",
-          "line": 941,
+          "line": 905,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "connect",
-          "line": 967,
+          "line": 931,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "markGraphDirty",
-          "line": 1097,
+          "line": 1061,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "startAutoSave",
-          "line": 1107,
+          "line": 1071,
           "kind": "function",
           "exported": false,
           "calls": 5

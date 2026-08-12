@@ -31,8 +31,8 @@ export function buildLayout(app: HTMLElement): Layout {
             <span class="cyl-menu-label">File</span>
             <div class="cyl-menu-drop" id="cyl-menu-file">
               <button data-act="open">Open Scene…</button>
-              <button data-act="save">Save Scene</button>
-              <button data-act="saveas">Save Scene As…</button>
+              <button data-act="save">Save Scene <span class="cyl-menu-kbd">Ctrl+S</span></button>
+              <button data-act="saveas">Save Scene As… <span class="cyl-menu-kbd">Ctrl+Alt+S</span></button>
             </div>
           </div>
           <div class="cyl-menu" data-menu="edit">
@@ -42,7 +42,10 @@ export function buildLayout(app: HTMLElement): Layout {
             </div>
           </div>
           <div class="cyl-menu" data-menu="layout">
-            <span class="cyl-menu-label" id="cyl-menu-layout-label">Layout</span>
+            <span class="cyl-menu-label cyl-menu-layout-box" id="cyl-menu-layout-label">
+              <span class="cyl-menu-layout-caret" aria-hidden="true"><span>▲</span><span>▼</span></span>
+              <span class="cyl-menu-layout-name">Layout</span>
+            </span>
             <div class="cyl-menu-drop" id="cyl-menu-layout">
               <div class="cyl-menu-presets" id="cyl-menu-presets"></div>
               <div class="cyl-menu-sep"></div>
@@ -65,7 +68,7 @@ export function buildLayout(app: HTMLElement): Layout {
           <option value="auto" selected>Auto Update</option>
           <option value="mouseup">On Mouse Up</option>
         </select>
-        <label class="cyl-bottom-label" for="cyl-sync-fps" title="推流速率上限（1..60，默认 30）">Sync Max FPS</label>
+        <label class="cyl-bottom-label" for="cyl-sync-fps" title="kick bridge / HDA 接收上限（1..60，默认 30）">Sync Max FPS</label>
         <input type="number" id="cyl-sync-fps" min="1" max="60" value="30" class="cyl-sync-fps" />
       </div>
     </div>`;
@@ -103,7 +106,7 @@ export function buildLayout(app: HTMLElement): Layout {
     menuFile: $("#cyl-menu-file"),
     menuEdit: $("#cyl-menu-edit"),
     menuLayout: $("#cyl-menu-layout"),
-    menuLayoutLabel: $("#cyl-menu-layout-label"),
+    menuLayoutLabel: $("#cyl-menu-layout-label .cyl-menu-layout-name"),
     layoutPresets: $("#cyl-menu-presets"),
     dockContainer: $("#cyl-dock"),
     graphContainer,
@@ -128,8 +131,8 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
             <span class="cyl-menu-label">File</span>
             <div class="cyl-menu-drop" id="cyl-menu-file">
               <button data-act="open">Open Scene…</button>
-              <button data-act="save">Save Scene</button>
-              <button data-act="saveas">Save Scene As…</button>
+              <button data-act="save">Save Scene <span class="cyl-menu-kbd">Ctrl+S</span></button>
+              <button data-act="saveas">Save Scene As… <span class="cyl-menu-kbd">Ctrl+Alt+S</span></button>
             </div>
           </div>
           <div class="cyl-menu" data-menu="edit">
@@ -139,7 +142,10 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
             </div>
           </div>
           <div class="cyl-menu" data-menu="layout">
-            <span class="cyl-menu-label" id="cyl-menu-layout-label">Layout</span>
+            <span class="cyl-menu-label cyl-menu-layout-box" id="cyl-menu-layout-label">
+              <span class="cyl-menu-layout-caret" aria-hidden="true"><span>▲</span><span>▼</span></span>
+              <span class="cyl-menu-layout-name">Layout</span>
+            </span>
             <div class="cyl-menu-drop" id="cyl-menu-layout">
               <div class="cyl-menu-presets" id="cyl-menu-presets"></div>
               <div class="cyl-menu-sep"></div>
@@ -181,7 +187,7 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
           <option value="auto" selected>Auto Update</option>
           <option value="mouseup">On Mouse Up</option>
         </select>
-        <label class="cyl-bottom-label" for="cyl-sync-fps" title="推流速率上限（1..60，默认 30）">Sync Max FPS</label>
+        <label class="cyl-bottom-label" for="cyl-sync-fps" title="kick bridge / HDA 接收上限（1..60，默认 30）">Sync Max FPS</label>
         <input type="number" id="cyl-sync-fps" min="1" max="60" value="30" class="cyl-sync-fps" />
       </div>
     </div>`;
@@ -195,7 +201,7 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
     menuFile: app,
     menuEdit: app,
     menuLayout: app,
-    menuLayoutLabel: app.querySelector("#cyl-menu-layout-label") as HTMLElement,
+    menuLayoutLabel: app.querySelector("#cyl-menu-layout-label .cyl-menu-layout-name") as HTMLElement,
     layoutPresets: app,
     dockContainer: app,
     graphContainer: $("#cyl-graph"),

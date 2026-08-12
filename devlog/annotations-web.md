@@ -453,12 +453,12 @@
 - 验证：tsc 0；vitest 82；e2e round9/10/12/smoke **11 全过**。
 ## v0.1.00057（2026-08-12）
 - **底部栏 Sync Max FPS + 首选项系统 + 快捷键**（devlog/sync-rate-limit-and-preference.md）：
-  - 底部栏：删除 `Update` 灰字 label（仅保留下拉框）；右侧新增 `Sync Max FPS`（number，1..60，默认 30）→ 变更即存 Preference + `PUT /sync` + 应用推流节流。
+  - 底部栏：删除 `Update` 灰字 label（仅保留下拉框）；右侧新增 `Sync Max FPS`（number，1..60，默认 30）→ 变更即存 Preference + `PUT /sync`（kick bridge / HDA 接收上限）。
   - `update_mode` enum（`"auto"|"mouseup"`）：localStorage 新 key `cyl1nder.prefs`（旧 `cyl1nder.updateMode` 一次性迁移）；`protocol/types.ts` 新增 `UpdateMode`/`SyncConfig`/`PreferenceJson`，`StreamEvent` 加 `fps?`。
-  - **Edit 菜单 → Preference…** 对话框（app/preference.ts 新建：dark modal，Sync Max FPS + Update Mode + Save/Cancel，Escape/遮罩关闭）。
+  - **Edit 菜单 → Preference…** 对话框（app/preference.ts 新建：非模态浮动面板，Sync Max FPS + Update Mode，Cancel/Apply/Accept；v0.1.00059 起可拖动、Save→Accept）。
   - **快捷键**：`Ctrl+S`=快速保存（graph+docking+preference）、`Ctrl+Alt+S`=另存为，均 `preventDefault()` 阻止 Chrome 保存网页（输入框聚焦也拦截）。
   - **Preference.json**：Edit→Preference 保存、Save Scene / Save Scene As（FS Access 写 `<serial>/Preference.json`）/ Ctrl+S / Ctrl+Alt+S 一并保存；打开场景（FS Access 或快照）读取并 apply + `putSyncFps`。
-  - **推流节流**：`throttledPush` 统一节流点（runNetwork 4 路 + viewport 编辑 1 路），≤ syncMaxFps/s、latest-wins、到点 flush。
+  - **推流（v0.1.00059 起无上限）**：Auto Update 越快越好，移除 `throttledPush`；Sync Max FPS 仅限 kick bridge（bridge 接收/转发 + HDA recook）。
   - 验证：tsc 0；vitest 82；e2e round12（去灰字/update_mode/Sync Max FPS）+ round13（Preference 对话框 / Ctrl+S / Ctrl+Alt+S）7 项全过。
 ## v0.1.00058（2026-08-12）
 - **自动保存系统 + 平常不写盘**（devlog/autosave-color-prefs-ui.md）：移除 `scheduleSaveGraph` 1.5s 自动写盘（改 `markGraphDirty` 只标记）；只有 Ctrl+S / Save Scene / Save As / **定时自动保存**写盘（默认 5min，General 首选项「Auto Save」块：启用 toggle + 间隔分钟，可小数≥0.1）；`startAutoSave` 在 prefs 变化时重启。
@@ -468,3 +468,12 @@
 - **Enter 模式**：取消选择不再丢 gizmo——挂在**上一个 transform** 并保持 enter；只有主动换选/删除该节点/显式退出才改变（round8 e2e 更新为新行为）。
 - **偏好优先级**：localStorage 为工作态（reload 保留）；场景 Preference.json 仅在打开/连接**不同**场景时应用（`cyl1nder.lastSceneSerial` 门控）。
 - 验证：tsc 0；vitest 82；e2e round8/12/13/14/15/10/9/smoke **25 全过**；pytest 50（无 bridge/hda 改动）。
+## v0.1.00059（2026-08-12）
+- **优化轮**（devlog/optimize-round-00059.md）：
+  - **Sync Max FPS 语义修正**：它不是 Cyl1nder 本体运作上限——**Auto Update 推流不设上限（越快越好）**，移除 `throttledPush`（runNetwork 与 viewport 编辑直接 pushOutputs）；Sync Max FPS = **kick bridge 上限**（`PUT /sync` 下发 bridge 接收/转发 + HDA /stream fps recook）。底部栏/首选项 tooltip 同步。
+  - **File 菜单**：Save Scene / Save Scene As 右侧加灰小字 `Ctrl+S` / `Ctrl+Alt+S`（`.cyl-menu-kbd`）；**移除 Overview 项**（仅左上角 brand 触发）。
+  - **Layout 菜单标签**：改圆角矩形框（`.cyl-menu-layout-box`）——左侧 ▲▼ 竖排装饰图标 + 右侧深色块固定 15ch 显示当前布局名（`padEnd(15)` 补空格）。
+  - **Preference 浮动面板**：支持按标题栏拖动；按钮 **Save→Accept**（应用并关闭；Apply 仍为应用不关闭）。
+  - **dock 活跃 tab 底部圆角（Round 9 重做）**：凹角颜色从栏色 #1c1e22 改为内容区色 #141518（tab 融入内容区），6×4 盒仍在 tab 自身矩形内；恢复蓝色 crescent 贴角强调，矩形外无蓝/深色覆盖（像素验证 0/0 + 角部蓝 23/23）。
+  - e2e：round8（File 菜单快捷键/无 Overview/Layout 框）+ round6（Enter 取消选择 gizmo 保留，更新过时断言）。
+  - 验证：tsc 0；vitest 82；全量 e2e **61 passed / 1 skipped**；pytest 50（无 bridge/hda 改动）。

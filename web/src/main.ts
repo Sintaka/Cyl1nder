@@ -48,7 +48,8 @@ const renderLog = () => {
 const layout = buildLayout(document.getElementById("app")!);
 const client = new BridgeClient();
 /** Preferences (cyl1nder.prefs localStorage + Preference.json v1): sync_max_fps caps
- *  web->bridge push rate (1..60), update_mode picks Enter-gizmo refresh timing. */
+ *  the kick bridge (receive/forward + HDA recook) rate (1..60); Auto Update web
+ *  pushes are NOT rate-limited. update_mode picks Enter-gizmo refresh timing. */
 let prefs: Preferences = loadPreferences();
 /** localStorage key remembering which scene's Preference.json was last applied: a plain
  *  reload of the SAME scene keeps the local (working) prefs; only opening/connecting
@@ -117,7 +118,8 @@ layout.root.querySelectorAll(".cyl-menu").forEach((menu) => {
 });
 
 // File menu markup lives in app/layout.ts: rename the old "Open Scene…" (reload)
-// and add the real folder->serial "Open Scene…" + Overview entries here.
+// and add the real folder->serial "Open Scene…" entry here. Overview is only
+// reachable through the top-left brand (href="/overview.html"), not this menu.
 {
   const file = layout.menuFile;
   const reloadBtn = file.querySelector<HTMLButtonElement>('button[data-act="open"]');
@@ -127,18 +129,13 @@ layout.root.querySelectorAll(".cyl-menu").forEach((menu) => {
   openSceneBtn.dataset.act = "open-scene";
   openSceneBtn.textContent = "Open Scene…";
   file.insertBefore(openSceneBtn, reloadBtn ?? file.firstElementChild);
-  const overviewBtn = document.createElement("button");
-  overviewBtn.type = "button";
-  overviewBtn.dataset.act = "overview";
-  overviewBtn.textContent = "Overview";
-  file.appendChild(overviewBtn);
 }
 
 let currentLayoutName = DEFAULT_LAYOUT_NAME;
-/** Layout menu shows the CURRENT layout name (15ch fixed) instead of "Layout". */
+/** Layout menu shows the CURRENT layout name inside the box's name block, padded
+ *  to the fixed 15ch width (trailing spaces render via white-space: pre). */
 function updateLayoutMenuLabel(): void {
-  layout.menuLayoutLabel.textContent = currentLayoutName;
-  layout.menuLayoutLabel.style.width = "15ch";
+  layout.menuLayoutLabel.textContent = currentLayoutName.padEnd(15);
 }
 const getDockJson = () => ({
   ...(dv as unknown as { toJSON(): Record<string, unknown> }).toJSON(),
@@ -199,8 +196,6 @@ layout.menuFile.querySelectorAll("button").forEach((b) => {
     } else if (act === "saveas") {
       if (!store.serial) return;
       void saveSceneAs();
-    } else if (act === "overview") {
-      window.open("/overview.html");
     }
   });
 });
@@ -423,8 +418,10 @@ layout.autoRunCheck.addEventListener("change", () => {
  *  refreshes only when the mouse is released (gizmo still follows the pointer).
  *  Source of truth: the preference store (cyl1nder.prefs.update_mode). */
 let updateMode: UpdateMode = prefs.update_mode;
-/** web->bridge push rate cap (1..60): runNetwork + viewport edit pushes coalesce
- *  to <= syncMaxFps pushes/second through throttledPush() (latest-wins). */
+/** Sync Max FPS caps the KICK BRIDGE (bridge receive/forward + HDA recook): sent
+ *  to the bridge via PUT /sync and executed over the HDA /stream fps field. It is
+ *  NOT a cap on the web Auto Update push path - runNetwork and viewport edits
+ *  push outputs as fast as possible. */
 let syncMaxFps: number = prefs.sync_max_fps;
 /** mouseup mode: only the latest buffered gizmo value; committed once on drag end. */
 let pendingTransform: { id: string; tx: number; ty: number; tz: number } | null = null;
@@ -451,12 +448,10 @@ layout.syncFpsInput.addEventListener("change", () => {
 const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuffer) => {
   if (!store.serial) return;
   const serial = store.serial;
-  throttledPush(() => {
-    client
-      .pushOutputs(serial, [out])
-      .then((r) => store.pushLog(`edit out${out.index} pushed rev=${r.rev}`))
-      .catch((e) => store.pushLog(`edit failed: ${String(e)}`));
-  });
+  client
+    .pushOutputs(serial, [out])
+    .then((r) => store.pushLog(`edit out${out.index} pushed rev=${r.rev}`))
+    .catch((e) => store.pushLog(`edit failed: ${String(e)}`));
 });
 (window as unknown as Record<string, unknown>).__cylViewport = viewport;
 (window as unknown as Record<string, unknown>).__cylGraph = graph; // debug hook (MCP debug access)
@@ -812,47 +807,16 @@ store.subscribe(() => {
       : "";
 });
 
-/** latest-wins push throttle: coalesce pushOutputs traffic to <= syncMaxFps/s.
- *  BOTH push sites (runNetwork's 4-output push + viewport edit's 1-output push)
- *  go through this single gate; the buffered LATEST payload always flushes. */
-let lastPushAt = 0;
-let pushFlushTimer: number | undefined;
-let pendingPushFn: (() => void) | null = null;
-function throttledPush(fn: () => void): void {
-  const minInterval = 1000 / Math.max(1, syncMaxFps);
-  const now = Date.now();
-  const wait = Math.max(0, lastPushAt + minInterval - now);
-  if (wait <= 0) {
-    lastPushAt = now;
-    fn();
-    return;
-  }
-  pendingPushFn = fn; // latest wins: replace any still-buffered payload
-  if (pushFlushTimer === undefined) {
-    pushFlushTimer = window.setTimeout(() => {
-      pushFlushTimer = undefined;
-      const run = pendingPushFn;
-      pendingPushFn = null;
-      if (run) {
-        lastPushAt = Date.now();
-        run();
-      }
-    }, wait);
-  }
-}
-
 /** v1 network: trace the graph topology (input -> null/transform -> output) into 4 output buffers. */
 async function runNetwork(): Promise<void> {
   if (!store.serial || store.inputs.length === 0) return;
   const serial = store.serial;
   const snap = graph.getNetworkSnapshot();
   const outputs: OutputBuffer[] = computeOutputs(store.inputs, snap);
-  throttledPush(() => {
-    client
-      .pushOutputs(serial, outputs)
-      .then((r) => store.pushLog(`network ran: ${outputs.length} outputs → rev=${r.rev}`))
-      .catch((e) => store.pushLog(`network run failed: ${String(e)}`));
-  });
+  client
+    .pushOutputs(serial, outputs)
+    .then((r) => store.pushLog(`network ran: ${outputs.length} outputs → rev=${r.rev}`))
+    .catch((e) => store.pushLog(`network run failed: ${String(e)}`));
 }
 
 /** One-shot HDA kick on the session's first connect to a serial: the bridge sets a

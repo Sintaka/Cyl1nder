@@ -43,6 +43,47 @@ html, body, #app { height: 100%; margin: 0; }
 .cyl-menu-drop.open { display: block; }
 .cyl-menu-drop button { display: block; width: 100%; text-align: left; background: none; border: none; color: #cfd2d6; padding: 4px 8px; cursor: pointer; border-radius: 3px; font-size: 12px; }
 .cyl-menu-drop button:hover { background: #232a33; }
+/* menu shortcut hint: right-aligned gray small text inside a menu item */
+.cyl-menu-kbd {
+  float: right;
+  margin-left: 14px;
+  color: #7a7f87;
+  font-size: 10px;
+  line-height: 1.7;
+}
+/* Layout menu label: rounded box (▲▼ caret decoration + fixed 15ch name block) */
+.cyl-menu-layout-box {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 1px solid #2a2d33;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.cyl-menu-layout-box:hover { background: #2a2d33; }
+.cyl-menu-layout-caret {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0 4px;
+  color: #7a7f87;
+  font-size: 8px;
+  line-height: 1;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.cyl-menu-layout-name {
+  display: inline-block;
+  width: 15ch;
+  background: #23262c;
+  color: #cfd2d6;
+  padding: 2px 8px;
+  text-align: left;
+  white-space: pre;
+  overflow: hidden;
+}
 .cyl-menu-sep { border-top: 1px solid #2a2d33; margin: 4px 0; }
 .cyl-menu-empty { color: #6b7280; padding: 4px 8px; font-size: 11px; }
 /* log filter bar */
@@ -209,6 +250,9 @@ html, body, #app { height: 100%; margin: 0; }
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
+  cursor: move;
+  user-select: none;
+  -webkit-user-select: none;
 }
 .cyl-pref-title {
   font-size: 14px;

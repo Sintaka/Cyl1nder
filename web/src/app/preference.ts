@@ -3,9 +3,10 @@ import type { Layout } from "./layout";
 import { hexToRgb, openColorPicker } from "./color";
 
 /** Preferences persisted to localStorage ("cyl1nder.prefs") + Preference.json v1.
- *  sync_max_fps caps web->bridge push rate (1..60, default 30); update_mode picks
- *  when Enter-gizmo drags refresh geometry ("auto" | "mouseup"); autosave_* drive
- *  the timed auto-save (default 5 min, toggleable); viewport_bg is the 3D viewport
+ *  sync_max_fps caps the kick bridge (receive/forward + HDA recook, 1..60, default
+ *  30) - Auto Update web pushes are NOT rate-limited; update_mode picks when
+ *  Enter-gizmo drags refresh geometry ("auto" | "mouseup"); autosave_* drive the
+ *  timed auto-save (default 5 min, toggleable); viewport_bg is the 3D viewport
  *  default background color (#rrggbb). */
 export interface Preferences {
   sync_max_fps: number;
@@ -100,8 +101,9 @@ export function applyPreferences(prefs: Preferences, layout: Layout): void {
 
 /** Non-modal floating preference panel (no fullscreen overlay, the app behind
  *  stays interactive). Tabs: General (Sync Max FPS / Update Mode / Auto Save)
- *  and Viewport (default background color). Cancel / ✕ / Escape close without
- *  saving; Apply calls onSave and stays open; Save calls onSave then closes. */
+ *  and Viewport (default background color). Drag the header to move the panel.
+ *  Cancel / ✕ / Escape close without saving; Apply calls onSave and stays open;
+ *  Accept calls onSave then closes. */
 export function openPreferenceDialog(current: Preferences, onSave: (prefs: Preferences) => void): void {
   const initial = {
     sync_max_fps: clampSyncFps(current.sync_max_fps),
@@ -164,8 +166,35 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
     <div class="cyl-pref-actions">
       <button type="button" class="cyl-pref-cancel">Cancel</button>
       <button type="button" class="cyl-pref-apply">Apply</button>
-      <button type="button" class="cyl-pref-save">Save</button>
+      <button type="button" class="cyl-pref-save">Accept</button>
     </div>`;
+
+  // Drag the panel by its title bar: position:fixed follows the pointer, release
+  // drops it in place; text selection is suppressed during the drag and the ✕
+  // close button never starts one.
+  const headerEl = panel.querySelector<HTMLElement>(".cyl-pref-header")!;
+  headerEl.addEventListener("pointerdown", (e) => {
+    if ((e.target as HTMLElement).closest(".cyl-pref-close")) return;
+    e.preventDefault(); // stop text-selection / native drag while moving
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const rect = panel.getBoundingClientRect();
+    const offX = startX - rect.left;
+    const offY = startY - rect.top;
+    const onMove = (ev: PointerEvent): void => {
+      panel.style.left = `${Math.max(0, ev.clientX - offX)}px`;
+      panel.style.top = `${Math.max(0, ev.clientY - offY)}px`;
+      panel.style.right = "auto";
+    };
+    const onUp = (): void => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.body.style.userSelect = "";
+    };
+    document.body.style.userSelect = "none";
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+  });
 
   const fpsInput = panel.querySelector<HTMLInputElement>("#cyl-pref-fps")!;
   const modeSelect = panel.querySelector<HTMLSelectElement>("#cyl-pref-mode")!;

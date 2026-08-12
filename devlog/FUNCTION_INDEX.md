@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-12），由 `node scripts/gen-index.mjs` 产出。共 **499** 个函数/类。
+> 机器生成（2026-08-12），由 `node scripts/gen-index.mjs` 产出。共 **498** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -424,12 +424,12 @@
 | `onLayoutChange` | 486 | arrow |  | 0 |
 | `applyLayout` | 530 | function | export | 1 |
 
-## web/src/app/layout.ts（211 行）
+## web/src/app/layout.ts（217 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `buildLayout` | 24 | function | export | 1 |
-| `buildLayoutLegacy` | 121 | function | export | 1 |
+| `buildLayoutLegacy` | 124 | function | export | 1 |
 
 ## web/src/app/layouts.ts（11 行）
 
@@ -457,18 +457,18 @@
 | `renderParams` | 131 | function | export | 1 |
 | `commit` | 172 | arrow |  | 1 |
 
-## web/src/app/preference.ts（247 行）
+## web/src/app/preference.ts（276 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `clampSyncFps` | 38 | function | export | 4 |
-| `parseUpdateMode` | 44 | function |  | 4 |
-| `parseAutosaveInterval` | 49 | function |  | 3 |
-| `parseViewportBg` | 56 | function |  | 4 |
-| `loadPreferences` | 62 | function | export | 1 |
-| `savePreferences` | 86 | function | export | 1 |
-| `applyPreferences` | 92 | function | export | 1 |
-| `openPreferenceDialog` | 105 | function | export | 1 |
+| `clampSyncFps` | 39 | function | export | 4 |
+| `parseUpdateMode` | 45 | function |  | 4 |
+| `parseAutosaveInterval` | 50 | function |  | 3 |
+| `parseViewportBg` | 57 | function |  | 4 |
+| `loadPreferences` | 63 | function | export | 1 |
+| `savePreferences` | 87 | function | export | 1 |
+| `applyPreferences` | 93 | function | export | 1 |
+| `openPreferenceDialog` | 107 | function | export | 1 |
 
 ## web/src/app/scrub.ts（270 行）
 
@@ -506,45 +506,44 @@
 | `connectWs` | 201 | function | export | 1 |
 | `connect` | 206 | arrow |  | 1 |
 
-## web/src/main.ts（1127 行）
+## web/src/main.ts（1091 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `matchLogFilter` | 42 | arrow |  | 0 |
 | `renderLog` | 43 | arrow |  | 3 |
-| `toggle` | 104 | arrow |  | 7 |
-| `updateLayoutMenuLabel` | 139 | function |  | 5 |
-| `getDockJson` | 143 | arrow |  | 6 |
-| `saveCurrentLayout` | 147 | arrow |  | 2 |
-| `refreshLayoutPresets` | 156 | arrow |  | 1 |
-| `writeJsonToDir` | 263 | function |  | 7 |
-| `readJsonFromDir` | 274 | function |  | 5 |
-| `saveSceneAs` | 288 | function |  | 3 |
-| `openSceneFromDir` | 342 | function |  | 2 |
-| `applyLayoutSettings` | 484 | function |  | 4 |
-| `readParamFloats` | 489 | function |  | 3 |
-| `flushParamUndo` | 510 | function |  | 2 |
-| `refreshSelectionPanels` | 521 | function |  | 3 |
-| `bindGizmoToTransform` | 590 | function |  | 3 |
-| `bindEnterGizmoToSelection` | 626 | function |  | 3 |
-| `applyTransformDrag` | 644 | function |  | 3 |
-| `toggleEnterEdit` | 659 | function |  | 2 |
-| `getDisplayNodeInfo` | 685 | function |  | 2 |
-| `refreshNodeFlags` | 701 | function |  | 4 |
-| `inputStatsText` | 761 | function |  | 2 |
-| `outputStatsText` | 770 | function |  | 2 |
-| `renderInspector` | 779 | function |  | 2 |
-| `throttledPush` | 821 | function |  | 4 |
-| `runNetwork` | 845 | function |  | 6 |
-| `kickHdaOnce` | 862 | function |  | 2 |
-| `startHdaWatch` | 875 | function |  | 2 |
-| `check` | 877 | arrow |  | 1 |
-| `stopHdaWatch` | 895 | function |  | 2 |
-| `loadSnapshotIntoStore` | 904 | function |  | 3 |
-| `applyLoadedPreference` | 941 | function |  | 3 |
-| `connect` | 967 | function |  | 4 |
-| `markGraphDirty` | 1097 | function |  | 2 |
-| `startAutoSave` | 1107 | function |  | 5 |
+| `toggle` | 105 | arrow |  | 7 |
+| `updateLayoutMenuLabel` | 137 | function |  | 5 |
+| `getDockJson` | 140 | arrow |  | 6 |
+| `saveCurrentLayout` | 144 | arrow |  | 2 |
+| `refreshLayoutPresets` | 153 | arrow |  | 1 |
+| `writeJsonToDir` | 258 | function |  | 7 |
+| `readJsonFromDir` | 269 | function |  | 5 |
+| `saveSceneAs` | 283 | function |  | 3 |
+| `openSceneFromDir` | 337 | function |  | 2 |
+| `applyLayoutSettings` | 479 | function |  | 4 |
+| `readParamFloats` | 484 | function |  | 3 |
+| `flushParamUndo` | 505 | function |  | 2 |
+| `refreshSelectionPanels` | 516 | function |  | 3 |
+| `bindGizmoToTransform` | 585 | function |  | 3 |
+| `bindEnterGizmoToSelection` | 621 | function |  | 3 |
+| `applyTransformDrag` | 639 | function |  | 3 |
+| `toggleEnterEdit` | 654 | function |  | 2 |
+| `getDisplayNodeInfo` | 680 | function |  | 2 |
+| `refreshNodeFlags` | 696 | function |  | 4 |
+| `inputStatsText` | 756 | function |  | 2 |
+| `outputStatsText` | 765 | function |  | 2 |
+| `renderInspector` | 774 | function |  | 2 |
+| `runNetwork` | 811 | function |  | 6 |
+| `kickHdaOnce` | 826 | function |  | 2 |
+| `startHdaWatch` | 839 | function |  | 2 |
+| `check` | 841 | arrow |  | 1 |
+| `stopHdaWatch` | 859 | function |  | 2 |
+| `loadSnapshotIntoStore` | 868 | function |  | 3 |
+| `applyLoadedPreference` | 905 | function |  | 3 |
+| `connect` | 931 | function |  | 4 |
+| `markGraphDirty` | 1061 | function |  | 2 |
+| `startAutoSave` | 1071 | function |  | 5 |
 
 ## web/src/nodes2/graph.ts（1628 行）
 

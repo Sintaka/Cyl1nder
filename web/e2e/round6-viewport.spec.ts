@@ -101,13 +101,13 @@ test("Enter edit persists across node selection change; gizmo drag still updates
   let gizmo = await page.evaluate(() => (window as any).__cylViewport.scene.getObjectByName("cyl-enter-gizmo"));
   expect(gizmo).not.toBeNull();
 
-  // select a DIFFERENT node (_input_) -> Enter state survives but gizmo goes idle
-  // (enter mode follows the SELECTED node - Round 8)
+  // select a DIFFERENT node (_input_) -> Enter state survives and the gizmo
+  // STAYS attached to the LAST transform (v0.1.00058: deselect no longer drops it)
   await page.locator(".cyl-rp-title", { hasText: "_input_" }).first().click({ timeout: 15000 });
   expect(await page.evaluate(() => (window as any).__cylGraph.getSelectedNode()?.kind)).toBe("input");
   expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(true);
   gizmo = await page.evaluate(() => (window as any).__cylViewport.scene.getObjectByName("cyl-enter-gizmo"));
-  expect(gizmo).toBeFalsy();
+  expect(gizmo).not.toBeNull();
 
   // select the transform again -> gizmo rebinds to it (follows selection)
   await page.locator(".cyl-rp-title", { hasText: /^transform\d+$/ }).first().click({ timeout: 15000 });

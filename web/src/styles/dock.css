@@ -25,80 +25,55 @@
   margin: 3px 4px 0; /* horizontal gap (4px/side -> 8px between inactive tabs); bottom flush so tabs sit on the panel */
 }
 /* Active tab: Chrome-style silhouette — top corners convex (7px), bottom edge
-   straight and flush with the panel below. The bottom corners are painted with
-   ::before/::after as CONCAVE (inward) rounded corners: the boundary arc is the
-   mirror of the old convex arc across the diagonal that joins its two endpoints
-   (the diagonal of the 4px corner square), so the arc keeps the SAME start/end
-   points (on the bottom edge and on the side edge) but now bulges TOWARD the tab
-   corner instead of flaring OUT over the neighbours. Only the small corner region
-   enclosed by the new arc + the two edges is painted (much less than the old
-   quarter-disc bump). */
+   straight and flush with the content below. The bottom corners are painted with
+   ::before/::after as CONCAVE (inward) rounded corners: the notch (quarter-disc)
+   is painted with the CONTENT-PANEL colour (#141518) so the blue tab surface that
+   remains around it reads as a crescent hugging the actual corner point, and the
+   tab visually merges with the content area below (Chrome "toolbar merge" effect)
+   instead of showing a tab-bar-coloured notch.
+   Round 9 fix: box is 6x4, INSIDE the tab's own rectangle (left:0/right:0), and
+   the notch is painted with #141518 (content) at radius 3.5px with a soft 1px
+   edge. This keeps a clearly visible ~2-3px blue crescent at the corner AND
+   guarantees nothing (blue OR dark) is ever painted over the adjacent inactive
+   tabs' corners or the gaps between tabs. */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab {
   position: relative;
   z-index: 10;            /* overlap adjacent inactive tabs */
   border-radius: 7px 7px 0 0;  /* top corners convex, bottom straight */
   margin: 3px -2px 0;     /* flush with the content bottom + slight side overlap; net 2px gap to each neighbour */
 }
-/* bottom-LEFT CONCAVE corner: the concave arc is the mirror of the old convex arc
-   across the diagonal joining its endpoints (A on the bottom edge 4px right of the
-   corner, B on the left edge 4px up), so it keeps the SAME endpoints but bulges
-   TOWARD the actual corner point instead of flaring outward over the previous tab.
-   The 4x4 box spans the TAB'S OWN bottom-left corner square (INSIDE the tab); the
-   radial gradient is centred on the FAR corner of that square (box top-right,
-   100% 0%) and PAINTS the inner quarter with the tab-bar colour (#1c1e22) - a
-   pseudo-element's transparent pixels would only reveal the tab's own blue, so the
-   notch must be painted - leaving the blue crescent hugging the actual corner (the
-   concave silhouette).
-   Round 8 fix: the box previously sat OUTSIDE the tab (right:100%, i.e. 4px left
-   of the tab edge) with a transparent disc, which painted #2e4f7d ON TOP of the
-   adjacent inactive tab's bottom-right notch - the "dark blue block" that covered
-   neighbour corners. */
+/* bottom-LEFT CONCAVE corner: 6x4 box spans the TAB'S OWN bottom-left corner
+   square (INSIDE the tab). The radial gradient is centred on the FAR corner of
+   that square (box top-right, 100% 0%): the quarter-disc it paints (radius
+   3.5px, solid #141518) is the carved notch, and the remaining blue surface is a
+   crescent that hugs the actual corner point. #141518 matches the content panel
+   below so the notch reads as the content showing through at the corner (not a
+   tab-bar-coloured notch). */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab::before {
   content: "";
   position: absolute;
   top: auto;              /* neutralize dockview's :not(:first-child) divider rule */
-  left: 0;               /* box left edge = tab left edge; spans the tab's OWN 4x4 bottom-left corner square */
+  left: 0;               /* box left edge = tab left edge (INSIDE the tab) */
   right: auto;           /* neutralize dockview :not(:first-child) divider rule */
   bottom: 0;
-  width: 4px;
+  width: 6px;
   height: 4px;
-  /* Tab-bar-coloured disc (solid edge ~3.5px) centred on the FAR corner of the tab's
-     own corner square (box top-right, 100% 0%): the inner quarter is painted with the
-     TAB-BAR colour (#1c1e22) - a pseudo-element's transparent pixels would show the
-     tab's own blue, so the notch colour must be PAINTED - leaving the blue crescent
-     hugging the actual corner (the concave arc from A to B bulging toward the corner).
-     Round 7: 抗锯齿软边 + 圆角半径 3.5px (soft 1.0px alpha band
-     #1c1e22 0 2.5px -> rgba(28,30,34,.5) 3px -> rgba(46,79,125,0) 3.5px).
-     Round 8: box moved INSIDE the tab (left:0 instead of right:100%) so the blue
-     crescent no longer extends over the previous inactive tab. */
-  background: radial-gradient(circle at 100% 0%, #1c1e22 0 2.5px, rgba(28,30,34,0.5) 3px, rgba(46,79,125,0) 3.5px);
+  background: radial-gradient(circle at 100% 0%, #141518 0 3.5px, rgba(20,21,24,0.5) 4px, rgba(46,79,125,0) 4.5px);
   pointer-events: none;
 }
-/* bottom-RIGHT CONCAVE corner: symmetric mirror of ::before — same start/end
-   points (A' on the bottom edge 4px left of the corner, B' on the right edge 4px
-   up), but the arc now bulges TOWARD the tab corner. 4x4 box spans the TAB'S OWN
-   bottom-right corner square; gradient centred on the FAR corner of that square
-   (box top-left, 0% 0%) paints the inner quarter with the tab-bar colour (#1c1e22),
-   leaving the small concave-corner region.
-   Round 8 fix: box moved from OUTSIDE the tab (left:100%) to INSIDE, so the blue
-   no longer covers the next inactive tab's bottom-left notch. */
+/* bottom-RIGHT CONCAVE corner: symmetric mirror of ::before — same 6x4 box over
+   the tab's own bottom-right corner square, gradient centred on the FAR corner
+   (box top-left, 0% 0%). */
 .cyl-dock .dockview-theme-dark .dv-tabs-container > .dv-tab.dv-active-tab::after {
   content: "";
   position: absolute;
   top: auto;              /* neutralize dockview's focus/divider pseudo-element rules */
-  right: 0;              /* box right edge = tab right edge; spans the tab's OWN 4x4 bottom-right corner square */
+  right: 0;              /* box right edge = tab right edge (INSIDE the tab) */
   left: auto;            /* neutralize dockview focus/divider pseudo rules */
   bottom: 0;
-  width: 4px;
+  width: 6px;
   height: 4px;
-  /* Tab-bar-coloured disc (solid edge ~3.5px) centred on the FAR corner of the tab's
-     own corner square (box top-left, 0% 0%): the inner quarter is painted with the
-     TAB-BAR colour (#1c1e22) so the concave arc A'->B' (bulging toward the tab corner)
-     reads as a notch cut into the blue tab.
-     Round 7: 抗锯齿软边 + 圆角半径 3.5px (mirror of ::before; same 1.0px soft edge).
-     Round 8: box moved INSIDE the tab (right:0 instead of left:100%) so the blue
-     crescent no longer extends over the next inactive tab. */
-  background: radial-gradient(circle at 0% 0%, #1c1e22 0 2.5px, rgba(28,30,34,0.5) 3px, rgba(46,79,125,0) 3.5px);
+  background: radial-gradient(circle at 0% 0%, #141518 0 3.5px, rgba(20,21,24,0.5) 4px, rgba(46,79,125,0) 4.5px);
   pointer-events: none;
 }
 /* Active tab is the FIRST tab: extra left margin keeps the bottom-left

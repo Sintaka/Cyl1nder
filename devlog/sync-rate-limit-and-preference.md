@@ -20,7 +20,7 @@
 
 | 端 | 速率上限作用 | 来源 |
 |---|---|---|
-| Web（发送端） | `runNetwork()` / viewport 编辑推流 ≤ fps（latest-wins 合帧） | 底部栏 Sync Max FPS（存 Preference.json） |
+| Web（发送端） | **Auto Update 推流不设上限（v0.1.00059 修正：越快越好）** | 底部栏 Sync Max FPS = kick bridge 上限（存 Preference.json） |
 | Bridge（接收+转发端） | `registry._save` 防抖（≤1次/秒，消灭事件循环阻塞）；`notify_stream` 合帧 ≤ fps；WS broadcast 合帧 ≤ fps | `PUT /api/hda/{serial}/sync {fps}`（web 下发，默认 30） |
 | HDA（接收端） | `_refresh_ready` 拉取 + recook 调度 ≤ fps（latest-wins；`scheduled` 门控保留） | HDA `sync_fps` 参数（默认 30，重新启用）+ /stream 事件 `fps` 字段（bridge 转发，运行时更新） |
 

@@ -9,8 +9,10 @@ import { BridgeClient } from "../src/bridge/client";
  *   another transform rebinds; selecting null/input/output keeps Enter active and
  *   the gizmo STAYS attached to the last transform (v0.1.00058: deselect no longer
  *   drops the gizmo); dragging the gizmo updates the bound node; Esc exits.
- * - Case 2: File menu has Reload Scene / Open Scene / Save Scene As / Overview;
- *   clicking any File/Layout item closes the drop.
+ * - Case 2: File menu has Reload Scene / Open Scene / Save Scene As with
+ *   keyboard hints (Ctrl+S / Ctrl+Alt+S); Overview is gone from the menu
+ *   (only the top-left brand links there); clicking any File/Layout item
+ *   closes the drop.
  * - Case 3: Save Scene As uses showDirectoryPicker (mocked) to write the whole
  *   <serial>/ folder (io + scene + docking); a second save prompts overwrite.
  * - Case 4: Open Scene reads a serial-named folder via showDirectoryPicker
@@ -292,25 +294,35 @@ test("Enter mode follows the first selected node: rebinds to new transform, idle
   await expect.poll(gizmoState, { timeout: 10000 }).toEqual({ active: false, x: null });
 });
 
-test("File/Layout menus close after clicking an item; File menu has Reload Scene/Open Scene/Overview", async ({ page }) => {
+test("File/Layout menus close after clicking an item; File menu shows Ctrl+S/Ctrl+Alt+S hints and no Overview", async ({ page }) => {
   await openGraph(page);
   const fileMenu = page.locator(".cyl-menu[data-menu='file']");
   const fileDrop = page.locator("#cyl-menu-file");
   const layoutMenu = page.locator(".cyl-menu[data-menu='layout']");
   const layoutDrop = page.locator("#cyl-menu-layout");
 
-  // File menu items exist (Reload Scene renamed, Open Scene + Overview added)
+  // File menu items exist (Reload Scene renamed, Open Scene added; Overview removed)
   await fileMenu.locator(".cyl-menu-label").click();
   await expect(fileDrop).toHaveClass(/open/);
   await expect(fileDrop.locator("button", { hasText: "Reload Scene" })).toBeVisible();
   await expect(fileDrop.locator("button", { hasText: "Open Scene" })).toBeVisible();
   await expect(fileDrop.locator("button", { hasText: "Save Scene As" })).toBeVisible();
-  await expect(fileDrop.locator("button", { hasText: "Overview" })).toBeVisible();
+  // keyboard hints: Save Scene -> Ctrl+S, Save Scene As -> Ctrl+Alt+S (gray kbd)
+  const saveScene = fileDrop.locator('button[data-act="save"]');
+  await expect(saveScene).toBeVisible();
+  await expect(saveScene.locator(".cyl-menu-kbd")).toHaveText("Ctrl+S");
+  const saveAs = fileDrop.locator('button[data-act="saveas"]');
+  await expect(saveAs).toBeVisible();
+  await expect(saveAs.locator(".cyl-menu-kbd")).toHaveText("Ctrl+Alt+S");
+  // Overview is no longer a File menu item (brand href="/overview.html" only)
+  await expect(fileDrop.locator('button[data-act="overview"]')).toHaveCount(0);
   // clicking a File item closes the drop
   await fileDrop.locator("button", { hasText: "Reload Scene" }).click();
   await expect(fileDrop).not.toHaveClass(/open/);
 
-  // Layout menu: opening + clicking an item closes the drop too
+  // Layout menu: the label is the rounded box showing the current layout name;
+  // clicking the box opens the drop and clicking an item closes it again
+  await expect(layoutMenu.locator(".cyl-menu-layout-name")).toContainText("Default");
   await layoutMenu.locator(".cyl-menu-label").click();
   await expect(layoutDrop).toHaveClass(/open/);
   await layoutDrop.locator("button", { hasText: /^Save current layout$/ }).click();
