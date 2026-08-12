@@ -40,10 +40,10 @@
 - 保存点：① Edit→Preference 对话框 Save → 本地 + `putSnapshot({preference})`；② Save Scene / Save Scene As / Ctrl+S / Ctrl+Alt+S 时一并保存；③ 打开场景（FS Access 或桥路径）时读取并应用。
 
 ### 2.3 Web UI
-- 底部栏：删除 "Update" 灰字 label，仅保留下拉框；右侧新增 `Sync Max FPS`（Int number input，1..60，默认 30）→ 输入即存 Preference.json + `PUT /sync` + 应用推流节流。
-- 菜单栏新增 **Edit** 菜单 → **Preference…** 打开偏好对话框（modal，含 Sync Max FPS + Update Mode 两项 + Save/Cancel）。
+- 底部栏：删除 "Update" 灰字 label，仅保留下拉框；右侧新增 `Sync Max FPS`（Int number input，1..60，默认 30，v0.1.00062 起为 ▲▼ 步进样式）→ 输入即存 Preference.json + `PUT /sync`（kick bridge / HDA 接收上限；web 推流本身不设上限，见 v0.1.00059 修正）。
+- 菜单栏新增 **Edit** 菜单 → **Preference…** 打开偏好浮动面板（v0.1.00058 起非模态 + 分类标签 General/Viewport/UI + Cancel/Apply/Accept + 可拖动 + 单实例）。
 - 快捷键：`Ctrl+S` = 快速保存（当前 serial：putSnapshot graph+docking+preference + 日志）；`Ctrl+Alt+S` = 另存为（saveSceneAs）；均 `preventDefault()`，阻止 Chrome 保存网页。
-- 推流节流：统一节流点（runNetwork + viewport 编辑回调）——距上次推送 < 1000/fps ms 时只缓存最新，到点 flush latest（latest-wins）。
+- 推流（v0.1.00059 起无上限）：Auto Update 越快越好，移除 throttledPush；Sync Max FPS 仅限 kick bridge（bridge 接收/转发 + HDA recook）。
 
 ### 2.4 Bridge 阻塞修复
 - `registry._save` 防抖：`_dirty` + `_last_saved`，距上次保存 <1s 则跳过（register/remove 立即保存保证持久，touch/mark_activity 走防抖）。

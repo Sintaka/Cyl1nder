@@ -46,7 +46,7 @@
   - `{"type":"reset"}` → `_reset_ready` + 全量重拉 + recook；
   - `node_path` 非空且 `hou.node(node_path)` 已不存在 → **干净退出**（RequestSourceShutdown 语义）；`stop` event → 退出。
 - 冷启动 `_refresh_ready` 预热保留；`_READY`/`_GEO_CACHE` 语义不变。
-- **删除** `_SYNC_IDLE_INTERVAL`/`_SYNC_ACTIVE_AFTER` 自适应常量；`sync_fps` 参数保留但**不再驱动轮询频率**（build_hda.py 参数不变，文档标注「历史参数」）。
+- **删除** `_SYNC_IDLE_INTERVAL`/`_SYNC_ACTIVE_AFTER` 自适应常量；`sync_fps` 参数保留且**不再驱动轮询频率**（build_hda.py 参数不变）。注：v0.1.00057 起 `sync_fps` 重新启用为 **HDA 接收端速率上限**（recook/拉取 ≤fps），不再是历史参数。
 - 心跳：stream 请求到达即 touch → 空闲恰好 1 req/min（hold=60）；高传输时事件即心跳（LiveLink 原则）。
 
 ### 3.3 web 端（离线判定改慢时钟）

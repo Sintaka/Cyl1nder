@@ -15,6 +15,8 @@
 
 | 项 | 现状（代码证据） |
 |---|---|
+> **状态注记（v0.1.00063 归档前）**：M1 的 `/stream` 已落地（v0.1.00056 起成为 HDA 主同步通道，NDJSON 长轮询 hold=60s、事件带 fps；`/pending` 降为 fallback）。本文对「30fps 轮询 / 33ms 粒度」作为**现状**的描述均已过时，请以 `sync-heartbeat-redesign.md` / `sync-rate-limit-and-preference.md` 为准。diff_output / topoId / msgpack 等仍属未来计划（未实现）。
+
 | sync_fps 定义处 | `hda/scripts/build_hda.py` L93：`IntParmTemplate("sync_fps", "Sync FPS", 1, default_value=(30,), min=1, max=60)` |
 | sync_fps 消费处 | `hda/src/cyl1nder_hda.py` `ensure_sync()`（L194-214）：`interval = 1.0 / max(1.0, fps)`；`_sync_loop()`（L131-155）每 interval 调 `GET /pending?since=` |
 | 语义 | 只是「轮询 /pending 的频率上限」，不是端到端同步速率上限；且 bridge 侧 `/pending` 同时当心跳（`registry.touch`） |

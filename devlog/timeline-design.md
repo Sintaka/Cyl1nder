@@ -13,6 +13,8 @@
 
 | # | 用户原话 | 设计含义 |
 |---|---|---|
+> **状态注记（v0.1.00063 归档前）**：本设计**未实现**。v0.1.00056 起 HDA 主通道为 `/stream` 长轮询（`/pending` 降为 fallback），Phase1 的「复用 `/pending` 捎带 frame/fps/engaged」需改为**复用 `/stream`**（事件携带 timeline 字段），其余方案要点（engaged 门控 / latest-wins / 回显抑制 / h2cSeq 自愈）仍适用。
+
 | 1 | 默认 30fps | 无 Houdini / 未连接 / 本地模式时 fps=30；Cyl1nder 本地时间轴始终可跑 |
 | 2 | Cyl1nder 启动的时候和 Houdini 中的场景 fps 同步 | 启动/连接时读取 Houdini 场景 `hou.fps()` 覆盖本地 fps；之后 fps 变化也跟随（H→C） |
 | 3 | 时间轴双向同步 | H→C：Houdini playhead → Cyl1nder 帧；C→H：Cyl1nder 拖帧 → Houdini playhead |

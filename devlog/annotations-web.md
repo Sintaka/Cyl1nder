@@ -43,7 +43,7 @@
   - **重渲染机制**：rete2 手动 `emit render` 需要 element（ElementsHolder WeakMap key），且 React 合成事件被 area drag 冒泡 stopPropagation 拦截 → 改为「原生捕获监听（ref+useEffect）+ 模块级 notifyNodeChanged（React useReducer force）驱动重渲染」，绕开 rete render signal 不可靠路径。
 - **Houdini 导航**：MMB 按住拖动 = 画布平移（`area.area.translate`，原生捕获监听）；wheel 缩放已有。
 - **点阵背景 + 缩放 LOD**（`attachDotGrid`）：屏幕空间 `radial-gradient` 点阵，随 zoom 分档透明度（k≥0.9→0.85 / ≥0.55→0.5 / ≥0.3→0.22 / 更远→隐藏），随 pan 滚动背景位置。
-- **HDA 离线红叹号**（viewport 左上角）：`/api/hda/<serial>/pending` 兼作心跳（30fps poller touch registry.lastSeen）；web 每 5s watchdog 查 status，lastSeen 超 15s → 显示「⚠ HDA 离线」。
+- **HDA 离线红叹号**（viewport 左上角）：`/api/hda/<serial>/pending` 兼作心跳（30fps poller touch registry.lastSeen）；web 每 5s watchdog 查 status，lastSeen 超 15s → 显示「⚠ HDA 离线」。[已过时：v0.1.00056 起 HDA 主通道为 /stream 长轮询，心跳约 1/min，离线阈值 150s]
 - **@antv/x6 彻底删除**：`web/src/nodes/` 移除、`@antv/x6` 卸载、旧 palette/flags 测试删除（Fuse 搜索与 flags 逻辑已迁 rete 版）。
 
 ## v0.1.00019（2026-08-10）
@@ -390,7 +390,7 @@
 ### Overview 总管页（web/overview.html + src/overview.ts + styles/overview.css + index.html）
 - **默认入口**：index.html 内联脚本——无 `?serial=` 时 `location.replace("/overview.html")`（访问端口默认打开总管页）；有 serial 才加载主应用（现有链接/测试不破坏）。
 - **新建场景区块置顶**（新建 → 活跃 → 历史）。
-- **离线 vs 未cook 三态区分**：lastSeen 超 15s → 离线（红）；lastSeen 新鲜但 lastActivity 陈旧/为 0 或 inputRev&&outputRev 均 0 → 未cook（橙）；否则在线（绿）。
+- **离线 vs 未cook 三态区分**：lastSeen 超 15s → 离线（红）；lastSeen 新鲜但 lastActivity 陈旧/为 0 或 inputRev&&outputRev 均 0 → 未cook（橙）；否则在线（绿）。[已过时：离线阈值 v0.1.00056 起 150s]
 - **清理无效场景按钮**：POST /api/scenes/cleanup → 重新拉取渲染 + 结果列表（>5 截断，完整进 title）。
 - 打开主应用链接改为 `/?serial=`（避免被默认重定向绕回）。
 
@@ -418,7 +418,7 @@
 **2 路并行**（Descartes=bridge/HDA 流式 + kick / Archimedes=web kick 首连触发）。
 
 ### bridge/HDA 流式优化（cyl1nder_hda.py / cyl1nder_bridge.py / routes.py / state.py / hython_smoke.py）
-- **自适应轮询（减少通讯流量，小改已落地）**：`_sync_loop` 活跃（pending/reset/force，或距上次活动 <2s）用 fast interval（1/sync_fps）；空闲退避到 500ms；有活动立即回 fast。空闲 /pending 流量从 ~20-30 次/秒 降到 ~2 次/秒，心跳（lastSeen）语义保留。client/sleep_fn/now_fn 可注入，hython 冒烟确定性断言。
+- **自适应轮询（减少通讯流量，小改已落地）**：`_sync_loop` 活跃（pending/reset/force，或距上次活动 <2s）用 fast interval（1/sync_fps）；空闲退避到 500ms；有活动立即回 fast。空闲 /pending 流量从 ~20-30 次/秒 降到 ~2 次/秒，心跳（lastSeen）语义保留。client/sleep_fn/now_fn 可注入，hython 冒烟确定性断言。[已过时：v0.1.00056 起被 /stream 事件驱动取代，/pending 仅作 fallback]
 - **kick 踹 HDA（任务 2，已落地）**：bridge 新增 `POST /api/hda/{serial}/kick`（一次性 force 标记 + registry.touch）；`/pending` 返回一次 `force:True` 后消费。HDA `pending_outputs` 改 4 元组，`_sync_loop` 收到 force 无论 rev 是否前进都 schedule recook；且 last_error 非空时弹掉 `_PUSH_CACHE` → recook 重新 push → push 成功清 last_error → HDA 状态从 offline 转 ok（force/pending 两条路径都自愈）。
 - **web 首连 kick**（main.ts/client.ts）：WS hello 首次到达该 serial 时 `client.kick(serial)` 一次（重连不重复）；成功且 inputs 非空则 runNetwork（cook 一下）；失败静默（避免 log 噪声）。
 - **pytest 34 通过**（新增 kick force one-shot 400/404 + touch registry）；hython SMOKE OK（新增 adaptive polling + kick force recook 断言）。
