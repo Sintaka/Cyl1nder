@@ -38,3 +38,23 @@
   user-select: none;
   -webkit-user-select: none;
 }
+
+
+/* ---- header pop-out button (right of title, next to the close ✕) ----
+   Only rendered where Document PiP is supported (popout.ts hides it otherwise);
+   margin-left:auto keeps the title left and pushes pop-out + close to the right. */
+.cyl-pref-popout {
+  background: transparent;
+  border: none;
+  color: #9aa1ab;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+.cyl-pref-popout:hover {
+  background: #2a2d33;
+  color: #fff;
+}

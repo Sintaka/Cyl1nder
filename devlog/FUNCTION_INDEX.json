@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-12T17:17:22.674Z",
-  "totalFunctions": 519,
+  "generatedAt": "2026-08-12T17:37:11.026Z",
+  "totalFunctions": 521,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -1943,123 +1943,123 @@
     },
     {
       "file": "web/src/app/color.ts",
-      "lineCount": 1042,
+      "lineCount": 1063,
       "functions": [
         {
           "name": "rgbToHex",
-          "line": 67,
+          "line": 68,
           "kind": "function",
           "exported": true,
           "calls": 5
         },
         {
           "name": "hexToRgb",
-          "line": 73,
+          "line": 74,
           "kind": "function",
           "exported": true,
           "calls": 7
         },
         {
           "name": "rgbToHsl",
-          "line": 94,
+          "line": 95,
           "kind": "function",
           "exported": false,
-          "calls": 7
+          "calls": 8
         },
         {
           "name": "hslToRgb",
-          "line": 114,
+          "line": 115,
           "kind": "function",
           "exported": false,
           "calls": 7
         },
         {
           "name": "rgbToHsv",
-          "line": 140,
+          "line": 141,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "hsvToRgb",
-          "line": 158,
+          "line": 159,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "loadRecents",
-          "line": 199,
+          "line": 200,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "saveRecents",
-          "line": 213,
+          "line": 214,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "recordRecent",
-          "line": 221,
+          "line": 222,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "removeRecent",
-          "line": 228,
+          "line": 229,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "clearRecents",
-          "line": 235,
+          "line": 236,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "esc",
-          "line": 393,
+          "line": 392,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "valuesForMode",
-          "line": 400,
+          "line": 399,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "colorFromMode",
-          "line": 410,
+          "line": 409,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "harmonyDef",
-          "line": 416,
+          "line": 415,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "harmonyColor",
-          "line": 421,
+          "line": 420,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "openColorPicker",
-          "line": 438,
+          "line": 437,
           "kind": "function",
           "exported": true,
           "calls": 2
@@ -2348,68 +2348,88 @@
       ]
     },
     {
+      "file": "web/src/app/popout.ts",
+      "lineCount": 90,
+      "functions": [
+        {
+          "name": "isPopoutSupported",
+          "line": 22,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "popoutElement",
+          "line": 26,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        }
+      ]
+    },
+    {
       "file": "web/src/app/preference.ts",
-      "lineCount": 337,
+      "lineCount": 350,
       "functions": [
         {
           "name": "clampSyncFps",
-          "line": 44,
+          "line": 45,
           "kind": "function",
           "exported": true,
           "calls": 4
         },
         {
           "name": "parseUpdateMode",
-          "line": 50,
+          "line": 51,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "parseAutosaveInterval",
-          "line": 55,
+          "line": 56,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "parseViewportBg",
-          "line": 62,
+          "line": 63,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "parseUiFont",
-          "line": 66,
+          "line": 67,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "loadPreferences",
-          "line": 72,
+          "line": 73,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "savePreferences",
-          "line": 97,
+          "line": 98,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "applyPreferences",
-          "line": 104,
+          "line": 105,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "openPreferenceDialog",
-          "line": 127,
+          "line": 128,
           "kind": "function",
           "exported": true,
           "calls": 1

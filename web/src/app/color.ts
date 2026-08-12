@@ -23,12 +23,13 @@
  * - P7  The whole panel drags by its title bar (same gesture as the
  *      Preference panel).
  * - Close: Esc / ✕ only — clicking outside does NOT close; opening another
- *      picker (e.g. another color3 swatch) closes the old one and retargets.
+ *      picker (e.g. another color3 swatch) reuses the open picker and retargets.
  *
  * rgbToHex / hexToRgb are shared by the Viewport background pref (Agent B/C1)
  * and the color3 param controls (param.ts).
  */
 import "../styles/colorpicker.css";
+import { isPopoutSupported, popoutElement } from "./popout";
 
 export interface RGB {
   /** red channel 0..255 */
@@ -244,9 +245,6 @@ const PALETTE: string[] = [
   "#ff8787", "#ffa94d", "#ffd43b", "#69db7c", "#3bc9db",
 ];
 
-/** Grayscale tail appended to the Simple presets for the Advanced palette. */
-const NEUTRALS: string[] = ["#ffffff", "#f5f5f5", "#9e9e9e", "#424242", "#000000"];
-
 // ---------------- Adobe harmony (P5) ----------------
 
 export type HarmonyId = "monochrome" | "complementary" | "analogous" | "triadic" | "compound" | "shades";
@@ -386,6 +384,7 @@ interface PickerState {
 interface ActivePicker {
   root: HTMLElement;
   close: () => void;
+  retarget: (opts: ColorPickerOptions) => void;
 }
 
 let activePicker: ActivePicker | null = null;
@@ -433,10 +432,15 @@ function harmonyColor(base: HslBase, def: HarmonyDef, i: number): RGB {
  * another picker (e.g. another color3 swatch) closes the old one and
  * retargets to the new. The title bar drags the whole panel. Returns the
  * close function. Only one picker is open at a time: opening a new one
- * closes the previous.
+ * retargets the previous in place (keeping its position).
  */
 export function openColorPicker(opts: ColorPickerOptions): () => void {
-  if (activePicker) activePicker.close();
+  if (activePicker) {
+    activePicker.retarget(opts);
+    return activePicker.close;
+  }
+
+  let target: ColorPickerOptions = opts;
 
   const initHsl = rgbToHsl(opts.initial);
   const state: PickerState = {
@@ -451,10 +455,11 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
   const root = document.createElement("div");
   root.className = "cyl-cp";
   root.setAttribute("role", "dialog");
-  root.setAttribute("aria-label", opts.title ?? "Pick color");
+  root.setAttribute("aria-label", target.title ?? "Pick color");
   root.innerHTML = `
     <div class="cyl-cp-head">
-      <span class="cyl-cp-title">${esc(opts.title ?? "Pick color")}</span>
+      <span class="cyl-cp-title">${esc(target.title ?? "Pick color")}</span>
+      <button type="button" class="cyl-cp-popout" data-part="popout" aria-label="Pop out" title="Pop out to a separate window">⧉</button>
       <button type="button" class="cyl-cp-close" aria-label="Close">✕</button>
     </div>
     <div class="cyl-cp-body">
@@ -514,6 +519,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
 
   const head = root.querySelector<HTMLElement>(".cyl-cp-head")!;
   const closeBtn = root.querySelector<HTMLButtonElement>(".cyl-cp-close")!;
+  const popoutBtn = root.querySelector<HTMLButtonElement>('[data-part="popout"]')!;
   const wheelEl = root.querySelector<HTMLElement>('[data-part="wheel"]')!;
   const wheelThumb = root.querySelector<HTMLElement>('[data-part="wheel-thumb"]')!;
   const svEl = root.querySelector<HTMLElement>('[data-part="sv"]')!;
@@ -537,6 +543,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
   // ---- recents (P1: right-click delete, Clear all, debounced write) ----
   let pendingRecentHex: string | null = null;
   let recentTimer: number | undefined;
+  let popoutSession: { closePip: () => void } | null = null;
   const renderRecents = (list?: string[]): void => {
     const items = list ?? loadRecents();
     recentsEl.innerHTML = items
@@ -576,7 +583,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     recentTimer = window.setTimeout(flushRecent, 250);
   };
 
-  // ---- palette (simple = fixed presets; advanced = presets + Neutrals, flat 5-col grid) ----
+  // ---- palette (one flat 10-column grid of the 20 presets, both modes) ----
   const wireSwatchClicks = (container: HTMLElement): void => {
     container.querySelectorAll<HTMLButtonElement>(".cyl-cp-swatch").forEach((b) => {
       b.addEventListener("click", () => {
@@ -586,18 +593,9 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     });
   };
   const renderPalette = (): void => {
-    // Advanced = the same Simple presets + Neutrals in one flat 5-column grid
-    // (no category labels). Simple keeps the 10-column preset grid.
-    paletteEl.classList.toggle("cyl-cp-swatches-adv", state.advanced);
-    if (state.advanced) {
-      paletteEl.innerHTML = PALETTE.concat(NEUTRALS)
-        .map((h) => `<button type="button" class="cyl-cp-swatch" style="background:${h}" data-hex="${h}" aria-label="${h}"></button>`)
-        .join("");
-    } else {
-      paletteEl.innerHTML = PALETTE.map(
-        (h) => `<button type="button" class="cyl-cp-swatch" style="background:${h}" data-hex="${h}" aria-label="${h}"></button>`,
-      ).join("");
-    }
+    paletteEl.innerHTML = PALETTE.map(
+      (h) => `<button type="button" class="cyl-cp-swatch" style="background:${h}" data-hex="${h}" aria-label="${h}"></button>`,
+    ).join("");
     wireSwatchClicks(paletteEl);
   };
 
@@ -811,7 +809,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     syncFields();
     syncHarmony();
     syncLight();
-    if (emit) opts.onColor(state.rgb, hex);
+    if (emit) target.onColor(state.rgb, hex);
     if (trackRecent) scheduleRecent(hex);
   };
 
@@ -864,15 +862,15 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
       applyWheel(ev, pointIndex);
     };
     const up = (): void => {
-      document.removeEventListener("pointermove", move);
-      document.removeEventListener("pointerup", up);
-      document.removeEventListener("pointercancel", up);
+      root.ownerDocument.removeEventListener("pointermove", move);
+      root.ownerDocument.removeEventListener("pointerup", up);
+      root.ownerDocument.removeEventListener("pointercancel", up);
       // a click (no drag) on a harmony point picks that color
       if (!moved && state.advanced && pointIndex >= 0) pickHarmony(pointIndex);
     };
-    document.addEventListener("pointermove", move);
-    document.addEventListener("pointerup", up);
-    document.addEventListener("pointercancel", up);
+    root.ownerDocument.addEventListener("pointermove", move);
+    root.ownerDocument.addEventListener("pointerup", up);
+    root.ownerDocument.addEventListener("pointercancel", up);
   };
   wheelEl.addEventListener("pointerdown", (e) => {
     const pt = (e.target as HTMLElement).closest<HTMLElement>("[data-harmony-i]");
@@ -963,13 +961,14 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
 
   // ---- close: ✕ / Esc only. Clicking outside does NOT close; opening another
   // picker (e.g. another color3 swatch) retargets via the activePicker guard
-  // at the top of openColorPicker (old picker closes, new one opens). ----
+  // at the top of openColorPicker (the open picker is retargeted in place). ----
   const onKey = (e: KeyboardEvent): void => {
     if (e.key === "Escape") close();
   };
   const close = (): void => {
     if (recentTimer !== undefined) window.clearTimeout(recentTimer);
     flushRecent();
+    if (popoutSession) popoutSession.closePip();
     document.removeEventListener("keydown", onKey);
     root.remove();
     if (activePicker?.root === root) activePicker = null;
@@ -977,9 +976,31 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
   closeBtn.addEventListener("click", close);
   document.addEventListener("keydown", onKey);
 
+  // ---- pop-out (PiP): auto-hidden when unsupported; clicking it pops the
+  // whole panel into an always-on-top Document Picture-in-Picture window. ----
+  if (!isPopoutSupported()) popoutBtn.hidden = true;
+  else {
+    popoutBtn.addEventListener("click", () => {
+      void popoutElement(root, { width: 340, height: 560, onClose: close }).then((s) => {
+        popoutSession = s;
+      });
+    });
+  }
+
+  /** Retarget the open picker to a new color (keeps position/state, no re-open). */
+  const retarget = (next: ColorPickerOptions): void => {
+    target = next;
+    root.querySelector<HTMLElement>(".cyl-cp-title")!.textContent = next.title ?? "Pick color";
+    root.setAttribute("aria-label", next.title ?? "Pick color");
+    state.rgb = { ...next.initial };
+    const { h, s, l } = rgbToHsl(next.initial);
+    state.base = { h, s, l };
+    setColor(next.initial, { emit: false, trackRecent: false, keepBase: true });
+  };
+
   // ---- P7: drag the whole panel by its title bar (same as Preference) ----
   head.addEventListener("pointerdown", (e) => {
-    if ((e.target as HTMLElement).closest(".cyl-cp-close")) return;
+    if ((e.target as HTMLElement).closest(".cyl-cp-close, .cyl-cp-popout")) return;
     e.preventDefault(); // stop text-selection / native drag while moving
     const startX = e.clientX;
     const startY = e.clientY;
@@ -992,13 +1013,13 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
       root.style.right = "auto";
     };
     const onUp = (): void => {
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
-      document.body.style.userSelect = "";
+      root.ownerDocument.removeEventListener("pointermove", onMove);
+      root.ownerDocument.removeEventListener("pointerup", onUp);
+      (root.ownerDocument.body as HTMLElement).style.userSelect = "";
     };
-    document.body.style.userSelect = "none";
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
+    (root.ownerDocument.body as HTMLElement).style.userSelect = "none";
+    root.ownerDocument.addEventListener("pointermove", onMove);
+    root.ownerDocument.addEventListener("pointerup", onUp);
   });
 
   // position (fixed): explicit anchor or top-right default
@@ -1008,7 +1029,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
   }
 
   document.body.appendChild(root);
-  activePicker = { root, close };
+  activePicker = { root, close, retarget };
 
   // initial paint (no onColor / no recents write)
   renderPalette();

@@ -55,6 +55,21 @@
   background: #2a2d33;
   color: #fff;
 }
+.cyl-cp-popout {
+  background: none;
+  border: none;
+  color: #8f959e;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 3px;
+  margin-left: auto;
+}
+.cyl-cp-popout:hover {
+  background: #2a2d33;
+  color: #fff;
+}
 
 .cyl-cp-body {
   padding: 10px;
@@ -447,9 +462,6 @@
   display: grid;
   grid-template-columns: repeat(10, minmax(0, 1fr));
   gap: 4px;
-}
-.cyl-cp-swatches-adv {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 .cyl-cp-swatch {
   min-width: 0;

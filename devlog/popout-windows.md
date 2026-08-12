@@ -18,5 +18,10 @@
   - PiP 关闭时把面板节点移回主文档（或销毁），并处理 PiP 单实例限制。
 - 工作量：中等（约 150-250 行 + 两个面板各加一个 pop-out 按钮）。因涉及 color.ts 与 preference.ts 的文档级监听重构，建议单独开一轮实现，避免与调色板 UI 迭代并发。
 
+## 落地（v0.1.00067）
+- 新增 `web/src/app/popout.ts`：`isPopoutSupported()`（检测 `'documentPictureInPicture' in window`）+ `popoutElement(panel, {width,height,onClose})`——请求 PiP 窗口、克隆主文档 `<style>`/`<link>` 样式与 body 字体 class 进 PiP 文档、把面板节点移入 PiP、PiP 内 Escape / 原生关闭回调 onClose，返回 `{closePip}`（幂等关闭）。
+- 调色板与 Preference 面板 header 各加一个 **⧉ pop-out 按钮**：`isPopoutSupported()` 为 false 时自动隐藏（主动判断支持）；点击即弹出为 PiP 窗口；面板 `close()` 会连带 `closePip()`。
+- 拖拽监听（色轮 / 标题栏）从 `document` 改为 `root.ownerDocument` / `panel.ownerDocument`，保证在 PiP 文档里拖拽仍可用；Esc 由 popout.ts 在 PiP 文档内单独处理。
+
 ## 状态
-- 本轮：调研 + 记录；未实现。待单独开 `codex/<版本>-popout` 分支实现。
+- 已实现（v0.1.00067，Document PiP 方案）；Firefox/Safari 无此 API → 按钮自动隐藏、退回页内浮动面板。

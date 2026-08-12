@@ -523,3 +523,10 @@
 - **调色板不再点外关闭 → retarget**（color.ts）：删除 click-outside 关闭逻辑；Esc/✕ 关闭，打开另一个 picker（如点另一个 color3 swatch）由 `activePicker` 守卫关闭旧的并 retarget 到新的。
 - e2e round15：Advanced palette 断言改为「pal-group=0、25 个色块、预设色 #f03e3e 与中性色 #ffffff 可见、harmony-hint svg 可见」。
 - 验证：tsc 0；vitest 82。
+## v0.1.00067（2026-08-13）——调色板 retarget 保持位置 + Advanced 复用 Simple Palette + pop-out（PiP）
+- **点击新颜色 retarget 到已开面板（保持位置）**（color.ts）：`openColorPicker` 改为可变 `target`；顶部 `activePicker` 存在时调 `retarget(next)` 复用现有浮窗——更新标题/aria、`state.rgb`、重锚 base、`setColor(... emit:false)` 同步全部，不改 `left/top`、不 focus。旧「关旧开新」改为「原地 retarget」。
+- **Advanced Palette 直接复用 Simple**（color.ts + colorpicker.css）：删除 `NEUTRALS` 与 `.cyl-cp-swatches-adv`（5 列），`renderPalette` 两种模式都渲染同一个 `PALETTE`（20 色 10 列扁平网格），去重复、不再单独一套。
+- **pop-out（Document PiP，主动判断支持）**：新增 `web/src/app/popout.ts`（`isPopoutSupported` + `popoutElement`）；调色板与 Preference 面板 header 各加 **⧉ 按钮**，不支持时自动隐藏；点击把面板移入 PiP 窗口（克隆样式/body class，PiP 内 Esc/原生关闭回调 onClose，返回幂等 `closePip`）；面板 `close()` 连带 `closePip()`。
+- **拖拽跨文档修复**：色轮/标题栏拖拽监听从 `document` 改 `root.ownerDocument`（preference 用 `panel.ownerDocument`），PiP 文档里拖拽仍可用；header 守卫加 `.cyl-cp-popout`/`.cyl-pref-popout` 避免点按钮误触发拖拽。
+- e2e round15：palette 断言改回 20 色（删 #ffffff），其余 harmony-hint / pal-group=0 断言保留。
+- 验证：tsc 0；vitest 82；e2e round15 **8 passed**。
