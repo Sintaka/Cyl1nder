@@ -108,18 +108,32 @@ class SerialRegistry:
             return self._records.get(serial)
 
     def touch(self, serial: str) -> None:
+        """Heartbeat: update lastSeen. Auto-registers a valid serial on first
+        contact so an HDA that only polls /pending reappears after a bridge
+        restart (registration otherwise only happens via push_inputs on cook,
+        so an idle HDA would never re-register)."""
         with self._lock:
             rec = self._records.get(serial)
-            if rec is not None:
-                rec.lastSeen = time.time()
+            if rec is None:
+                if not is_valid_serial(serial):
+                    return
+                rec = RegistryRecord(serial=serial)
+                self._records[serial] = rec
+            rec.lastSeen = time.time()
+            self._save()
 
     def mark_activity(self, serial: str) -> None:
-        """Record the last time this serial pushed data (inputs/outputs write)."""
+        """Record the last time this serial pushed data (inputs/outputs write).
+        Auto-registers a valid serial as well (robustness for put flows)."""
         with self._lock:
             rec = self._records.get(serial)
-            if rec is not None:
-                rec.lastActivity = time.time()
-                self._save()
+            if rec is None:
+                if not is_valid_serial(serial):
+                    return
+                rec = RegistryRecord(serial=serial)
+                self._records[serial] = rec
+            rec.lastActivity = time.time()
+            self._save()
 
     def remove(self, serial: str) -> bool:
         """Drop a registry record (used by scene cleanup for dead serials)."""

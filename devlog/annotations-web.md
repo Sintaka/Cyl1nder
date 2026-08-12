@@ -434,3 +434,10 @@
 - **左上角品牌跳转 overview**：layout.ts 两处（主布局/备用模板）`.cyl-brand` 由 `<span>` 改为 `<a href="/overview.html">`；base.css 加 cursor:pointer、text-decoration:none、color:inherit + hover 变亮（#9fd8ff），保留品牌结构与布局。
 - **非当前 tab 配色 S-0.1/L+0.1**（dock.css，目标色已由主进程用 HSL 预计算）：inactivegroup-visiblepanel bg `#20537e→#356d9c`、inactivegroup-hiddenpanel bg `#17191d→#333334`、activegroup-hiddenpanel bg `#1b1e24→#37383b`、inactivegroup-hiddenpanel text `#8f959e→#b0b0b0`；当前标签蓝 #2e4f7d、hover、缺口、间距不动。像素验证：非当前 tab 更亮更灰、当前蓝不变。
 - 验证：tsc 0；vitest 82；pytest 34；Playwright 47 passed / 2 skipped（round11-brand：点击品牌 → /overview.html）。
+
+## v0.1.00054（2026-08-12）
+**事故修复 + 调研**（主进程处理 bridge 中断；Singer 调研 gizmo 延迟）。
+- **bridge 中断修复（根因）**：轮询流量把 bridge 打崩/重启后，用户 serial 从 registry 消失——`registry.touch` 原来**不自动注册**（注册只发生在 cook 时 push_inputs），空闲 HDA 只轮询 /pending 永远不会重新注册 → serial 失联、无数据。修复：`registry.touch`/`mark_activity` 对合法 serial **首次接触自动注册**（最小记录，后续 push_inputs 再补 hip/path/label），HDA 下次轮询即重新出现。已重启 bridge（v0.1.00053+），`/pending` 探测自动注册验证通过（serials 从 1 → 2）。
+- **web 重连自动再 kick**：WS 掉线重连（如 bridge 重启）后，`connect()` 同步清掉该 serial 的 kickedSerials → 新 hello 自动再 kick HDA → recook → 数据流恢复（无需手动刷新页面）。round10-kick 用例更新为"首次 1 次 + 掉线重连再 1 次"，改用 POST 计数（日志面板 40 行窗口不可靠）。
+- **pytest 37 通过**（新增 touch 自动注册/非法 serial 忽略/mark_activity 自动注册）。
+- **three.js gizmo 延迟调研**（devlog/viewport-gizmo-latency.md，仅调研）：**TS 与延迟无关**（TS 编译成 JS，运行时是 V8 JIT）；**three.js 不是 WASM**（纯 JS + WebGL，光栅化在 GPU）；Houdini 快是原生 C++ + 常驻 GPU buffer + 增量更新。真实延迟来源 = 每次拖动都走全量链路（objectChange → runNetwork → 全量 JSON PUT → WS 回推 → 视口 outputs/nodeResult 双重建 → rAF 重绘），重建在主线程同步卡顿。改进方向（计划）：本地预览（拖动期本地应用变换、提交才走网络）、节流合并 runNetwork（30-60Hz）、位置-only 更新、消除双重建等。

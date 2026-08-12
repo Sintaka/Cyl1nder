@@ -35,7 +35,7 @@ test.beforeAll(async () => {
   test.skip(!(await kickEndpointAvailable()), "kick endpoint 404 on running bridge - web kick not testable");
 });
 
-test("first connect kicks the HDA exactly once; reconnect does not re-kick", async ({ page }) => {
+test("first connect kicks the HDA; a dropped reconnect re-kicks (bridge-restart recovery)", async ({ page }) => {
   // Ground truth: count the page's own POST /kick requests (the kick is a fetch
   // from page JS) - independent of the windowed log panel.
   let kickRequests = 0;
@@ -54,29 +54,28 @@ test("first connect kicks the HDA exactly once; reconnect does not re-kick", asy
   // we ever observe across polls (old lines scroll out once viewport logs pile up).
   await page.locator(".dv-tab", { hasText: "Log" }).first().click({ timeout: 15000 });
   await expect(page.locator(".cyl-log")).toBeVisible({ timeout: 15000 });
-  const seenLines: string[] = [];
-  const collect = async (): Promise<string[]> => {
+  // The Log panel only renders the LAST 40 lines and viewport logs scroll
+  // markers out, so the POST count is the authoritative signal; this flag only
+  // proves the marker was rendered at least once.
+  let kickMarkerSeen = false;
+  const kickMarkerVisible = async (): Promise<boolean> => {
     const t = (await page.locator(".cyl-log").textContent()) ?? "";
-    for (const line of t.split("\n")) {
-      const l = line.trim();
-      if (l && !seenLines.includes(l)) seenLines.push(l);
-    }
-    return seenLines;
+    if (t.includes("kick HDA (first connect)")) kickMarkerSeen = true;
+    return kickMarkerSeen;
   };
-  const kickCount = async () => (await collect()).filter((l) => l.includes("kick HDA (first connect)")).length;
   const wsConnects = () => wsConnections;
 
   await expect(page.locator(".cyl-graph .cyl-rp-title").first()).toBeVisible({ timeout: 15000 });
   await expect(page.locator(".cyl-status")).toHaveClass(/ok/, { timeout: 15000 });
 
-  // First hello must kick exactly once: one POST request + one log marker.
+  // First hello must kick exactly once (POST count is authoritative).
   await expect.poll(() => kickRequests, { timeout: 15000 }).toBe(1);
-  await expect.poll(kickCount, { timeout: 15000 }).toBe(1);
+  await expect.poll(kickMarkerVisible, { timeout: 15000 }).toBe(true);
 
-  // Reconnect the SAME serial (Connect re-runs connect(): closes + reopens the
-  // WS, so a fresh hello lands) - the kick must NOT repeat.
+  // Reconnect the SAME serial (Connect closes + reopens the WS -> a drop followed
+  // by a fresh hello). Round 0.1.00054: a dropped reconnect re-kicks so the HDA
+  // recooks after a bridge restart without a page reload -> now 2 kicks total.
   await page.locator("#cyl-connect").click();
   await expect.poll(wsConnects, { timeout: 15000 }).toBeGreaterThanOrEqual(2); // a new WS connection landed
-  await expect.poll(() => kickRequests, { timeout: 5000 }).toBe(1); // still exactly one kick POST
-  await expect.poll(kickCount, { timeout: 5000 }).toBe(1); // and no second log marker
+  await expect.poll(() => kickRequests, { timeout: 5000 }).toBe(2); // first + drop-reconnect kick (POST = truth)
 });

@@ -361,6 +361,7 @@ let replayPending = false;  // first inputs after connect = replay, do NOT auto-
  *  gets a one-shot HDA kick (freshly spawned bridge -> force recook -> offline->ok);
  *  WS auto-reconnects deliver more hellos but must never kick again. */
 const kickedSerials = new Set<string>();
+let wsWasUp = false; // true once a WS has been up this session (drop-reconnect re-kick)
 
 layout.autoRunCheck.addEventListener("change", () => {
   autoRun = layout.autoRunCheck.checked;
@@ -770,7 +771,9 @@ async function loadSnapshotIntoStore(serial: string): Promise<void> {
 function connect(serialRaw: string): void {
   const serial = serialRaw.trim();
   if (!serial) return;
+  const isReconnect = !!wsDisconnect;
   wsDisconnect?.();
+  if (isReconnect) kickedSerials.delete(serial); // dropped WS -> next hello re-kicks the HDA
   replayPending = true;
   store.setSerial(serial);
   startHdaWatch(serial);
@@ -807,7 +810,17 @@ function connect(serialRaw: string): void {
         store.pushLog(`outputs rev=${msg.rev} (${msg.outputs.length})`);
       }
     },
-    (open) => store.setStatus(open ? "ok" : "offline"),
+    (open) => {
+      if (open) {
+        wsWasUp = true;
+      } else if (wsWasUp) {
+        // WS dropped after being up (e.g. bridge restarted): let the next hello
+        // re-kick the HDA so it recooks and re-pushes without a page reload.
+        wsWasUp = false;
+        kickedSerials.delete(serial);
+      }
+      store.setStatus(open ? "ok" : "offline");
+    },
   );
 }
 

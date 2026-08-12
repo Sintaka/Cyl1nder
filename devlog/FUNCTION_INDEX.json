@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T05:38:39.061Z",
+  "generatedAt": "2026-08-12T06:12:35.022Z",
   "totalFunctions": 455,
   "files": [
     {
@@ -428,7 +428,7 @@
     },
     {
       "file": "bridge/bridge/registry.py",
-      "lineCount": 159,
+      "lineCount": 173,
       "functions": [
         {
           "name": "RegistryError",
@@ -442,7 +442,7 @@
           "line": 25,
           "kind": "class",
           "exported": false,
-          "calls": 1
+          "calls": 3
         },
         {
           "name": "__init__",
@@ -495,42 +495,42 @@
         },
         {
           "name": "mark_activity",
-          "line": 116,
+          "line": 125,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "remove",
-          "line": 124,
+          "line": 138,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "list",
-          "line": 133,
+          "line": 147,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "serials",
-          "line": 137,
+          "line": 151,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_save",
-          "line": 141,
+          "line": 155,
           "kind": "def",
           "exported": false,
-          "calls": 4
+          "calls": 5
         },
         {
           "name": "_load",
-          "line": 150,
+          "line": 164,
           "kind": "def",
           "exported": false,
           "calls": 2
@@ -2200,7 +2200,7 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 881,
+      "lineCount": 894,
       "functions": [
         {
           "name": "matchLogFilter",
@@ -2274,133 +2274,133 @@
         },
         {
           "name": "applyLayoutSettings",
-          "line": 399,
+          "line": 400,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "readParamFloats",
-          "line": 404,
+          "line": 405,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "flushParamUndo",
-          "line": 425,
+          "line": 426,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "refreshSelectionPanels",
-          "line": 436,
+          "line": 437,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "bindEnterGizmoToSelection",
-          "line": 507,
+          "line": 508,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "toggleEnterEdit",
-          "line": 530,
+          "line": 531,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "getDisplayNodeInfo",
-          "line": 555,
+          "line": 556,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "refreshNodeFlags",
-          "line": 571,
+          "line": 572,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "inputStatsText",
-          "line": 631,
+          "line": 632,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "outputStatsText",
-          "line": 640,
+          "line": 641,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderInspector",
-          "line": 649,
+          "line": 650,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "runNetwork",
-          "line": 686,
+          "line": 687,
           "kind": "function",
           "exported": false,
           "calls": 6
         },
         {
           "name": "kickHdaOnce",
-          "line": 702,
+          "line": 703,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "startHdaWatch",
-          "line": 714,
+          "line": 715,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "check",
-          "line": 716,
+          "line": 717,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "stopHdaWatch",
-          "line": 733,
+          "line": 734,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "loadSnapshotIntoStore",
-          "line": 742,
+          "line": 743,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "connect",
-          "line": 770,
+          "line": 771,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "scheduleSaveGraph",
-          "line": 869,
+          "line": 882,
           "kind": "function",
           "exported": false,
           "calls": 2

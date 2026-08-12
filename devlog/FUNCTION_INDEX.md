@@ -101,12 +101,12 @@
 | `InputsPut` | 85 | class |  | 1 |
 | `OutputsPut` | 93 | class |  | 1 |
 
-## bridge/bridge/registry.py（159 行）
+## bridge/bridge/registry.py（173 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `RegistryError` | 21 | class |  | 2 |
-| `RegistryRecord` | 25 | class |  | 1 |
+| `RegistryRecord` | 25 | class |  | 3 |
 | `__init__` | 28 | def |  | 2 |
 | `to_dict` | 47 | def |  | 2 |
 | `from_dict` | 59 | def |  | 2 |
@@ -114,12 +114,12 @@
 | `register` | 79 | def |  | 1 |
 | `get` | 106 | def |  | 11 |
 | `touch` | 110 | def |  | 1 |
-| `mark_activity` | 116 | def |  | 1 |
-| `remove` | 124 | def |  | 1 |
-| `list` | 133 | def |  | 1 |
-| `serials` | 137 | def |  | 1 |
-| `_save` | 141 | def |  | 4 |
-| `_load` | 150 | def |  | 2 |
+| `mark_activity` | 125 | def |  | 1 |
+| `remove` | 138 | def |  | 1 |
+| `list` | 147 | def |  | 1 |
+| `serials` | 151 | def |  | 1 |
+| `_save` | 155 | def |  | 5 |
+| `_load` | 164 | def |  | 2 |
 
 ## bridge/bridge/routes.py（304 行）
 
@@ -458,7 +458,7 @@
 | `connectWs` | 188 | function | export | 1 |
 | `connect` | 193 | arrow |  | 1 |
 
-## web/src/main.ts（881 行）
+## web/src/main.ts（894 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -472,25 +472,25 @@
 | `readJsonFromDir` | 230 | function |  | 4 |
 | `saveSceneAs` | 244 | function |  | 2 |
 | `openSceneFromDir` | 297 | function |  | 2 |
-| `applyLayoutSettings` | 399 | function |  | 4 |
-| `readParamFloats` | 404 | function |  | 3 |
-| `flushParamUndo` | 425 | function |  | 2 |
-| `refreshSelectionPanels` | 436 | function |  | 3 |
-| `bindEnterGizmoToSelection` | 507 | function |  | 3 |
-| `toggleEnterEdit` | 530 | function |  | 2 |
-| `getDisplayNodeInfo` | 555 | function |  | 2 |
-| `refreshNodeFlags` | 571 | function |  | 4 |
-| `inputStatsText` | 631 | function |  | 2 |
-| `outputStatsText` | 640 | function |  | 2 |
-| `renderInspector` | 649 | function |  | 2 |
-| `runNetwork` | 686 | function |  | 6 |
-| `kickHdaOnce` | 702 | function |  | 2 |
-| `startHdaWatch` | 714 | function |  | 2 |
-| `check` | 716 | arrow |  | 1 |
-| `stopHdaWatch` | 733 | function |  | 2 |
-| `loadSnapshotIntoStore` | 742 | function |  | 3 |
-| `connect` | 770 | function |  | 4 |
-| `scheduleSaveGraph` | 869 | function |  | 2 |
+| `applyLayoutSettings` | 400 | function |  | 4 |
+| `readParamFloats` | 405 | function |  | 3 |
+| `flushParamUndo` | 426 | function |  | 2 |
+| `refreshSelectionPanels` | 437 | function |  | 3 |
+| `bindEnterGizmoToSelection` | 508 | function |  | 3 |
+| `toggleEnterEdit` | 531 | function |  | 2 |
+| `getDisplayNodeInfo` | 556 | function |  | 2 |
+| `refreshNodeFlags` | 572 | function |  | 4 |
+| `inputStatsText` | 632 | function |  | 2 |
+| `outputStatsText` | 641 | function |  | 2 |
+| `renderInspector` | 650 | function |  | 2 |
+| `runNetwork` | 687 | function |  | 6 |
+| `kickHdaOnce` | 703 | function |  | 2 |
+| `startHdaWatch` | 715 | function |  | 2 |
+| `check` | 717 | arrow |  | 1 |
+| `stopHdaWatch` | 734 | function |  | 2 |
+| `loadSnapshotIntoStore` | 743 | function |  | 3 |
+| `connect` | 771 | function |  | 4 |
+| `scheduleSaveGraph` | 882 | function |  | 2 |
 
 ## web/src/nodes2/graph.ts（1628 行）
 

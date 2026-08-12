@@ -53,6 +53,7 @@
 | Params 面板用户手册（中键 scrubbing / Ctrl+中键默认值 / 撤销） | [params-user-guide.md](params-user-guide.md) |
 | 流式推送 dirty + 内存缓存方案讨论 | [streaming-push-dirty.md](streaming-push-dirty.md) |
 | Houdini Python Runtime 接口设计 + transform 流式 panel 原型 | [python-runtime-design.md](python-runtime-design.md) |
+| three.js gizmo 拖拽延迟调研（TS/three.js/WASM 澄清 + 改进方向） | [viewport-gizmo-latency.md](viewport-gizmo-latency.md) |
 
 ## 关键词 → 专题文件（快速跳读）
 
@@ -85,6 +86,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00054：bridge 中断修复(registry touch 自动注册，HDA 轮询即重连)；web 掉线重连自动再 kick；three.js gizmo 延迟调研(TS 非解释执行/three.js 非 WASM，延迟来自每帧全量网络+重建)。
 - v0.1.00053：左上角品牌点击跳转 /overview.html；非当前 tab 配色饱和度 -0.1/亮度 +0.1（更亮更灰）。
 - v0.1.00052：2 路并行（Descartes/Archimedes）——HDA 自适应轮询(活跃 33ms/空闲 500ms，流量大降)；kick 踹 HDA(首连 web 触发，force 强制 recook + last_error 自愈，解决首拉桥后 HDA 显示 offline)；/stream 长轮询取代轮询计划(NDJSON，仅计划)；smoke 测试加固(__cylStore 完整日志)。
 - v0.1.00051：4 路并行（Hegel/Socrates/Banach/Huygens）——Overview 默认入口重定向 + 新建置顶 + 离线/未cook 三态 + 清理无效场景；bridge lastActivity + /api/scenes/cleanup；HDA 就绪缓冲+缓存-直到输入变化+位置快速路径（20fps→60fps 级，hython 实测）；Houdini python runtime 接口设计 + transform 流式 panel 原型（含 Apex Animation Layer 最终目标）；streaming-sync-gap §8。
