@@ -20,6 +20,7 @@ import {
   savePreferences,
   type Preferences,
 } from "./app/preference";
+import { createAutosave, createHdaWatchdog } from "./core/lifecycle";
 
 /** Log categories: geo data / viewport / ui / bridge(python runtime). */
 let logFilter = "all";
@@ -47,6 +48,11 @@ const renderLog = () => {
 
 const layout = buildLayout(document.getElementById("app")!);
 const client = new BridgeClient();
+const hdaWatchdog = createHdaWatchdog({
+  getStatus: (serial) => client.getStatus(serial),
+  setOfflineVisible: (visible) => layout.hdaOffline.classList.toggle("hidden", !visible),
+  log: (msg) => store.pushLog(msg),
+});
 /** Preferences (cyl1nder.prefs localStorage + Preference.json v1): sync_max_fps caps
  *  the kick bridge (receive/forward + HDA recook) rate (1..60); Auto Update web
  *  pushes are NOT rate-limited. update_mode picks Enter-gizmo refresh timing. */
@@ -231,7 +237,7 @@ layout.menuEdit.querySelectorAll("button").forEach((b) => {
     if (act === "preference") {
       openPreferenceDialog(prefs, (saved) => {
         prefs = saved;
-        startAutoSave();
+        autosave.restart();
         syncMaxFps = saved.sync_max_fps;
         updateMode = saved.update_mode;
         savePreferences(prefs);
@@ -411,6 +417,17 @@ const handlers: ReteGraphHandlers = {
 };
 const graph = await createReteGraph(layout.graphContainer, handlers);
 
+const autosave = createAutosave({
+  getPrefs: () => prefs,
+  getSerial: () => store.serial,
+  saveSnapshot: () => {
+    const serial = store.serial;
+    if (!serial) return;
+    void client.putSnapshot(serial, { graph: graph.serializeGraph(), docking: getDockJson(), preference: prefs });
+  },
+  log: (msg) => store.pushLog(msg),
+});
+
 let wsDisconnect: (() => void) | null = null;
 let autoRun = layout.autoRunCheck.checked;
 let replayPending = false;  // first inputs after connect = replay, do NOT auto-run (avoids clobbering outputs/edits)
@@ -497,7 +514,7 @@ applyLayoutSettings(DEFAULT_LAYOUT);
 currentLayoutName = DEFAULT_LAYOUT_NAME;
 updateLayoutMenuLabel();
 store.pushLog(`[layout] default layout "${DEFAULT_LAYOUT_NAME}" applied`);
-startAutoSave();
+autosave.restart();
 
 /** Apply viewport display settings persisted inside a layout JSON (if any). */
 function applyLayoutSettings(json: unknown): void {
@@ -920,37 +937,6 @@ async function kickHdaOnce(serial: string): Promise<void> {
   if (store.inputs.length > 0) void runNetwork();
 }
 
-/** HDA 心跳 watchdog：lastSeen 由 HDA 心跳维持（/stream 长轮询约 1min 一次），
- *  超过 150s（2.5×心跳间隔）未更新即判 Houdini 离线（慢时钟，避免长轮询空闲误报）。 */
-let hdaWatch: number | undefined;
-let hdaWasStale = false;
-function startHdaWatch(serial: string): void {
-  stopHdaWatch();
-  const check = async () => {
-    try {
-      const st = await client.getStatus(serial);
-      const lastSeen = (st.registry as { lastSeen?: number } | undefined)?.lastSeen ?? 0;
-      // 心跳 1min（/stream hold=60s）；离线阈值 150s = 2.5×60，慢时钟避免长轮询空闲误报
-      const stale = Date.now() / 1000 - lastSeen > 150;
-      layout.hdaOffline.classList.toggle("hidden", !stale);
-      if (stale !== hdaWasStale) {
-        hdaWasStale = stale;
-        store.pushLog(`HDA ${stale ? "OFFLINE (Houdini not cooking)" : "online"}`);
-      }
-    } catch {
-      layout.hdaOffline.classList.remove("hidden");
-    }
-  };
-  void check();
-  hdaWatch = window.setInterval(check, 60000); // 检查间隔 60s，与 1min 心跳对齐；离线阈值仍 150s = 2.5×60
-}
-function stopHdaWatch(): void {
-  if (hdaWatch !== undefined) window.clearInterval(hdaWatch);
-  hdaWatch = undefined;
-  hdaWasStale = false;
-  layout.hdaOffline.classList.add("hidden");
-}
-
 /** Viewport display path: fall back to the unified path system (disk snapshot)
  *  when the live workspace has no geometry yet (Houdini not cooking / bridge restarted). */
 async function loadSnapshotIntoStore(serial: string): Promise<void> {
@@ -1016,7 +1002,7 @@ function applyLoadedPreference(json: unknown): void {
   viewport.setBackgroundColor(prefs.viewport_bg); // V2: loaded Preference.json background applies
   store.pushLog(`[pref] loaded: sync_max_fps=${next.sync_max_fps} update_mode=${next.update_mode} viewport_bg=${next.viewport_bg} ui_font=${next.ui_font}`);
   if (store.serial) void client.putSyncFps(store.serial, next.sync_max_fps).catch(() => undefined);
-  startAutoSave();
+  autosave.restart();
 }
 
 function connect(serialRaw: string): void {
@@ -1029,7 +1015,7 @@ function connect(serialRaw: string): void {
   // Push the persisted Sync Max FPS on EVERY (re)connect: the bridge keeps its
   // default 30 until the web tells it otherwise (first connect + reconnect).
   void client.putSyncFps(serial, prefs.sync_max_fps).catch(() => undefined);
-  startHdaWatch(serial);
+  hdaWatchdog.start(serial);
   store.pushLog(`connect ${serial}`);
   void loadSnapshotIntoStore(serial);
   store.setStatus("connecting");
@@ -1164,30 +1150,6 @@ function markGraphDirty(): void {
   if (graphDirty) return;
   graphDirty = true;
   store.pushLog("[file] graph dirty - use Ctrl+S to save");
-}
-
-/** Timed auto-save: while prefs.autosave_enabled (default true), persist the full
- *  scene (graph + docking + preference) every prefs.autosave_interval_min minutes
- *  (float, clamped >= 0.1; ms = minutes * 60_000). Restarted whenever prefs change. */
-var autoSaveTimer: number | undefined; // var: init startAutoSave() call may fire before this line (TDZ-safe)
-function startAutoSave(): void {
-  if (autoSaveTimer !== undefined) window.clearInterval(autoSaveTimer);
-  autoSaveTimer = undefined;
-  if (prefs.autosave_enabled === false) return;
-  const minutes = Math.max(0.1, Number(prefs.autosave_interval_min) || 5);
-  autoSaveTimer = window.setInterval(() => {
-    if (!store.serial) return;
-    try {
-      void client.putSnapshot(store.serial, {
-        graph: graph.serializeGraph(),
-        docking: getDockJson(),
-        preference: prefs,
-      });
-      store.pushLog(`[file] autosaved (${minutes}min)`);
-    } catch {
-      /* ignore */
-    }
-  }, minutes * 60_000);
 }
 
 store.pushLog(`Cyl1nder web v${APP_VERSION} · Tab=搜索 Y=剪切 右键=flags F=frame`);
