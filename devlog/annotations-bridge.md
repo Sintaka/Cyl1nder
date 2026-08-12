@@ -62,3 +62,6 @@
 - **日志降噪**：`put_outputs` / ws `edit` 仅 accepted 非空（真实内容变化）时记录，no-op 回显不再刷 LogRing。
 - 测试：pytest **53 全绿**（+3：kick 限流 / 窗口过后可再 kick / 相同输出不产生新日志）。
 - **注意**：需重启 bridge 生效（HDA /stream 自动重连恢复）。
+## v0.1.00065（2026-08-13）——控制台降噪 + /stream 缺省 hold 60
+- **uvicorn access_log 关闭**：`__main__.py` 改 `uvicorn.run(..., access_log=False)`——web Auto Update 推流无上限，gizmo 快速拖动时逐请求 access log 会刷爆 cmd 控制台；数据面的 notify/broadcast 已按 sync max fps 合帧，这里关掉的只是 HTTP 请求行日志（启动/错误日志仍保留）。
+- **`STREAM_HOLD_DEFAULT 20→60`**：`/stream` 缺省 hold 也 60s（HDA 本就显式传 60），静默心跳统一 1 次/分；`protocol.py` docstring 同步。

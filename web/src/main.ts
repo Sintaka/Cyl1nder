@@ -942,7 +942,7 @@ function startHdaWatch(serial: string): void {
     }
   };
   void check();
-  hdaWatch = window.setInterval(check, 15000); // 检查间隔 15s，远小于 150s 阈值
+  hdaWatch = window.setInterval(check, 60000); // 检查间隔 60s，与 1min 心跳对齐；离线阈值仍 150s = 2.5×60
 }
 function stopHdaWatch(): void {
   if (hdaWatch !== undefined) window.clearInterval(hdaWatch);

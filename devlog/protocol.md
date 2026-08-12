@@ -25,10 +25,10 @@
 ### 同步端点（HDA ⇄ bridge，事件驱动）
 - `GET /api/hda/{serial}/pending?since=N`：轻量脏检查 `{pending, rev, reset, force}`。**fallback**：HDA 主同步通道已改 `/stream`，本端点保留兼容与回退（自适应轮询时兼心跳）。
 - `POST /api/hda/{serial}/kick`：一次性 force 标记（web 首连/重连踢 HDA）；立即唤醒 `/stream`（返回 `{type:"kick", force:true}`）或 `/pending`（`force:true`）。
-- `GET /api/hda/{serial}/stream?since=0&hold=20`：**NDJSON 长轮询（HDA 主同步通道）**：
+- `GET /api/hda/{serial}/stream?since=0&hold=60`：**NDJSON 长轮询（HDA 主同步通道）**：
   - 请求到达即 `registry.touch`（liveness = 心跳，auto-register 语义同 /pending）。
   - 立即返回（任一命中）：`since>rev → {type:"reset", rev}` / `rev>since → {type:"outputs", rev}` / kick armed（一次性消费）→ `{type:"kick", force:true, rev}`。
-  - 否则 hold 至超时（默认 20s、上限 60s；HDA 用 60s）；`put_outputs` accepted 或 kick armed 立即唤醒；超时 → `{type:"timeout", rev}`。
+  - 否则 hold 至超时（默认 60s、上限 60s；HDA 用 60s）；`put_outputs` accepted 或 kick armed 立即唤醒；超时 → `{type:"timeout", rev}`。
   - 响应单行 NDJSON，`Content-Type: application/x-ndjson`。
 - `PUT /api/hda/{serial}/sync`，body `{"fps": int}`（1..60，默认 30）：设置每-serial 的 **bridge 侧接收+转发速率上限**（内存态；持久源是 web 的 Preference.json）。bridge 用它节流 `notify_stream` 与 WS 广播（合帧 latest-wins，≤ fps）；`/stream` 事件全部附带 `"fps"`，HDA 据此更新运行时接收上限。
 - **每端 Sync Max FPS（默认 30，1..60，防守型速率上限）**：

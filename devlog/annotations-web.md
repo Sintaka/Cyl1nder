@@ -515,3 +515,5 @@
 - **字体全同步**：所有 CSS 硬编码 `ui-monospace`/`system-ui` 统一换 `var(--cyl-font-ui)`（log/param/spreadsheet/nodeview/dock log/overview/colorpicker/hex 读值），首选项 code/system 切换影响全部组件（含 hex）。
 - **e2e**：round17 新增（fps=1 本地即时刷新 + 30 帧突发过时丢弃）；round16 加撤销/重做 gizmo 归位断言；round10 改 kick 5s 限流断言。
 - 验证：tsc 0；vitest 82；e2e 73 passed / 1 skipped。
+## v0.1.00065（2026-08-13）——HDA watchdog 15s→60s
+- `startHdaWatch` 检查间隔 15000→60000 ms，与 /stream hold=60s 的 1min 心跳对齐，减少 web→bridge 轮询流量；离线阈值仍 150s（2.5×60）不变。

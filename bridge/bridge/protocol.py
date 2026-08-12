@@ -10,7 +10,7 @@ GET /api/hda/{serial}/stream (NDJSON long-poll, see devlog/sync-heartbeat-redesi
   update its runtime receive cap; default 30)
 - immediate hits: since > rev -> {"type":"reset","rev","fps"}; rev > since ->
   {"type":"outputs","rev","fps"}; kick armed -> {"type":"kick","force":true,"rev","fps"}
-- otherwise hold up to `hold` seconds (default 20, max 60); put_outputs accepted / kick
+- otherwise hold up to `hold` seconds (default 60, max 60; HDA uses 60s); put_outputs accepted / kick
   armed wake the poll early; timeout -> {"type":"timeout","rev","fps"}
 - request arrival touches the registry (liveness heartbeat, same auto-register as /pending)
 
@@ -31,7 +31,7 @@ import time
 
 from pydantic import BaseModel, Field
 
-VERSION = "0.1.00064"
+VERSION = "0.1.00065"
 HOST = "127.0.0.1"
 PORT = 8375
 BASE_URL = f"http://{HOST}:{PORT}"
@@ -39,7 +39,7 @@ BASE_URL = f"http://{HOST}:{PORT}"
 WEB_UI_URL = "http://127.0.0.1:8376"
 
 # GET /api/hda/{serial}/stream long-poll hold bounds (seconds)
-STREAM_HOLD_DEFAULT = 20
+STREAM_HOLD_DEFAULT = 60
 STREAM_HOLD_MAX = 60
 
 # per-serial Sync Max FPS bounds (web bottom bar -> PUT /sync -> bridge + HDA caps)
