@@ -29,6 +29,7 @@
  * and the color3 param controls (param.ts).
  */
 import "../styles/colorpicker.css";
+import { createDropdown } from "./widgets";
 
 export interface RGB {
   /** red channel 0..255 */
@@ -522,7 +523,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
       </div>
       <div class="cyl-cp-harmony" data-part="harmony" hidden>
         <div class="cyl-cp-harmony-head">
-          <select data-part="harmony-preset" aria-label="Color harmony preset"></select>
+          <div data-part="harmony-preset"></div>
           <span class="cyl-cp-harmony-hint" data-part="harmony-hint" aria-hidden="true"></span>
           <label class="cyl-cp-light" title="Base lightness (HSL L) drives every harmony point">
             <span>L</span>
@@ -567,7 +568,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
   const svToggleBtns = Array.from(root.querySelectorAll<HTMLButtonElement>(".cyl-cp-sv-toggle button"));
   const modeBtns = Array.from(root.querySelectorAll<HTMLButtonElement>(".cyl-cp-pill button"));
   const harmonyEl = root.querySelector<HTMLElement>('[data-part="harmony"]')!;
-  const harmonySelect = root.querySelector<HTMLSelectElement>('[data-part="harmony-preset"]')!;
+  const harmonyHost = root.querySelector<HTMLElement>('[data-part="harmony-preset"]')!;
   const harmonyHintEl = root.querySelector<HTMLElement>('[data-part="harmony-hint"]')!;
   const lightSlider = root.querySelector<HTMLInputElement>('[data-part="harmony-light"]')!;
   const harmonySwatchesEl = root.querySelector<HTMLElement>('[data-part="harmony-swatches"]')!;
@@ -764,12 +765,16 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
   });
 
   // ---- Adobe harmony (P5): preset dropdown + linked points + swatches + L ----
-  harmonySelect.innerHTML = HARMONIES.map((d) => `<option value="${d.id}">${d.label}</option>`).join("");
-  harmonySelect.value = state.harmony;
-  harmonySelect.addEventListener("change", () => {
-    state.harmony = (harmonySelect.value as HarmonyId) || "analogous";
-    syncHarmony();
+  const harmonyDropdown = createDropdown({
+    value: state.harmony,
+    options: HARMONIES.map((d) => ({ value: d.id, label: d.label })),
+    onChange: (v) => {
+      state.harmony = (v as HarmonyId) || "analogous";
+      syncHarmony();
+    },
+    ariaLabel: "Color harmony preset",
   });
+  harmonyHost.replaceWith(harmonyDropdown.element);
 
   /** Pick harmony point i: re-anchor the base so point 0 == that color. */
   const pickHarmony = (i: number): void => {
@@ -1042,6 +1047,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     if (recentTimer !== undefined) window.clearTimeout(recentTimer);
     flushRecent();
     document.removeEventListener("keydown", onKey);
+    harmonyDropdown.destroy();
     root.remove();
     if (activePicker?.root === root) activePicker = null;
   };

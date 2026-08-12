@@ -22,6 +22,11 @@ import { BridgeClient } from "../src/bridge/client";
 const client = new BridgeClient();
 let serial = "";
 
+async function choosePrefOption(page: import("@playwright/test").Page, panel: import("@playwright/test").Locator, trigger: string, label: string): Promise<void> {
+  await panel.getByRole("button", { name: trigger }).click();
+  await panel.getByRole("button", { name: label }).click();
+}
+
 test.beforeAll(async () => {
   const bridgeOk = await client.health().then(() => true).catch(() => false);
   test.skip(!bridgeOk, "bridge not running on 127.0.0.1:8375");
@@ -83,14 +88,14 @@ test("Edit -> Preference: floating panel; tabs; Apply keeps open, Save closes", 
   await panel.locator('.cyl-pref-tab[data-pref-tab="ui"]').click();
   await expect(panel.locator('[data-pref-pane="ui"]')).toBeVisible();
   // round 62: UI Font dropdown, default "code" -> body .cyl-font-code
-  await expect(panel.locator("#cyl-pref-font")).toHaveValue("code");
+  await expect(panel.getByRole("button", { name: "UI font" }).locator(".cyl-menu-layout-name")).toHaveText("Fira Code (code)");
   await expect(page.locator("body")).toHaveClass(/cyl-font-code/);
-  await panel.locator("#cyl-pref-font").selectOption("system");
+  await choosePrefOption(page, panel, "UI font", "System");
   await panel.locator(".cyl-pref-apply").click();
   await expect(page.locator("body")).toHaveClass(/cyl-font-system/);
   const fontPrefs = await page.evaluate(() => JSON.parse(localStorage.getItem("cyl1nder.prefs") || "{}"));
   expect(fontPrefs.ui_font).toBe("system");
-  await panel.locator("#cyl-pref-font").selectOption("code");
+  await choosePrefOption(page, panel, "UI font", "Fira Code (code)");
   await panel.locator(".cyl-pref-apply").click();
   await expect(page.locator("body")).toHaveClass(/cyl-font-code/);
   await panel.locator('.cyl-pref-tab[data-pref-tab="viewport"]').click();
@@ -105,7 +110,7 @@ test("Edit -> Preference: floating panel; tabs; Apply keeps open, Save closes", 
 
   // change Sync Max FPS + Update Mode, then Apply -> persists + PUT /sync, panel stays open
   await panel.locator("#cyl-pref-fps").fill("45");
-  await panel.locator("#cyl-pref-mode").selectOption("mouseup");
+  await choosePrefOption(page, panel, "Update mode", "On Mouse Up");
   await panel.locator(".cyl-pref-apply").click();
   await expect(panel).toBeVisible();
   await expect.poll(() => syncFps, { timeout: 5000 }).toContain(45);
@@ -115,7 +120,7 @@ test("Edit -> Preference: floating panel; tabs; Apply keeps open, Save closes", 
 
   // bottom-bar controls are synced to the applied values
   await expect(page.locator("#cyl-sync-fps")).toHaveValue("45");
-  await expect(page.locator("#cyl-update-mode")).toHaveValue("mouseup");
+  await expect(page.locator(".cyl-bottom-bar .cyl-dd .cyl-menu-layout-name")).toHaveText("On Mouse Up");
 
   // Save -> persists + closes the panel
   await panel.locator("#cyl-pref-fps").fill("50");

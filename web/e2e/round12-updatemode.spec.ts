@@ -18,6 +18,13 @@ import { BridgeClient } from "../src/bridge/client";
 const client = new BridgeClient();
 let serial = "";
 
+const bottomDrop = (page: import("@playwright/test").Page) => page.locator(".cyl-bottom-bar .cyl-dd");
+async function chooseBottomOption(page: import("@playwright/test").Page, label: string): Promise<void> {
+  const dd = bottomDrop(page);
+  await dd.locator(".cyl-menu-layout-box").click();
+  await dd.locator(".cyl-dd-item", { hasText: label }).click();
+}
+
 /** Canonical 4-input fixture (input0 = the 4-pt square). */
 const CANONICAL_INPUTS = [
   { index: 0, name: "in0", pointCount: 4, primCount: 1, points: [[0,0,0],[1,0,0],[1,1,0],[0,1,0]], curves: [{ pointIndices: [0,1,2,3], widths: null }], faces: [[0,1,2,3]], attributes: {} },
@@ -169,15 +176,17 @@ test("bottom bar: non-docking strip + 15ch update-mode dropdown, default Auto Up
   expect(dockBox).not.toBeNull();
   expect(barBox!.y).toBeGreaterThanOrEqual(dockBox!.y + dockBox!.height - 1);
 
-  // dropdown: options + default Auto Update
-  const select = page.locator(".cyl-update-mode");
-  await expect(select).toBeVisible();
-  expect(await select.locator("option").allTextContents()).toEqual(["Auto Update", "On Mouse Up"]);
-  await expect(select).toHaveValue("auto");
+  // dropdown: options + default Auto Update (Layout-style custom dropdown)
+  const dd = bottomDrop(page);
+  await expect(dd).toBeVisible();
+  await expect(dd.locator(".cyl-menu-layout-name")).toHaveText("Auto Update");
+  await dd.locator(".cyl-menu-layout-box").click();
+  await expect(dd.locator(".cyl-dd-item")).toHaveText(["Auto Update", "On Mouse Up"]);
+  await dd.locator(".cyl-menu-layout-box").click(); // close
 
   // 15ch wide: compare to a probe div with width:15ch + the same font (both border-box)
   const widths = await page.evaluate(() => {
-    const el = document.querySelector(".cyl-update-mode") as HTMLElement;
+    const el = document.querySelector(".cyl-bottom-bar .cyl-dd .cyl-menu-layout-name") as HTMLElement;
     const cs = getComputedStyle(el);
     const probe = document.createElement("div");
     probe.style.cssText = `width:15ch;box-sizing:border-box;font:${cs.font};visibility:hidden;position:absolute`;
@@ -197,20 +206,20 @@ test("bottom bar: non-docking strip + 15ch update-mode dropdown, default Auto Up
   await expect(fpsInput).toHaveValue("30");
 
   // switching persists to the prefs store (cyl1nder.prefs.update_mode)
-  await select.selectOption("mouseup");
+  await chooseBottomOption(page, "On Mouse Up");
   const prefs = await page.evaluate(() => JSON.parse(localStorage.getItem("cyl1nder.prefs") || "{}"));
   expect(prefs.update_mode).toBe("mouseup");
 
   // reload -> the stored mode is restored
   await page.reload();
-  await expect(page.locator(".cyl-update-mode")).toHaveValue("mouseup", { timeout: 15000 });
+  await expect(bottomDrop(page).locator(".cyl-menu-layout-name")).toHaveText("On Mouse Up", { timeout: 15000 });
 });
 
 test("On Mouse Up: drag only buffers tx/ty/tz; release commits once (zero network during drag)", async ({ page }) => {
   await openGraph(page);
   await restoreTransformGraph(page);
   await baselineOrigin(page); // deterministic tx=0 baseline
-  await page.locator(".cyl-update-mode").selectOption("mouseup");
+  await chooseBottomOption(page, "On Mouse Up");
   await enterTransformEdit(page);
 
   // baseline geometry of the driven output (other parallel tests may push to the
@@ -259,7 +268,7 @@ test("Auto Update: gizmo drag pushes bridge outputs every frame (pre-round-12 be
   await enterTransformEdit(page);
 
   // default dropdown is auto (fresh context); still assert it explicitly
-  await expect(page.locator(".cyl-update-mode")).toHaveValue("auto");
+  await expect(bottomDrop(page).locator(".cyl-menu-layout-name")).toHaveText("Auto Update");
 
   // one drag frame -> outputs follow WHILE still dragging (no release)
   await dragGizmoTo(page, [1.5, -0.25, 0.5]);

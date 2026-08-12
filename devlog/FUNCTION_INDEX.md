@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-12），由 `node scripts/gen-index.mjs` 产出。共 **520** 个函数/类。
+> 机器生成（2026-08-12），由 `node scripts/gen-index.mjs` 产出。共 **523** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -388,28 +388,28 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/color.ts（1142 行）
+## web/src/app/color.ts（1148 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `fitInViewport` | 72 | function | export | 4 |
-| `rgbToHex` | 86 | function | export | 7 |
-| `hexToRgb` | 92 | function | export | 8 |
-| `rgbToHsl` | 113 | function |  | 10 |
-| `hslToRgb` | 133 | function |  | 7 |
-| `rgbToHsv` | 159 | function |  | 5 |
-| `hsvToRgb` | 177 | function |  | 4 |
-| `loadRecents` | 218 | function |  | 4 |
-| `saveRecents` | 232 | function |  | 4 |
-| `recordRecent` | 240 | function |  | 2 |
-| `removeRecent` | 247 | function |  | 3 |
-| `clearRecents` | 254 | function |  | 2 |
-| `esc` | 411 | function |  | 2 |
-| `valuesForMode` | 418 | function |  | 2 |
-| `colorFromMode` | 428 | function |  | 5 |
-| `harmonyDef` | 434 | function |  | 5 |
-| `harmonyColor` | 439 | function |  | 3 |
-| `openColorPicker` | 456 | function | export | 2 |
+| `fitInViewport` | 73 | function | export | 4 |
+| `rgbToHex` | 87 | function | export | 7 |
+| `hexToRgb` | 93 | function | export | 8 |
+| `rgbToHsl` | 114 | function |  | 10 |
+| `hslToRgb` | 134 | function |  | 7 |
+| `rgbToHsv` | 160 | function |  | 5 |
+| `hsvToRgb` | 178 | function |  | 4 |
+| `loadRecents` | 219 | function |  | 4 |
+| `saveRecents` | 233 | function |  | 4 |
+| `recordRecent` | 241 | function |  | 2 |
+| `removeRecent` | 248 | function |  | 3 |
+| `clearRecents` | 255 | function |  | 2 |
+| `esc` | 412 | function |  | 2 |
+| `valuesForMode` | 419 | function |  | 2 |
+| `colorFromMode` | 429 | function |  | 5 |
+| `harmonyDef` | 435 | function |  | 5 |
+| `harmonyColor` | 440 | function |  | 3 |
+| `openColorPicker` | 457 | function | export | 2 |
 
 ## web/src/app/dock.ts（541 行）
 
@@ -438,13 +438,13 @@
 | `onLayoutChange` | 486 | arrow |  | 0 |
 | `applyLayout` | 530 | function | export | 1 |
 
-## web/src/app/layout.ts（253 行）
+## web/src/app/layout.ts（273 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `wireFpsStepper` | 27 | function |  | 3 |
-| `buildLayout` | 46 | function | export | 1 |
-| `buildLayoutLegacy` | 153 | function | export | 1 |
+| `wireFpsStepper` | 29 | function |  | 3 |
+| `buildLayout` | 48 | function | export | 1 |
+| `buildLayoutLegacy` | 164 | function | export | 1 |
 
 ## web/src/app/layouts.ts（11 行）
 
@@ -476,15 +476,15 @@
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `clampSyncFps` | 44 | function | export | 4 |
-| `parseUpdateMode` | 50 | function |  | 4 |
-| `parseAutosaveInterval` | 55 | function |  | 3 |
-| `parseViewportBg` | 62 | function |  | 4 |
-| `parseUiFont` | 66 | function |  | 4 |
-| `loadPreferences` | 72 | function | export | 1 |
-| `savePreferences` | 97 | function | export | 1 |
-| `applyPreferences` | 104 | function | export | 1 |
-| `openPreferenceDialog` | 127 | function | export | 1 |
+| `clampSyncFps` | 45 | function | export | 4 |
+| `parseUpdateMode` | 51 | function |  | 4 |
+| `parseAutosaveInterval` | 56 | function |  | 3 |
+| `parseViewportBg` | 63 | function |  | 4 |
+| `parseUiFont` | 67 | function |  | 4 |
+| `loadPreferences` | 73 | function | export | 1 |
+| `savePreferences` | 98 | function | export | 1 |
+| `applyPreferences` | 105 | function | export | 1 |
+| `openPreferenceDialog` | 128 | function | export | 1 |
 
 ## web/src/app/scrub.ts（270 行）
 
@@ -513,6 +513,14 @@
 | `renderPayload` | 73 | function | export | 2 |
 | `addVerts` | 114 | arrow |  | 2 |
 | `renderSpreadsheet` | 158 | function | export | 1 |
+
+## web/src/app/widgets.ts（210 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `createPopupAnchor` | 38 | function |  | 2 |
+| `createDropdown` | 46 | function | export | 1 |
+| `createStepper` | 130 | function | export | 1 |
 
 ## web/src/bridge/client.ts（237 行）
 

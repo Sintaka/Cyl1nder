@@ -283,11 +283,13 @@ test("P3/P5 Simple/Advanced mode + Adobe harmony wheel (presets, linked points, 
   await expect(picker.locator(".cyl-cp-harmony-swatches .cyl-cp-swatch")).toHaveCount(5);
   await expect(picker.locator(".cyl-cp-harmony-point")).toHaveCount(4); // point 0 == wheel thumb
 
-  // preset dropdown: 6 Color harmonies
-  const preset = picker.locator('[data-part="harmony-preset"]');
-  expect(await preset.locator("option").allTextContents()).toEqual([
+  // preset dropdown: 6 Color harmonies (Layout-style custom dropdown)
+  const preset = picker.getByRole("button", { name: "Color harmony preset" });
+  await preset.click();
+  await expect(picker.locator(".cyl-menu-drop.open .cyl-dd-item")).toHaveText([
     "Monochrome", "Complementary", "Analogous", "Triadic", "Compound", "Shades",
   ]);
+  await preset.click(); // close
   // swatch 0 == the current color (base); analogous point 1 is a different hue
   expect(await picker.locator('.cyl-cp-harmony-swatches .cyl-cp-swatch').nth(0).evaluate((el) => getComputedStyle(el).backgroundColor))
     .toBe(rgbString(await expectedHex(page, "c.hslToRgb(0, 100, 50)")));
@@ -295,7 +297,8 @@ test("P3/P5 Simple/Advanced mode + Adobe harmony wheel (presets, linked points, 
   expect(beforeAnalog).not.toBe(rgbString(await expectedHex(page, "c.hslToRgb(0, 100, 50)")));
 
   // preset -> Complementary: point 1 becomes the complementary hue (180°)
-  await preset.selectOption("complementary");
+  await preset.click();
+  await picker.locator(".cyl-menu-drop.open .cyl-dd-item", { hasText: "Complementary" }).click();
   await expect
     .poll(() => picker.locator('.cyl-cp-harmony-swatches .cyl-cp-swatch').nth(1).evaluate((el) => getComputedStyle(el).backgroundColor))
     .toBe(rgbString(await expectedHex(page, "c.hslToRgb(180, 100, 50)")));

@@ -1,6 +1,7 @@
 import type { UpdateMode } from "../protocol/types";
 import type { Layout } from "./layout";
 import { fitInViewport, hexToRgb, openColorPicker } from "./color";
+import { createDropdown, createStepper } from "./widgets";
 import "../styles/preference-plus.css";
 
 /** Preferences persisted to localStorage ("cyl1nder.prefs") + Preference.json v1.
@@ -155,14 +156,11 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
       <section class="cyl-pref-section is-active" data-pref-pane="general">
         <div class="cyl-pref-row">
           <label for="cyl-pref-fps">Sync Max FPS</label>
-          <input type="number" id="cyl-pref-fps" class="cyl-pref-fps" min="${SYNC_FPS_MIN}" max="${SYNC_FPS_MAX}" step="1" value="${initial.sync_max_fps}" />
+          <div id="cyl-pref-fps"></div>
         </div>
         <div class="cyl-pref-row">
-          <label for="cyl-pref-mode">Update Mode</label>
-          <select id="cyl-pref-mode" class="cyl-pref-mode">
-            <option value="auto"${initial.update_mode === "auto" ? " selected" : ""}>Auto Update</option>
-            <option value="mouseup"${initial.update_mode === "mouseup" ? " selected" : ""}>On Mouse Up</option>
-          </select>
+          <label>Update Mode</label>
+          <div id="cyl-pref-mode"></div>
         </div>
         <div class="cyl-pref-sep"></div>
         <div class="cyl-pref-autosave">
@@ -172,7 +170,7 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
           </div>
           <div class="cyl-pref-row">
             <label for="cyl-pref-autosave-interval">Interval (minutes)</label>
-            <input type="number" id="cyl-pref-autosave-interval" min="${AUTOSAVE_INTERVAL_MIN}" step="0.1" value="${initial.autosave_interval_min}" />
+            <div id="cyl-pref-autosave-interval"></div>
           </div>
         </div>
       </section>
@@ -187,11 +185,8 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
       </section>
       <section class="cyl-pref-section" data-pref-pane="ui" hidden>
         <div class="cyl-pref-row">
-          <label for="cyl-pref-font">UI Font</label>
-          <select id="cyl-pref-font" class="cyl-pref-font">
-            <option value="code"${initial.ui_font === "code" ? " selected" : ""}>Fira Code (code)</option>
-            <option value="system"${initial.ui_font === "system" ? " selected" : ""}>System</option>
-          </select>
+          <label>UI Font</label>
+          <div id="cyl-pref-font"></div>
         </div>
       </section>
     </div>
@@ -229,13 +224,18 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
     panel.ownerDocument.addEventListener("pointerup", onUp);
   });
 
-  const fpsInput = panel.querySelector<HTMLInputElement>("#cyl-pref-fps")!;
-  const modeSelect = panel.querySelector<HTMLSelectElement>("#cyl-pref-mode")!;
+  const fpsHandle = createStepper({ value: initial.sync_max_fps, min: SYNC_FPS_MIN, max: SYNC_FPS_MAX, step: 1, inputId: "cyl-pref-fps", ariaLabel: "Sync Max FPS", onChange: () => {} });
+  const modeHandle = createDropdown({ value: initial.update_mode, ariaLabel: "Update mode", options: [{ value: "auto", label: "Auto Update" }, { value: "mouseup", label: "On Mouse Up" }], onChange: () => {} });
+  const intervalHandle = createStepper({ value: initial.autosave_interval_min, min: AUTOSAVE_INTERVAL_MIN, max: 1440, step: 0.1, inputId: "cyl-pref-autosave-interval", ariaLabel: "Auto save interval (minutes)", onChange: () => {} });
+  const fontHandle = createDropdown({ value: initial.ui_font, ariaLabel: "UI font", options: [{ value: "code", label: "Fira Code (code)" }, { value: "system", label: "System" }], onChange: () => {} });
+  panel.querySelector("#cyl-pref-fps")!.replaceWith(fpsHandle.element);
+  panel.querySelector("#cyl-pref-mode")!.replaceWith(modeHandle.element);
+  panel.querySelector("#cyl-pref-autosave-interval")!.replaceWith(intervalHandle.element);
+  panel.querySelector("#cyl-pref-font")!.replaceWith(fontHandle.element);
+
   const autosaveCheck = panel.querySelector<HTMLInputElement>("#cyl-pref-autosave")!;
-  const intervalInput = panel.querySelector<HTMLInputElement>("#cyl-pref-autosave-interval")!;
   const swatch = panel.querySelector<HTMLSpanElement>("#cyl-pref-bg-swatch")!;
   const hexEl = panel.querySelector<HTMLSpanElement>("#cyl-pref-bg-hex")!;
-  const fontSelect = panel.querySelector<HTMLSelectElement>("#cyl-pref-font")!;
   let viewportBg = initial.viewport_bg;
 
   const renderViewportBg = (hex: string): void => {
@@ -246,15 +246,13 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
 
   /** Validate + read the panel into a Preferences object (null when invalid). */
   const collect = (): Preferences | null => {
-    const interval = Number(intervalInput.value);
-    if (!Number.isFinite(interval) || interval < AUTOSAVE_INTERVAL_MIN) return null;
     return {
-      sync_max_fps: clampSyncFps(fpsInput.value),
-      update_mode: parseUpdateMode(modeSelect.value),
+      sync_max_fps: clampSyncFps(fpsHandle.getValue()),
+      update_mode: parseUpdateMode(modeHandle.getValue()),
       autosave_enabled: autosaveCheck.checked,
-      autosave_interval_min: Math.round(interval * 10) / 10,
+      autosave_interval_min: Math.round(intervalHandle.getValue() * 10) / 10,
       viewport_bg: viewportBg,
-      ui_font: parseUiFont(fontSelect.value),
+      ui_font: parseUiFont(fontHandle.getValue()),
     };
   };
 
@@ -309,6 +307,8 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
   const close = (): void => {
     if (activePanel === panel) activePanel = null;
     if (activeClose === close) activeClose = null;
+    modeHandle.destroy();
+    fontHandle.destroy();
     panel.remove();
     document.removeEventListener("keydown", onKey);
   };
@@ -334,5 +334,5 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
   activePanel = panel;
   activeClose = close;
   document.body.appendChild(panel);
-  fpsInput.focus();
+  fpsHandle.input.focus();
 }

@@ -452,8 +452,8 @@ let dragAfter: Array<{ name: string; type: string; value: unknown }> | null = nu
  *  non-transform node (or empty), Enter keeps the gizmo on this node instead of
  *  dropping it. Reset on explicit Enter exit. */
 let lastTransformId: string | null = null;
-layout.updateModeSelect.addEventListener("change", () => {
-  updateMode = layout.updateModeSelect.value === "mouseup" ? "mouseup" : "auto";
+layout.updateModeSelect.onChange((v) => {
+  updateMode = v === "mouseup" ? "mouseup" : "auto";
   prefs = { ...prefs, update_mode: updateMode };
   savePreferences(prefs);
   store.pushLog(`update mode: ${updateMode === "auto" ? "Auto Update" : "On Mouse Up"}`);

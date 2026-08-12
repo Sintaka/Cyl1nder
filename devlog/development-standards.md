@@ -63,3 +63,9 @@
 - **子智能体职责**：只改分配到的写集文件，按契约实现，各自 `tsc --noEmit` 通过并尽量 Playwright 自测，完成后回报改了哪些文件。
 - **主进程自己的写集**：仅限 ① devlog/文档/版本号/索引；② 合并时补契约另一侧的调用点（如 main.ts）；③ 拆结构用的骨架/契约锚点文件。
 - **例外**：纯调研/只读任务、临时调试、一行级 hotfix 可主进程直接做；除此之外一律派子智能体。
+
+## UI 规范（2026-08-13 起）
+- **下拉菜单统一 Layout 风格**：任何下拉选择（底部栏 Update Mode / 首选项 Update Mode·UI Font / 调色板 harmony 等）一律用 `web/src/app/widgets.ts` 的 `createDropdown`（圆角矩形触发盒 = 左侧 ▲▼ caret + 当前值名称块；弹出面板 = `.cyl-menu-drop`）。**不再用原生 `<select>`**。
+- **带箭头的数值输入统一 Sync Max FPS 步进风格**：用 `createStepper`（圆角矩形容器 + 数字输入 + 右侧 ▲▼ 步进列），保留 `inputId` 让 label `for` 指向内部 input；**不再用带原生 spinner 的裸 `input[type=number]`**（颜色通道 / 参数表这类已有滑块或中键 scrub 的除外）。
+- 所有按钮 / 输入 / 面板统一圆角矩形（4-6px）、深色（#1b1e24 / #0f1012），焦点描边 `#2b6cb0`。
+- 下拉控件要在所属面板 `close()` 里 `destroy()`（清理 document 级监听）；stepper 无需 destroy。

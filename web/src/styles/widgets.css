@@ -1,0 +1,23 @@
+/* Shared custom controls (web/src/app/widgets.ts):
+   .cyl-dd = custom dropdown wrapper; the trigger reuses the menubar Layout box
+   (.cyl-menu-layout-box) and the popup reuses .cyl-menu-drop. */
+.cyl-dd {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.cyl-dd .cyl-menu-drop {
+  min-width: 160px;
+}
+.cyl-dd-drop-up .cyl-menu-drop {
+  top: auto;
+  bottom: 100%;
+}
+.cyl-dd-item.active {
+  background: #2b6cb0;
+  color: #fff;
+}
+/* File/Edit menu triggers reuse the Layout box but keep a natural width. */
+.cyl-menu-layout-box.compact .cyl-menu-layout-name {
+  width: auto;
+}

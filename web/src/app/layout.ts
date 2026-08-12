@@ -1,4 +1,6 @@
-﻿export interface Layout {
+﻿import { createDropdown, type DropdownHandle } from "./widgets";
+
+export interface Layout {
   root: HTMLElement;
   serialInput: HTMLInputElement;
   connectBtn: HTMLButtonElement;
@@ -15,7 +17,7 @@
   hintEl: HTMLElement;
   inspectorEl: HTMLElement;
   logEl: HTMLElement;
-  updateModeSelect: HTMLSelectElement;
+  updateModeSelect: DropdownHandle;
   menuEdit: HTMLElement;
   syncFpsInput: HTMLInputElement;
 }
@@ -50,7 +52,7 @@ export function buildLayout(app: HTMLElement): Layout {
         <a class="cyl-brand" href="/overview.html" target="_blank" rel="noopener">Cyl1nder <small>0.1</small></a>
         <div class="cyl-menubar">
           <div class="cyl-menu" data-menu="file">
-            <span class="cyl-menu-label">File</span>
+            <span class="cyl-menu-label cyl-menu-layout-box compact"><span class="cyl-menu-layout-caret" aria-hidden="true"><span>▲</span><span>▼</span></span><span class="cyl-menu-layout-name">File</span></span>
             <div class="cyl-menu-drop" id="cyl-menu-file">
               <button data-act="open">Open Scene…</button>
               <button data-act="save">Save Scene <span class="cyl-menu-kbd">Ctrl+S</span></button>
@@ -58,7 +60,7 @@ export function buildLayout(app: HTMLElement): Layout {
             </div>
           </div>
           <div class="cyl-menu" data-menu="edit">
-            <span class="cyl-menu-label">Edit</span>
+            <span class="cyl-menu-label cyl-menu-layout-box compact"><span class="cyl-menu-layout-caret" aria-hidden="true"><span>▲</span><span>▼</span></span><span class="cyl-menu-layout-name">Edit</span></span>
             <div class="cyl-menu-drop" id="cyl-menu-edit">
               <button data-act="preference">Preference…</button>
             </div>
@@ -86,10 +88,7 @@ export function buildLayout(app: HTMLElement): Layout {
       </header>
       <div id="cyl-dock" class="cyl-dock"></div>
       <div class="cyl-bottom-bar">
-        <select id="cyl-update-mode" class="cyl-update-mode">
-          <option value="auto" selected>Auto Update</option>
-          <option value="mouseup">On Mouse Up</option>
-        </select>
+        <div id="cyl-update-mode"></div>
         <label class="cyl-bottom-label" for="cyl-sync-fps" title="kick bridge / HDA 接收上限（1..60，默认 30）">Sync Max FPS</label>
         <div class="cyl-fps-stepper">
           <input type="number" id="cyl-sync-fps" min="1" max="60" value="30" class="cyl-sync-fps" />
@@ -101,6 +100,18 @@ export function buildLayout(app: HTMLElement): Layout {
       </div>
     </div>`;
   const $ = <T extends HTMLElement>(sel: string): T => app.querySelector(sel) as T;
+
+  const updateModeDropdown = createDropdown({
+    value: "auto",
+    options: [
+      { value: "auto", label: "Auto Update" },
+      { value: "mouseup", label: "On Mouse Up" },
+    ],
+    onChange: () => {},
+    dropUp: true,
+    ariaLabel: "Update mode",
+  });
+  $("#cyl-update-mode").replaceWith(updateModeDropdown.element);
   wireFpsStepper(app.querySelector(".cyl-fps-stepper"));
 
   // Content containers are created here and handed to the docking system; dockview
@@ -144,7 +155,7 @@ export function buildLayout(app: HTMLElement): Layout {
     hintEl: viewportContainer.querySelector("#cyl-hint") as HTMLElement,
     inspectorEl,
     logEl,
-    updateModeSelect: $("#cyl-update-mode"),
+    updateModeSelect: updateModeDropdown,
     syncFpsInput: $("#cyl-sync-fps"),
   };
 }
@@ -157,7 +168,7 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
         <a class="cyl-brand" href="/overview.html" target="_blank" rel="noopener">Cyl1nder <small>0.1</small></a>
         <div class="cyl-menubar">
           <div class="cyl-menu" data-menu="file">
-            <span class="cyl-menu-label">File</span>
+            <span class="cyl-menu-label cyl-menu-layout-box compact"><span class="cyl-menu-layout-caret" aria-hidden="true"><span>▲</span><span>▼</span></span><span class="cyl-menu-layout-name">File</span></span>
             <div class="cyl-menu-drop" id="cyl-menu-file">
               <button data-act="open">Open Scene…</button>
               <button data-act="save">Save Scene <span class="cyl-menu-kbd">Ctrl+S</span></button>
@@ -165,7 +176,7 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
             </div>
           </div>
           <div class="cyl-menu" data-menu="edit">
-            <span class="cyl-menu-label">Edit</span>
+            <span class="cyl-menu-label cyl-menu-layout-box compact"><span class="cyl-menu-layout-caret" aria-hidden="true"><span>▲</span><span>▼</span></span><span class="cyl-menu-layout-name">Edit</span></span>
             <div class="cyl-menu-drop" id="cyl-menu-edit">
               <button data-act="preference">Preference…</button>
             </div>
@@ -212,10 +223,7 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
       <div class="cyl-splitter splitter-h" data-splitter="log"></div>
       <footer id="cyl-log" class="cyl-log"></footer>
       <div class="cyl-bottom-bar">
-        <select id="cyl-update-mode" class="cyl-update-mode">
-          <option value="auto" selected>Auto Update</option>
-          <option value="mouseup">On Mouse Up</option>
-        </select>
+        <div id="cyl-update-mode"></div>
         <label class="cyl-bottom-label" for="cyl-sync-fps" title="kick bridge / HDA 接收上限（1..60，默认 30）">Sync Max FPS</label>
         <div class="cyl-fps-stepper">
           <input type="number" id="cyl-sync-fps" min="1" max="60" value="30" class="cyl-sync-fps" />
@@ -227,6 +235,18 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
       </div>
     </div>`;
   const $ = <T extends HTMLElement>(sel: string): T => app.querySelector(sel) as T;
+
+  const updateModeDropdown = createDropdown({
+    value: "auto",
+    options: [
+      { value: "auto", label: "Auto Update" },
+      { value: "mouseup", label: "On Mouse Up" },
+    ],
+    onChange: () => {},
+    dropUp: true,
+    ariaLabel: "Update mode",
+  });
+  $("#cyl-update-mode").replaceWith(updateModeDropdown.element);
   wireFpsStepper(app.querySelector(".cyl-fps-stepper"));
   return {
     root: app,
@@ -246,7 +266,7 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
     hintEl: $("#cyl-hint"),
     inspectorEl: $("#cyl-inspector"),
     logEl: $("#cyl-log"),
-    updateModeSelect: $("#cyl-update-mode"),
+    updateModeSelect: updateModeDropdown,
     syncFpsInput: $("#cyl-sync-fps"),
   };
 }
