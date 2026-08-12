@@ -31,9 +31,14 @@ html, body, #app { height: 100%; margin: 0; }
 .splitter-h { height: 5px; cursor: row-resize; flex: 0 0 auto; }
 .cyl-autorun { color: #8f959e; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
 /* menu bar */
-.cyl-menubar { display: flex; gap: 2px; user-select: none; -webkit-user-select: none; }
+.cyl-menubar { display: flex; align-items: center; gap: 2px; user-select: none; -webkit-user-select: none; }
 .cyl-menu { position: relative; }
 .cyl-menu-label { padding: 2px 8px; cursor: pointer; border-radius: 3px; color: #cfd2d6; font-size: 12px; }
+/* round 0.1.00061: plain menu labels (File/Edit) sat on a 1.4x line box which, combined
+   with align-items:center, left their visual center ~1px high vs the taller Layout box.
+   Making them inline-flex (like the Layout box) puts their box center on the same line
+   as Layout's, so all three menu labels sit on the menubar center. */
+.cyl-menu-label:not(.cyl-menu-layout-box) { display: inline-flex; align-items: center; line-height: 1; vertical-align: middle; }
 .cyl-menu-label:hover { background: #2a2d33; }
 .cyl-menu-drop {
   display: none; position: absolute; top: 100%; left: 0; background: #1b1e24;

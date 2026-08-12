@@ -485,3 +485,10 @@
   - **bridge 重启后几何自动恢复**：HDA `_stream_loop` reset 分支新增 `_reset_caches(serial)`（清 `_PUSH_CACHE`/`_CORE_CACHE`/`_OUT_CACHE`/`_GEO_CACHE`，**重推 inputs 到新 workspace**）并**绕过 fps 节流直接调度 recook**；hython 新增 reset 断言（含节流窗口内 reset）。
   - **视口参数 Undo**：undo.ts 新增 `{type:"group"}`（undo 逆序/redo 顺序）；graph.ts `pushUndoGroup` + group 应用（params 子 action 只触发一次网络刷新）；main.ts gizmo 拖动捕获 before/after，**一次拖动 = 一步 Ctrl+Z 撤回**（auto/mouseup 均一次）；新 e2e round16-undo（3 用例）。
   - 验证：tsc 0；vitest 82；全量 e2e **64 passed / 1 skipped**；hython SMOKE OK（含 reset）；pytest 50。
+## v0.1.00061（2026-08-12）
+- **UI/颜色微调轮**（devlog/optimize-round-00061.md）：
+  - **dock 活跃标签底角内侧残留修复**：根因 = 内凹 notch 渐变圆心写在瓦片顶部角（底边上方 4px）→ 真正底角没挖掉 + 软边产生近黑 AA 像素（「残留镜像/小黑点」）。修复：圆心移到真正底角（左瓦片 0% 100%、右瓦片 100% 100%）+ 2 停靠硬边 `#141518 0 3.85px → rgba(46,79,125,0) 4.05px`；像素验证 dark 3→0、darkblue 2→0、外部外翻蓝 8/8 不变。
+  - **菜单 File/Edit 垂直居中**：`.cyl-menubar { align-items:center }` + `.cyl-menu-label:not(.cyl-menu-layout-box){ inline-flex; line-height:1; vertical-align:middle }`；File/Edit 中心 13.5→18.6，与 Layout 框偏差 ≤0.4px。
+  - **颜色拾取器体验**：Viewport 首选项**点色块即开调色板**（移除 Change… 按钮，色块 cursor:pointer + 键盘可触发）；**hex 大写**（rgbToHex → #RRGGBB，输入小写自动转大写）；**色轮升级 Adobe 风**（色相环 + 内部 SV 三角形，`△/□` 切换、默认三角形，重心坐标选色，零依赖）。
+  - e2e：round13（Change 按钮→点色块开拾取器）、round15（大写 hex：#3366CC/#FF8800/ZZZ）；preference 面板 Escape 在拾取器开着时让给拾取器关闭。
+  - 验证：tsc 0；vitest 82；全量 e2e **64 passed / 1 skipped**；pytest 50（无 bridge/hda 改动）。

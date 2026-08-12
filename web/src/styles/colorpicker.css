@@ -52,11 +52,12 @@
   padding: 10px;
 }
 
-/* hue ring + SV square side by side */
+/* hue ring + SV panel side by side */
 .cyl-cp-areas {
   display: flex;
   gap: 10px;
   justify-content: center;
+  align-items: flex-start;
 }
 .cyl-cp-ring {
   position: relative;
@@ -125,6 +126,56 @@
   transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: 2;
+}
+
+/* SV panel column: shape toggle above the saturation/value panel */
+.cyl-cp-sv-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.cyl-cp-sv-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 1px;
+  background: #16181c;
+  border: 1px solid #33363c;
+  border-radius: 4px;
+}
+.cyl-cp-sv-toggle button {
+  width: 18px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #7a7f87;
+  font-size: 11px;
+  line-height: 1;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.cyl-cp-sv-toggle button:hover {
+  color: #cfd2d6;
+}
+.cyl-cp-sv-toggle button.active {
+  background: #2b6cb0;
+  color: #fff;
+}
+
+/* Adobe-style triangle SV panel: hue top vertex, black bottom-left, white
+   bottom-right. Overlay stops are exact for a 132x114 equilateral triangle
+   (clip-path polygon(50% 0%, 0% 100%, 100% 100%)). */
+.cyl-cp-sv.tri {
+  height: 114px;
+  border-radius: 0;
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+}
+.cyl-cp-sv.tri::before {
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0) 33.3%, rgba(255, 255, 255, 1) 100%);
+}
+.cyl-cp-sv.tri::after {
+  background: linear-gradient(60deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0) 66.7%);
 }
 
 /* hex row + preview swatch */

@@ -97,21 +97,21 @@ test("color3 param swatch + picker: hex edit updates the param and Esc closes", 
   await restoreTransformGraph(page);
   await selectTransformAndOpenParams(page);
 
-  // swatch button renders the color3 value [0.2,0.4,0.8] -> rgb(51,102,204) = #3366cc
+  // swatch button renders the color3 value [0.2,0.4,0.8] -> rgb(51,102,204) = #3366CC
   const swatch = page.locator(".cyl-color3-swatch");
   await expect(swatch).toBeVisible();
   const bg = await swatch.evaluate((el) => getComputedStyle(el).backgroundColor);
   expect(bg).toBe("rgb(51, 102, 204)");
-  await expect(page.locator(".cyl-color3-hex")).toHaveValue("#3366cc");
+  await expect(page.locator(".cyl-color3-hex")).toHaveValue("#3366CC");
 
-  // click the swatch -> the non-modal picker pops up (hue ring + SV square + tabs + hex)
+  // click the swatch -> the non-modal picker pops up (hue ring + SV triangle/square toggle + tabs + hex)
   await swatch.click();
   const picker = page.locator(".cyl-cp");
   await expect(picker).toBeVisible({ timeout: 10000 });
   await expect(picker.locator(".cyl-cp-ring")).toBeVisible();
   await expect(picker.locator(".cyl-cp-sv")).toBeVisible();
   expect(await picker.locator(".cyl-cp-tabs button").allTextContents()).toEqual(["RGB", "HSL", "HSV"]);
-  await expect(picker.locator(".cyl-cp-hex")).toHaveValue("#3366cc");
+  await expect(picker.locator(".cyl-cp-hex")).toHaveValue("#3366CC");
   // non-modal: no backdrop blocking the page (no overlay element)
   await expect(picker.locator(".cyl-cp-overlay")).toHaveCount(0);
 
@@ -122,19 +122,19 @@ test("color3 param swatch + picker: hex edit updates the param and Esc closes", 
   expect(v[0]).toBeCloseTo(255 / 255, 5);
   expect(v[1]).toBeCloseTo(136 / 255, 5);
   expect(v[2]).toBeCloseTo(0 / 255, 5);
-  await expect(page.locator(".cyl-color3-hex")).toHaveValue("#ff8800");
+  await expect(page.locator(".cyl-color3-hex")).toHaveValue("#FF8800");
 
   // invalid hex is ignored while typing (no commit) and reverted on blur/Enter
   await picker.locator(".cyl-cp-hex").fill("zzz");
   expect(await tintValue(page)).toEqual(v); // param unchanged while typing
-  await expect(picker.locator(".cyl-cp-hex")).toHaveValue("zzz"); // still shown until committed
+  await expect(picker.locator(".cyl-cp-hex")).toHaveValue("ZZZ"); // still shown until committed (input auto-uppercases to ZZZ)
   await picker.locator(".cyl-cp-hex").blur(); // commit attempt -> change event reverts invalid
-  await expect(picker.locator(".cyl-cp-hex")).toHaveValue("#ff8800"); // reverted to the valid hex
+  await expect(picker.locator(".cyl-cp-hex")).toHaveValue("#FF8800"); // reverted to the valid hex
 
   // the used color lands in recents (debounced 250ms)
   await page.waitForTimeout(400);
   const recents = await page.evaluate(() => JSON.parse(localStorage.getItem("cyl1nder.colorRecents") || "[]"));
-  expect(recents[0]).toBe("#ff8800");
+  expect(recents[0]).toBe("#FF8800");
 
   // Esc closes the picker
   await page.keyboard.press("Escape");
@@ -150,7 +150,7 @@ test("color helpers: rgbToHex / hexToRgb / rgb-hsl-hsv round trips (__cylColorPi
     const hsv = c.rgbToHsv(src);
     (window as any).__conv = {
       hex: c.rgbToHex({ r: 51, g: 102, b: 204 }),
-      full: c.hexToRgb("#3366cc"),
+      full: c.hexToRgb("#3366CC"),
       short: c.hexToRgb("#36c"),
       bad: c.hexToRgb("nope"),
       hsl,
@@ -160,7 +160,7 @@ test("color helpers: rgbToHex / hexToRgb / rgb-hsl-hsv round trips (__cylColorPi
     };
   });
   const r = await page.evaluate(() => (window as any).__conv);
-  expect(r.hex).toBe("#3366cc");
+  expect(r.hex).toBe("#3366CC");
   expect(r.full).toEqual({ r: 51, g: 102, b: 204 });
   expect(r.short).toEqual({ r: 51, g: 102, b: 204 });
   expect(r.bad).toBeNull();

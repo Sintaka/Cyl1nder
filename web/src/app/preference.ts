@@ -25,7 +25,7 @@ export const LEGACY_UPDATE_MODE_KEY = "cyl1nder.updateMode";
 /** Auto-save interval floor in minutes (decimals allowed, e.g. 0.1 for e2e). */
 export const AUTOSAVE_INTERVAL_MIN = 0.1;
 export const AUTOSAVE_INTERVAL_DEFAULT = 5;
-export const VIEWPORT_BG_DEFAULT = "#1a1a1a";
+export const VIEWPORT_BG_DEFAULT = "#1A1A1A";
 
 export const DEFAULT_PREFS: Preferences = {
   sync_max_fps: SYNC_FPS_DEFAULT,
@@ -55,7 +55,7 @@ function parseAutosaveInterval(value: unknown): number {
 
 /** Hex #rrggbb (case-insensitive) or the default viewport background. */
 function parseViewportBg(value: unknown): string {
-  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value : VIEWPORT_BG_DEFAULT;
+  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value.toUpperCase() : VIEWPORT_BG_DEFAULT;
 }
 
 /** Read preferences from localStorage (JSON "cyl1nder.prefs"); falls back to
@@ -95,8 +95,8 @@ export function applyPreferences(prefs: Preferences, layout: Layout): void {
   layout.updateModeSelect.value = prefs.update_mode;
 }
 
-// Viewport background color picker (Agent C's color.ts) - see contract §2.2.
-// The Change… button below calls openColorPicker / hexToRgb from "./color".
+// Viewport background color picker (Agent C's color.ts) - see contract §2.3.
+// Clicking the swatch opens openColorPicker; hexToRgb seeds its initial color.
 
 
 /** Non-modal floating preference panel (no fullscreen overlay, the app behind
@@ -154,11 +154,10 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
       </section>
       <section class="cyl-pref-section" data-pref-pane="viewport" hidden>
         <div class="cyl-pref-row cyl-pref-viewport">
-          <label for="cyl-pref-bg-change">Default Background Color</label>
+          <label>Default Background Color</label>
           <div class="cyl-pref-color">
-            <span class="cyl-pref-swatch" id="cyl-pref-bg-swatch" style="background:${initial.viewport_bg}"></span>
+            <span class="cyl-pref-swatch" id="cyl-pref-bg-swatch" style="background:${initial.viewport_bg}" role="button" tabindex="0" title="Click to change color" aria-label="Change default background color"></span>
             <span class="cyl-pref-hex" id="cyl-pref-bg-hex">${initial.viewport_bg}</span>
-            <button type="button" class="cyl-pref-change" id="cyl-pref-bg-change">Change…</button>
           </div>
         </div>
       </section>
@@ -240,13 +239,23 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
   };
   tabs.forEach((tab) => tab.addEventListener("click", () => activateTab(tab.dataset.prefTab ?? "general")));
 
-  // Viewport tab: Change… opens the shared color picker (Agent C)
-  panel.querySelector<HTMLButtonElement>("#cyl-pref-bg-change")!.addEventListener("click", () => {
+  // Viewport tab: clicking the swatch opens the shared color picker (Agent C);
+  // the Change… button was removed (0.1.00061) - the swatch IS the control.
+  // cursor:pointer is set inline (base.css belongs to Agent A).
+  const openBgPicker = (): void => {
     openColorPicker({
       initial: hexToRgb(viewportBg) ?? { r: 26, g: 26, b: 26 },
       onColor: (_rgb, hex) => renderViewportBg(hex),
       title: "Viewport Background",
     });
+  };
+  swatch.style.cursor = "pointer";
+  swatch.addEventListener("click", openBgPicker);
+  swatch.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openBgPicker();
+    }
   });
 
   let onKey: (e: KeyboardEvent) => void;
@@ -255,6 +264,8 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
     document.removeEventListener("keydown", onKey);
   };
   onKey = (e: KeyboardEvent) => {
+    // while a color picker is open, Escape closes the picker, not the panel
+    if (e.key === "Escape" && document.querySelector(".cyl-cp")) return;
     if (e.key === "Escape") close();
   };
 

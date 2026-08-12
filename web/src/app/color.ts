@@ -1,9 +1,10 @@
 /**
  * Unified color system (contract devlog/autosave-color-prefs-ui.md §2.2).
  * Pure TS, zero new deps. Dark floating (non-modal) color picker with a modern
- * hue RING + saturation/value square, palette + recents swatches, RGB / HSL / HSV
- * numeric modes and a live "#rrggbb" hex input. rgbToHex / hexToRgb are shared by
- * the Viewport background pref (Agent B) and the color3 param controls (param.ts).
+ * hue RING + Adobe-style SV triangle (toggleable to a square), palette + recents
+ * swatches, RGB / HSL / HSV numeric modes and a live uppercase "#RRGGBB" hex
+ * input. rgbToHex / hexToRgb are shared by the Viewport background pref (Agent B)
+ * and the color3 param controls (param.ts).
  */
 import "../styles/colorpicker.css";
 
@@ -28,9 +29,9 @@ export interface ColorPickerOptions {
 const clamp255 = (n: number): number => Math.max(0, Math.min(255, Math.round(n)));
 const clamp01 = (n: number): number => Math.max(0, Math.min(1, n));
 
-/** "#rrggbb" (lowercase) from an RGB triplet; channels are rounded + clamped. */
+/** "#RRGGBB" (uppercase) from an RGB triplet; channels are rounded + clamped. */
 export function rgbToHex(rgb: RGB): string {
-  const hex = (n: number): string => clamp255(n).toString(16).padStart(2, "0");
+  const hex = (n: number): string => clamp255(n).toString(16).padStart(2, "0").toUpperCase();
   return `#${hex(rgb.r)}${hex(rgb.g)}${hex(rgb.b)}`;
 }
 
@@ -196,6 +197,8 @@ const PALETTE: string[] = [
 // ---------------- picker ----------------
 
 type Mode = "rgb" | "hsl" | "hsv";
+/** SV panel shape: "tri" = Adobe-style hue/black/white triangle; "sq" = square. */
+type SvShape = "tri" | "sq";
 
 const FIELD_DEFS: Record<Mode, { label: string; min: number; max: number }[]> = {
   rgb: [
@@ -225,6 +228,7 @@ const RING_R = (RING_SIZE / 2 + (RING_SIZE - 2 * RING_INNER) / 2) / 2;
 interface PickerState {
   rgb: RGB;
   mode: Mode;
+  shape: SvShape;
 }
 
 interface ActivePicker {
@@ -265,7 +269,7 @@ function colorFromMode(mode: Mode, vals: [number, number, number]): RGB {
 export function openColorPicker(opts: ColorPickerOptions): () => void {
   if (activePicker) activePicker.close();
 
-  const state: PickerState = { rgb: { ...opts.initial }, mode: "rgb" };
+  const state: PickerState = { rgb: { ...opts.initial }, mode: "rgb", shape: "tri" };
 
   const root = document.createElement("div");
   root.className = "cyl-cp";
@@ -279,7 +283,13 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     <div class="cyl-cp-body">
       <div class="cyl-cp-areas">
         <div class="cyl-cp-ring" data-part="ring"><div class="cyl-cp-ring-thumb"></div></div>
-        <div class="cyl-cp-sv" data-part="sv"><div class="cyl-cp-sv-thumb"></div></div>
+        <div class="cyl-cp-sv-wrap">
+          <div class="cyl-cp-sv-toggle" role="group" aria-label="SV panel shape">
+            <button type="button" data-shape="tri" class="active" aria-pressed="true" title="Triangle (Adobe style)">△</button>
+            <button type="button" data-shape="sq" aria-pressed="false" title="Square">□</button>
+          </div>
+          <div class="cyl-cp-sv tri" data-part="sv"><div class="cyl-cp-sv-thumb"></div></div>
+        </div>
       </div>
       <div class="cyl-cp-hex-row">
         <label for="cyl-cp-hex">hex</label>
@@ -308,6 +318,8 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
   const ringThumb = root.querySelector<HTMLElement>(".cyl-cp-ring-thumb")!;
   const svEl = root.querySelector<HTMLElement>(".cyl-cp-sv")!;
   const svThumb = root.querySelector<HTMLElement>(".cyl-cp-sv-thumb")!;
+  const svToggleEl = root.querySelector<HTMLElement>(".cyl-cp-sv-toggle")!;
+  const svToggleBtns = Array.from(svToggleEl.querySelectorAll<HTMLButtonElement>("button"));
   const hexInput = root.querySelector<HTMLInputElement>(".cyl-cp-hex")!;
   const preview = root.querySelector<HTMLElement>(".cyl-cp-preview")!;
   const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>(".cyl-cp-tabs button"));
@@ -400,6 +412,32 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     });
   });
 
+  // ---- SV panel shape toggle (Adobe triangle <-> square) ----
+  const syncSvThumb = (hsv: { h: number; s: number; v: number }): void => {
+    if (state.shape === "tri") {
+      // barycentric thumb: T(hue)=(0.5,0), L(black)=(0,1), R(white)=(1,1)
+      svThumb.style.left = `${hsv.v * (1 - hsv.s / 200)}%`;
+      svThumb.style.top = `${100 - (hsv.v * hsv.s) / 100}%`;
+    } else {
+      svThumb.style.left = `${hsv.s}%`;
+      svThumb.style.top = `${100 - hsv.v}%`;
+    }
+  };
+  const applyShape = (shape: SvShape): void => {
+    state.shape = shape;
+    svEl.classList.toggle("tri", shape === "tri");
+    svEl.classList.toggle("sq", shape === "sq");
+    svToggleBtns.forEach((b) => {
+      const active = b.dataset.shape === shape;
+      b.classList.toggle("active", active);
+      b.setAttribute("aria-pressed", String(active));
+    });
+    syncSvThumb(rgbToHsv(state.rgb));
+  };
+  svToggleBtns.forEach((b) => {
+    b.addEventListener("click", () => applyShape((b.dataset.shape as SvShape) ?? "tri"));
+  });
+
   // ---- main state update: syncs hex/preview/ring/SV/fields + fires onColor ----
   const setColor = (rgb: RGB, emit = true, trackRecent = true): void => {
     state.rgb = { r: clamp255(rgb.r), g: clamp255(rgb.g), b: clamp255(rgb.b) };
@@ -411,8 +449,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     ringThumb.style.left = `${RING_CX + RING_R * Math.cos(rad)}px`;
     ringThumb.style.top = `${RING_CY + RING_R * Math.sin(rad)}px`;
     svEl.style.background = `hsl(${hsv.h}, 100%, 50%)`;
-    svThumb.style.left = `${hsv.s}%`;
-    svThumb.style.top = `${100 - hsv.v}%`;
+    syncSvThumb(hsv);
     syncFields();
     if (emit) opts.onColor(state.rgb, hex);
     if (trackRecent) scheduleRecent(hex);
@@ -441,13 +478,44 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     ringEl.addEventListener("pointerup", up);
   });
 
-  // ---- SV square (saturation / value) drag ----
+  // ---- SV panel (Adobe triangle / square) drag ----
   const applySv = (e: PointerEvent): void => {
     const rect = svEl.getBoundingClientRect();
-    const s = clamp01((e.clientX - rect.left) / rect.width) * 100;
-    const v = (1 - clamp01((e.clientY - rect.top) / rect.height)) * 100;
+    const px = clamp01((e.clientX - rect.left) / rect.width);
+    const py = clamp01((e.clientY - rect.top) / rect.height);
     const hsv = rgbToHsv(state.rgb);
-    setColor(hsvToRgb(hsv.h, s, v));
+    if (state.shape === "tri") {
+      // barycentric weights vs vertices T(hue)=(0.5,0), L(black)=(0,1), R(white)=(1,1)
+      const ax = 0.5;
+      const ay = 0;
+      const bx = 0;
+      const by = 1;
+      const cx = 1;
+      const cy = 1;
+      const det = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
+      let wA = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / det; // hue weight
+      let wB = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / det; // black weight
+      let wC = 1 - wA - wB; // white weight
+      if (wA < 0 || wB < 0 || wC < 0) {
+        // pointer outside the triangle: clamp weights onto the nearest edge/corner
+        wA = Math.max(0, wA);
+        wB = Math.max(0, wB);
+        wC = Math.max(0, wC);
+        const sum = wA + wB + wC;
+        if (sum > 0) {
+          wA /= sum;
+          wB /= sum;
+          wC /= sum;
+        }
+      }
+      const v = wA + wC;
+      const s = v > 0 ? wA / v : 0;
+      setColor(hsvToRgb(hsv.h, s * 100, v * 100));
+    } else {
+      const s = px * 100;
+      const v = (1 - py) * 100;
+      setColor(hsvToRgb(hsv.h, s, v));
+    }
   };
   svEl.addEventListener("pointerdown", (e) => {
     e.preventDefault();
@@ -465,7 +533,9 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
 
   // ---- hex string input ----
   hexInput.addEventListener("input", () => {
-    const rgb = hexToRgb(hexInput.value);
+    const value = hexInput.value.toUpperCase(); // lowercase hex -> uppercase as you type
+    if (hexInput.value !== value) hexInput.value = value;
+    const rgb = hexToRgb(value);
     if (rgb) setColor(rgb);
   });
   hexInput.addEventListener("change", () => {

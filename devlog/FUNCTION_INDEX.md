@@ -383,22 +383,22 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/color.ts（527 行）
+## web/src/app/color.ts（597 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `rgbToHex` | 32 | function | export | 3 |
-| `hexToRgb` | 38 | function | export | 6 |
-| `rgbToHsl` | 59 | function |  | 2 |
-| `hslToRgb` | 79 | function |  | 2 |
-| `rgbToHsv` | 105 | function |  | 5 |
-| `hsvToRgb` | 123 | function |  | 4 |
-| `loadRecents` | 164 | function |  | 3 |
-| `recordRecent` | 178 | function |  | 2 |
-| `esc` | 237 | function |  | 2 |
-| `valuesForMode` | 244 | function |  | 3 |
-| `colorFromMode` | 254 | function |  | 2 |
-| `openColorPicker` | 265 | function | export | 1 |
+| `rgbToHex` | 33 | function | export | 3 |
+| `hexToRgb` | 39 | function | export | 6 |
+| `rgbToHsl` | 60 | function |  | 2 |
+| `hslToRgb` | 80 | function |  | 2 |
+| `rgbToHsv` | 106 | function |  | 6 |
+| `hsvToRgb` | 124 | function |  | 5 |
+| `loadRecents` | 165 | function |  | 3 |
+| `recordRecent` | 179 | function |  | 2 |
+| `esc` | 241 | function |  | 2 |
+| `valuesForMode` | 248 | function |  | 3 |
+| `colorFromMode` | 258 | function |  | 2 |
+| `openColorPicker` | 269 | function | export | 1 |
 
 ## web/src/app/dock.ts（541 行）
 
@@ -460,7 +460,7 @@
 | `renderParams` | 131 | function | export | 1 |
 | `commit` | 172 | arrow |  | 1 |
 
-## web/src/app/preference.ts（276 行）
+## web/src/app/preference.ts（287 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|

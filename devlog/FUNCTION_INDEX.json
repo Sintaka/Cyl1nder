@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T09:54:59.756Z",
+  "generatedAt": "2026-08-12T12:40:24.764Z",
   "totalFunctions": 504,
   "files": [
     {
@@ -1908,88 +1908,88 @@
     },
     {
       "file": "web/src/app/color.ts",
-      "lineCount": 527,
+      "lineCount": 597,
       "functions": [
         {
           "name": "rgbToHex",
-          "line": 32,
+          "line": 33,
           "kind": "function",
           "exported": true,
           "calls": 3
         },
         {
           "name": "hexToRgb",
-          "line": 38,
+          "line": 39,
           "kind": "function",
           "exported": true,
           "calls": 6
         },
         {
           "name": "rgbToHsl",
-          "line": 59,
+          "line": 60,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "hslToRgb",
-          "line": 79,
+          "line": 80,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "rgbToHsv",
-          "line": 105,
+          "line": 106,
+          "kind": "function",
+          "exported": false,
+          "calls": 6
+        },
+        {
+          "name": "hsvToRgb",
+          "line": 124,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
-          "name": "hsvToRgb",
-          "line": 123,
-          "kind": "function",
-          "exported": false,
-          "calls": 4
-        },
-        {
           "name": "loadRecents",
-          "line": 164,
+          "line": 165,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "recordRecent",
-          "line": 178,
+          "line": 179,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "esc",
-          "line": 237,
+          "line": 241,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "valuesForMode",
-          "line": 244,
+          "line": 248,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "colorFromMode",
-          "line": 254,
+          "line": 258,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "openColorPicker",
-          "line": 265,
+          "line": 269,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -2272,7 +2272,7 @@
     },
     {
       "file": "web/src/app/preference.ts",
-      "lineCount": 276,
+      "lineCount": 287,
       "functions": [
         {
           "name": "clampSyncFps",

@@ -72,7 +72,11 @@ test("Edit -> Preference: floating panel; tabs; Apply keeps open, Save closes", 
   await expect(panel.locator('.cyl-pref-tab[data-pref-tab="general"]')).toHaveClass(/is-active/);
   await panel.locator('.cyl-pref-tab[data-pref-tab="viewport"]').click();
   await expect(panel.locator('[data-pref-pane="viewport"]')).toBeVisible();
-  await expect(panel.locator("#cyl-pref-bg-change")).toBeVisible();
+  // v0.1.00061: clicking the swatch opens the shared picker directly (no Change button)
+  await expect(panel.locator('#cyl-pref-bg-change')).toHaveCount(0);
+  await panel.locator('#cyl-pref-bg-swatch').click();
+  await expect(page.locator('.cyl-cp')).toBeVisible();
+  await page.keyboard.press('Escape');
   await panel.locator('.cyl-pref-tab[data-pref-tab="general"]').click();
   await expect(panel.locator('[data-pref-pane="general"]')).toBeVisible();
 
