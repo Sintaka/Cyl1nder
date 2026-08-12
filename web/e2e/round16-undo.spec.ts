@@ -144,7 +144,7 @@ async function releaseGizmo(page: import("@playwright/test").Page): Promise<void
 test("Auto Update: multi-frame gizmo drag = ONE undo entry; Ctrl+Z reverts the whole drag", async ({ page }) => {
   await openGraph(page);
   await restoreTransformGraph(page);
-  await expect(page.locator(".cyl-update-mode")).toHaveValue("auto");
+  await expect(page.locator(".cyl-bottom-bar .cyl-dd .cyl-menu-layout-name")).toHaveText("Auto Update");
   await enterTransformEdit(page);
 
   // multi-frame drag: several objectChange events -> live params + bridge outputs
@@ -215,7 +215,8 @@ test("Auto Update: multi-frame gizmo drag = ONE undo entry; Ctrl+Z reverts the w
 test("On Mouse Up: buffered multi-frame drag commits once = ONE undo entry", async ({ page }) => {
   await openGraph(page);
   await restoreTransformGraph(page);
-  await page.locator(".cyl-update-mode").selectOption("mouseup");
+  await page.locator(".cyl-bottom-bar .cyl-dd .cyl-menu-layout-box").click();
+  await page.locator(".cyl-bottom-bar .cyl-dd .cyl-dd-item", { hasText: "On Mouse Up" }).click();
   await enterTransformEdit(page);
 
   // multi-frame drag: nothing committed until release (params untouched)

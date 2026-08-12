@@ -22,6 +22,7 @@ import {
 } from "./app/preference";
 import { createAutosave, createHdaWatchdog } from "./core/lifecycle";
 import { bindShortcuts } from "./core/shortcuts";
+import { cloneParams, paramsEqual, readParamFloats, type ParamLike } from "./core/params";
 
 /** Log categories: geo data / viewport / ui / bridge(python runtime). */
 let logFilter = "all";
@@ -464,8 +465,8 @@ let pendingTransform: { id: string; tx: number; ty: number; tz: number } | null 
  *  session commits as ONE { type: "params" } undo entry on drag end (one drag =
  *  one undo step, both auto and mouseup modes); rebinding starts a fresh session. */
 let dragNodeId: string | null = null;
-let dragBefore: Array<{ name: string; type: string; value: unknown }> | null = null;
-let dragAfter: Array<{ name: string; type: string; value: unknown }> | null = null;
+let dragBefore: ParamLike[] | null = null;
+let dragAfter: ParamLike[] | null = null;
 /** Last transform node the Enter gizmo is bound to: when the selection moves to a
  *  non-transform node (or empty), Enter keeps the gizmo on this node instead of
  *  dropping it. Reset on explicit Enter exit. */
@@ -522,43 +523,10 @@ function applyLayoutSettings(json: unknown): void {
   viewport.setDisplaySettings((json as { displaySettings?: { mode?: unknown } } | null)?.displaySettings);
 }
 
-/** Read float/int params into a {name: value} record (missing / invalid -> 0). */
-function readParamFloats(params: Array<{ name: string; type: string; value: unknown }>): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const p of params) {
-    if (p.type !== "float" && p.type !== "int") continue;
-    const n = typeof p.value === "number" ? p.value : Number(p.value);
-    out[p.name] = Number.isFinite(n) ? n : 0;
-  }
-  return out;
-}
-
-/** Deep-copy a params array (values are plain JSON data) - snapshots for drag undo. */
-function cloneParams(params: Array<{ name: string; type: string; value: unknown }>): Array<{ name: string; type: string; value: unknown }> {
-  return JSON.parse(JSON.stringify(params));
-}
-
-/** Params content equality (same order; name/type/value only) - skips no-op drag undo. */
-function paramsEqual(
-  a: Array<{ name: string; type: string; value: unknown }>,
-  b: Array<{ name: string; type: string; value: unknown }>,
-): boolean {
-  if (a.length !== b.length) return false;
-  return a.every((p, i) => {
-    const q = b[i];
-    return p.name === q.name && p.type === q.type && p.value === q.value;
-  });
-}
-
 /** Session-scoped param edit undo: consecutive edits on the SAME node within
  *  600ms merge into one { type: "params" } undo entry (before = pre-session
  *  params, after = latest). Selection switch flushes it immediately. */
-let pendingParamUndo: {
-  nodeId: string;
-  before: Array<{ name: string; type: string; value: unknown }>;
-  after: Array<{ name: string; type: string; value: unknown }>;
-  timer: number;
-} | null = null;
+let pendingParamUndo: { nodeId: string; before: ParamLike[]; after: ParamLike[]; timer: number } | null = null;
 
 /** Flush the pending param edit into the shared undo stack (debounce / selection switch). */
 function flushParamUndo(): void {
@@ -644,7 +612,7 @@ function refreshSelectionPanels(): void {
 function bindGizmoToTransform(node: {
   id: string;
   kind: string;
-  params?: Array<{ name: string; type: string; value: unknown }>;
+  params?: ParamLike[];
 }): void {
   const v = readParamFloats(node.params ?? []);
   pendingTransform = null; // a stale buffered drag must never commit to a re-bound gizmo
@@ -752,12 +720,12 @@ graph.onSelectionChanged(() => {
 function getDisplayNodeInfo(): {
   id: string;
   kind: string;
-  params: Array<{ name: string; type: string; value: unknown }>;
+  params: ParamLike[];
 } | null {
   const nodes = graph.editor.getNodes() as unknown as Array<{
     id: string;
     kind: string;
-    params?: Array<{ name: string; type: string; value: unknown }>;
+    params?: ParamLike[];
     flags: { display: boolean };
   }>;
   const n = nodes.find((x) => x.flags.display);
