@@ -332,9 +332,13 @@ test("P3/P5 Simple/Advanced mode + Adobe harmony wheel (presets, linked points, 
     .evaluateAll((els) => els.map((el) => getComputedStyle(el as HTMLElement).backgroundColor));
   expect(afterDrag).not.toEqual(beforeDrag);
 
-  // advanced palette: hue-segment categories replace the flat presets
-  await expect(picker.locator(".cyl-cp-pal-group")).toHaveCount(11);
-  await expect(picker.locator('.cyl-cp-pal-group [data-hex="#ff5252"]')).toBeVisible();
+  // advanced palette: flat 5-col grid = Simple presets + Neutrals (no category labels)
+  await expect(picker.locator(".cyl-cp-pal-group")).toHaveCount(0);
+  await expect(picker.locator('[data-part="palette"] .cyl-cp-swatch')).toHaveCount(25);
+  await expect(picker.locator('[data-part="palette"] [data-hex="#f03e3e"]')).toBeVisible();
+  await expect(picker.locator('[data-part="palette"] [data-hex="#ffffff"]')).toBeVisible();
+  // harmony preset dropdown shows the visual hint icon in Advanced mode
+  await expect(picker.locator('[data-part="harmony-hint"] svg')).toBeVisible();
 });
 
 test("P4 native EyeDropper: button applies the picked color; hidden when unsupported", async ({ page }) => {

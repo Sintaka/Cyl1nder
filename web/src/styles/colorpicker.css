@@ -251,6 +251,14 @@
   border-color: #2b6cb0;
   outline: none;
 }
+.cyl-cp-harmony-hint {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 .cyl-cp-light {
   flex: 1;
   display: flex;
@@ -443,17 +451,9 @@
 .cyl-cp-swatches-adv {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
-.cyl-cp-pal-group {
-  margin-bottom: 6px;
-}
-.cyl-cp-pal-group-label {
-  color: #7a7f87;
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  margin-bottom: 3px;
-}
 .cyl-cp-swatch {
   min-width: 0;
+  min-height: 20px; /* floor so swatches stay clickable even if aspect-ratio collapses */
   aspect-ratio: 1;
   border-radius: 4px;
   border: 1px solid rgba(255, 255, 255, 0.16);

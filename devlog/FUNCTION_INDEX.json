@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T16:44:30.029Z",
+  "generatedAt": "2026-08-12T17:17:22.674Z",
   "totalFunctions": 519,
   "files": [
     {
@@ -1943,126 +1943,126 @@
     },
     {
       "file": "web/src/app/color.ts",
-      "lineCount": 1036,
+      "lineCount": 1042,
       "functions": [
         {
           "name": "rgbToHex",
-          "line": 65,
+          "line": 67,
           "kind": "function",
           "exported": true,
-          "calls": 4
+          "calls": 5
         },
         {
           "name": "hexToRgb",
-          "line": 71,
+          "line": 73,
           "kind": "function",
           "exported": true,
           "calls": 7
         },
         {
           "name": "rgbToHsl",
-          "line": 92,
+          "line": 94,
           "kind": "function",
           "exported": false,
           "calls": 7
         },
         {
           "name": "hslToRgb",
-          "line": 112,
+          "line": 114,
           "kind": "function",
           "exported": false,
           "calls": 7
         },
         {
           "name": "rgbToHsv",
-          "line": 138,
+          "line": 140,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "hsvToRgb",
-          "line": 156,
+          "line": 158,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "loadRecents",
-          "line": 197,
+          "line": 199,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "saveRecents",
-          "line": 211,
+          "line": 213,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "recordRecent",
-          "line": 219,
+          "line": 221,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "removeRecent",
-          "line": 226,
+          "line": 228,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "clearRecents",
-          "line": 233,
+          "line": 235,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "esc",
-          "line": 408,
+          "line": 393,
           "kind": "function",
           "exported": false,
-          "calls": 3
+          "calls": 2
         },
         {
           "name": "valuesForMode",
-          "line": 415,
+          "line": 400,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "colorFromMode",
-          "line": 425,
+          "line": 410,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "harmonyDef",
-          "line": 431,
+          "line": 416,
           "kind": "function",
           "exported": false,
-          "calls": 4
+          "calls": 5
         },
         {
           "name": "harmonyColor",
-          "line": 436,
+          "line": 421,
           "kind": "function",
           "exported": false,
-          "calls": 2
+          "calls": 3
         },
         {
           "name": "openColorPicker",
-          "line": 451,
+          "line": 438,
           "kind": "function",
           "exported": true,
-          "calls": 1
+          "calls": 2
         }
       ]
     },

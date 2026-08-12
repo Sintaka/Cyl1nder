@@ -517,3 +517,9 @@
 - 验证：tsc 0；vitest 82；e2e 73 passed / 1 skipped。
 ## v0.1.00065（2026-08-13）——HDA watchdog 15s→60s
 - `startHdaWatch` 检查间隔 15000→60000 ms，与 /stream hold=60s 的 1min 心跳对齐，减少 web→bridge 轮询流量；离线阈值仍 150s（2.5×60）不变。
+## v0.1.00066（2026-08-13）——调色板 UI 优化（Advanced Palette / harmony 图标 / retarget）
+- **Advanced 调色板简化**（color.ts + colorpicker.css）：删除 11 个英文分类（Reds/Oranges/…/Neutrals + group label），改为「Simple 预设色(20) + Neutrals(5)」一个扁平 5 列网格（`.cyl-cp-swatches-adv`），无分类标签；`.cyl-cp-swatch` 加 `min-height:20px` 兜底可点击；删除 `.cyl-cp-pal-group/-label` 规则。
+- **harmony 下拉右侧视觉提示**（color.ts + colorpicker.css）：新增 `.cyl-cp-harmony-hint`，`renderHarmonyHint()` 画 28×28 小 SVG——圆环 + 每个 harmony 关联点一个按当前 base 颜色着色的圆点（角度=offset、半径=sat、基点稍大），随颜色/harmony/L 实时刷新；不复制 Adobe 素材，自绘等价示意。
+- **调色板不再点外关闭 → retarget**（color.ts）：删除 click-outside 关闭逻辑；Esc/✕ 关闭，打开另一个 picker（如点另一个 color3 swatch）由 `activePicker` 守卫关闭旧的并 retarget 到新的。
+- e2e round15：Advanced palette 断言改为「pal-group=0、25 个色块、预设色 #f03e3e 与中性色 #ffffff 可见、harmony-hint svg 可见」。
+- 验证：tsc 0；vitest 82。

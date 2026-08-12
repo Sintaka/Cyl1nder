@@ -22,6 +22,8 @@
  *      list (localStorage "cyl1nder.colorRecents").
  * - P7  The whole panel drags by its title bar (same gesture as the
  *      Preference panel).
+ * - Close: Esc / ✕ only — clicking outside does NOT close; opening another
+ *      picker (e.g. another color3 swatch) closes the old one and retargets.
  *
  * rgbToHex / hexToRgb are shared by the Viewport background pref (Agent B/C1)
  * and the color3 param controls (param.ts).
@@ -242,25 +244,8 @@ const PALETTE: string[] = [
   "#ff8787", "#ffa94d", "#ffd43b", "#69db7c", "#3bc9db",
 ];
 
-/** Advanced-mode palette: common color-name / hue-segment categories. */
-interface PaletteGroup {
-  label: string;
-  colors: string[];
-}
-
-const ADVANCED_PALETTE: PaletteGroup[] = [
-  { label: "Reds", colors: ["#ff5252", "#e53935", "#c62828", "#b71c1c", "#ffcdd2"] },
-  { label: "Oranges", colors: ["#ffab40", "#ff9800", "#ef6c00", "#e65100", "#ffe0b2"] },
-  { label: "Yellows", colors: ["#ffee58", "#ffd600", "#fbc02d", "#f9a825", "#fff9c4"] },
-  { label: "Greens", colors: ["#69f0ae", "#4caf50", "#2e7d32", "#1b5e20", "#c8e6c9"] },
-  { label: "Teals", colors: ["#4dd0e1", "#00bcd4", "#00838f", "#006064", "#b2ebf2"] },
-  { label: "Blues", colors: ["#64b5f6", "#2196f3", "#1565c0", "#0d47a1", "#bbdefb"] },
-  { label: "Purples", colors: ["#ce93d8", "#9c27b0", "#7b1fa2", "#4a148c", "#e1bee7"] },
-  { label: "Pinks", colors: ["#f48fb1", "#e91e63", "#ad1457", "#880e4f", "#f8bbd0"] },
-  { label: "Browns", colors: ["#bcaaa4", "#8d6e63", "#5d4037", "#3e2723", "#d7ccc8"] },
-  { label: "Grays", colors: ["#cfd8dc", "#90a4ae", "#546e7a", "#263238", "#eceff1"] },
-  { label: "Neutrals", colors: ["#ffffff", "#f5f5f5", "#9e9e9e", "#424242", "#000000"] },
-];
+/** Grayscale tail appended to the Simple presets for the Advanced palette. */
+const NEUTRALS: string[] = ["#ffffff", "#f5f5f5", "#9e9e9e", "#424242", "#000000"];
 
 // ---------------- Adobe harmony (P5) ----------------
 
@@ -444,9 +429,11 @@ function harmonyColor(base: HslBase, def: HarmonyDef, i: number): RGB {
 
 /**
  * Open a non-modal floating color picker (no backdrop; the page stays usable
- * behind it). Esc / ✕ / clicking outside closes it; the title bar drags the
- * whole panel. Returns the close function. Only one picker is open at a time:
- * opening a new one closes the previous.
+ * behind it). Esc / ✕ close it; clicking outside does NOT close — opening
+ * another picker (e.g. another color3 swatch) closes the old one and
+ * retargets to the new. The title bar drags the whole panel. Returns the
+ * close function. Only one picker is open at a time: opening a new one
+ * closes the previous.
  */
 export function openColorPicker(opts: ColorPickerOptions): () => void {
   if (activePicker) activePicker.close();
@@ -490,6 +477,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
       <div class="cyl-cp-harmony" data-part="harmony" hidden>
         <div class="cyl-cp-harmony-head">
           <select data-part="harmony-preset" aria-label="Color harmony preset"></select>
+          <span class="cyl-cp-harmony-hint" data-part="harmony-hint" aria-hidden="true"></span>
           <label class="cyl-cp-light" title="Base lightness (HSL L) drives every harmony point">
             <span>L</span>
             <input type="range" min="0" max="100" step="1" data-part="harmony-light" aria-label="Base lightness" />
@@ -534,6 +522,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
   const modeBtns = Array.from(root.querySelectorAll<HTMLButtonElement>(".cyl-cp-pill button"));
   const harmonyEl = root.querySelector<HTMLElement>('[data-part="harmony"]')!;
   const harmonySelect = root.querySelector<HTMLSelectElement>('[data-part="harmony-preset"]')!;
+  const harmonyHintEl = root.querySelector<HTMLElement>('[data-part="harmony-hint"]')!;
   const lightSlider = root.querySelector<HTMLInputElement>('[data-part="harmony-light"]')!;
   const harmonySwatchesEl = root.querySelector<HTMLElement>('[data-part="harmony-swatches"]')!;
   const hexInput = root.querySelector<HTMLInputElement>(".cyl-cp-hex")!;
@@ -587,7 +576,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     recentTimer = window.setTimeout(flushRecent, 250);
   };
 
-  // ---- palette (simple = fixed presets; advanced = categorized) ----
+  // ---- palette (simple = fixed presets; advanced = presets + Neutrals, flat 5-col grid) ----
   const wireSwatchClicks = (container: HTMLElement): void => {
     container.querySelectorAll<HTMLButtonElement>(".cyl-cp-swatch").forEach((b) => {
       b.addEventListener("click", () => {
@@ -597,15 +586,13 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     });
   };
   const renderPalette = (): void => {
+    // Advanced = the same Simple presets + Neutrals in one flat 5-column grid
+    // (no category labels). Simple keeps the 10-column preset grid.
+    paletteEl.classList.toggle("cyl-cp-swatches-adv", state.advanced);
     if (state.advanced) {
-      paletteEl.innerHTML = ADVANCED_PALETTE.map(
-        (g) => `<div class="cyl-cp-pal-group">
-          <div class="cyl-cp-pal-group-label">${esc(g.label)}</div>
-          <div class="cyl-cp-swatches cyl-cp-swatches-adv">${g.colors
-            .map((h) => `<button type="button" class="cyl-cp-swatch" style="background:${h}" data-hex="${h}" aria-label="${h}"></button>`)
-            .join("")}</div>
-        </div>`,
-      ).join("");
+      paletteEl.innerHTML = PALETTE.concat(NEUTRALS)
+        .map((h) => `<button type="button" class="cyl-cp-swatch" style="background:${h}" data-hex="${h}" aria-label="${h}"></button>`)
+        .join("");
     } else {
       paletteEl.innerHTML = PALETTE.map(
         (h) => `<button type="button" class="cyl-cp-swatch" style="background:${h}" data-hex="${h}" aria-label="${h}"></button>`,
@@ -740,6 +727,27 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     setColor(hslToRgb(state.base.h, state.base.s, state.base.l), { keepBase: true });
   };
 
+  /** P5b: mini harmony "association dots" beside the preset dropdown. */
+  const renderHarmonyHint = (): void => {
+    if (!state.advanced) {
+      harmonyHintEl.innerHTML = "";
+      return;
+    }
+    const def = harmonyDef(state.harmony);
+    const dots = def.points
+      .map((p, i) => {
+        const rgb = harmonyColor(state.base, def, i);
+        const rad = ((p.hue - 90) * Math.PI) / 180; // 0° points straight up
+        const r = clamp01(p.sat) * 10; // center -> dot radius
+        const x = 14 + r * Math.cos(rad);
+        const y = 14 + r * Math.sin(rad);
+        const dotR = i === 0 ? 2.4 : 1.8; // base point slightly larger
+        return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${dotR}" fill="${rgbToHex(rgb)}" stroke="#ffffff" stroke-width="0.6"/>`;
+      })
+      .join("");
+    harmonyHintEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="11" fill="none" stroke="#5a6068" stroke-width="0.8"/>${dots}</svg>`;
+  };
+
   const syncHarmony = (): void => {
     if (!state.advanced) return;
     const def = harmonyDef(state.harmony);
@@ -768,6 +776,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     harmonySwatchesEl.querySelectorAll<HTMLButtonElement>(".cyl-cp-swatch").forEach((b) => {
       b.addEventListener("click", () => pickHarmony(Number(b.dataset.harmonyI)));
     });
+    renderHarmonyHint();
   };
 
   const syncLight = (): void => {
@@ -952,24 +961,21 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     }
   });
 
-  // ---- close: ✕ / Esc / click outside ----
+  // ---- close: ✕ / Esc only. Clicking outside does NOT close; opening another
+  // picker (e.g. another color3 swatch) retargets via the activePicker guard
+  // at the top of openColorPicker (old picker closes, new one opens). ----
   const onKey = (e: KeyboardEvent): void => {
     if (e.key === "Escape") close();
-  };
-  const onOutside = (e: PointerEvent): void => {
-    if (!root.contains(e.target as Node)) close();
   };
   const close = (): void => {
     if (recentTimer !== undefined) window.clearTimeout(recentTimer);
     flushRecent();
     document.removeEventListener("keydown", onKey);
-    document.removeEventListener("pointerdown", onOutside, true);
     root.remove();
     if (activePicker?.root === root) activePicker = null;
   };
   closeBtn.addEventListener("click", close);
   document.addEventListener("keydown", onKey);
-  document.addEventListener("pointerdown", onOutside, true);
 
   // ---- P7: drag the whole panel by its title bar (same as Preference) ----
   head.addEventListener("pointerdown", (e) => {

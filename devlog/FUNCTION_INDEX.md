@@ -388,27 +388,27 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/color.ts（1036 行）
+## web/src/app/color.ts（1042 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `rgbToHex` | 65 | function | export | 4 |
-| `hexToRgb` | 71 | function | export | 7 |
-| `rgbToHsl` | 92 | function |  | 7 |
-| `hslToRgb` | 112 | function |  | 7 |
-| `rgbToHsv` | 138 | function |  | 5 |
-| `hsvToRgb` | 156 | function |  | 4 |
-| `loadRecents` | 197 | function |  | 4 |
-| `saveRecents` | 211 | function |  | 4 |
-| `recordRecent` | 219 | function |  | 2 |
-| `removeRecent` | 226 | function |  | 2 |
-| `clearRecents` | 233 | function |  | 2 |
-| `esc` | 408 | function |  | 3 |
-| `valuesForMode` | 415 | function |  | 4 |
-| `colorFromMode` | 425 | function |  | 3 |
-| `harmonyDef` | 431 | function |  | 4 |
-| `harmonyColor` | 436 | function |  | 2 |
-| `openColorPicker` | 451 | function | export | 1 |
+| `rgbToHex` | 67 | function | export | 5 |
+| `hexToRgb` | 73 | function | export | 7 |
+| `rgbToHsl` | 94 | function |  | 7 |
+| `hslToRgb` | 114 | function |  | 7 |
+| `rgbToHsv` | 140 | function |  | 5 |
+| `hsvToRgb` | 158 | function |  | 4 |
+| `loadRecents` | 199 | function |  | 4 |
+| `saveRecents` | 213 | function |  | 4 |
+| `recordRecent` | 221 | function |  | 2 |
+| `removeRecent` | 228 | function |  | 2 |
+| `clearRecents` | 235 | function |  | 2 |
+| `esc` | 393 | function |  | 2 |
+| `valuesForMode` | 400 | function |  | 4 |
+| `colorFromMode` | 410 | function |  | 3 |
+| `harmonyDef` | 416 | function |  | 5 |
+| `harmonyColor` | 421 | function |  | 3 |
+| `openColorPicker` | 438 | function | export | 2 |
 
 ## web/src/app/dock.ts（541 行）
 
