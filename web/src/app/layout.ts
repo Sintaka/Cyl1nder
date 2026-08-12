@@ -14,6 +14,7 @@ export interface Layout {
   hintEl: HTMLElement;
   inspectorEl: HTMLElement;
   logEl: HTMLElement;
+  updateModeSelect: HTMLSelectElement;
 }
 
 /** DOM shell: left node graph / center viewport / right inspector / bottom log. */
@@ -50,6 +51,13 @@ export function buildLayout(app: HTMLElement): Layout {
         <span id="cyl-status" class="cyl-status connecting" title="bridge status"></span>
       </header>
       <div id="cyl-dock" class="cyl-dock"></div>
+      <div class="cyl-bottom-bar">
+        <label class="cyl-bottom-label" for="cyl-update-mode" title="Enter 拖动时几何体刷新时机">Update</label>
+        <select id="cyl-update-mode" class="cyl-update-mode">
+          <option value="auto" selected>Auto Update</option>
+          <option value="mouseup">On Mouse Up</option>
+        </select>
+      </div>
     </div>`;
   const $ = <T extends HTMLElement>(sel: string): T => app.querySelector(sel) as T;
 
@@ -92,6 +100,7 @@ export function buildLayout(app: HTMLElement): Layout {
     hintEl: viewportContainer.querySelector("#cyl-hint") as HTMLElement,
     inspectorEl,
     logEl,
+    updateModeSelect: $("#cyl-update-mode"),
   };
 }
 
@@ -148,6 +157,13 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
       </div>
       <div class="cyl-splitter splitter-h" data-splitter="log"></div>
       <footer id="cyl-log" class="cyl-log"></footer>
+      <div class="cyl-bottom-bar">
+        <label class="cyl-bottom-label" for="cyl-update-mode" title="Enter 拖动时几何体刷新时机">Update</label>
+        <select id="cyl-update-mode" class="cyl-update-mode">
+          <option value="auto" selected>Auto Update</option>
+          <option value="mouseup">On Mouse Up</option>
+        </select>
+      </div>
     </div>`;
   const $ = <T extends HTMLElement>(sel: string): T => app.querySelector(sel) as T;
   return {
@@ -166,6 +182,6 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
     hintEl: $("#cyl-hint"),
     inspectorEl: $("#cyl-inspector"),
     logEl: $("#cyl-log"),
+    updateModeSelect: $("#cyl-update-mode"),
   };
 }
-

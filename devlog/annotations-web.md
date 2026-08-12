@@ -441,3 +441,10 @@
 - **web 重连自动再 kick**：WS 掉线重连（如 bridge 重启）后，`connect()` 同步清掉该 serial 的 kickedSerials → 新 hello 自动再 kick HDA → recook → 数据流恢复（无需手动刷新页面）。round10-kick 用例更新为"首次 1 次 + 掉线重连再 1 次"，改用 POST 计数（日志面板 40 行窗口不可靠）。
 - **pytest 37 通过**（新增 touch 自动注册/非法 serial 忽略/mark_activity 自动注册）。
 - **three.js gizmo 延迟调研**（devlog/viewport-gizmo-latency.md，仅调研）：**TS 与延迟无关**（TS 编译成 JS，运行时是 V8 JIT）；**three.js 不是 WASM**（纯 JS + WebGL，光栅化在 GPU）；Houdini 快是原生 C++ + 常驻 GPU buffer + 增量更新。真实延迟来源 = 每次拖动都走全量链路（objectChange → runNetwork → 全量 JSON PUT → WS 回推 → 视口 outputs/nodeResult 双重建 → rAF 重绘），重建在主线程同步卡顿。改进方向（计划）：本地预览（拖动期本地应用变换、提交才走网络）、节流合并 runNetwork（30-60Hz）、位置-only 更新、消除双重建等。
+
+## v0.1.00055（2026-08-12）
+**3 路并行**（Leibniz=no-geometry 诊断+恢复 / Ohm=底部更新模式栏 / Hegel=时间轴设计）。
+- **no geometry 诊断与恢复（Leibniz）**：根因 = 运行中的 HDA 是旧代码（`pending_outputs` 3 元组无 force，不处理 web 的 kick），kick 一次性标记被旧轮询消费后忽略 → 永不强制 recook → 不 push inputs → web inputs 空。已用 fxhoudinimcp(8100) 执行文档化热重载 `reload_cyl1nder()` → inputs 恢复（4 路，rev=1，lastActivity 更新）。devlog/no-geometry-diagnosis.md 记录了诊断/恢复/后续建议（改 hda 后必须热重载或在 Houdini 里 dirty 一次）。
+- **底部非 docking 栏 + 更新模式（Ohm）**：dock 之下新增 `.cyl-bottom-bar`（28px，右对齐），右侧 15ch 宽下拉 `Auto Update / On Mouse Up`（localStorage 记忆）。**Auto Update**：gizmo 拖动每帧 setNodeParams+runNetwork（现状）；**On Mouse Up**：拖动期 gizmo 实时跟手但只缓冲最后 tx/ty/tz（零网络零几何重建），松手（dragging-changed false）一次性提交（一次 setNodeParams+runNetwork）；重绑 gizmo 清脏缓冲防串。renderer `beginTransformGizmo` 增 `onDragEnd` 回调。
+- **时间轴系统设计（Hegel，仅设计）**：devlog/timeline-design.md——默认 30fps、启动与 Houdini 场景 fps 同步、双向同步以 **HDA 锚定（engaged = 选中 OR 最近 1s 内 cook，由 HDA 回传）** 为门控（lastSeen/lastActivity 都不能作门控）；复用 /pending + WS 传输（H→C 捎带 frame/fps/engaged，C→H 发帧号 → hdefereval.setFrame）；拖动节流/latest-wins/回显抑制；Phase1 单向读+启动 fps 同步 → Phase2 双向拖帧 → Phase3 播放/循环。
+- 验证：tsc 0；vitest 82；pytest 37；Playwright 全量 52 项 **51 passed / 1 skipped**（--workers=3；6 workers 时共享 serial 并行争用导致 round2/6/12 偶发 flake，顺序跑全过）。

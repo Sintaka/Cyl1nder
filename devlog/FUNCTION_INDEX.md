@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-12），由 `node scripts/gen-index.mjs` 产出。共 **455** 个函数/类。
+> 机器生成（2026-08-12），由 `node scripts/gen-index.mjs` 产出。共 **456** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -392,12 +392,12 @@
 | `onLayoutChange` | 486 | arrow |  | 0 |
 | `applyLayout` | 530 | function | export | 1 |
 
-## web/src/app/layout.ts（172 行）
+## web/src/app/layout.ts（188 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `buildLayout` | 20 | function | export | 1 |
-| `buildLayoutLegacy` | 99 | function | export | 1 |
+| `buildLayout` | 21 | function | export | 1 |
+| `buildLayoutLegacy` | 108 | function | export | 1 |
 
 ## web/src/app/layouts.ts（11 行）
 
@@ -458,7 +458,7 @@
 | `connectWs` | 188 | function | export | 1 |
 | `connect` | 193 | arrow |  | 1 |
 
-## web/src/main.ts（894 行）
+## web/src/main.ts（935 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -472,25 +472,26 @@
 | `readJsonFromDir` | 230 | function |  | 4 |
 | `saveSceneAs` | 244 | function |  | 2 |
 | `openSceneFromDir` | 297 | function |  | 2 |
-| `applyLayoutSettings` | 400 | function |  | 4 |
-| `readParamFloats` | 405 | function |  | 3 |
-| `flushParamUndo` | 426 | function |  | 2 |
-| `refreshSelectionPanels` | 437 | function |  | 3 |
-| `bindEnterGizmoToSelection` | 508 | function |  | 3 |
-| `toggleEnterEdit` | 531 | function |  | 2 |
-| `getDisplayNodeInfo` | 556 | function |  | 2 |
-| `refreshNodeFlags` | 572 | function |  | 4 |
-| `inputStatsText` | 632 | function |  | 2 |
-| `outputStatsText` | 641 | function |  | 2 |
-| `renderInspector` | 650 | function |  | 2 |
-| `runNetwork` | 687 | function |  | 6 |
-| `kickHdaOnce` | 703 | function |  | 2 |
-| `startHdaWatch` | 715 | function |  | 2 |
-| `check` | 717 | arrow |  | 1 |
-| `stopHdaWatch` | 734 | function |  | 2 |
-| `loadSnapshotIntoStore` | 743 | function |  | 3 |
-| `connect` | 771 | function |  | 4 |
-| `scheduleSaveGraph` | 882 | function |  | 2 |
+| `applyLayoutSettings` | 414 | function |  | 4 |
+| `readParamFloats` | 419 | function |  | 3 |
+| `flushParamUndo` | 440 | function |  | 2 |
+| `refreshSelectionPanels` | 451 | function |  | 3 |
+| `bindEnterGizmoToSelection` | 522 | function |  | 3 |
+| `applyTransformDrag` | 557 | function |  | 3 |
+| `toggleEnterEdit` | 572 | function |  | 2 |
+| `getDisplayNodeInfo` | 597 | function |  | 2 |
+| `refreshNodeFlags` | 613 | function |  | 4 |
+| `inputStatsText` | 673 | function |  | 2 |
+| `outputStatsText` | 682 | function |  | 2 |
+| `renderInspector` | 691 | function |  | 2 |
+| `runNetwork` | 728 | function |  | 6 |
+| `kickHdaOnce` | 744 | function |  | 2 |
+| `startHdaWatch` | 756 | function |  | 2 |
+| `check` | 758 | arrow |  | 1 |
+| `stopHdaWatch` | 775 | function |  | 2 |
+| `loadSnapshotIntoStore` | 784 | function |  | 3 |
+| `connect` | 812 | function |  | 4 |
+| `scheduleSaveGraph` | 923 | function |  | 2 |
 
 ## web/src/nodes2/graph.ts（1628 行）
 
@@ -687,13 +688,13 @@
 | `buildOutputs` | 121 | function | export | 1 |
 | `buildNodeResult` | 138 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（767 行）
+## web/src/viewport/renderer.ts（775 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `Viewport` | 44 | class | export | 1 |
-| `showModeMenu` | 132 | arrow |  | 1 |
-| `hideModeMenu` | 144 | arrow |  | 2 |
-| `applyMode` | 145 | arrow |  | 1 |
-| `openModeMenu` | 160 | arrow |  | 1 |
-| `closeModeMenu` | 161 | arrow |  | 3 |
+| `showModeMenu` | 133 | arrow |  | 1 |
+| `hideModeMenu` | 145 | arrow |  | 2 |
+| `applyMode` | 146 | arrow |  | 1 |
+| `openModeMenu` | 161 | arrow |  | 1 |
+| `closeModeMenu` | 162 | arrow |  | 3 |

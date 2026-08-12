@@ -368,6 +368,20 @@ layout.autoRunCheck.addEventListener("change", () => {
   store.pushLog(`auto-run ${autoRun ? "on" : "off"}`);
 });
 
+/** Enter gizmo update mode: auto = realtime per drag frame; mouseup = geometry
+ *  refreshes only when the mouse is released (gizmo still follows the pointer). */
+let updateMode: "auto" | "mouseup" = "auto";
+/** mouseup mode: only the latest buffered gizmo value; committed once on drag end. */
+let pendingTransform: { id: string; tx: number; ty: number; tz: number } | null = null;
+const savedUpdateMode = localStorage.getItem("cyl1nder.updateMode");
+if (savedUpdateMode === "auto" || savedUpdateMode === "mouseup") updateMode = savedUpdateMode;
+layout.updateModeSelect.value = updateMode;
+layout.updateModeSelect.addEventListener("change", () => {
+  updateMode = layout.updateModeSelect.value === "mouseup" ? "mouseup" : "auto";
+  localStorage.setItem("cyl1nder.updateMode", updateMode);
+  store.pushLog(`update mode: ${updateMode === "auto" ? "Auto Update" : "On Mouse Up"}`);
+});
+
 (window as unknown as Record<string, unknown>).__cylViewport = null; // debug hook
 const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuffer) => {
   if (!store.serial) return;
@@ -512,18 +526,45 @@ function bindEnterGizmoToSelection(): void {
     return;
   }
   const v = readParamFloats(sel.params ?? []);
-  viewport.beginTransformGizmo(sel.id, v.tx ?? 0, v.ty ?? 0, v.tz ?? 0, v.px ?? 0, v.py ?? 0, v.pz ?? 0, (x, y, z) => {
-    // Enter follows the CURRENT selection: read the bound node's live params.
-    const node = graph.getNetworkSnapshot().nodes.find((n) => n.id === sel.id);
-    if (!node) return; // node deleted mid-edit
-    graph.setNodeParams(
-      sel.id,
-      (node.params ?? []).map((q) =>
-        q.name === "tx" ? { ...q, value: x } : q.name === "ty" ? { ...q, value: y } : q.name === "tz" ? { ...q, value: z } : q,
-      ),
-    );
-    void runNetwork();
-  });
+  pendingTransform = null; // a stale buffered drag must never commit to a re-bound gizmo
+  viewport.beginTransformGizmo(
+    sel.id,
+    v.tx ?? 0,
+    v.ty ?? 0,
+    v.tz ?? 0,
+    v.px ?? 0,
+    v.py ?? 0,
+    v.pz ?? 0,
+    (x, y, z) => {
+      if (updateMode === "mouseup") {
+        // On Mouse Up: buffer only the latest value - zero network + zero rebuild during the drag.
+        pendingTransform = { id: sel.id, tx: x, ty: y, tz: z };
+        return;
+      }
+      applyTransformDrag(sel.id, x, y, z);
+    },
+    () => {
+      // drag ended (mouseup mode): commit the single buffered value once.
+      if (updateMode !== "mouseup" || !pendingTransform) return;
+      const p = pendingTransform;
+      pendingTransform = null;
+      applyTransformDrag(p.id, p.tx, p.ty, p.tz);
+    },
+  );
+}
+
+/** setNodeParams + runNetwork for a gizmo translate value (shared by both update modes). */
+function applyTransformDrag(id: string, x: number, y: number, z: number): void {
+  // Enter follows the CURRENT selection: read the bound node's live params.
+  const node = graph.getNetworkSnapshot().nodes.find((n) => n.id === id);
+  if (!node) return; // node deleted mid-edit
+  graph.setNodeParams(
+    id,
+    (node.params ?? []).map((q) =>
+      q.name === "tx" ? { ...q, value: x } : q.name === "ty" ? { ...q, value: y } : q.name === "tz" ? { ...q, value: z } : q,
+    ),
+  );
+  void runNetwork();
 }
 
 /** Enter node viewport edit activation (toolbar icon + Enter key): follows the

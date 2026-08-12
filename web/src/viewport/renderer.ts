@@ -71,6 +71,7 @@ export class Viewport {
   private enterObject: THREE.Object3D | null = null;
   private enterMarker: THREE.Object3D | null = null;
   private enterOnChange: ((tx: number, ty: number, tz: number) => void) | null = null;
+  private enterOnDragEnd: (() => void) | null = null;
   private demoWasOn = false;
   private demoMode: "translate" | "rotate" | "scale" = "translate";
   private enterResumeLine: THREE.Line | null = null;
@@ -225,7 +226,11 @@ export class Viewport {
     this.transform.setSize(0.7);
     this.transform.addEventListener("dragging-changed", (e: any) => {
       this.controls.controls.enabled = !e.value;
-      if (!e.value) this.commitEdit();
+      if (!e.value) {
+        this.commitEdit();
+        // Enter gizmo: report drag end (mouseup update mode commits the buffered value once)
+        if (this.enterActive) this.enterOnDragEnd?.();
+      }
     });
     this.scene.add(this.transform.getHelper());  // three r180: TransformControls extends Controls
 
@@ -536,6 +541,7 @@ export class Viewport {
     py: number,
     pz: number,
     onChange: (tx: number, ty: number, tz: number) => void,
+    onDragEnd?: () => void,
   ): void {
     if (this.enterActive) this.endTransformGizmo({ keepActive: true });
     // mutual exclusion with the G-key demo / curve-line editing (one gizmo owner)
@@ -546,6 +552,7 @@ export class Viewport {
     this.demoMode = this.transform.getMode();
     this.transform.setMode("translate"); // X/Y/Z arrows + XY/YZ/XZ plane squares
     this.enterOnChange = onChange;
+    this.enterOnDragEnd = onDragEnd ?? null;
 
     const obj = new THREE.Object3D();
     obj.name = "cyl-enter-gizmo";
@@ -602,6 +609,7 @@ export class Viewport {
     this.enterObject = null;
     this.enterMarker = null;
     this.enterOnChange = null;
+    this.enterOnDragEnd = null;
     if (keepActive) return; // mode stays active, gizmo idle until a transform is selected
     const wasActive = this.enterActive;
     this.enterActive = false;
