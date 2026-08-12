@@ -1,4 +1,4 @@
-﻿export interface Layout {
+export interface Layout {
   root: HTMLElement;
   serialInput: HTMLInputElement;
   connectBtn: HTMLButtonElement;
@@ -21,7 +21,7 @@ export function buildLayout(app: HTMLElement): Layout {
   app.innerHTML = `
     <div class="cyl-app">
       <header class="cyl-header">
-        <span class="cyl-brand">Cyl1nder <small>0.1</small></span>
+        <a class="cyl-brand" href="/overview.html">Cyl1nder <small>0.1</small></a>
         <div class="cyl-menubar">
           <div class="cyl-menu" data-menu="file">
             <span class="cyl-menu-label">File</span>
@@ -100,7 +100,7 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
   app.innerHTML = `
     <div class="cyl-app">
       <header class="cyl-header">
-        <span class="cyl-brand">Cyl1nder <small>0.1</small></span>
+        <a class="cyl-brand" href="/overview.html">Cyl1nder <small>0.1</small></a>
         <div class="cyl-menubar">
           <div class="cyl-menu" data-menu="file">
             <span class="cyl-menu-label">File</span>

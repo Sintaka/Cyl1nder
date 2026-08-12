@@ -428,3 +428,9 @@
 
 ### 测试加固（主进程合并时）
 - 发现 smoke 依赖 Log 面板"最近 40 行"，被 viewport 的 visibility/focus 静默日志淹没导致偶发失败；加 `window.__cylStore` debug hook（完整日志），smoke 改为从完整 store 日志断言 hello（面板 40 行不再脆弱）；kick 失败日志改静默。e2e 46 passed / 2 skipped（overview 与 kick 端点依赖用例，运行中旧 bridge 未含新端点则跳过）。
+
+## v0.1.00053（2026-08-12）
+**1 路并行**（Mencius=品牌跳转 + 非当前 tab 配色）。
+- **左上角品牌跳转 overview**：layout.ts 两处（主布局/备用模板）`.cyl-brand` 由 `<span>` 改为 `<a href="/overview.html">`；base.css 加 cursor:pointer、text-decoration:none、color:inherit + hover 变亮（#9fd8ff），保留品牌结构与布局。
+- **非当前 tab 配色 S-0.1/L+0.1**（dock.css，目标色已由主进程用 HSL 预计算）：inactivegroup-visiblepanel bg `#20537e→#356d9c`、inactivegroup-hiddenpanel bg `#17191d→#333334`、activegroup-hiddenpanel bg `#1b1e24→#37383b`、inactivegroup-hiddenpanel text `#8f959e→#b0b0b0`；当前标签蓝 #2e4f7d、hover、缺口、间距不动。像素验证：非当前 tab 更亮更灰、当前蓝不变。
+- 验证：tsc 0；vitest 82；pytest 34；Playwright 47 passed / 2 skipped（round11-brand：点击品牌 → /overview.html）。

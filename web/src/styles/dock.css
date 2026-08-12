@@ -12,12 +12,12 @@
   --dv-tabs-and-actions-container-background-color: #1c1e22;
   --dv-activegroup-visiblepanel-tab-background-color: #2e4f7d; /* dark-blue active tab (brighter than the panel, NOT bright blue) */
   --dv-activegroup-visiblepanel-tab-color: #fff;
-  --dv-activegroup-hiddenpanel-tab-background-color: #1b1e24;
+  --dv-activegroup-hiddenpanel-tab-background-color: #37383b;
   --dv-activegroup-hiddenpanel-tab-color: #9aa1ab;
-  --dv-inactivegroup-visiblepanel-tab-background-color: #20537e;
+  --dv-inactivegroup-visiblepanel-tab-background-color: #356d9c;
   --dv-inactivegroup-visiblepanel-tab-color: #fff;
-  --dv-inactivegroup-hiddenpanel-tab-background-color: #17191d;
-  --dv-inactivegroup-hiddenpanel-tab-color: #8f959e;
+  --dv-inactivegroup-hiddenpanel-tab-background-color: #333334;
+  --dv-inactivegroup-hiddenpanel-tab-color: #b0b0b0;
   --dv-tab-divider-color: transparent;
 }
 .cyl-dock .dockview-theme-dark .dv-tab {
