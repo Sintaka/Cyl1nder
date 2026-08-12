@@ -40,24 +40,13 @@
   z-index: 10;            /* overlap adjacent inactive tabs */
   border-radius: 7px 7px 0 0;  /* top corners convex, bottom straight */
   margin: 3px -2px 0;     /* flush with the content bottom + slight side overlap; net 2px gap to each neighbour */
-  /* Round 9 inner notch (kept): a 6x4 content-coloured (#141518) quarter-disc is
-     carved at each bottom corner INSIDE the tab so the tab merges with the content
-     below (Chrome toolbar-merge). Painted on the tab's own background-image (two
-     6x4 layers, left-bottom / right-bottom) because ::before/::after are now used
-     for the OUTWARD crescents. */
-  /* Round 11 fix: the two notch discs are centered at the ACTUAL bottom corners
-     (tile bottom-left 0% 100% / bottom-right 100% 100%). Previously they were at
-     the tile TOP corners (0% 0% / 100% 0%), i.e. 4px above the bottom edge, which
-     left the corner un-carved and painted a floating #141518 smudge with near-black
-     AA pixels (#15171b/#16181c) inside the tab — the inner mirror/black-dot residue.
-     The 0.2px hard AA band (#141518 -> transparent over the blue tab) leaves NO dark
-     residue; the outward blue crescent (::before/::after) is untouched. */
-  background-image:
-    radial-gradient(circle at 0% 100%, #141518 0 3.85px, rgba(46,79,125,0) 4.05px),
-    radial-gradient(circle at 100% 100%, #141518 0 3.85px, rgba(46,79,125,0) 4.05px);
-  background-size: 6px 4px, 6px 4px;
-  background-position: left bottom, right bottom;
-  background-repeat: no-repeat, no-repeat;
+  /* Round 12 / v0.1.00062: inner notch REMOVED for good. The two 6x4 #141518
+     quarter-disc layers carved the active tab's bottom corners so it "merged"
+     with the content below - but their hard AA edge left near-black residue
+     (dark dots) on the inside that kept coming back (rounds 9-11). The user's
+     fix: stop carving entirely. The bottom corners now show the pure active-tab
+     blue (#2e4f7d) with a straight flush bottom edge; no dark pixels can appear
+     inside. The OUTWARD blue crescents (::before/::after below) are untouched. */
 }
 /* bottom-LEFT OUTWARD crescent: 4x4 box extends 4px LEFT of the tab's bottom-left
    corner. The radial gradient is centred on the box's FAR corner (top-left, 0% 0%)

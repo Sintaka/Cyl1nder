@@ -1,6 +1,8 @@
+@import "./fonts.css";
 * { box-sizing: border-box; }
 html, body, #app { height: 100%; margin: 0; }
-.cyl-app { display: flex; flex-direction: column; height: 100%; background: #141518; color: #cfd2d6; font: 12px/1.4 system-ui, sans-serif; }
+.cyl-app { display: flex; flex-direction: column; height: 100%; background: #141518; color: #cfd2d6; font: 12px/1.4 var(--cyl-font-ui); }
+body { font-family: var(--cyl-font-ui); }
 .cyl-header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #1c1e22; border-bottom: 1px solid #2a2d33; }
 .cyl-brand { font-weight: 700; cursor: pointer; text-decoration: none; color: inherit; }
 .cyl-brand small { color: #7a7f87; }
@@ -33,7 +35,7 @@ html, body, #app { height: 100%; margin: 0; }
 /* menu bar */
 .cyl-menubar { display: flex; align-items: center; gap: 2px; user-select: none; -webkit-user-select: none; }
 .cyl-menu { position: relative; }
-.cyl-menu-label { padding: 2px 8px; cursor: pointer; border-radius: 3px; color: #cfd2d6; font-size: 12px; }
+.cyl-menu-label { padding: 5px 10px; cursor: pointer; border-radius: 3px; color: #cfd2d6; font-size: 12px; }
 /* round 0.1.00061: plain menu labels (File/Edit) sat on a 1.4x line box which, combined
    with align-items:center, left their visual center ~1px high vs the taller Layout box.
    Making them inline-flex (like the Layout box) puts their box center on the same line
@@ -211,18 +213,31 @@ html, body, #app { height: 100%; margin: 0; }
 }
 .cyl-update-mode:focus { border-color: #2b6cb0; outline: none; }
 
-/* ---- Sync Max FPS input (bottom bar, right of the update-mode dropdown) ---- */
-.cyl-sync-fps {
-  width: 6ch;
+/* ---- Sync Max FPS input (bottom bar) ---- v0.1.00062: the number input now
+   lives inside a .cyl-fps-stepper container with ▲▼ dark step buttons on the
+   right (same dark style as the Layout menu caret). The container owns the
+   border/background; the input is borderless and the native spinner is hidden. */
+.cyl-fps-stepper {
+  display: inline-flex;
+  align-items: stretch;
+  overflow: hidden;
   background: #0f1012;
-  color: #cfd2d6;
   border: 1px solid #33363c;
   border-radius: 4px;
-  padding: 2px 4px;
+  vertical-align: middle;
+}
+.cyl-fps-stepper:focus-within { border-color: #2b6cb0; }
+.cyl-fps-stepper .cyl-sync-fps {
+  width: 5ch;
+  background: transparent;
+  color: #cfd2d6;
+  border: none;
+  border-radius: 0;
+  padding: 2px 4px 2px 6px;
   font-size: 11px;
   text-align: center;
 }
-.cyl-sync-fps:focus { border-color: #2b6cb0; outline: none; }
+.cyl-sync-fps:focus { outline: none; }
 /* hide native number spin arrows (keyboard input stays) */
 .cyl-sync-fps::-webkit-inner-spin-button,
 .cyl-sync-fps::-webkit-outer-spin-button {
@@ -233,6 +248,33 @@ html, body, #app { height: 100%; margin: 0; }
   -moz-appearance: textfield;
   appearance: none;
 }
+/* ▲▼ step buttons: dark compact vertical column on the right of the input,
+   mirroring the Layout menu caret (▲ over ▼, dark bg, subtle border). */
+.cyl-fps-step-col {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  border-left: 1px solid #33363c;
+}
+.cyl-fps-step {
+  flex: 1 1 50%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border: none;
+  background: #1c1e22;
+  color: #9aa1ab;
+  font-size: 7px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.cyl-fps-step + .cyl-fps-step { border-top: 1px solid #33363c; }
+.cyl-fps-step:hover { background: #232a33; color: #cfd2d6; }
+.cyl-fps-step:active { background: #2b6cb0; color: #fff; }
 
 /* ---- Preference floating panel (web/src/app/preference.ts) ---- */
 .cyl-pref-panel {
@@ -376,7 +418,7 @@ html, body, #app { height: 100%; margin: 0; }
   flex: 0 0 auto;
 }
 .cyl-pref-hex {
-  font: 11px/1 ui-monospace, monospace;
+  font: 11px/1 var(--cyl-font-code);
   color: #cfd2d6;
   min-width: 58px;
 }
@@ -425,4 +467,9 @@ html, body, #app { height: 100%; margin: 0; }
 }
 .cyl-pref-actions .cyl-pref-save:hover {
   background: #3583cc;
-}
+}/* ---- hex inputs share the code font (v0.1.00062 font contract) ----
+   colorpicker.css styles .cyl-cp-hex / .cyl-color3-hex with ui-monospace;
+   these higher-specificity selectors override them to --cyl-font-code
+   (Fira Code first, Chinese fallback Noto Sans SC). */
+.cyl-cp .cyl-cp-hex { font-family: var(--cyl-font-code); }
+.cyl-color3 .cyl-color3-hex { font-family: var(--cyl-font-code); }

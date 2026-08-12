@@ -1,0 +1,27 @@
+/* ---- Fonts: Fira Code (code-first UI) + Noto Sans SC (Chinese fallback) ----
+   v0.1.00062 字体契约。字体文件在 web/public/fonts/（Vite 以 /fonts/* 提供）。
+   --cyl-font-ui 默认代码风格优先（Fira Code 优先，中文回退 Noto Sans SC）；
+   body.cyl-font-code / .cyl-font-system 供首选项字体选项切换（C1 用）。 */
+@font-face {
+  font-family: "Fira Code";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/FiraCode-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Noto Sans SC";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/NotoSansSC-Regular.woff2") format("woff2");
+}
+:root {
+  --cyl-font-code: "Fira Code", "Noto Sans SC", monospace;
+  --cyl-font-ui: "Fira Code", "Noto Sans SC", system-ui, sans-serif;
+  --cyl-font-system: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+body { font-family: var(--cyl-font-ui); }
+/* preference font option: .cyl-font-code = code-first stack (default), .cyl-font-system = system stack */
+body.cyl-font-code { --cyl-font-ui: var(--cyl-font-code); }
+body.cyl-font-system { --cyl-font-ui: var(--cyl-font-system); }

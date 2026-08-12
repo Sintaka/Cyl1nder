@@ -8,10 +8,13 @@ import { BridgeClient } from "../src/bridge/client";
  * "cyl1nder.prefs"), Ctrl+S / Ctrl+Alt+S quick save (both preventDefault so
  * Chrome never saves the page).
  * - Edit -> Preference: floating panel opens (no blocking overlay; the header
- *   serial input stays clickable behind it, ✕ present); General/Viewport tabs
- *   exist and switch panes; Apply persists to localStorage + pushes
- *   PUT /api/hda/{serial}/sync while the panel stays open; Save closes;
- *   Escape closes without saving.
+ *   serial input stays clickable behind it, ✕ present); General/Viewport/UI tabs
+ *   exist and switch panes; re-opening the menu keeps a single panel (P6);
+ *   UI tab picks the font (body .cyl-font-code/.cyl-font-system + ui_font);
+ *   Apply persists to localStorage + pushes PUT /api/hda/{serial}/sync while
+ *   the panel stays open; Save closes; Escape closes without saving.
+ * - Round 62: Ctrl+middle-click on the Viewport background color row resets
+ *   the swatch/hex to the default #1A1A1A (P8).
  * - Bottom-bar Sync Max FPS input: change -> localStorage + PUT /sync.
  * - Ctrl+S: putSnapshot({graph, docking, preference}) + defaultPrevented.
  * - Ctrl+Alt+S: save-as path (prompt dialog accepted + scene/save mock).
@@ -68,8 +71,28 @@ test("Edit -> Preference: floating panel; tabs; Apply keeps open, Save closes", 
   await page.locator("#cyl-serial").fill("C1-e2etest0001-aaaa");
   await expect(panel).toBeVisible();
 
-  // tabs: General active by default; Viewport switches panes and back
+  // single instance (P6): re-opening Edit -> Preference closes the old panel first
+  await page.locator('.cyl-menu[data-menu="edit"] .cyl-menu-label').click();
+  await page.locator('#cyl-menu-edit button[data-act="preference"]').click();
+  await expect(page.locator(".cyl-pref-panel")).toHaveCount(1);
+  await expect(panel).toBeVisible();
+
+  // tabs: General active by default; UI + Viewport switch panes and back
   await expect(panel.locator('.cyl-pref-tab[data-pref-tab="general"]')).toHaveClass(/is-active/);
+  await expect(panel.locator('.cyl-pref-tab[data-pref-tab="ui"]')).toBeVisible();
+  await panel.locator('.cyl-pref-tab[data-pref-tab="ui"]').click();
+  await expect(panel.locator('[data-pref-pane="ui"]')).toBeVisible();
+  // round 62: UI Font dropdown, default "code" -> body .cyl-font-code
+  await expect(panel.locator("#cyl-pref-font")).toHaveValue("code");
+  await expect(page.locator("body")).toHaveClass(/cyl-font-code/);
+  await panel.locator("#cyl-pref-font").selectOption("system");
+  await panel.locator(".cyl-pref-apply").click();
+  await expect(page.locator("body")).toHaveClass(/cyl-font-system/);
+  const fontPrefs = await page.evaluate(() => JSON.parse(localStorage.getItem("cyl1nder.prefs") || "{}"));
+  expect(fontPrefs.ui_font).toBe("system");
+  await panel.locator("#cyl-pref-font").selectOption("code");
+  await panel.locator(".cyl-pref-apply").click();
+  await expect(page.locator("body")).toHaveClass(/cyl-font-code/);
   await panel.locator('.cyl-pref-tab[data-pref-tab="viewport"]').click();
   await expect(panel.locator('[data-pref-pane="viewport"]')).toBeVisible();
   // v0.1.00061: clicking the swatch opens the shared picker directly (no Change button)
@@ -191,4 +214,36 @@ test("Ctrl+Alt+S: triggers Save Scene As (prompt + scene/save mock) and prevents
   await page.keyboard.press("Control+Alt+s");
   await expect.poll(() => saveSceneCalls, { timeout: 5000 }).toBe(1);
   expect(await page.evaluate(() => (window as any).__sPrevented)).toBe(true);
+});
+
+test("Viewport background: Ctrl+middle-click on the color row resets to default #1A1A1A", async ({ page }) => {
+  // seed a non-default background before load so the reset is observable (P8)
+  await page.addInitScript(() => {
+    const p = JSON.parse(localStorage.getItem("cyl1nder.prefs") || "{}");
+    p.viewport_bg = "#336699";
+    localStorage.setItem("cyl1nder.prefs", JSON.stringify(p));
+  });
+  await mockSnapshot(page);
+  await openGraph(page);
+
+  await page.locator('.cyl-menu[data-menu="edit"] .cyl-menu-label').click();
+  await page.locator('#cyl-menu-edit button[data-act="preference"]').click();
+  const panel = page.locator(".cyl-pref-panel");
+  await expect(panel).toBeVisible();
+  await panel.locator('.cyl-pref-tab[data-pref-tab="viewport"]').click();
+  await expect(panel.locator('[data-pref-pane="viewport"]')).toBeVisible();
+  await expect(panel.locator("#cyl-pref-bg-hex")).toHaveText("#336699");
+
+  // Ctrl + middle-click (button===1) on the color row -> reset to default #1A1A1A
+  // (hold Control via keyboard: page.mouse modifiers don't set ctrlKey in this driver)
+  const box = await panel.locator(".cyl-pref-color").boundingBox();
+  if (!box) throw new Error("color row not visible");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.keyboard.down("Control");
+  await page.mouse.down({ button: "middle" });
+  await page.mouse.up({ button: "middle" });
+  await page.keyboard.up("Control");
+
+  await expect(panel.locator("#cyl-pref-bg-hex")).toHaveText("#1A1A1A");
+  await expect(panel.locator("#cyl-pref-bg-swatch")).toHaveCSS("background-color", "rgb(26, 26, 26)");
 });

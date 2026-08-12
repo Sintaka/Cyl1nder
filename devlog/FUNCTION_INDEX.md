@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-12），由 `node scripts/gen-index.mjs` 产出。共 **504** 个函数/类。
+> 机器生成（2026-08-12），由 `node scripts/gen-index.mjs` 产出。共 **515** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -101,7 +101,7 @@
 | `InputsPut` | 113 | class |  | 1 |
 | `OutputsPut` | 121 | class |  | 1 |
 
-## bridge/bridge/registry.py（200 行）
+## bridge/bridge/registry.py（201 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -111,15 +111,15 @@
 | `to_dict` | 55 | def |  | 2 |
 | `from_dict` | 67 | def |  | 2 |
 | `SerialRegistry` | 79 | class |  | 0 |
-| `register` | 89 | def |  | 3 |
-| `get` | 116 | def |  | 11 |
-| `touch` | 120 | def |  | 3 |
-| `mark_activity` | 136 | def |  | 3 |
-| `remove` | 150 | def |  | 3 |
-| `list` | 159 | def |  | 1 |
-| `serials` | 163 | def |  | 1 |
-| `_save` | 167 | def |  | 5 |
-| `_load` | 191 | def |  | 2 |
+| `register` | 90 | def |  | 3 |
+| `get` | 117 | def |  | 11 |
+| `touch` | 121 | def |  | 3 |
+| `mark_activity` | 137 | def |  | 3 |
+| `remove` | 151 | def |  | 3 |
+| `list` | 160 | def |  | 1 |
+| `serials` | 164 | def |  | 1 |
+| `_save` | 168 | def |  | 5 |
+| `_load` | 192 | def |  | 2 |
 
 ## bridge/bridge/routes.py（385 行）
 
@@ -288,7 +288,7 @@
 | `_parm_group` | 57 | def |  | 3 |
 | `build` | 116 | def |  | 2 |
 
-## hda/scripts/hython_smoke.py（545 行）
+## hda/scripts/hython_smoke.py（604 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -296,33 +296,35 @@
 | `_make_curve_input` | 38 | def |  | 2 |
 | `_wait_ready_rev` | 56 | def |  | 4 |
 | `_FakeClock` | 72 | class |  | 2 |
-| `__init__` | 75 | def |  | 4 |
+| `__init__` | 75 | def |  | 5 |
 | `now` | 78 | def |  | 1 |
 | `step` | 81 | def |  | 9 |
 | `_test_stream_loop` | 86 | def |  | 2 |
 | `_FakeClient` | 104 | class |  | 3 |
-| `stream_once` | 113 | def |  | 2 |
-| `pull_outputs` | 119 | def |  | 2 |
+| `stream_once` | 113 | def |  | 3 |
+| `pull_outputs` | 119 | def |  | 3 |
 | `_Gate` | 123 | class |  | 1 |
 | `__call__` | 130 | def |  | 1 |
 | `wait_len` | 138 | def |  | 3 |
 | `_feed` | 154 | def |  | 10 |
 | `_seed_caches` | 160 | def |  | 3 |
 | `_assert_caches_cleared` | 169 | def |  | 3 |
-| `_test_kick_force_recook` | 327 | def |  | 2 |
-| `main` | 379 | def |  | 2 |
-| `_stats` | 448 | def |  | 5 |
+| `_test_kick_force_recook` | 308 | def |  | 2 |
+| `_test_stop_all_sync` | 360 | def |  | 3 |
+| `main` | 428 | def |  | 2 |
+| `_stats` | 506 | def |  | 5 |
 
-## hda/scripts/reload_hda.py（89 行）
+## hda/scripts/reload_hda.py（118 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_reload_modules` | 31 | def |  | 2 |
-| `_instances` | 44 | def |  | 2 |
-| `_force_recook_all` | 49 | def |  | 3 |
-| `_rebuild_hda` | 63 | def |  | 2 |
-| `_reload_definition` | 69 | def |  | 2 |
-| `reload_cyl1nder` | 76 | def |  | 3 |
+| `_stop_sync_threads` | 31 | def |  | 3 |
+| `_reload_modules` | 52 | def |  | 2 |
+| `_instances` | 68 | def |  | 2 |
+| `_force_recook_all` | 73 | def |  | 3 |
+| `_rebuild_hda` | 87 | def |  | 2 |
+| `_reload_definition` | 93 | def |  | 2 |
+| `reload_cyl1nder` | 100 | def |  | 3 |
 
 ## hda/src/cyl1nder_bridge.py（134 行）
 
@@ -338,38 +340,40 @@
 | `stream_once` | 108 | def |  | 1 |
 | `pull_outputs` | 125 | def |  | 1 |
 
-## hda/src/cyl1nder_hda.py（812 行）
+## hda/src/cyl1nder_hda.py（881 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_ui_healthy` | 95 | def |  | 2 |
-| `_ensure_frontend` | 104 | def |  | 3 |
-| `_bridge_healthy` | 129 | def |  | 2 |
-| `_ensure_bridge` | 137 | def |  | 3 |
-| `_ready_state` | 164 | def |  | 2 |
-| `_refresh_ready` | 174 | def |  | 4 |
-| `_reset_ready` | 201 | def |  | 2 |
-| `_reset_caches` | 211 | def |  | 2 |
-| `_stream_loop` | 226 | def |  | 1 |
-| `_schedule_recook` | 314 | def |  | 3 |
-| `_force_cook_node` | 322 | def |  | 1 |
-| `ensure_sync` | 350 | def |  | 3 |
-| `_root` | 392 | def |  | 4 |
-| `_ensure_serial` | 396 | def |  | 3 |
-| `_parm` | 409 | def |  | 14 |
-| `_set_status` | 419 | def |  | 6 |
-| `_serialize_geo` | 428 | def |  | 3 |
-| `_build_detail` | 438 | def |  | 2 |
-| `_buffer_sig` | 469 | def |  | 2 |
-| `_apply_output` | 485 | def |  | 2 |
-| `_snapshot_parts` | 529 | def |  | 2 |
-| `_flat_signature` | 577 | def |  | 2 |
-| `_build_core_detail` | 589 | def |  | 3 |
-| `cook_core` | 613 | def |  | 2 |
-| `_same_geo` | 677 | def |  | 2 |
-| `_role_buffer` | 688 | def |  | 2 |
-| `_input_signature` | 707 | def |  | 2 |
-| `cook` | 742 | def |  | 5 |
+| `_ui_healthy` | 99 | def |  | 2 |
+| `_ensure_frontend` | 108 | def |  | 3 |
+| `_bridge_healthy` | 133 | def |  | 2 |
+| `_ensure_bridge` | 141 | def |  | 3 |
+| `_ready_state` | 168 | def |  | 2 |
+| `_refresh_ready` | 178 | def |  | 4 |
+| `_reset_ready` | 205 | def |  | 2 |
+| `_reset_caches` | 215 | def |  | 2 |
+| `_stream_loop` | 230 | def |  | 1 |
+| `_schedule_recook` | 320 | def |  | 4 |
+| `_force_cook_node` | 339 | def |  | 1 |
+| `stop_sync` | 367 | def |  | 5 |
+| `stop_all_sync` | 390 | def |  | 1 |
+| `ensure_sync` | 403 | def |  | 6 |
+| `_root` | 461 | def |  | 4 |
+| `_ensure_serial` | 465 | def |  | 3 |
+| `_parm` | 478 | def |  | 14 |
+| `_set_status` | 488 | def |  | 6 |
+| `_serialize_geo` | 497 | def |  | 3 |
+| `_build_detail` | 507 | def |  | 2 |
+| `_buffer_sig` | 538 | def |  | 2 |
+| `_apply_output` | 554 | def |  | 2 |
+| `_snapshot_parts` | 598 | def |  | 2 |
+| `_flat_signature` | 646 | def |  | 2 |
+| `_build_core_detail` | 658 | def |  | 3 |
+| `cook_core` | 682 | def |  | 3 |
+| `_same_geo` | 746 | def |  | 2 |
+| `_role_buffer` | 757 | def |  | 2 |
+| `_input_signature` | 776 | def |  | 2 |
+| `cook` | 811 | def |  | 7 |
 
 ## hda/src/cyl1nder_serializer.py（63 行）
 
@@ -383,22 +387,27 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/color.ts（597 行）
+## web/src/app/color.ts（1036 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `rgbToHex` | 33 | function | export | 3 |
-| `hexToRgb` | 39 | function | export | 6 |
-| `rgbToHsl` | 60 | function |  | 2 |
-| `hslToRgb` | 80 | function |  | 2 |
-| `rgbToHsv` | 106 | function |  | 6 |
-| `hsvToRgb` | 124 | function |  | 5 |
-| `loadRecents` | 165 | function |  | 3 |
-| `recordRecent` | 179 | function |  | 2 |
-| `esc` | 241 | function |  | 2 |
-| `valuesForMode` | 248 | function |  | 3 |
-| `colorFromMode` | 258 | function |  | 2 |
-| `openColorPicker` | 269 | function | export | 1 |
+| `rgbToHex` | 65 | function | export | 4 |
+| `hexToRgb` | 71 | function | export | 7 |
+| `rgbToHsl` | 92 | function |  | 7 |
+| `hslToRgb` | 112 | function |  | 7 |
+| `rgbToHsv` | 138 | function |  | 5 |
+| `hsvToRgb` | 156 | function |  | 4 |
+| `loadRecents` | 197 | function |  | 4 |
+| `saveRecents` | 211 | function |  | 4 |
+| `recordRecent` | 219 | function |  | 2 |
+| `removeRecent` | 226 | function |  | 2 |
+| `clearRecents` | 233 | function |  | 2 |
+| `esc` | 408 | function |  | 3 |
+| `valuesForMode` | 415 | function |  | 4 |
+| `colorFromMode` | 425 | function |  | 3 |
+| `harmonyDef` | 431 | function |  | 4 |
+| `harmonyColor` | 436 | function |  | 2 |
+| `openColorPicker` | 451 | function | export | 1 |
 
 ## web/src/app/dock.ts（541 行）
 
@@ -427,12 +436,13 @@
 | `onLayoutChange` | 486 | arrow |  | 0 |
 | `applyLayout` | 530 | function | export | 1 |
 
-## web/src/app/layout.ts（217 行）
+## web/src/app/layout.ts（253 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `buildLayout` | 24 | function | export | 1 |
-| `buildLayoutLegacy` | 124 | function | export | 1 |
+| `wireFpsStepper` | 27 | function |  | 3 |
+| `buildLayout` | 46 | function | export | 1 |
+| `buildLayoutLegacy` | 153 | function | export | 1 |
 
 ## web/src/app/layouts.ts（11 行）
 
@@ -445,33 +455,34 @@
 |---|---|---|---|---|
 | `formatLog` | 2 | function | export | 1 |
 
-## web/src/app/param.ts（262 行）
+## web/src/app/param.ts（279 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `esc` | 29 | function |  | 5 |
-| `attrEscape` | 34 | function |  | 4 |
-| `color3ToRgb` | 41 | function |  | 3 |
-| `color3Hex` | 53 | function |  | 3 |
-| `parseColor3` | 59 | function |  | 3 |
-| `controlHtml` | 75 | function |  | 2 |
-| `applyEdit` | 100 | function |  | 5 |
-| `paramDefault` | 116 | function | export | 3 |
-| `renderParams` | 131 | function | export | 1 |
-| `commit` | 172 | arrow |  | 1 |
+| `esc` | 31 | function |  | 5 |
+| `attrEscape` | 36 | function |  | 5 |
+| `color3ToRgb` | 43 | function |  | 3 |
+| `color3Hex` | 55 | function |  | 4 |
+| `parseColor3` | 61 | function |  | 3 |
+| `controlHtml` | 77 | function |  | 2 |
+| `applyEdit` | 106 | function |  | 5 |
+| `paramDefault` | 130 | function | export | 3 |
+| `renderParams` | 146 | function | export | 1 |
+| `commit` | 187 | arrow |  | 1 |
 
-## web/src/app/preference.ts（287 行）
+## web/src/app/preference.ts（339 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `clampSyncFps` | 39 | function | export | 4 |
-| `parseUpdateMode` | 45 | function |  | 4 |
-| `parseAutosaveInterval` | 50 | function |  | 3 |
-| `parseViewportBg` | 57 | function |  | 4 |
-| `loadPreferences` | 63 | function | export | 1 |
-| `savePreferences` | 87 | function | export | 1 |
-| `applyPreferences` | 93 | function | export | 1 |
-| `openPreferenceDialog` | 107 | function | export | 1 |
+| `clampSyncFps` | 44 | function | export | 4 |
+| `parseUpdateMode` | 50 | function |  | 4 |
+| `parseAutosaveInterval` | 55 | function |  | 3 |
+| `parseViewportBg` | 62 | function |  | 4 |
+| `parseUiFont` | 66 | function |  | 4 |
+| `loadPreferences` | 72 | function | export | 1 |
+| `savePreferences` | 97 | function | export | 1 |
+| `applyPreferences` | 104 | function | export | 1 |
+| `openPreferenceDialog` | 127 | function | export | 1 |
 
 ## web/src/app/scrub.ts（270 行）
 
@@ -509,7 +520,7 @@
 | `connectWs` | 201 | function | export | 1 |
 | `connect` | 206 | arrow |  | 1 |
 
-## web/src/main.ts（1128 行）
+## web/src/main.ts（1133 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -520,35 +531,35 @@
 | `getDockJson` | 140 | arrow |  | 6 |
 | `saveCurrentLayout` | 144 | arrow |  | 2 |
 | `refreshLayoutPresets` | 153 | arrow |  | 1 |
-| `writeJsonToDir` | 258 | function |  | 7 |
-| `readJsonFromDir` | 269 | function |  | 5 |
-| `saveSceneAs` | 283 | function |  | 3 |
-| `openSceneFromDir` | 337 | function |  | 2 |
-| `applyLayoutSettings` | 486 | function |  | 4 |
-| `readParamFloats` | 491 | function |  | 3 |
-| `cloneParams` | 502 | function |  | 3 |
-| `paramsEqual` | 507 | function |  | 2 |
-| `flushParamUndo` | 529 | function |  | 2 |
-| `refreshSelectionPanels` | 540 | function |  | 3 |
-| `bindGizmoToTransform` | 609 | function |  | 3 |
-| `bindEnterGizmoToSelection` | 658 | function |  | 3 |
-| `applyTransformDrag` | 676 | function |  | 3 |
-| `toggleEnterEdit` | 691 | function |  | 2 |
-| `getDisplayNodeInfo` | 717 | function |  | 2 |
-| `refreshNodeFlags` | 733 | function |  | 4 |
-| `inputStatsText` | 793 | function |  | 2 |
-| `outputStatsText` | 802 | function |  | 2 |
-| `renderInspector` | 811 | function |  | 2 |
-| `runNetwork` | 848 | function |  | 6 |
-| `kickHdaOnce` | 863 | function |  | 2 |
-| `startHdaWatch` | 876 | function |  | 2 |
-| `check` | 878 | arrow |  | 1 |
-| `stopHdaWatch` | 896 | function |  | 2 |
-| `loadSnapshotIntoStore` | 905 | function |  | 3 |
-| `applyLoadedPreference` | 942 | function |  | 3 |
-| `connect` | 968 | function |  | 4 |
-| `markGraphDirty` | 1098 | function |  | 2 |
-| `startAutoSave` | 1108 | function |  | 5 |
+| `writeJsonToDir` | 259 | function |  | 7 |
+| `readJsonFromDir` | 270 | function |  | 5 |
+| `saveSceneAs` | 284 | function |  | 3 |
+| `openSceneFromDir` | 338 | function |  | 2 |
+| `applyLayoutSettings` | 488 | function |  | 4 |
+| `readParamFloats` | 493 | function |  | 3 |
+| `cloneParams` | 504 | function |  | 3 |
+| `paramsEqual` | 509 | function |  | 2 |
+| `flushParamUndo` | 531 | function |  | 2 |
+| `refreshSelectionPanels` | 542 | function |  | 3 |
+| `bindGizmoToTransform` | 611 | function |  | 3 |
+| `bindEnterGizmoToSelection` | 660 | function |  | 3 |
+| `applyTransformDrag` | 678 | function |  | 3 |
+| `toggleEnterEdit` | 693 | function |  | 2 |
+| `getDisplayNodeInfo` | 719 | function |  | 2 |
+| `refreshNodeFlags` | 735 | function |  | 4 |
+| `inputStatsText` | 795 | function |  | 2 |
+| `outputStatsText` | 804 | function |  | 2 |
+| `renderInspector` | 813 | function |  | 2 |
+| `runNetwork` | 850 | function |  | 6 |
+| `kickHdaOnce` | 865 | function |  | 2 |
+| `startHdaWatch` | 878 | function |  | 2 |
+| `check` | 880 | arrow |  | 1 |
+| `stopHdaWatch` | 898 | function |  | 2 |
+| `loadSnapshotIntoStore` | 907 | function |  | 3 |
+| `applyLoadedPreference` | 944 | function |  | 3 |
+| `connect` | 973 | function |  | 4 |
+| `markGraphDirty` | 1103 | function |  | 2 |
+| `startAutoSave` | 1113 | function |  | 5 |
 
 ## web/src/nodes2/graph.ts（1652 行）
 
@@ -746,7 +757,7 @@
 | `buildOutputs` | 121 | function | export | 1 |
 | `buildNodeResult` | 138 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（780 行）
+## web/src/viewport/renderer.ts（779 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|

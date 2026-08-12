@@ -38,6 +38,10 @@ _SYNC: dict[str, dict] = {}
 _STREAM_HOLD = 60.0
 _STREAM_RETRY = 0.5
 
+# dedupe for the headless "no hdefereval" recook-schedule warning: log one line
+# per node_path, not one line per 30fps stream event.
+_RECOOK_LOG_ONCE: set[str] = set()
+
 # HDA receive-side rate cap (defensive): the outputs/kick "pull + schedule
 # recook" action runs at most `fps` times/second (latest-wins - events inside the
 # window only bump last_seen, the next event after the window pulls the newest
@@ -238,8 +242,14 @@ def _stream_loop(
     (LiveLink principle) - no extra polling, and an idle hold is ~1 req/min.
     Connection errors back off _STREAM_RETRY before retrying; a
     {"type":"timeout"} event reconnects immediately (idle keep-alive). The loop
-    exits cleanly on stop / _SYNC removal, or when node_path's Houdini node is
-    gone (RequestSourceShutdown semantics).
+    exits cleanly when its stop event is set (stop_sync / stop_all_sync) or when
+    its _SYNC entry is removed / replaced by a restart.
+
+    NEVER touches hou.* in this thread: HOM is not thread-safe and a background
+    hou.node() probe racing a reload / node rebuild is the HDA crash root
+    cause. Node-liveness is handled on the cook main thread: ensure_sync()
+    refreshes _SYNC[serial]["aliveAt"] every cook and calls stop_sync() when
+    hou.node(root.path()) is gone.
 
     The HDA receive-side rate cap (sync_fps, default 30, clamp 1..60) throttles
     the outputs/kick "pull + schedule recook" action to at most `fps`
@@ -251,16 +261,20 @@ def _stream_loop(
     event overrides the runtime cap. sleep_fn/now_fn/client are injectable for
     the hython smoke.
     """
+    # Capture this serial's state ONCE: after a stop_sync / ensure_sync restart,
+    # _SYNC[serial] is replaced with a fresh dict (new stop event) - the old
+    # thread must keep its own reference so it exits on stop instead of
+    # re-reading the new entry and running with stale module code.
+    state = _SYNC.get(serial)
+    if state is None:
+        return
     client = client if client is not None else BridgeClient(serial, bridge_url=bridge_url)
     last_seen = 0
     last_action = 0.0  # now_fn() of the last pull+schedule action (rate cap window)
     _refresh_ready(client, serial)  # warm the ready buffer at startup (background)
     while True:
-        state = _SYNC.get(serial)
-        if state is None or state["stop"].is_set():
-            return
-        if node_path and hou.node(node_path) is None:
-            return  # node deleted -> clean shutdown (LiveLink RequestSourceShutdown)
+        if state["stop"].is_set() or _SYNC.get(serial) is not state:
+            return  # stopped / entry removed / restart replaced it -> old loop exits
         ev = client.stream_once(last_seen, hold=_STREAM_HOLD)
         if ev is None:
             # connection error (bridge down / malformed line) -> back off, retry
@@ -271,9 +285,7 @@ def _stream_loop(
         fps = ev.get("fps")
         if isinstance(fps, (int, float)):
             # bridge forwards the per-serial sync fps -> override the runtime cap
-            state = _SYNC.get(serial)
-            if state is not None:
-                state["fps"] = max(_SYNC_FPS_MIN, min(_SYNC_FPS_MAX, int(fps)))
+            state["fps"] = max(_SYNC_FPS_MIN, min(_SYNC_FPS_MAX, int(fps)))
         if etype == "timeout":
             continue  # idle keep-alive: reconnect immediately, no sleep
         if etype == "reset":
@@ -281,9 +293,6 @@ def _stream_loop(
             last_seen = 0
             _reset_ready(serial)  # in-memory op - always applied, no HTTP
             _reset_caches(serial)  # -> next recook re-pushes inputs, rebuilds outputs
-            state = _SYNC.get(serial)
-            if state is None:
-                continue
             # reset is a rare critical path: bypass the fps throttle (the
             # `scheduled` gate still prevents overlapping recooks) and act now.
             last_action = now_fn()
@@ -294,9 +303,6 @@ def _stream_loop(
             continue
         if etype in ("outputs", "kick"):
             last_seen = max(last_seen, rev)
-            state = _SYNC.get(serial)
-            if state is None:
-                continue
             now = now_fn()
             if now - last_action < 1.0 / state.get("fps", _SYNC_FPS_DEFAULT):
                 continue  # rate-capped: only last_seen advanced; next event pulls latest
@@ -315,8 +321,19 @@ def _schedule_recook(node_path: str) -> None:
     try:
         import hdefereval  # graphical Houdini only
         hdefereval.executeDeferred(_force_cook_node, node_path)
-    except Exception:  # noqa: BLE001 - headless hython: user presses Force Cook
-        pass
+    except Exception as exc:  # noqa: BLE001
+        # Never fail silently: if hdefereval is unavailable (headless hython /
+        # shell), there is no deferred recook. Log it once per node_path - the
+        # recovery loop still closes because the reset branch already cleared
+        # _PUSH_CACHE, so the next cook (Force Cook / input change) re-pushes
+        # and re-pulls on its own.
+        if node_path not in _RECOOK_LOG_ONCE:
+            _RECOOK_LOG_ONCE.add(node_path)
+            print(
+                f"[cyl1nder_hda] _schedule_recook({node_path!r}) unavailable: {exc}; "
+                f"no deferred recook. Headless? Press Force Cook - the next cook / "
+                f"input change re-pulls anyway (reset already cleared _PUSH_CACHE)."
+            )
 
 
 def _force_cook_node(node_path: str) -> None:
@@ -347,22 +364,70 @@ def _force_cook_node(node_path: str) -> None:
         pass
 
 
-def ensure_sync(root: hou.Node, serial: str) -> None:
-    """Start the event-driven /stream sync loop (idempotent).
+def stop_sync(serial: str) -> None:
+    """Stop one serial's background /stream loop (main-thread safe).
 
-    sync_fps is the HDA receive-side rate cap (default 30, clamp 1..60): each
-    outputs/kick event refreshes the ready buffer and schedules a recook at most
-    `fps` times/second (latest-wins; the `scheduled` gate still prevents
-    overlapping recooks). reset (bridge restart) bypasses the cap: it always
-    clears the per-serial caches and refreshes + schedules a recook (rare
-    critical path). A numeric `fps` on /stream events overrides the runtime
-    value, so the parameter is the local defensive fallback when no web is
-    driving the sync.
+    Sets the stop event and joins the thread with a short timeout so a cook /
+    reload never blocks on a long-poll (the loop is daemon - a poll still
+    blocked in HTTP exits on its own once the bridge answers). The _SYNC entry
+    is kept and marked stopped=True, so the next ensure_sync() restarts the
+    loop idempotently with a fresh thread + stop event; the old thread holds
+    its own state reference and exits on stop (no reload race, and this is the
+    only path that may call hou.* - never the background thread).
+    """
+    state = _SYNC.get(serial)
+    if state is None:
+        return
+    stop = state.get("stop")
+    if stop is not None:
+        stop.set()
+    thread = state.get("thread")
+    if thread is not None and thread.is_alive():
+        thread.join(timeout=1.0)  # short timeout: daemon semantics, never block a cook
+    state["stopped"] = True
+
+
+def stop_all_sync() -> None:
+    """Stop every background /stream loop.
+
+    reload_hda.py calls this BEFORE importlib.reload() / hou.hda.reloadFile():
+    a live _SYNC thread under a module reload is the HDA crash root cause (the
+    thread holds stale references into the module being replaced). After the
+    reload, the force recook re-enters ensure_sync(), which sees stopped=True
+    and restarts the loops with the fresh module.
+    """
+    for serial in list(_SYNC.keys()):
+        stop_sync(serial)
+
+
+def ensure_sync(root: hou.Node, serial: str) -> None:
+    """Start the event-driven /stream sync loop (idempotent, main-thread only).
+
+    Runs from cook() / cook_core() on the cook main thread. sync_fps is the HDA
+    receive-side rate cap (default 30, clamp 1..60): each outputs/kick event
+    refreshes the ready buffer and schedules a recook at most `fps` times/second
+    (latest-wins; the `scheduled` gate still prevents overlapping recooks).
+    reset (bridge restart) bypasses the cap: it always clears the per-serial
+    caches and refreshes + schedules a recook (rare critical path). A numeric
+    `fps` on /stream events overrides the runtime value, so the parameter is the
+    local defensive fallback when no web is driving the sync.
+
+    HOM is not thread-safe, so hou.* stays on this main thread: every cook
+    refreshes _SYNC[serial]["aliveAt"] as a liveness heartbeat, and if the HDA
+    node itself is gone (deleted / not found at root.path()) the loop is
+    stopped here via stop_sync() instead of the old background hou.node() probe
+    (which raced reloads and crashed Houdini).
     """
     if not serial:
         return
+    now = time.time()
     state = _SYNC.get(serial)
-    if state is not None and state["thread"].is_alive():
+    if state is not None and not state.get("stopped") \
+            and state.get("thread") is not None and state["thread"].is_alive():
+        state["aliveAt"] = now  # main-thread heartbeat: this node cooked
+        if hou.node(root.path()) is None:
+            # node deleted -> stop the background loop (hou-safe: main thread)
+            stop_sync(serial)
         return
     try:
         fps = int(_parm(root, "sync_fps", _SYNC_FPS_DEFAULT))
@@ -370,6 +435,16 @@ def ensure_sync(root: hou.Node, serial: str) -> None:
         fps = _SYNC_FPS_DEFAULT
     fps = max(_SYNC_FPS_MIN, min(_SYNC_FPS_MAX, fps))
     stop = threading.Event()
+    state = {
+        "thread": None,
+        "stop": stop,
+        "node_path": root.path(),
+        "scheduled": False,
+        "fps": fps,
+        "aliveAt": now,
+        "stopped": False,
+    }
+    _SYNC[serial] = state  # publish before start: _stream_loop captures this dict
     thread = threading.Thread(
         target=_stream_loop,
         args=(
@@ -379,14 +454,8 @@ def ensure_sync(root: hou.Node, serial: str) -> None:
         ),
         daemon=True,
     )
+    state["thread"] = thread
     thread.start()
-    _SYNC[serial] = {
-        "thread": thread,
-        "stop": stop,
-        "node_path": root.path(),
-        "scheduled": False,
-        "fps": fps,
-    }
 
 
 def _root(node: hou.Node) -> hou.Node:

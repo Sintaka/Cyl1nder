@@ -20,6 +20,28 @@
   syncFpsInput: HTMLInputElement;
 }
 
+/** v0.1.00062: wire the ▲▼ step buttons of a .cyl-fps-stepper container.
+ *  Clicking a button steps the #cyl-sync-fps number input by its data-step
+ *  (clamped to min/max), then dispatches input+change so main.ts's existing
+ *  `change` listener (clamp -> prefs -> PUT /sync) runs unchanged. */
+function wireFpsStepper(stepper: HTMLElement | null): void {
+  if (!stepper) return;
+  const input = stepper.querySelector<HTMLInputElement>(".cyl-sync-fps");
+  if (!input) return;
+  const min = Number(input.min || 1);
+  const max = Number(input.max || 60);
+  stepper.querySelectorAll<HTMLButtonElement>(".cyl-fps-step").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const cur = Number(input.value);
+      const base = Number.isFinite(cur) ? cur : 30;
+      const next = Math.min(max, Math.max(min, base + (Number(btn.dataset.step) || 0)));
+      input.value = String(next);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  });
+}
+
 /** DOM shell: left node graph / center viewport / right inspector / bottom log. */
 export function buildLayout(app: HTMLElement): Layout {
   app.innerHTML = `
@@ -69,10 +91,17 @@ export function buildLayout(app: HTMLElement): Layout {
           <option value="mouseup">On Mouse Up</option>
         </select>
         <label class="cyl-bottom-label" for="cyl-sync-fps" title="kick bridge / HDA 接收上限（1..60，默认 30）">Sync Max FPS</label>
-        <input type="number" id="cyl-sync-fps" min="1" max="60" value="30" class="cyl-sync-fps" />
+        <div class="cyl-fps-stepper">
+          <input type="number" id="cyl-sync-fps" min="1" max="60" value="30" class="cyl-sync-fps" />
+          <div class="cyl-fps-step-col">
+            <button type="button" class="cyl-fps-step" data-step="1" aria-label="increase max FPS" title="+1">▲</button>
+            <button type="button" class="cyl-fps-step" data-step="-1" aria-label="decrease max FPS" title="-1">▼</button>
+          </div>
+        </div>
       </div>
     </div>`;
   const $ = <T extends HTMLElement>(sel: string): T => app.querySelector(sel) as T;
+  wireFpsStepper(app.querySelector(".cyl-fps-stepper"));
 
   // Content containers are created here and handed to the docking system; dockview
   // moves them into panels (drag tabs to re-layout, float, resize).
@@ -188,10 +217,17 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
           <option value="mouseup">On Mouse Up</option>
         </select>
         <label class="cyl-bottom-label" for="cyl-sync-fps" title="kick bridge / HDA 接收上限（1..60，默认 30）">Sync Max FPS</label>
-        <input type="number" id="cyl-sync-fps" min="1" max="60" value="30" class="cyl-sync-fps" />
+        <div class="cyl-fps-stepper">
+          <input type="number" id="cyl-sync-fps" min="1" max="60" value="30" class="cyl-sync-fps" />
+          <div class="cyl-fps-step-col">
+            <button type="button" class="cyl-fps-step" data-step="1" aria-label="increase max FPS" title="+1">▲</button>
+            <button type="button" class="cyl-fps-step" data-step="-1" aria-label="decrease max FPS" title="-1">▼</button>
+          </div>
+        </div>
       </div>
     </div>`;
   const $ = <T extends HTMLElement>(sel: string): T => app.querySelector(sel) as T;
+  wireFpsStepper(app.querySelector(".cyl-fps-stepper"));
   return {
     root: app,
     serialInput: $("#cyl-serial"),

@@ -1,0 +1,40 @@
+﻿/* Preference panel round-62 additions (Agent C1).
+   Loaded via web/src/app/preference.ts -> imported after styles.css so these
+   rules win over base.css without touching it (base.css belongs to Agent A).
+
+   Adds: UI tab + UI Font dropdown, muted hint lines, Ctrl+middle-click reset
+   affordance on the Viewport background color row, and dark native controls. */
+
+/* Native form controls inside the panel keep the dark theme (select popups,
+   number spinners, checkbox accents). */
+.cyl-pref-panel {
+  color-scheme: dark;
+}
+
+/* ---- UI tab: font dropdown ---- */
+.cyl-pref-font {
+  min-width: 148px;
+}
+.cyl-pref-font option {
+  background: #0f1012;
+  color: #cfd2d6;
+}
+
+/* ---- small muted hint line under a section (e.g. reset shortcut) ---- */
+.cyl-pref-hint {
+  margin: 2px 0 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #7c8491;
+}
+.cyl-pref-viewport + .cyl-pref-hint,
+[data-pref-pane="ui"] .cyl-pref-hint {
+  margin-top: -2px;
+}
+
+/* Background color row: stay draggable-safe (no text selection) and make the
+   Ctrl+middle-click reset target obvious without stealing the pointer. */
+.cyl-pref-color {
+  user-select: none;
+  -webkit-user-select: none;
+}

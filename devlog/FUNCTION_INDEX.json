@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-12T12:40:24.764Z",
-  "totalFunctions": 504,
+  "generatedAt": "2026-08-12T14:10:02.040Z",
+  "totalFunctions": 515,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -428,7 +428,7 @@
     },
     {
       "file": "bridge/bridge/registry.py",
-      "lineCount": 200,
+      "lineCount": 201,
       "functions": [
         {
           "name": "RegistryError",
@@ -474,63 +474,63 @@
         },
         {
           "name": "register",
-          "line": 89,
+          "line": 90,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "get",
-          "line": 116,
+          "line": 117,
           "kind": "def",
           "exported": false,
           "calls": 11
         },
         {
           "name": "touch",
-          "line": 120,
+          "line": 121,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "mark_activity",
-          "line": 136,
+          "line": 137,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "remove",
-          "line": 150,
+          "line": 151,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "list",
-          "line": 159,
+          "line": 160,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "serials",
-          "line": 163,
+          "line": 164,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_save",
-          "line": 167,
+          "line": 168,
           "kind": "def",
           "exported": false,
           "calls": 5
         },
         {
           "name": "_load",
-          "line": 191,
+          "line": 192,
           "kind": "def",
           "exported": false,
           "calls": 2
@@ -1418,7 +1418,7 @@
     },
     {
       "file": "hda/scripts/hython_smoke.py",
-      "lineCount": 545,
+      "lineCount": 604,
       "functions": [
         {
           "name": "_req",
@@ -1453,7 +1453,7 @@
           "line": 75,
           "kind": "def",
           "exported": false,
-          "calls": 4
+          "calls": 5
         },
         {
           "name": "now",
@@ -1488,14 +1488,14 @@
           "line": 113,
           "kind": "def",
           "exported": false,
-          "calls": 2
+          "calls": 3
         },
         {
           "name": "pull_outputs",
           "line": 119,
           "kind": "def",
           "exported": false,
-          "calls": 2
+          "calls": 3
         },
         {
           "name": "_Gate",
@@ -1541,21 +1541,28 @@
         },
         {
           "name": "_test_kick_force_recook",
-          "line": 327,
+          "line": 308,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
+          "name": "_test_stop_all_sync",
+          "line": 360,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
           "name": "main",
-          "line": 379,
+          "line": 428,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_stats",
-          "line": 448,
+          "line": 506,
           "kind": "def",
           "exported": false,
           "calls": 5
@@ -1564,46 +1571,53 @@
     },
     {
       "file": "hda/scripts/reload_hda.py",
-      "lineCount": 89,
+      "lineCount": 118,
       "functions": [
         {
-          "name": "_reload_modules",
+          "name": "_stop_sync_threads",
           "line": 31,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "_reload_modules",
+          "line": 52,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_instances",
-          "line": 44,
+          "line": 68,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_force_recook_all",
-          "line": 49,
+          "line": 73,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_rebuild_hda",
-          "line": 63,
+          "line": 87,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_reload_definition",
-          "line": 69,
+          "line": 93,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "reload_cyl1nder",
-          "line": 76,
+          "line": 100,
           "kind": "def",
           "exported": false,
           "calls": 3
@@ -1681,203 +1695,217 @@
     },
     {
       "file": "hda/src/cyl1nder_hda.py",
-      "lineCount": 812,
+      "lineCount": 881,
       "functions": [
         {
           "name": "_ui_healthy",
-          "line": 95,
+          "line": 99,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_ensure_frontend",
-          "line": 104,
+          "line": 108,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_bridge_healthy",
-          "line": 129,
+          "line": 133,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_ensure_bridge",
-          "line": 137,
+          "line": 141,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_ready_state",
-          "line": 164,
+          "line": 168,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_refresh_ready",
-          "line": 174,
+          "line": 178,
           "kind": "def",
           "exported": false,
           "calls": 4
         },
         {
           "name": "_reset_ready",
-          "line": 201,
+          "line": 205,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_reset_caches",
-          "line": 211,
+          "line": 215,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_stream_loop",
-          "line": 226,
+          "line": 230,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_schedule_recook",
-          "line": 314,
+          "line": 320,
           "kind": "def",
           "exported": false,
-          "calls": 3
+          "calls": 4
         },
         {
           "name": "_force_cook_node",
-          "line": 322,
+          "line": 339,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "stop_sync",
+          "line": 367,
+          "kind": "def",
+          "exported": false,
+          "calls": 5
+        },
+        {
+          "name": "stop_all_sync",
+          "line": 390,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "ensure_sync",
-          "line": 350,
+          "line": 403,
           "kind": "def",
           "exported": false,
-          "calls": 3
+          "calls": 6
         },
         {
           "name": "_root",
-          "line": 392,
+          "line": 461,
           "kind": "def",
           "exported": false,
           "calls": 4
         },
         {
           "name": "_ensure_serial",
-          "line": 396,
+          "line": 465,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_parm",
-          "line": 409,
+          "line": 478,
           "kind": "def",
           "exported": false,
           "calls": 14
         },
         {
           "name": "_set_status",
-          "line": 419,
+          "line": 488,
           "kind": "def",
           "exported": false,
           "calls": 6
         },
         {
           "name": "_serialize_geo",
-          "line": 428,
+          "line": 497,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_build_detail",
-          "line": 438,
+          "line": 507,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_buffer_sig",
-          "line": 469,
+          "line": 538,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_apply_output",
-          "line": 485,
+          "line": 554,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_snapshot_parts",
-          "line": 529,
+          "line": 598,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_flat_signature",
-          "line": 577,
+          "line": 646,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_build_core_detail",
-          "line": 589,
+          "line": 658,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "cook_core",
-          "line": 613,
+          "line": 682,
           "kind": "def",
           "exported": false,
-          "calls": 2
+          "calls": 3
         },
         {
           "name": "_same_geo",
-          "line": 677,
+          "line": 746,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_role_buffer",
-          "line": 688,
+          "line": 757,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_input_signature",
-          "line": 707,
+          "line": 776,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "cook",
-          "line": 742,
+          "line": 811,
           "kind": "def",
           "exported": false,
-          "calls": 5
+          "calls": 7
         }
       ]
     },
@@ -1908,88 +1936,123 @@
     },
     {
       "file": "web/src/app/color.ts",
-      "lineCount": 597,
+      "lineCount": 1036,
       "functions": [
         {
           "name": "rgbToHex",
-          "line": 33,
+          "line": 65,
           "kind": "function",
           "exported": true,
-          "calls": 3
+          "calls": 4
         },
         {
           "name": "hexToRgb",
-          "line": 39,
+          "line": 71,
           "kind": "function",
           "exported": true,
-          "calls": 6
+          "calls": 7
         },
         {
           "name": "rgbToHsl",
-          "line": 60,
+          "line": 92,
           "kind": "function",
           "exported": false,
-          "calls": 2
+          "calls": 7
         },
         {
           "name": "hslToRgb",
-          "line": 80,
+          "line": 112,
           "kind": "function",
           "exported": false,
-          "calls": 2
+          "calls": 7
         },
         {
           "name": "rgbToHsv",
-          "line": 106,
-          "kind": "function",
-          "exported": false,
-          "calls": 6
-        },
-        {
-          "name": "hsvToRgb",
-          "line": 124,
+          "line": 138,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
-          "name": "loadRecents",
-          "line": 165,
+          "name": "hsvToRgb",
+          "line": 156,
           "kind": "function",
           "exported": false,
-          "calls": 3
+          "calls": 4
+        },
+        {
+          "name": "loadRecents",
+          "line": 197,
+          "kind": "function",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "saveRecents",
+          "line": 211,
+          "kind": "function",
+          "exported": false,
+          "calls": 4
         },
         {
           "name": "recordRecent",
-          "line": 179,
+          "line": 219,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "removeRecent",
+          "line": 226,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "clearRecents",
+          "line": 233,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "esc",
-          "line": 241,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "valuesForMode",
-          "line": 248,
+          "line": 408,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
+          "name": "valuesForMode",
+          "line": 415,
+          "kind": "function",
+          "exported": false,
+          "calls": 4
+        },
+        {
           "name": "colorFromMode",
-          "line": 258,
+          "line": 425,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "harmonyDef",
+          "line": 431,
+          "kind": "function",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "harmonyColor",
+          "line": 436,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "openColorPicker",
-          "line": 269,
+          "line": 451,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -2158,18 +2221,25 @@
     },
     {
       "file": "web/src/app/layout.ts",
-      "lineCount": 217,
+      "lineCount": 253,
       "functions": [
         {
+          "name": "wireFpsStepper",
+          "line": 27,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
           "name": "buildLayout",
-          "line": 24,
+          "line": 46,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "buildLayoutLegacy",
-          "line": 124,
+          "line": 153,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -2196,74 +2266,74 @@
     },
     {
       "file": "web/src/app/param.ts",
-      "lineCount": 262,
+      "lineCount": 279,
       "functions": [
         {
           "name": "esc",
-          "line": 29,
+          "line": 31,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "attrEscape",
-          "line": 34,
+          "line": 36,
           "kind": "function",
           "exported": false,
-          "calls": 4
+          "calls": 5
         },
         {
           "name": "color3ToRgb",
-          "line": 41,
+          "line": 43,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "color3Hex",
-          "line": 53,
+          "line": 55,
           "kind": "function",
           "exported": false,
-          "calls": 3
+          "calls": 4
         },
         {
           "name": "parseColor3",
-          "line": 59,
+          "line": 61,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "controlHtml",
-          "line": 75,
+          "line": 77,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "applyEdit",
-          "line": 100,
+          "line": 106,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "paramDefault",
-          "line": 116,
+          "line": 130,
           "kind": "function",
           "exported": true,
           "calls": 3
         },
         {
           "name": "renderParams",
-          "line": 131,
+          "line": 146,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "commit",
-          "line": 172,
+          "line": 187,
           "kind": "arrow",
           "exported": false,
           "calls": 1
@@ -2272,60 +2342,67 @@
     },
     {
       "file": "web/src/app/preference.ts",
-      "lineCount": 287,
+      "lineCount": 339,
       "functions": [
         {
           "name": "clampSyncFps",
-          "line": 39,
+          "line": 44,
           "kind": "function",
           "exported": true,
           "calls": 4
         },
         {
           "name": "parseUpdateMode",
-          "line": 45,
+          "line": 50,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "parseAutosaveInterval",
-          "line": 50,
+          "line": 55,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "parseViewportBg",
-          "line": 57,
+          "line": 62,
+          "kind": "function",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "parseUiFont",
+          "line": 66,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "loadPreferences",
-          "line": 63,
+          "line": 72,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "savePreferences",
-          "line": 87,
+          "line": 97,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "applyPreferences",
-          "line": 93,
+          "line": 104,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "openPreferenceDialog",
-          "line": 107,
+          "line": 127,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -2499,7 +2576,7 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 1128,
+      "lineCount": 1133,
       "functions": [
         {
           "name": "matchLogFilter",
@@ -2552,203 +2629,203 @@
         },
         {
           "name": "writeJsonToDir",
-          "line": 258,
+          "line": 259,
           "kind": "function",
           "exported": false,
           "calls": 7
         },
         {
           "name": "readJsonFromDir",
-          "line": 269,
+          "line": 270,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "saveSceneAs",
-          "line": 283,
+          "line": 284,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "openSceneFromDir",
-          "line": 337,
+          "line": 338,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "applyLayoutSettings",
-          "line": 486,
+          "line": 488,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "readParamFloats",
-          "line": 491,
+          "line": 493,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "cloneParams",
-          "line": 502,
+          "line": 504,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "paramsEqual",
-          "line": 507,
+          "line": 509,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "flushParamUndo",
-          "line": 529,
+          "line": 531,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "refreshSelectionPanels",
-          "line": 540,
+          "line": 542,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "bindGizmoToTransform",
-          "line": 609,
+          "line": 611,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "bindEnterGizmoToSelection",
-          "line": 658,
+          "line": 660,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "applyTransformDrag",
-          "line": 676,
+          "line": 678,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "toggleEnterEdit",
-          "line": 691,
+          "line": 693,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "getDisplayNodeInfo",
-          "line": 717,
+          "line": 719,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "refreshNodeFlags",
-          "line": 733,
+          "line": 735,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "inputStatsText",
-          "line": 793,
+          "line": 795,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "outputStatsText",
-          "line": 802,
+          "line": 804,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderInspector",
-          "line": 811,
+          "line": 813,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "runNetwork",
-          "line": 848,
+          "line": 850,
           "kind": "function",
           "exported": false,
           "calls": 6
         },
         {
           "name": "kickHdaOnce",
-          "line": 863,
+          "line": 865,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "startHdaWatch",
-          "line": 876,
+          "line": 878,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "check",
-          "line": 878,
+          "line": 880,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "stopHdaWatch",
-          "line": 896,
+          "line": 898,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "loadSnapshotIntoStore",
-          "line": 905,
+          "line": 907,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "applyLoadedPreference",
-          "line": 942,
+          "line": 944,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "connect",
-          "line": 968,
+          "line": 973,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "markGraphDirty",
-          "line": 1098,
+          "line": 1103,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "startAutoSave",
-          "line": 1108,
+          "line": 1113,
           "kind": "function",
           "exported": false,
           "calls": 5
@@ -3780,7 +3857,7 @@
     },
     {
       "file": "web/src/viewport/renderer.ts",
-      "lineCount": 780,
+      "lineCount": 779,
       "functions": [
         {
           "name": "Viewport",

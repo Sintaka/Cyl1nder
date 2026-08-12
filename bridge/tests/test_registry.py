@@ -89,11 +89,21 @@ def _read_records(path: Path) -> list[dict]:
 
 
 
+class _FakeClock:
+    """Deterministic clock for the save-debounce test (avoids real-time flakiness)."""
+    def __init__(self) -> None:
+        self.t = 1000.0
+
+    def now(self) -> float:
+        return self.t
+
+
 def test_save_debounced_touch_and_mark_activity(tmp_path: Path) -> None:
     """Rapid touch/mark_activity must not write registry.json every call (sync disk
     I/O at 60Hz blocked the event loop); the file only changes once per second."""
     path = tmp_path / "registry.json"
-    reg = SerialRegistry(path)
+    clock = _FakeClock()
+    reg = SerialRegistry(path, clock=clock.now)
     s = generate_serial()
     reg.register(s, nodePath="/obj/x")  # register saves immediately
     assert path.exists()
@@ -107,12 +117,11 @@ def test_save_debounced_touch_and_mark_activity(tmp_path: Path) -> None:
     # ... but the file is untouched inside the debounce window (no disk write)
     assert _read_records(path) == on_disk
     # after the window a touch persists (single write -> lastSeen moves on disk)
-    time.sleep(1.05)
+    clock.t += 1.1
     reg.touch(s)
     assert _read_records(path) != on_disk
     reg2 = SerialRegistry(path)
     assert reg2.get(s) is not None and reg2.get(s).lastSeen >= reg.get(s).lastSeen
-
 
 
 def test_register_saves_immediately_after_debounced_touch(tmp_path: Path) -> None:

@@ -77,12 +77,13 @@ class RegistryRecord:
 
 
 class SerialRegistry:
-    def __init__(self, path: Path | None = None) -> None:
+    def __init__(self, path: Path | None = None, clock=None) -> None:
         self._path = path
         self._records: dict[str, RegistryRecord] = {}
         self._lock = threading.Lock()
         self._dirty = False
         self._last_saved = 0.0
+        self._clock = clock if clock is not None else time.time
         if path is not None and path.exists():
             self._load(path)
 
@@ -174,7 +175,7 @@ class SerialRegistry:
         must survive a crash immediately). Callers hold self._lock."""
         if self._path is None:
             return
-        now = time.time()
+        now = self._clock()
         if not force:
             if not self._dirty:
                 return

@@ -236,7 +236,8 @@ layout.menuEdit.querySelectorAll("button").forEach((b) => {
         updateMode = saved.update_mode;
         savePreferences(prefs);
         applyPreferences(prefs, layout);
-        store.pushLog(`[pref] saved: sync_max_fps=${saved.sync_max_fps} update_mode=${saved.update_mode}`);
+        viewport.setBackgroundColor(prefs.viewport_bg);
+        store.pushLog(`[pref] saved: sync_max_fps=${saved.sync_max_fps} update_mode=${saved.update_mode} viewport_bg=${prefs.viewport_bg} ui_font=${prefs.ui_font}`);
         if (store.serial) {
           void client.putSnapshot(store.serial, { preference: prefs }).catch(() => undefined);
           void client.putSyncFps(store.serial, saved.sync_max_fps).catch(() => undefined);
@@ -464,6 +465,7 @@ const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuf
 (window as unknown as Record<string, unknown>).__cylGraph = graph; // debug hook (MCP debug access)
 (window as unknown as Record<string, unknown>).__cylStore = store; // debug hook (full logs for tests)
 viewport.setEnterEditHandler(toggleEnterEdit); // left toolbar Enter icon -> activation
+viewport.setBackgroundColor(prefs.viewport_bg); // V2: apply loaded viewport background at startup
 
 // Default startup layout: bundled Default.json (the user's Desk1 arrangement, versioned in the
 // project). Applied AFTER graph + viewport are created so dockview fromJSON moves panels that
@@ -946,6 +948,7 @@ function applyLoadedPreference(json: unknown): void {
     autosave_enabled?: unknown;
     autosave_interval_min?: unknown;
     viewport_bg?: unknown;
+    ui_font?: unknown;
   };
   const next: Preferences = {
     sync_max_fps: clampSyncFps(p.sync_max_fps),
@@ -954,13 +957,15 @@ function applyLoadedPreference(json: unknown): void {
     autosave_interval_min: Math.max(0.1, Number(p.autosave_interval_min) || 5),
     viewport_bg:
       typeof p.viewport_bg === "string" && /^#[0-9a-fA-F]{6}$/.test(p.viewport_bg) ? p.viewport_bg : "#1a1a1a",
+    ui_font: p.ui_font === "system" ? "system" : "code",
   };
   prefs = next;
   syncMaxFps = next.sync_max_fps;
   updateMode = next.update_mode;
   savePreferences(prefs);
   applyPreferences(prefs, layout);
-  store.pushLog(`[pref] loaded: sync_max_fps=${next.sync_max_fps} update_mode=${next.update_mode}`);
+  viewport.setBackgroundColor(prefs.viewport_bg); // V2: loaded Preference.json background applies
+  store.pushLog(`[pref] loaded: sync_max_fps=${next.sync_max_fps} update_mode=${next.update_mode} viewport_bg=${next.viewport_bg} ui_font=${next.ui_font}`);
   if (store.serial) void client.putSyncFps(store.serial, next.sync_max_fps).catch(() => undefined);
   startAutoSave();
 }

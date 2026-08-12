@@ -492,3 +492,15 @@
   - **颜色拾取器体验**：Viewport 首选项**点色块即开调色板**（移除 Change… 按钮，色块 cursor:pointer + 键盘可触发）；**hex 大写**（rgbToHex → #RRGGBB，输入小写自动转大写）；**色轮升级 Adobe 风**（色相环 + 内部 SV 三角形，`△/□` 切换、默认三角形，重心坐标选色，零依赖）。
   - e2e：round13（Change 按钮→点色块开拾取器）、round15（大写 hex：#3366CC/#FF8800/ZZZ）；preference 面板 Escape 在拾取器开着时让给拾取器关闭。
   - 验证：tsc 0；vitest 82；全量 e2e **64 passed / 1 skipped**；pytest 50（无 bridge/hda 改动）。
+## v0.1.00062（2026-08-12）
+- **大改造轮**（devlog/optimize-round-00062.md）：
+  - **HDA 崩溃根治 + 恢复闭环**（关键）：`_stream_loop` 后台线程**不再调 `hou.node`**（HOM 非线程安全，与 reload 并发即崩溃）；新增 `stop_sync`/`stop_all_sync`；`reload_hda.py` reload 前停线程、reload 后 force recook 重启；`_schedule_recook` 失败不再静默（去重告警）；`ensure_sync` 主线程探测节点消失并 stop；reset（桥重启）清 `_PUSH_CACHE` 等缓存 + 绕过 fps 节流调度 recook → 重推 inputs。
+  - **dock 底角黑点根除（第 5 轮根治）**：删除 active tab `background-image` 内凹 notch（#141518 挖空层）→ 底角直接显示活动标签蓝；像素验证底角内侧无黑点、外部外翻 crescent 正常。
+  - **菜单高度**：`.cyl-menu-label` 内边距 `2px 8px → 5px 10px`，File/Edit 与 Layout 框视觉等高。
+  - **Sync Max FPS 步进**：隐藏原生 spinner，右侧 ▲▼ 深色步进列（同 Layout caret 风格），点按钳制 1..60 并触发既有 change 逻辑。
+  - **字体**：新增 `web/public/fonts/`（Fira Code regular 22.8KB + Noto Sans SC chinese-simplified 1.1MB，jsDelivr fontsource 下载内嵌）+ `styles/fonts.css`（@font-face + `--cyl-font-code`/`--cyl-font-ui`/`--cyl-font-system` + body 类切换）；hex 类字体同步用代码字体；首选项新增 **UI 分类** + 字体下拉（code/system）。
+  - **首选项**：单实例（重复打开只一个面板）；Viewport 背景色支持 **Ctrl+中键重置**；背景色应用修复（main.ts 三处调用 `viewport.setBackgroundColor`，此前从未接线）。
+  - **viewport**：transform pivot 去掉绿色线框盒，保留 RGB 三轴。
+  - **颜色拾取器大改造**：Recent 右键删/一键清空；色相环→**全圆盘**（圆心去饱和、半径=饱和度）；三角/矩形共用 132×132 同尺寸（切换零跳动）；RGB/HSL/HSV 加可拖动滑块；PALETTE=简单模式 + **Simple/Advanced** pill 切换（高级=11 个通用色名分类）；**原生 EyeDropper** 拾色器按钮（不支持隐藏）；**Adobe 和谐色轮**（Monochrome/Complementary/Analogous/Triadic/Compound/Shades 预设、5 联动点拖一带动、基础明度关联 HSL L、联动色块）；`.cyl-cp` 标题栏可拖动。
+  - **param.ts 统一属性重置（P8）**：Ctrl+中键重置扩展到 **vector / color3 / string / class 等所有类型**（优先 `param.default`；color3 重置显示 hex）。**理念写入 devlog：属性操作属于统一属性系统，float/vector/color3 等一律通用**。
+  - 验证：tsc 0；vitest 82；全量 e2e **71 passed / 1 skipped**；hython SMOKE OK（含 stop_all_sync）；pytest 50（registry 防抖测试用可注入时钟加固，消除时间敏感 flaky）。

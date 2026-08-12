@@ -23,6 +23,7 @@
   - app/color
   - app/layout
   - protocol/types
+  - styles/preference-plus.css
 - `app/scrub.ts`
 - `app/spreadsheet.ts`
   - protocol/types

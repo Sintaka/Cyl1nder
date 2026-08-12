@@ -298,30 +298,11 @@ def _test_stream_loop() -> None:
             cyl1nder_hda._GEO_CACHE.pop(key, None)
         cyl1nder_hda._GEO_CACHE.pop(("other-" + serial, 0), None)
 
-    # ---- node deleted -> clean thread exit (RequestSourceShutdown semantics) ----
-    serial2 = cyl1nder_hda.generate_serial()
-    stop2 = threading.Event()
-    cyl1nder_hda._SYNC[serial2] = {"thread": None, "stop": stop2, "node_path": "/obj/gone", "scheduled": False, "fps": 30}
-    real_hou_node = cyl1nder_hda.hou.node
-    cyl1nder_hda.hou.node = lambda path: None  # type: ignore[assignment] - simulate deleted node
-    try:
-        client2 = _FakeClient()
-        client2.events = [{"type": "outputs", "rev": 1}]
-        th2 = threading.Thread(
-            target=cyl1nder_hda._stream_loop,
-            args=(serial2, "/obj/gone", "http://127.0.0.1:9", client2),
-            daemon=True,
-        )
-        th2.start()
-        th2.join(timeout=2)
-        assert not th2.is_alive(), "loop thread should exit when the node is gone"
-        assert client2.pull_sinces == [0], f"warm-up pull only, got {client2.pull_sinces}"
-        assert client2.stream_calls == 0, "no stream event should be consumed after node gone"
-        print("stream loop -> clean exit when node is deleted OK")
-    finally:
-        cyl1nder_hda.hou.node = real_hou_node
-        cyl1nder_hda._SYNC.pop(serial2, None)
-        cyl1nder_hda._READY.pop(serial2, None)
+    # NOTE: node-deleted shutdown moved to the MAIN thread (ensure_sync aliveAt
+    # heartbeat + stop_sync): _stream_loop never probes hou.node() again (HOM is
+    # not thread-safe - the old background probe racing a reload crashed
+    # Houdini). Stop-based shutdown is covered by _test_stop_all_sync() below
+    # and the stop-exit assertion in the finally block above.
 
 
 def _test_kick_force_recook() -> None:
@@ -376,6 +357,74 @@ def _test_kick_force_recook() -> None:
         cyl1nder_hda._PUSH_CACHE.pop(serial, None)
 
 
+def _test_stop_all_sync() -> None:
+    """stop_all_sync() stops EVERY background /stream loop (reload safety).
+
+    reload_hda.py calls cyl1nder_hda.stop_all_sync() before importlib.reload()
+    / hou.hda.reloadFile(): a live loop under a module reload is the HDA crash
+    root cause. Each fake loop parks at the error backoff (stream_once -> None),
+    then stop_all_sync() must stop all of them, mark their _SYNC entries
+    stopped (so ensure_sync restarts them idempotently), and the loops must
+    exit once their stop event is set.
+    """
+    serials = [cyl1nder_hda.generate_serial() for _ in range(3)]
+    threads: list[threading.Thread] = []
+
+    class _FakeClient:
+        """stream_once -> None (connection error) -> loop parks at backoff sleep."""
+
+        def __init__(self) -> None:
+            self.last_error = ""
+
+        def stream_once(self, since: int, hold: float = 60.0) -> dict | None:
+            return None
+
+        def pull_outputs(self, since: int):
+            return [], int(since or 0)
+
+    for serial in serials:
+        stop = threading.Event()
+        cyl1nder_hda._SYNC[serial] = {
+            "thread": None,
+            "stop": stop,
+            "node_path": f"/obj/{serial}",
+            "scheduled": False,
+            "fps": 30,
+            "aliveAt": 0.0,
+            "stopped": False,
+        }
+        th = threading.Thread(
+            target=cyl1nder_hda._stream_loop,
+            args=(serial, f"/obj/{serial}", "http://127.0.0.1:9", _FakeClient()),
+            daemon=True,
+        )
+        cyl1nder_hda._SYNC[serial]["thread"] = th
+        th.start()
+        threads.append(th)
+    try:
+        # wait until every loop is parked at the backoff sleep (still alive)
+        deadline = time.time() + 5.0
+        while time.time() < deadline and not all(t.is_alive() for t in threads):
+            time.sleep(0.005)
+        assert all(t.is_alive() for t in threads), "loops should be parked, not exited"
+        cyl1nder_hda.stop_all_sync()
+        for serial, th in zip(serials, threads):
+            th.join(timeout=2)
+            assert not th.is_alive(), f"loop {serial} did not exit after stop_all_sync"
+            st = cyl1nder_hda._SYNC.get(serial)
+            assert st is not None and st.get("stopped"), \
+                f"loop {serial} not marked stopped after stop_all_sync"
+        print("stop_all_sync -> all stream loops stopped + marked stopped OK")
+    finally:
+        for serial, th in zip(serials, threads):
+            st = cyl1nder_hda._SYNC.get(serial)
+            if st is not None and st.get("stop") is not None:
+                st["stop"].set()
+            th.join(timeout=2)
+            cyl1nder_hda._SYNC.pop(serial, None)
+            cyl1nder_hda._READY.pop(serial, None)
+
+
 def main() -> int:
     if HDA not in hou.hda.loadedFiles():
         hou.hda.installFile(HDA)
@@ -397,6 +446,15 @@ def main() -> int:
     node.cook()
     assert serial_parm.eval() == serial, "serial changed on second cook!"
     print("serial immutable across cooks OK")
+
+    # every cook refreshes the liveness heartbeat (main-thread ensure_sync)
+    st_sync = cyl1nder_hda._SYNC.get(serial)
+    assert st_sync is not None and "aliveAt" in st_sync, "ensure_sync must track aliveAt"
+    time.sleep(0.02)
+    node.cook()
+    assert cyl1nder_hda._SYNC[serial]["aliveAt"] >= st_sync["aliveAt"], \
+        "ensure_sync must refresh aliveAt on every cook"
+    print("ensure_sync aliveAt heartbeat updated on cook OK")
 
     time.sleep(1.2)  # let debounce push land
     status = _req("GET", f"{BRIDGE}/api/hda/{serial}/status")
@@ -536,6 +594,7 @@ def main() -> int:
 
     _test_stream_loop()
     _test_kick_force_recook()
+    _test_stop_all_sync()
 
     print("SMOKE OK")
     return 0

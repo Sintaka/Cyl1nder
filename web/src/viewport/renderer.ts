@@ -642,10 +642,9 @@ export class Viewport {
     this.endTransformGizmo();
   }
 
-  /** Small reference marker at the PIVOT position: wire box + RGB axis stubs. */
+  /** Small reference marker at the PIVOT position: RGB axis stubs only (no box). */
   private makeTranslateMarker(): THREE.Group {
     const g = new THREE.Group();
-    g.add(this.makeBox(new THREE.Vector3(0, 0, 0), 0x7ce3a8));
     const axes: Array<[THREE.Vector3, number]> = [
       [new THREE.Vector3(1, 0, 0), 0xff5252],
       [new THREE.Vector3(0, 1, 0), 0x4fc3f7],

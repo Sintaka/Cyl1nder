@@ -1,9 +1,29 @@
 /**
- * Unified color system (contract devlog/autosave-color-prefs-ui.md §2.2).
- * Pure TS, zero new deps. Dark floating (non-modal) color picker with a modern
- * hue RING + Adobe-style SV triangle (toggleable to a square), palette + recents
- * swatches, RGB / HSL / HSV numeric modes and a live uppercase "#RRGGBB" hex
- * input. rgbToHex / hexToRgb are shared by the Viewport background pref (Agent B)
+ * Unified color system (contract devlog/autosave-color-prefs-ui.md §2.2 +
+ * optimize-round-00062.md §C2). Pure TS, zero new deps.
+ *
+ * Dark floating (non-modal) color picker, fully reworked for round 0.1.00062:
+ * - P2  Full Adobe-style wheel: center saturation 0, edge pure hue. The wheel
+ *      sets hue + saturation; the SV triangle/square panel keeps the same
+ *      bounding box in both shapes (no jump when toggling).
+ * - P3  RGB / HSL / HSV modes each get a draggable channel slider next to the
+ *      numeric input. Simple/Advanced mode pill (PALETTE presets = Simple;
+ *      hue-segmented categories + Adobe harmony wheel = Advanced). The △/□
+ *      shape toggle sits on the same toolbar row as the mode pill.
+ * - P4  Native browser eyedropper (window.EyeDropper, Chrome/Edge only): the
+ *      button is hidden when unsupported and the open() rejection (user
+ *      cancel) is swallowed.
+ * - P5  Adobe harmony wheel (Advanced): 4-5 linked points derived from one
+ *      base color (fixed hue offsets / sat / light multipliers per preset),
+ *      dragging one point rotates the whole group, Color harmonies preset
+ *      dropdown, linked swatches (click to pick -> re-anchor the base), and a
+ *      base-lightness slider tied to HSL L that re-tints every point.
+ * - P1  Recents: right-click deletes a single swatch, "Clear all" empties the
+ *      list (localStorage "cyl1nder.colorRecents").
+ * - P7  The whole panel drags by its title bar (same gesture as the
+ *      Preference panel).
+ *
+ * rgbToHex / hexToRgb are shared by the Viewport background pref (Agent B/C1)
  * and the color3 param controls (param.ts).
  */
 import "../styles/colorpicker.css";
@@ -26,8 +46,20 @@ export interface ColorPickerOptions {
   position?: { left: number; top: number };
 }
 
+// Native eyedropper (Chrome/Edge only, ~Chromium 95+). Firefox/Safari ship
+// neither the constructor nor the API, so the button is hidden there.
+// https://developer.mozilla.org/en-US/docs/Web/API/EyeDropper_API
+declare global {
+  interface Window {
+    EyeDropper?: new () => { open(): Promise<{ sRGBHex: string }> };
+  }
+}
+
 const clamp255 = (n: number): number => Math.max(0, Math.min(255, Math.round(n)));
 const clamp01 = (n: number): number => Math.max(0, Math.min(1, n));
+/** Clamp a 0..100 percentage value (harmony sat/light multipliers are 0..1). */
+const clamp100 = (n: number): number => Math.max(0, Math.min(100, n));
+const norm360 = (h: number): number => ((h % 360) + 360) % 360;
 
 /** "#RRGGBB" (uppercase) from an RGB triplet; channels are rounded + clamped. */
 export function rgbToHex(rgb: RGB): string {
@@ -78,7 +110,7 @@ function rgbToHsl(rgb: RGB): { h: number; s: number; l: number } {
 }
 
 function hslToRgb(h: number, s: number, l: number): RGB {
-  const hn = (((h % 360) + 360) % 360) / 360;
+  const hn = norm360(h) / 360;
   const s2 = clamp01(s / 100);
   const l2 = clamp01(l / 100);
   if (s2 === 0) {
@@ -122,7 +154,7 @@ function rgbToHsv(rgb: RGB): { h: number; s: number; v: number } {
 }
 
 function hsvToRgb(h: number, s: number, v: number): RGB {
-  const hn = (((h % 360) + 360) % 360) / 60;
+  const hn = norm360(h) / 60;
   const s2 = clamp01(s / 100);
   const v2 = clamp01(v / 100);
   const c = v2 * s2;
@@ -176,22 +208,147 @@ function loadRecents(): string[] {
   }
 }
 
-function recordRecent(hex: string): string[] {
-  const recents = [hex, ...loadRecents().filter((x) => x !== hex)].slice(0, RECENTS_MAX);
+function saveRecents(recents: string[]): void {
   try {
     localStorage.setItem(RECENTS_KEY, JSON.stringify(recents));
   } catch {
     /* storage full / private mode -> recents are best-effort */
   }
+}
+
+function recordRecent(hex: string): string[] {
+  const recents = [hex, ...loadRecents().filter((x) => x !== hex)].slice(0, RECENTS_MAX);
+  saveRecents(recents);
   return recents;
 }
 
-/** Preset palette shown above the recents row. */
+/** P1: delete one recent swatch (right-click) and persist. */
+function removeRecent(hex: string): string[] {
+  const recents = loadRecents().filter((x) => x !== hex);
+  saveRecents(recents);
+  return recents;
+}
+
+/** P1: empty the whole recents list. */
+function clearRecents(): void {
+  saveRecents([]);
+}
+
+/** Simple-mode preset palette (shown above the recents row). */
 const PALETTE: string[] = [
   "#f8f9fa", "#dee2e6", "#adb5bd", "#6c757d", "#212529",
   "#f03e3e", "#e8590c", "#f59f00", "#37b24d", "#0ca678",
   "#1098ad", "#1c7ed6", "#4263eb", "#7048e8", "#ae3ec9",
   "#ff8787", "#ffa94d", "#ffd43b", "#69db7c", "#3bc9db",
+];
+
+/** Advanced-mode palette: common color-name / hue-segment categories. */
+interface PaletteGroup {
+  label: string;
+  colors: string[];
+}
+
+const ADVANCED_PALETTE: PaletteGroup[] = [
+  { label: "Reds", colors: ["#ff5252", "#e53935", "#c62828", "#b71c1c", "#ffcdd2"] },
+  { label: "Oranges", colors: ["#ffab40", "#ff9800", "#ef6c00", "#e65100", "#ffe0b2"] },
+  { label: "Yellows", colors: ["#ffee58", "#ffd600", "#fbc02d", "#f9a825", "#fff9c4"] },
+  { label: "Greens", colors: ["#69f0ae", "#4caf50", "#2e7d32", "#1b5e20", "#c8e6c9"] },
+  { label: "Teals", colors: ["#4dd0e1", "#00bcd4", "#00838f", "#006064", "#b2ebf2"] },
+  { label: "Blues", colors: ["#64b5f6", "#2196f3", "#1565c0", "#0d47a1", "#bbdefb"] },
+  { label: "Purples", colors: ["#ce93d8", "#9c27b0", "#7b1fa2", "#4a148c", "#e1bee7"] },
+  { label: "Pinks", colors: ["#f48fb1", "#e91e63", "#ad1457", "#880e4f", "#f8bbd0"] },
+  { label: "Browns", colors: ["#bcaaa4", "#8d6e63", "#5d4037", "#3e2723", "#d7ccc8"] },
+  { label: "Grays", colors: ["#cfd8dc", "#90a4ae", "#546e7a", "#263238", "#eceff1"] },
+  { label: "Neutrals", colors: ["#ffffff", "#f5f5f5", "#9e9e9e", "#424242", "#000000"] },
+];
+
+// ---------------- Adobe harmony (P5) ----------------
+
+export type HarmonyId = "monochrome" | "complementary" | "analogous" | "triadic" | "compound" | "shades";
+
+interface HarmonyPoint {
+  /** hue offset from the base hue (deg; negative = counter-clockwise). */
+  hue: number;
+  /** saturation multiplier vs the base saturation. */
+  sat: number;
+  /** lightness multiplier vs the base lightness (HSL L). */
+  light: number;
+}
+
+interface HarmonyDef {
+  id: HarmonyId;
+  label: string;
+  /** point 0 is always the base (offset 0 / mult 1 = the current color). */
+  points: HarmonyPoint[];
+}
+
+const HARMONIES: HarmonyDef[] = [
+  {
+    id: "monochrome",
+    label: "Monochrome",
+    points: [
+      { hue: 0, sat: 1, light: 1 },
+      { hue: 0, sat: 0.75, light: 1 },
+      { hue: 0, sat: 1, light: 1.25 },
+      { hue: 0, sat: 1.25, light: 1 },
+      { hue: 0, sat: 0.6, light: 0.8 },
+    ],
+  },
+  {
+    id: "complementary",
+    label: "Complementary",
+    points: [
+      { hue: 0, sat: 1, light: 1 },
+      { hue: 180, sat: 1, light: 1 },
+      { hue: 0, sat: 1, light: 0.8 },
+      { hue: 180, sat: 1, light: 1.2 },
+      { hue: 180, sat: 0.75, light: 1 },
+    ],
+  },
+  {
+    id: "analogous",
+    label: "Analogous",
+    points: [
+      { hue: 0, sat: 1, light: 1 },
+      { hue: -30, sat: 1, light: 1 },
+      { hue: 30, sat: 1, light: 1 },
+      { hue: -15, sat: 0.9, light: 0.85 },
+      { hue: 15, sat: 0.9, light: 1.15 },
+    ],
+  },
+  {
+    id: "triadic",
+    label: "Triadic",
+    points: [
+      { hue: 0, sat: 1, light: 1 },
+      { hue: 120, sat: 1, light: 1 },
+      { hue: 240, sat: 1, light: 1 },
+      { hue: 120, sat: 0.85, light: 0.8 },
+      { hue: 240, sat: 0.85, light: 1.2 },
+    ],
+  },
+  {
+    id: "compound",
+    label: "Compound",
+    points: [
+      { hue: 0, sat: 1, light: 1 },
+      { hue: 150, sat: 1, light: 1 },
+      { hue: 210, sat: 1, light: 1 },
+      { hue: 150, sat: 0.85, light: 0.8 },
+      { hue: 210, sat: 0.85, light: 1.2 },
+    ],
+  },
+  {
+    id: "shades",
+    label: "Shades",
+    points: [
+      { hue: 0, sat: 1, light: 1 },
+      { hue: 0, sat: 1, light: 0.8 },
+      { hue: 0, sat: 1, light: 0.6 },
+      { hue: 0, sat: 1, light: 0.4 },
+      { hue: 0, sat: 1, light: 0.2 },
+    ],
+  },
 ];
 
 // ---------------- picker ----------------
@@ -218,17 +375,27 @@ const FIELD_DEFS: Record<Mode, { label: string; min: number; max: number }[]> = 
   ],
 };
 
-/** Hue ring geometry (must match .cyl-cp-ring CSS: 132px, inner hole inset 28px). */
-const RING_SIZE = 132;
-const RING_INNER = 28;
-const RING_CX = RING_SIZE / 2;
-const RING_CY = RING_SIZE / 2;
-const RING_R = (RING_SIZE / 2 + (RING_SIZE - 2 * RING_INNER) / 2) / 2;
+/** Full-wheel geometry (must match .cyl-cp-wheel CSS: 132px disc). */
+const WHEEL_SIZE = 132;
+const WHEEL_CX = WHEEL_SIZE / 2;
+const WHEEL_CY = WHEEL_SIZE / 2;
+/** Max thumb radius (kept slightly inside the 66px disc edge). */
+const WHEEL_R = 58;
+
+/** HSL base for the Adobe harmony wheel (point 0 = the current color). */
+interface HslBase {
+  h: number;
+  s: number;
+  l: number;
+}
 
 interface PickerState {
   rgb: RGB;
   mode: Mode;
   shape: SvShape;
+  advanced: boolean;
+  harmony: HarmonyId;
+  base: HslBase;
 }
 
 interface ActivePicker {
@@ -261,15 +428,38 @@ function colorFromMode(mode: Mode, vals: [number, number, number]): RGB {
   return hsvToRgb(vals[0], vals[1], vals[2]);
 }
 
+function harmonyDef(id: HarmonyId): HarmonyDef {
+  return HARMONIES.find((d) => d.id === id) ?? HARMONIES[0];
+}
+
+/** Color of harmony point i for the current base + preset. */
+function harmonyColor(base: HslBase, def: HarmonyDef, i: number): RGB {
+  const p = def.points[i] ?? def.points[0];
+  return hslToRgb(
+    base.h + p.hue,
+    clamp100(base.s * p.sat),
+    clamp100(base.l * p.light),
+  );
+}
+
 /**
  * Open a non-modal floating color picker (no backdrop; the page stays usable
- * behind it). Esc / ✕ / clicking outside closes it. Returns the close function.
- * Only one picker is open at a time: opening a new one closes the previous.
+ * behind it). Esc / ✕ / clicking outside closes it; the title bar drags the
+ * whole panel. Returns the close function. Only one picker is open at a time:
+ * opening a new one closes the previous.
  */
 export function openColorPicker(opts: ColorPickerOptions): () => void {
   if (activePicker) activePicker.close();
 
-  const state: PickerState = { rgb: { ...opts.initial }, mode: "rgb", shape: "tri" };
+  const initHsl = rgbToHsl(opts.initial);
+  const state: PickerState = {
+    rgb: { ...opts.initial },
+    mode: "rgb",
+    shape: "tri",
+    advanced: false,
+    harmony: "analogous",
+    base: { h: initHsl.h, s: initHsl.s, l: initHsl.l },
+  };
 
   const root = document.createElement("div");
   root.className = "cyl-cp";
@@ -281,19 +471,38 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
       <button type="button" class="cyl-cp-close" aria-label="Close">✕</button>
     </div>
     <div class="cyl-cp-body">
-      <div class="cyl-cp-areas">
-        <div class="cyl-cp-ring" data-part="ring"><div class="cyl-cp-ring-thumb"></div></div>
-        <div class="cyl-cp-sv-wrap">
-          <div class="cyl-cp-sv-toggle" role="group" aria-label="SV panel shape">
-            <button type="button" data-shape="tri" class="active" aria-pressed="true" title="Triangle (Adobe style)">△</button>
-            <button type="button" data-shape="sq" aria-pressed="false" title="Square">□</button>
-          </div>
-          <div class="cyl-cp-sv tri" data-part="sv"><div class="cyl-cp-sv-thumb"></div></div>
+      <div class="cyl-cp-toolbar">
+        <div class="cyl-cp-pill" role="group" aria-label="Picker mode">
+          <button type="button" data-pickermode="simple" class="active" aria-pressed="true">Simple</button>
+          <button type="button" data-pickermode="advanced" aria-pressed="false">Advanced</button>
         </div>
+        <div class="cyl-cp-sv-toggle" role="group" aria-label="SV panel shape">
+          <button type="button" data-shape="tri" class="active" aria-pressed="true" title="Triangle (Adobe style)">△</button>
+          <button type="button" data-shape="sq" aria-pressed="false" title="Square">□</button>
+        </div>
+      </div>
+      <div class="cyl-cp-areas">
+        <div class="cyl-cp-wheel" data-part="wheel">
+          <div class="cyl-cp-wheel-thumb" data-part="wheel-thumb"></div>
+        </div>
+        <div class="cyl-cp-sv tri" data-part="sv"><div class="cyl-cp-sv-thumb"></div></div>
+      </div>
+      <div class="cyl-cp-harmony" data-part="harmony" hidden>
+        <div class="cyl-cp-harmony-head">
+          <select data-part="harmony-preset" aria-label="Color harmony preset"></select>
+          <label class="cyl-cp-light" title="Base lightness (HSL L) drives every harmony point">
+            <span>L</span>
+            <input type="range" min="0" max="100" step="1" data-part="harmony-light" aria-label="Base lightness" />
+          </label>
+        </div>
+        <div class="cyl-cp-harmony-swatches" data-part="harmony-swatches"></div>
       </div>
       <div class="cyl-cp-hex-row">
         <label for="cyl-cp-hex">hex</label>
         <input type="text" id="cyl-cp-hex" class="cyl-cp-hex" spellcheck="false" maxlength="7" autocomplete="off" aria-label="hex color" />
+        <button type="button" class="cyl-cp-eye" data-part="eye" title="Pick color from screen (native EyeDropper)" aria-label="Pick color from screen">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/></svg>
+        </button>
         <span class="cyl-cp-preview"></span>
       </div>
       <div class="cyl-cp-tabs">
@@ -303,31 +512,40 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
       </div>
       <div class="cyl-cp-fields" data-part="fields"></div>
       <div class="cyl-cp-block">
-        <div class="cyl-cp-block-label">Palette</div>
+        <div class="cyl-cp-block-label"><span>Palette</span></div>
         <div class="cyl-cp-swatches" data-part="palette"></div>
       </div>
       <div class="cyl-cp-block">
-        <div class="cyl-cp-block-label">Recent</div>
+        <div class="cyl-cp-block-label">
+          <span>Recent</span>
+          <button type="button" class="cyl-cp-clear" data-part="recents-clear">Clear all</button>
+        </div>
         <div class="cyl-cp-swatches" data-part="recents"></div>
       </div>
     </div>`;
 
   const head = root.querySelector<HTMLElement>(".cyl-cp-head")!;
   const closeBtn = root.querySelector<HTMLButtonElement>(".cyl-cp-close")!;
-  const ringEl = root.querySelector<HTMLElement>(".cyl-cp-ring")!;
-  const ringThumb = root.querySelector<HTMLElement>(".cyl-cp-ring-thumb")!;
-  const svEl = root.querySelector<HTMLElement>(".cyl-cp-sv")!;
+  const wheelEl = root.querySelector<HTMLElement>('[data-part="wheel"]')!;
+  const wheelThumb = root.querySelector<HTMLElement>('[data-part="wheel-thumb"]')!;
+  const svEl = root.querySelector<HTMLElement>('[data-part="sv"]')!;
   const svThumb = root.querySelector<HTMLElement>(".cyl-cp-sv-thumb")!;
-  const svToggleEl = root.querySelector<HTMLElement>(".cyl-cp-sv-toggle")!;
-  const svToggleBtns = Array.from(svToggleEl.querySelectorAll<HTMLButtonElement>("button"));
+  const svToggleBtns = Array.from(root.querySelectorAll<HTMLButtonElement>(".cyl-cp-sv-toggle button"));
+  const modeBtns = Array.from(root.querySelectorAll<HTMLButtonElement>(".cyl-cp-pill button"));
+  const harmonyEl = root.querySelector<HTMLElement>('[data-part="harmony"]')!;
+  const harmonySelect = root.querySelector<HTMLSelectElement>('[data-part="harmony-preset"]')!;
+  const lightSlider = root.querySelector<HTMLInputElement>('[data-part="harmony-light"]')!;
+  const harmonySwatchesEl = root.querySelector<HTMLElement>('[data-part="harmony-swatches"]')!;
   const hexInput = root.querySelector<HTMLInputElement>(".cyl-cp-hex")!;
+  const eyeBtn = root.querySelector<HTMLButtonElement>('[data-part="eye"]')!;
   const preview = root.querySelector<HTMLElement>(".cyl-cp-preview")!;
   const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>(".cyl-cp-tabs button"));
-  const fieldsEl = root.querySelector<HTMLElement>(".cyl-cp-fields")!;
+  const fieldsEl = root.querySelector<HTMLElement>('[data-part="fields"]')!;
   const paletteEl = root.querySelector<HTMLElement>('[data-part="palette"]')!;
   const recentsEl = root.querySelector<HTMLElement>('[data-part="recents"]')!;
+  const clearRecentsBtn = root.querySelector<HTMLButtonElement>('[data-part="recents-clear"]')!;
 
-  // ---- recents (debounced write + render; flushed on close) ----
+  // ---- recents (P1: right-click delete, Clear all, debounced write) ----
   let pendingRecentHex: string | null = null;
   let recentTimer: number | undefined;
   const renderRecents = (list?: string[]): void => {
@@ -335,13 +553,23 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     recentsEl.innerHTML = items
       .map((h) => `<button type="button" class="cyl-cp-swatch" style="background:${h}" data-hex="${h}" aria-label="${h}"></button>`)
       .join("");
+    clearRecentsBtn.disabled = items.length === 0;
     recentsEl.querySelectorAll<HTMLButtonElement>(".cyl-cp-swatch").forEach((b) => {
       b.addEventListener("click", () => {
         const rgb = hexToRgb(b.dataset.hex ?? "");
         if (rgb) setColor(rgb);
       });
+      // P1: right-click removes a single recent swatch
+      b.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        renderRecents(removeRecent(b.dataset.hex ?? ""));
+      });
     });
   };
+  clearRecentsBtn.addEventListener("click", () => {
+    clearRecents();
+    renderRecents([]);
+  });
   const flushRecent = (): void => {
     if (recentTimer !== undefined) {
       window.clearTimeout(recentTimer);
@@ -359,24 +587,40 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     recentTimer = window.setTimeout(flushRecent, 250);
   };
 
-  // ---- palette ----
-  paletteEl.innerHTML = PALETTE.map(
-    (h) => `<button type="button" class="cyl-cp-swatch" style="background:${h}" data-hex="${h}" aria-label="${h}"></button>`,
-  ).join("");
-  paletteEl.querySelectorAll<HTMLButtonElement>(".cyl-cp-swatch").forEach((b) => {
-    b.addEventListener("click", () => {
-      const rgb = hexToRgb(b.dataset.hex ?? "");
-      if (rgb) setColor(rgb);
+  // ---- palette (simple = fixed presets; advanced = categorized) ----
+  const wireSwatchClicks = (container: HTMLElement): void => {
+    container.querySelectorAll<HTMLButtonElement>(".cyl-cp-swatch").forEach((b) => {
+      b.addEventListener("click", () => {
+        const rgb = hexToRgb(b.dataset.hex ?? "");
+        if (rgb) setColor(rgb);
+      });
     });
-  });
+  };
+  const renderPalette = (): void => {
+    if (state.advanced) {
+      paletteEl.innerHTML = ADVANCED_PALETTE.map(
+        (g) => `<div class="cyl-cp-pal-group">
+          <div class="cyl-cp-pal-group-label">${esc(g.label)}</div>
+          <div class="cyl-cp-swatches cyl-cp-swatches-adv">${g.colors
+            .map((h) => `<button type="button" class="cyl-cp-swatch" style="background:${h}" data-hex="${h}" aria-label="${h}"></button>`)
+            .join("")}</div>
+        </div>`,
+      ).join("");
+    } else {
+      paletteEl.innerHTML = PALETTE.map(
+        (h) => `<button type="button" class="cyl-cp-swatch" style="background:${h}" data-hex="${h}" aria-label="${h}"></button>`,
+      ).join("");
+    }
+    wireSwatchClicks(paletteEl);
+  };
 
-  // ---- numeric fields per mode ----
+  // ---- numeric fields per mode (P3: each channel gets a draggable slider) ----
   const renderFields = (): void => {
     const defs = FIELD_DEFS[state.mode];
     fieldsEl.innerHTML = defs
       .map(
         (d, i) =>
-          `<label class="cyl-cp-fld"><span>${d.label}</span><input type="number" min="${d.min}" max="${d.max}" step="1" data-i="${i}" /></label>`,
+          `<label class="cyl-cp-fld"><span>${d.label}</span><input type="range" min="${d.min}" max="${d.max}" step="1" data-i="${i}" data-part="field-slider" aria-label="${d.label} slider" /><input type="number" min="${d.min}" max="${d.max}" step="1" data-i="${i}" aria-label="${d.label}" /></label>`,
       )
       .join("");
     fieldsEl.querySelectorAll<HTMLInputElement>("input[type=number]").forEach((input) => {
@@ -393,6 +637,17 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
         if (Number.isNaN(parseFloat(input.value))) syncFields(); // revert invalid on blur/Enter
       });
     });
+    // P3: dragging a channel slider updates the color live
+    fieldsEl.querySelectorAll<HTMLInputElement>('input[type=range][data-part="field-slider"]').forEach((slider) => {
+      const i = Number(slider.dataset.i);
+      slider.addEventListener("input", () => {
+        const n = parseFloat(slider.value);
+        if (Number.isNaN(n)) return;
+        const vals = valuesForMode(state.mode, state.rgb);
+        vals[i] = n;
+        setColor(colorFromMode(state.mode, vals));
+      });
+    });
     syncFields();
   };
 
@@ -401,6 +656,10 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     fieldsEl.querySelectorAll<HTMLInputElement>("input[type=number]").forEach((input) => {
       const s = String(Math.round(vals[Number(input.dataset.i)]));
       if (input.value !== s) input.value = s;
+    });
+    fieldsEl.querySelectorAll<HTMLInputElement>('input[type=range][data-part="field-slider"]').forEach((slider) => {
+      const s = String(Math.round(vals[Number(slider.dataset.i)]));
+      if (slider.value !== s) slider.value = s;
     });
   };
 
@@ -412,7 +671,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     });
   });
 
-  // ---- SV panel shape toggle (Adobe triangle <-> square) ----
+  // ---- SV panel shape toggle (Adobe triangle <-> square, same size) ----
   const syncSvThumb = (hsv: { h: number; s: number; v: number }): void => {
     if (state.shape === "tri") {
       // barycentric thumb: T(hue)=(0.5,0), L(black)=(0,1), R(white)=(1,1)
@@ -438,44 +697,177 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     b.addEventListener("click", () => applyShape((b.dataset.shape as SvShape) ?? "tri"));
   });
 
-  // ---- main state update: syncs hex/preview/ring/SV/fields + fires onColor ----
-  const setColor = (rgb: RGB, emit = true, trackRecent = true): void => {
+  // ---- Simple / Advanced mode (P3 + P5) ----
+  const applyMode = (advanced: boolean): void => {
+    state.advanced = advanced;
+    modeBtns.forEach((b) => {
+      const active = b.dataset.pickermode === (advanced ? "advanced" : "simple");
+      b.classList.toggle("active", active);
+      b.setAttribute("aria-pressed", String(active));
+    });
+    harmonyEl.hidden = !advanced;
+    if (advanced) {
+      // re-anchor the harmony base to the current color
+      const { h, s, l } = rgbToHsl(state.rgb);
+      state.base = { h, s, l };
+    }
+    renderPalette();
+    syncWheel();
+    syncHarmony();
+    syncLight();
+  };
+  modeBtns.forEach((b) => {
+    b.addEventListener("click", () => applyMode(b.dataset.pickermode === "advanced"));
+  });
+
+  // ---- Adobe harmony (P5): preset dropdown + linked points + swatches + L ----
+  harmonySelect.innerHTML = HARMONIES.map((d) => `<option value="${d.id}">${d.label}</option>`).join("");
+  harmonySelect.value = state.harmony;
+  harmonySelect.addEventListener("change", () => {
+    state.harmony = (harmonySelect.value as HarmonyId) || "analogous";
+    syncHarmony();
+  });
+
+  /** Pick harmony point i: re-anchor the base so point 0 == that color. */
+  const pickHarmony = (i: number): void => {
+    const def = harmonyDef(state.harmony);
+    const p = def.points[i] ?? def.points[0];
+    state.base = {
+      h: norm360(state.base.h + p.hue),
+      s: clamp100(state.base.s * p.sat),
+      l: clamp100(state.base.l * p.light),
+    };
+    setColor(hslToRgb(state.base.h, state.base.s, state.base.l), { keepBase: true });
+  };
+
+  const syncHarmony = (): void => {
+    if (!state.advanced) return;
+    const def = harmonyDef(state.harmony);
+    // point markers 1..N (point 0 == base == the wheel thumb)
+    const markers = def.points
+      .map((p, i) => {
+        if (i === 0) return null;
+        const hue = norm360(state.base.h + p.hue);
+        const sat = clamp100(state.base.s * p.sat) / 100; // 0..1 radius factor
+        const rad = (hue * Math.PI) / 180;
+        const x = WHEEL_CX + sat * WHEEL_R * Math.cos(rad);
+        const y = WHEEL_CY + sat * WHEEL_R * Math.sin(rad);
+        return `<button type="button" class="cyl-cp-harmony-point" data-harmony-i="${i}" style="left:${x}px;top:${y}px" aria-label="Harmony point ${i}"></button>`;
+      })
+      .join("");
+    wheelEl.querySelectorAll(".cyl-cp-harmony-point").forEach((n) => n.remove());
+    wheelEl.insertAdjacentHTML("beforeend", markers);
+
+    harmonySwatchesEl.innerHTML = def.points
+      .map((p, i) => {
+        const rgb = harmonyColor(state.base, def, i);
+        const hex = rgbToHex(rgb);
+        return `<button type="button" class="cyl-cp-swatch" style="background:${hex}" data-hex="${hex}" data-harmony-i="${i}" aria-label="Harmony ${i} ${hex}"></button>`;
+      })
+      .join("");
+    harmonySwatchesEl.querySelectorAll<HTMLButtonElement>(".cyl-cp-swatch").forEach((b) => {
+      b.addEventListener("click", () => pickHarmony(Number(b.dataset.harmonyI)));
+    });
+  };
+
+  const syncLight = (): void => {
+    if (!state.advanced) return;
+    const s = String(Math.round(state.base.l));
+    if (lightSlider.value !== s) lightSlider.value = s;
+  };
+
+  // P5: base lightness (HSL L) drives the lightness of every harmony point
+  lightSlider.addEventListener("input", () => {
+    const v = parseFloat(lightSlider.value);
+    if (Number.isNaN(v)) return;
+    state.base.l = v;
+    setColor(hslToRgb(state.base.h, state.base.s, v), { keepBase: true });
+  });
+
+  // ---- main state update: syncs hex/preview/wheel/SV/fields/harmony + fires onColor ----
+  const setColor = (rgb: RGB, o: { emit?: boolean; trackRecent?: boolean; keepBase?: boolean } = {}): void => {
+    const { emit = true, trackRecent = true, keepBase = false } = o;
     state.rgb = { r: clamp255(rgb.r), g: clamp255(rgb.g), b: clamp255(rgb.b) };
+    if (state.advanced && !keepBase) {
+      const { h, s, l } = rgbToHsl(state.rgb);
+      state.base = { h, s, l };
+    }
     const hex = rgbToHex(state.rgb);
     if (hexInput.value !== hex) hexInput.value = hex;
     preview.style.background = hex;
     const hsv = rgbToHsv(state.rgb);
-    const rad = (hsv.h * Math.PI) / 180;
-    ringThumb.style.left = `${RING_CX + RING_R * Math.cos(rad)}px`;
-    ringThumb.style.top = `${RING_CY + RING_R * Math.sin(rad)}px`;
     svEl.style.background = `hsl(${hsv.h}, 100%, 50%)`;
+    syncWheel();
     syncSvThumb(hsv);
     syncFields();
+    syncHarmony();
+    syncLight();
     if (emit) opts.onColor(state.rgb, hex);
     if (trackRecent) scheduleRecent(hex);
   };
 
-  // ---- ring (hue) drag ----
-  const applyRing = (e: PointerEvent): void => {
-    const rect = ringEl.getBoundingClientRect();
-    const dx = e.clientX - rect.left - RING_CX;
-    const dy = e.clientY - rect.top - RING_CY;
-    const h = ((Math.atan2(dy, dx) * 180) / Math.PI + 360) % 360;
-    const hsv = rgbToHsv(state.rgb);
-    setColor(hsvToRgb(h, hsv.s, hsv.v));
+  // ---- wheel (P2 full disc: angle = hue, radius = saturation) ----
+  const syncWheel = (): void => {
+    const { h, s } = rgbToHsl(state.rgb);
+    const rad = (h * Math.PI) / 180;
+    const r = (s / 100) * WHEEL_R;
+    wheelThumb.style.left = `${WHEEL_CX + r * Math.cos(rad)}px`;
+    wheelThumb.style.top = `${WHEEL_CY + r * Math.sin(rad)}px`;
   };
-  ringEl.addEventListener("pointerdown", (e) => {
+
+  const applyWheel = (e: PointerEvent, pointIndex: number): void => {
+    const rect = wheelEl.getBoundingClientRect();
+    const dx = e.clientX - rect.left - WHEEL_CX;
+    const dy = e.clientY - rect.top - WHEEL_CY;
+    const h = norm360((Math.atan2(dy, dx) * 180) / Math.PI);
+    const radius = clamp01(Math.sqrt(dx * dx + dy * dy) / WHEEL_R);
+    if (state.advanced) {
+      if (pointIndex >= 0) {
+        // dragging a linked point rotates/scales the whole group (offsets kept)
+        const def = harmonyDef(state.harmony);
+        const p = def.points[pointIndex] ?? def.points[0];
+        state.base.h = norm360(h - p.hue);
+        state.base.s = clamp01(radius / Math.max(0.05, p.sat)) * 100;
+      } else {
+        // dragging the wheel background moves the base point (hue + saturation)
+        state.base.h = h;
+        state.base.s = radius * 100;
+      }
+      setColor(hslToRgb(state.base.h, state.base.s, state.base.l), { keepBase: true });
+    } else {
+      const hsl = rgbToHsl(state.rgb);
+      setColor(hslToRgb(h, radius * 100, hsl.l));
+    }
+  };
+
+  const startWheelDrag = (e: PointerEvent, pointIndex: number): void => {
     e.preventDefault();
-    ringEl.setPointerCapture(e.pointerId);
-    applyRing(e);
-    const move = (ev: PointerEvent): void => applyRing(ev);
-    const up = (ev: PointerEvent): void => {
-      ringEl.releasePointerCapture(ev.pointerId);
-      ringEl.removeEventListener("pointermove", move);
-      ringEl.removeEventListener("pointerup", up);
+    e.stopPropagation();
+    // Document-level listeners (like the header drag): the harmony point
+    // markers are re-created on every setColor, so pointer capture on the
+    // marker would be released mid-drag; a document listener survives that.
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let moved = false;
+    applyWheel(e, pointIndex);
+    const move = (ev: PointerEvent): void => {
+      if (Math.abs(ev.clientX - startX) + Math.abs(ev.clientY - startY) > 3) moved = true;
+      applyWheel(ev, pointIndex);
     };
-    ringEl.addEventListener("pointermove", move);
-    ringEl.addEventListener("pointerup", up);
+    const up = (): void => {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      document.removeEventListener("pointercancel", up);
+      // a click (no drag) on a harmony point picks that color
+      if (!moved && state.advanced && pointIndex >= 0) pickHarmony(pointIndex);
+    };
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+    document.addEventListener("pointercancel", up);
+  };
+  wheelEl.addEventListener("pointerdown", (e) => {
+    const pt = (e.target as HTMLElement).closest<HTMLElement>("[data-harmony-i]");
+    startWheelDrag(e, pt ? Number(pt.dataset.harmonyI) : -1);
   });
 
   // ---- SV panel (Adobe triangle / square) drag ----
@@ -542,6 +934,24 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     if (!hexToRgb(hexInput.value)) hexInput.value = rgbToHex(state.rgb); // revert invalid
   });
 
+  // ---- P4: native eyedropper (Chrome/Edge). Hidden when unsupported. ----
+  const supportsEyeDropper = typeof window !== "undefined" && !!window.EyeDropper;
+  if (!supportsEyeDropper) eyeBtn.hidden = true;
+  eyeBtn.addEventListener("click", async () => {
+    if (!window.EyeDropper) return;
+    try {
+      // new EyeDropper().open() shows the OS full-screen picker; the returned
+      // promise resolves with { sRGBHex } or rejects (DOMException) when the
+      // user presses Escape / cancels -> swallowed below.
+      const dropper = new window.EyeDropper();
+      const result = await dropper.open();
+      const rgb = hexToRgb(result.sRGBHex);
+      if (rgb) setColor(rgb);
+    } catch {
+      /* user cancelled the picker -> keep the current color */
+    }
+  });
+
   // ---- close: ✕ / Esc / click outside ----
   const onKey = (e: KeyboardEvent): void => {
     if (e.key === "Escape") close();
@@ -561,6 +971,30 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
   document.addEventListener("keydown", onKey);
   document.addEventListener("pointerdown", onOutside, true);
 
+  // ---- P7: drag the whole panel by its title bar (same as Preference) ----
+  head.addEventListener("pointerdown", (e) => {
+    if ((e.target as HTMLElement).closest(".cyl-cp-close")) return;
+    e.preventDefault(); // stop text-selection / native drag while moving
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const rect = root.getBoundingClientRect();
+    const offX = startX - rect.left;
+    const offY = startY - rect.top;
+    const onMove = (ev: PointerEvent): void => {
+      root.style.left = `${Math.max(0, ev.clientX - offX)}px`;
+      root.style.top = `${Math.max(0, ev.clientY - offY)}px`;
+      root.style.right = "auto";
+    };
+    const onUp = (): void => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.body.style.userSelect = "";
+    };
+    document.body.style.userSelect = "none";
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+  });
+
   // position (fixed): explicit anchor or top-right default
   if (opts.position) {
     root.style.left = `${opts.position.left}px`;
@@ -571,8 +1005,11 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
   activePicker = { root, close };
 
   // initial paint (no onColor / no recents write)
-  setColor(state.rgb, false, false);
+  renderPalette();
+  renderFields();
+  setColor(state.rgb, { emit: false, trackRecent: false, keepBase: true });
   renderRecents();
+  syncWheel();
   hexInput.focus();
   hexInput.select();
 
@@ -592,5 +1029,7 @@ if (typeof window !== "undefined") {
     close: () => activePicker?.close(),
     isOpen: () => activePicker !== null,
     getRecents: loadRecents,
+    removeRecent,
+    clearRecents,
   };
 }

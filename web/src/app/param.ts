@@ -5,6 +5,8 @@
  * + hex text that opens the floating color picker. Edits rebuild the params
  * array and fire onChange (the caller persists them + re-runs the network).
  * float/int number inputs also get middle-drag scrubbing (attachScrub).
+ * P8 unified property reset: Ctrl+MMB restores EVERY control type
+ * (float/int/vector/color3/string/class) to param.default or a type fallback.
  * Pure DOM string rendering - no framework.
  */
 
@@ -77,6 +79,10 @@ function controlHtml(p: ParamInfo): string {
   if (p.type === "float" || p.type === "int") {
     return `<input type="number" step="any" data-name="${name}" value="${attrEscape(String(p.value))}">`;
   }
+  if (p.type.startsWith("vector")) {
+    const cur = Array.isArray(p.value) ? p.value.join(",") : String(p.value);
+    return `<input type="text" data-name="${name}" value="${attrEscape(cur)}">`;
+  }
   if (p.type === "color3") {
     const hex = color3Hex(p.value);
     return `<span class="cyl-color3" data-name="${name}">
@@ -108,6 +114,14 @@ function applyEdit(info: ParamPanelInfo, name: string, raw: string): ParamInfo[]
       const parsed = parseColor3(raw);
       return parsed ? { ...p, value: parsed } : p;
     }
+    if (p.type.startsWith("vector")) {
+      // "x,y,z" (whitespace tolerated) -> number array; malformed keeps old value
+      const parts = raw.split(",").map((x) => parseFloat(x.trim()));
+      if (parts.length >= 2 && parts.every((n) => Number.isFinite(n))) {
+        return { ...p, value: parts };
+      }
+      return p;
+    }
     return { ...p, value: raw };
   });
 }
@@ -117,6 +131,7 @@ export function paramDefault(p: ParamInfo): unknown {
   if (p.default !== undefined) return p.default;
   if (p.type === "float" || p.type === "int") return 0;
   if (p.type === "color3") return [0.5, 0.5, 0.5];
+  if (p.type.startsWith("vector")) return [0, 0, 0];
   if (p.type === "string" && p.name === "class") return "autoguess";
   return "";
 }
@@ -218,7 +233,7 @@ export function renderParams(
       swatch.addEventListener("click", () => {
         const rgb = color3ToRgb(currentValue) ?? { r: 128, g: 128, b: 128 };
         const rect = swatch.getBoundingClientRect();
-        const pickerW = 300; // matches .cyl-cp width
+        const pickerW = 320; // matches .cyl-cp width
         const left = Math.max(8, Math.min(rect.left - pickerW - 8, window.innerWidth - pickerW - 8));
         const top = Math.max(8, Math.min(rect.top, window.innerHeight - 360));
         openColorPicker({
@@ -245,17 +260,19 @@ export function renderParams(
       };
       hexInput.addEventListener("input", () => commitRaw(false));
       hexInput.addEventListener("change", () => commitRaw(true));
-      hexInput.addEventListener("pointerdown", (e) => {
+      const resetColor3 = (e: Event): void => {
         const pe = e as PointerEvent;
         if (pe.button === 1 && (pe.ctrlKey || pe.metaKey)) {
           e.preventDefault();
           const dv = paramDefault(p);
           currentValue = dv;
-          hexInput.value = String(dv);
+          hexInput.value = color3Hex(dv); // show the default as #RRGGBB, not "r,g,b"
           onChange(info.params.map((q) => (q.name === p.name ? { ...q, value: dv } : q)));
           sync(dv);
         }
-      });
+      };
+      hexInput.addEventListener("pointerdown", resetColor3);
+      swatch.addEventListener("pointerdown", resetColor3);
     });
   }
 }

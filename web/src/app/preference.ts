@@ -1,19 +1,22 @@
 import type { UpdateMode } from "../protocol/types";
 import type { Layout } from "./layout";
 import { hexToRgb, openColorPicker } from "./color";
+import "../styles/preference-plus.css";
 
 /** Preferences persisted to localStorage ("cyl1nder.prefs") + Preference.json v1.
  *  sync_max_fps caps the kick bridge (receive/forward + HDA recook, 1..60, default
  *  30) - Auto Update web pushes are NOT rate-limited; update_mode picks when
  *  Enter-gizmo drags refresh geometry ("auto" | "mouseup"); autosave_* drive the
  *  timed auto-save (default 5 min, toggleable); viewport_bg is the 3D viewport
- *  default background color (#rrggbb). */
+ *  default background color (#rrggbb); ui_font picks the UI chrome font
+ *  ("code" = Fira Code w/ CJK fallback | "system"). */
 export interface Preferences {
   sync_max_fps: number;
   update_mode: UpdateMode;
   autosave_enabled: boolean;
   autosave_interval_min: number;
   viewport_bg: string;
+  ui_font: "code" | "system";
 }
 
 export const SYNC_FPS_MIN = 1;
@@ -26,6 +29,7 @@ export const LEGACY_UPDATE_MODE_KEY = "cyl1nder.updateMode";
 export const AUTOSAVE_INTERVAL_MIN = 0.1;
 export const AUTOSAVE_INTERVAL_DEFAULT = 5;
 export const VIEWPORT_BG_DEFAULT = "#1A1A1A";
+export const UI_FONT_DEFAULT = "code";
 
 export const DEFAULT_PREFS: Preferences = {
   sync_max_fps: SYNC_FPS_DEFAULT,
@@ -33,6 +37,7 @@ export const DEFAULT_PREFS: Preferences = {
   autosave_enabled: true,
   autosave_interval_min: AUTOSAVE_INTERVAL_DEFAULT,
   viewport_bg: VIEWPORT_BG_DEFAULT,
+  ui_font: UI_FONT_DEFAULT,
 };
 
 /** Clamp + int-ify a sync fps value into 1..60 (invalid -> default 30). */
@@ -58,6 +63,10 @@ function parseViewportBg(value: unknown): string {
   return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value.toUpperCase() : VIEWPORT_BG_DEFAULT;
 }
 
+function parseUiFont(value: unknown): "code" | "system" {
+  return value === "system" ? "system" : "code";
+}
+
 /** Read preferences from localStorage (JSON "cyl1nder.prefs"); falls back to
  *  defaults, migrating the legacy "cyl1nder.updateMode" key on first read. */
 export function loadPreferences(): Preferences {
@@ -71,6 +80,7 @@ export function loadPreferences(): Preferences {
         autosave_enabled: p.autosave_enabled !== false,
         autosave_interval_min: parseAutosaveInterval(p.autosave_interval_min),
         viewport_bg: parseViewportBg(p.viewport_bg),
+        ui_font: parseUiFont(p.ui_font),
       };
     }
   } catch {
@@ -89,28 +99,41 @@ export function savePreferences(prefs: Preferences): void {
   localStorage.removeItem(LEGACY_UPDATE_MODE_KEY);
 }
 
-/** Sync the bottom bar controls (#cyl-sync-fps value + #cyl-update-mode selection). */
+/** Sync the bottom bar controls (#cyl-sync-fps value + #cyl-update-mode selection)
+ *  and the body UI-font class (.cyl-font-code / .cyl-font-system). */
 export function applyPreferences(prefs: Preferences, layout: Layout): void {
   layout.syncFpsInput.value = String(prefs.sync_max_fps);
   layout.updateModeSelect.value = prefs.update_mode;
+  if (typeof document !== "undefined") {
+    document.body.classList.toggle("cyl-font-code", prefs.ui_font === "code");
+    document.body.classList.toggle("cyl-font-system", prefs.ui_font === "system");
+  }
 }
 
 // Viewport background color picker (Agent C's color.ts) - see contract §2.3.
 // Clicking the swatch opens openColorPicker; hexToRgb seeds its initial color.
 
 
+/** Module-level single-instance tracking (P6): opening the panel first closes any
+ *  existing one so at most one Preference panel is ever in the DOM. */
+let activePanel: HTMLElement | null = null;
+let activeClose: (() => void) | null = null;
+
 /** Non-modal floating preference panel (no fullscreen overlay, the app behind
- *  stays interactive). Tabs: General (Sync Max FPS / Update Mode / Auto Save)
- *  and Viewport (default background color). Drag the header to move the panel.
- *  Cancel / ✕ / Escape close without saving; Apply calls onSave and stays open;
- *  Accept calls onSave then closes. */
+ *  stays interactive). Tabs: General (Sync Max FPS / Update Mode / Auto Save),
+ *  Viewport (default background color) and UI (UI font). Drag the header to move
+ *  the panel. Cancel / ✕ / Escape close without saving; Apply calls onSave and
+ *  stays open; Accept calls onSave then closes. */
 export function openPreferenceDialog(current: Preferences, onSave: (prefs: Preferences) => void): void {
+  // Single instance: a previously open panel (if any) is closed before this one.
+  if (activeClose) activeClose();
   const initial = {
     sync_max_fps: clampSyncFps(current.sync_max_fps),
     update_mode: parseUpdateMode(current.update_mode),
     autosave_enabled: current.autosave_enabled !== false,
     autosave_interval_min: parseAutosaveInterval(current.autosave_interval_min),
     viewport_bg: parseViewportBg(current.viewport_bg),
+    ui_font: parseUiFont(current.ui_font),
   };
 
   const panel = document.createElement("div");
@@ -126,6 +149,7 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
     <div class="cyl-pref-tabs" role="tablist">
       <button type="button" class="cyl-pref-tab is-active" data-pref-tab="general" role="tab" aria-selected="true">General</button>
       <button type="button" class="cyl-pref-tab" data-pref-tab="viewport" role="tab" aria-selected="false">Viewport</button>
+      <button type="button" class="cyl-pref-tab" data-pref-tab="ui" role="tab" aria-selected="false">UI</button>
     </div>
     <div class="cyl-pref-body">
       <section class="cyl-pref-section is-active" data-pref-pane="general">
@@ -160,6 +184,17 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
             <span class="cyl-pref-hex" id="cyl-pref-bg-hex">${initial.viewport_bg}</span>
           </div>
         </div>
+        <p class="cyl-pref-hint">Ctrl + middle-click resets to default (#1A1A1A).</p>
+      </section>
+      <section class="cyl-pref-section" data-pref-pane="ui" hidden>
+        <div class="cyl-pref-row">
+          <label for="cyl-pref-font">UI Font</label>
+          <select id="cyl-pref-font" class="cyl-pref-font">
+            <option value="code"${initial.ui_font === "code" ? " selected" : ""}>Fira Code (code)</option>
+            <option value="system"${initial.ui_font === "system" ? " selected" : ""}>System</option>
+          </select>
+        </div>
+        <p class="cyl-pref-hint">UI chrome font. Hex readouts always use the code font.</p>
       </section>
     </div>
     <div class="cyl-pref-actions">
@@ -201,6 +236,7 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
   const intervalInput = panel.querySelector<HTMLInputElement>("#cyl-pref-autosave-interval")!;
   const swatch = panel.querySelector<HTMLSpanElement>("#cyl-pref-bg-swatch")!;
   const hexEl = panel.querySelector<HTMLSpanElement>("#cyl-pref-bg-hex")!;
+  const fontSelect = panel.querySelector<HTMLSelectElement>("#cyl-pref-font")!;
   let viewportBg = initial.viewport_bg;
 
   const renderViewportBg = (hex: string): void => {
@@ -219,6 +255,7 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
       autosave_enabled: autosaveCheck.checked,
       autosave_interval_min: Math.round(interval * 10) / 10,
       viewport_bg: viewportBg,
+      ui_font: parseUiFont(fontSelect.value),
     };
   };
 
@@ -258,8 +295,21 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
     }
   });
 
+  // P8: Ctrl + middle-click (button===1) on the color row (swatch or hex) resets
+  // the viewport background to its default #1A1A1A and updates swatch/hex.
+  const resetBg = (e: MouseEvent): void => {
+    if (e.button !== 1 || !e.ctrlKey) return;
+    e.preventDefault(); // suppress middle-click autoscroll
+    renderViewportBg(VIEWPORT_BG_DEFAULT);
+  };
+  const bgColorEl = panel.querySelector<HTMLElement>(".cyl-pref-color")!;
+  bgColorEl.addEventListener("auxclick", resetBg);
+  bgColorEl.addEventListener("mousedown", resetBg);
+
   let onKey: (e: KeyboardEvent) => void;
   const close = (): void => {
+    if (activePanel === panel) activePanel = null;
+    if (activeClose === close) activeClose = null;
     panel.remove();
     document.removeEventListener("keydown", onKey);
   };
@@ -282,6 +332,8 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
     onSave(next);
   });
   document.addEventListener("keydown", onKey);
+  activePanel = panel;
+  activeClose = close;
   document.body.appendChild(panel);
   fpsInput.focus();
 }

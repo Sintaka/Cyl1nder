@@ -1,13 +1,19 @@
 /* ---- Color picker (web/src/app/color.ts) + color3 param controls (web/src/app/param.ts) ----
-   Dark floating non-modal picker: hue ring + SV square, hex row, RGB/HSL/HSV tabs,
-   palette grid + recent swatches. Palette matches the app (base.css) dark theme. */
+   Dark floating (non-modal) picker, round 0.1.00062:
+   - full Adobe-style wheel (center saturation 0, edge pure hue) + SV panel
+   - toolbar row: Simple/Advanced mode pill + △/□ shape toggle (same row)
+   - harmony bar (Advanced): preset dropdown + linked swatches + base-L slider
+   - hex row with native EyeDropper button + preview
+   - RGB/HSL/HSV tabs with per-channel draggable sliders
+   - palette (Simple presets / Advanced categories) + recents (right-click delete)
+   Palette matches the app (base.css) dark theme. */
 
 .cyl-cp {
   position: fixed;
   top: 96px;
   right: 24px;
   z-index: 300;
-  width: 300px;
+  width: 320px;
   background: #1b1e24;
   border: 1px solid #3a3f4a;
   border-radius: 8px;
@@ -18,12 +24,14 @@
   -webkit-user-select: none;
 }
 
+/* P7: the whole panel drags by its title bar */
 .cyl-cp-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 6px 10px;
   border-bottom: 1px solid #2a2d33;
+  cursor: move;
 }
 .cyl-cp-title {
   color: #fff;
@@ -52,88 +60,40 @@
   padding: 10px;
 }
 
-/* hue ring + SV panel side by side */
-.cyl-cp-areas {
+/* toolbar: Simple/Advanced mode pill + △/□ shape toggle on one row */
+.cyl-cp-toolbar {
   display: flex;
-  gap: 10px;
-  justify-content: center;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
 }
-.cyl-cp-ring {
-  position: relative;
-  width: 132px;
-  height: 132px;
-  border-radius: 50%;
-  background: conic-gradient(
-    from 0deg,
-    hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%),
-    hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%)
-  );
-  cursor: crosshair;
-  touch-action: none;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+.cyl-cp-pill {
+  display: inline-flex;
+  gap: 2px;
+  padding: 1px;
+  background: #16181c;
+  border: 1px solid #33363c;
+  border-radius: 4px;
 }
-.cyl-cp-ring::before {
-  content: "";
-  position: absolute;
-  inset: 28px; /* ring band between radius 38 and 66 (matches RING_INNER) */
-  border-radius: 50%;
-  background: #14161a;
+.cyl-cp-pill button {
+  width: 64px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #7a7f87;
+  font-size: 11px;
+  line-height: 1;
+  border-radius: 3px;
+  cursor: pointer;
 }
-.cyl-cp-ring-thumb {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  background: transparent;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.5);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  z-index: 2;
+.cyl-cp-pill button:hover {
+  color: #cfd2d6;
 }
-
-.cyl-cp-sv {
-  position: relative;
-  width: 132px;
-  height: 132px;
-  border-radius: 6px;
-  cursor: crosshair;
-  touch-action: none;
-  overflow: hidden;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
-}
-.cyl-cp-sv::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to right, #fff, rgba(255, 255, 255, 0));
-}
-.cyl-cp-sv::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, #000, rgba(0, 0, 0, 0));
-}
-.cyl-cp-sv-thumb {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  background: transparent;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.5);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  z-index: 2;
-}
-
-/* SV panel column: shape toggle above the saturation/value panel */
-.cyl-cp-sv-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
+.cyl-cp-pill button.active {
+  background: #2b6cb0;
+  color: #fff;
 }
 .cyl-cp-sv-toggle {
   display: inline-flex;
@@ -163,22 +123,163 @@
   color: #fff;
 }
 
-/* Adobe-style triangle SV panel: hue top vertex, black bottom-left, white
-   bottom-right. Overlay stops are exact for a 132x114 equilateral triangle
-   (clip-path polygon(50% 0%, 0% 100%, 100% 100%)). */
+/* wheel + SV panel side by side */
+.cyl-cp-areas {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+/* P2: full wheel - conic hue + radial desaturation (center = gray, edge = pure hue) */
+.cyl-cp-wheel {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle closest-side, #ffffff 0%, rgba(255, 255, 255, 0) 100%),
+    conic-gradient(
+      from 0deg,
+      hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%),
+      hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%)
+    );
+  cursor: crosshair;
+  touch-action: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+.cyl-cp-wheel-thumb {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.5);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2;
+}
+/* P5: linked harmony point markers (point 0 = the wheel thumb) */
+.cyl-cp-harmony-point {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: rgba(0, 0, 0, 0.55);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.5);
+  transform: translate(-50%, -50%);
+  cursor: grab;
+  padding: 0;
+  z-index: 3;
+  touch-action: none;
+}
+.cyl-cp-harmony-point:active {
+  cursor: grabbing;
+}
+
+/* Adobe-style SV panel: hue top vertex, black bottom-left, white bottom-right.
+   Both shapes share ONE bounding box (132x132) so toggling never jumps. */
+.cyl-cp-sv {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  border-radius: 6px;
+  cursor: crosshair;
+  touch-action: none;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+.cyl-cp-sv::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, #fff, rgba(255, 255, 255, 0));
+}
+.cyl-cp-sv::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, #000, rgba(0, 0, 0, 0));
+}
 .cyl-cp-sv.tri {
-  height: 114px;
   border-radius: 0;
   clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
 }
 .cyl-cp-sv.tri::before {
-  background: linear-gradient(120deg, rgba(255, 255, 255, 0) 33.3%, rgba(255, 255, 255, 1) 100%);
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0) 40%, rgba(255, 255, 255, 1) 100%);
 }
 .cyl-cp-sv.tri::after {
-  background: linear-gradient(60deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0) 66.7%);
+  background: linear-gradient(60deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0) 60%);
+}
+.cyl-cp-sv-thumb {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: transparent;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.5);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2;
 }
 
-/* hex row + preview swatch */
+/* P5 harmony bar (Advanced only) */
+.cyl-cp-harmony {
+  margin: 8px 0 0;
+  border-top: 1px solid #2a2d33;
+  padding-top: 8px;
+}
+.cyl-cp-harmony-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cyl-cp-harmony-head select {
+  flex: 1;
+  min-width: 0;
+  background: #0f1012;
+  color: #cfd2d6;
+  border: 1px solid #33363c;
+  border-radius: 4px;
+  padding: 3px 4px;
+  font-size: 11px;
+}
+.cyl-cp-harmony-head select:focus {
+  border-color: #2b6cb0;
+  outline: none;
+}
+.cyl-cp-light {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cyl-cp-light span {
+  color: #7a7f87;
+  font-size: 11px;
+  width: 10px;
+  text-align: center;
+}
+.cyl-cp-light input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  height: 14px;
+  accent-color: #2b6cb0;
+}
+.cyl-cp-harmony-swatches {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+.cyl-cp-harmony-swatches .cyl-cp-swatch {
+  flex: 1;
+  aspect-ratio: 1;
+}
+
+/* hex row + preview + eyedropper */
 .cyl-cp-hex-row {
   display: flex;
   align-items: center;
@@ -204,6 +305,27 @@
 .cyl-cp-hex:focus {
   border-color: #2b6cb0;
   outline: none;
+}
+.cyl-cp-eye {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: #1c1e24;
+  border: 1px solid #33363c;
+  color: #9aa1ab;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+}
+.cyl-cp-eye:hover {
+  color: #fff;
+  border-color: #2b6cb0;
+}
+.cyl-cp-eye[hidden] {
+  display: none;
 }
 .cyl-cp-preview {
   flex: 0 0 26px;
@@ -235,34 +357,38 @@
   color: #fff;
 }
 
-/* numeric mode fields */
+/* numeric mode fields (P3: label + draggable slider + number input) */
 .cyl-cp-fields {
-  display: flex;
-  gap: 6px;
   margin-bottom: 10px;
 }
 .cyl-cp-fld {
-  flex: 1;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  margin: 4px 0;
 }
 .cyl-cp-fld span {
   color: #7a7f87;
   font-size: 11px;
-  width: 10px;
+  width: 12px;
   text-align: center;
 }
-.cyl-cp-fld input[type="number"] {
+.cyl-cp-fld input[type="range"] {
   flex: 1;
   min-width: 0;
-  width: 100%;
+  height: 14px;
+  accent-color: #2b6cb0;
+}
+.cyl-cp-fld input[type="number"] {
+  width: 54px;
+  flex: 0 0 auto;
   background: #0f1012;
   color: #cfd2d6;
   border: 1px solid #33363c;
   border-radius: 4px;
   padding: 3px 4px;
   font-size: 12px;
+  box-sizing: border-box;
 }
 .cyl-cp-fld input[type="number"]:focus {
   border-color: #2b6cb0;
@@ -283,18 +409,51 @@
   margin-top: 10px;
 }
 .cyl-cp-block-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   color: #7a7f87;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 4px;
 }
+.cyl-cp-clear {
+  background: none;
+  border: none;
+  color: #6f7680;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  padding: 0;
+}
+.cyl-cp-clear:hover:not(:disabled) {
+  color: #ff8787;
+}
+.cyl-cp-clear:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
 .cyl-cp-swatches {
   display: grid;
-  grid-template-columns: repeat(10, 1fr);
+  grid-template-columns: repeat(10, minmax(0, 1fr));
   gap: 4px;
 }
+.cyl-cp-swatches-adv {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.cyl-cp-pal-group {
+  margin-bottom: 6px;
+}
+.cyl-cp-pal-group-label {
+  color: #7a7f87;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  margin-bottom: 3px;
+}
 .cyl-cp-swatch {
+  min-width: 0;
   aspect-ratio: 1;
   border-radius: 4px;
   border: 1px solid rgba(255, 255, 255, 0.16);
