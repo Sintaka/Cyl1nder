@@ -63,3 +63,25 @@
 
 ## 六、状态
 - 2026-08-13：阶段 1 完成；阶段 2.1 已抽出 `core/lifecycle.ts` + `core/shortcuts.ts` + `core/params.ts` + `core/param-undo.ts`（round5/8/12/14/16 e2e 通过）；2.1 其余（session/gizmo）待续。
+## 七、当前执行（in progress，检查点 2026-08-13）
+- 分支：`codex/0.1.00075-refactor-gizmo-session`（已从 `codex/cyl1nder-v0` 切出）。
+- 下一步：**2.1-gizmo** 抽 `web/src/core/gizmo.ts`。
+  - 状态收拢为闭包对象：`pendingTransform / dragNodeId / dragBefore / dragAfter / lastTransformId`。
+  - 工厂签名（契约，主进程先定骨架）：
+    ```ts
+    export interface GizmoDeps {
+      viewport: Pick<Viewport, "isEnterActive" | "setEnterActive" | "beginTransformGizmo" | "endTransformGizmo" | "setEnterPosition" | "setEnterPivot">;
+      graph: Pick<ReteGraph, "getSelectedNode" | "getNetworkSnapshot" | "setNodeParams" | "pushUndo">;
+      runNetwork(): void;
+      log(msg: string): void;
+      getUpdateMode(): "auto" | "mouseup";
+    }
+    export function createGizmoController(deps: GizmoDeps): {
+      toggle(): void;
+      bindToSelection(): void;
+      onParamsApplied(nodeId: string, params: ParamLike[]): void;
+    };
+    ```
+  - main.ts 保留调用点：`viewport.setEnterEditHandler(gizmo.toggle)`、`graph.onSelectionChanged(() => { paramUndo.flush(); refreshSelectionPanels(); if (viewport.isEnterActive()) gizmo.bindToSelection(); })`、`handlers.onParamsApplied` 里转调 `gizmo.onParamsApplied`。
+  - 验证：tsc 0 + vitest 101 + e2e round12/16。
+- 之后：**2.1-session** 抽 `web/src/core/session.ts`（connect/WS/networkEpoch/runNetwork/applyOutputs），同分支继续。
