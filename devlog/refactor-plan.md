@@ -38,9 +38,9 @@
 
 ## 四、分期路线图
 ### 阶段 1（低风险，先拆纯函数与薄文件）
-- [ ] 1.1 `color.ts` 拆出纯色彩数学到 `color-math.ts`（rgb/hsl/hsv、hex、转换），先补 vitest 纯函数覆盖，再让 picker 引用。
-- [ ] 1.2 `nodes2/groups.ts` 拆 parser / selection 两个职责。
-- [ ] 1.3 `mcp_server.py` 按工具组拆 3 个小模块（查询/几何/索引），保持 stdio 入口不变。
+- [x] 1.1 `color.ts` 拆出纯色彩数学到 `color-math.ts`（rgb/hsl/hsv、hex、转换），先补 vitest 纯函数覆盖，再让 picker 引用。
+- [x] 1.2 `nodes2/groups.ts` 拆 parser / matcher 两个职责（barrel 保持外部 import 不变）。
+- [-] 1.3 `mcp_server.py` 按工具组拆（本轮跳过：246 行非紧急，FastMCP 注册方式需额外验证）。
 - 验收：tsc 0 + vitest 增量 + e2e round15/round12 不回归；行为零变化。
 
 ### 阶段 2（中拆，分模块）
@@ -62,4 +62,4 @@
 - 每完成一项，更新 `devlog/shit-mountains.md` 行数/状态与本文件 checkbox。
 
 ## 六、状态
-- 2026-08-13：建立计划，未开始；阶段 1 为下一轮首选。
+- 2026-08-13：建立计划；阶段 1（1.1 color-math 拆出 + 19 单测、1.2 groups parser/matcher 拆出）已完成并合入；1.3 顺延；阶段 2 未开始。

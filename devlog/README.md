@@ -101,6 +101,7 @@
 
 ## 最近版本
 - v0.1.00065：bridge 控制台降噪 + 心跳统一 1min——uvicorn access_log 关闭（web 推流无上限，gizmo 拖动不再刷屏 cmd）；STREAM_HOLD_DEFAULT 20→60（/stream 缺省 hold=60s）；web HDA watchdog 15s→60s（离线阈值仍 150s）；主进程 2 路并行（Huygens=bridge / Hypatia=web）+ 主进程合并；pytest 53, tsc 0, vitest 82（e2e 本次未重跑：改动不涉及 e2e 断言覆盖路径）。
+- v0.1.00071：架构重构阶段1——color.ts 拆出纯色彩数学 color-math.ts（+19 vitest）；nodes2/groups.ts 拆 parser.ts/matcher.ts（barrel 保持外部 import 不变）；mcp_server 顺延；refactor-plan.md 更新进度。
 - v0.1.00070：屎山代码改名并纳入持续改进计划——stone-mountains→shit-mountains（术语 石山→屎山）；新增 devlog/refactor-plan.md（架构优化分析 + 分期路线图：阶段1 纯函数/薄文件 → 阶段2 main/graph/viewport 中拆 → 阶段3 hda/color/跨端大拆）；README 字典同步。
 - v0.1.00069：UI 下拉/数值输入统一——所有下拉改 Layout 盒风格自定义下拉（createDropdown：圆角盒 + ▲▼ caret + 名称块 + dark popup，替代原生 select：底部栏 Update Mode、首选项 Update Mode/UI Font、调色板 harmony、File/Edit 菜单触发钮）；所有带箭头数值输入改 Sync Max FPS 步进风格（createStepper：首选项 fps/autosave interval）；新增 widgets.ts/widgets.css；UI 规范写入 development-standards；屎山代码标注（现 shit-mountains.md）；e2e round12/13/15 同步 16 passed；tsc 0, vitest 82。
 - v0.1.00068：调色板 Ctrl+Z 撤回（含 Recent 精确清理，不误删已手删项）+ HSL L=100 归零修复（state.hsl/preserveHsl）+ 色轮/Adobe 关联点 H 错位修复（0° 顶部顺时针）+ 取消 Document PiP popup（pop 回即关）+ 浮窗视口钳制（拖拽不越界、越界下次召唤回默认）；e2e round15 8 passed；tsc 0, vitest 82。
