@@ -55,21 +55,6 @@
   background: #2a2d33;
   color: #fff;
 }
-.cyl-cp-popout {
-  background: none;
-  border: none;
-  color: #8f959e;
-  cursor: pointer;
-  font-size: 12px;
-  line-height: 1;
-  padding: 2px 5px;
-  border-radius: 3px;
-  margin-left: auto;
-}
-.cyl-cp-popout:hover {
-  background: #2a2d33;
-  color: #fff;
-}
 
 .cyl-cp-body {
   padding: 10px;

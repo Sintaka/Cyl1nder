@@ -1,8 +1,7 @@
 import type { UpdateMode } from "../protocol/types";
 import type { Layout } from "./layout";
-import { hexToRgb, openColorPicker } from "./color";
+import { fitInViewport, hexToRgb, openColorPicker } from "./color";
 import "../styles/preference-plus.css";
-import { isPopoutSupported, popoutElement } from "./popout";
 
 /** Preferences persisted to localStorage ("cyl1nder.prefs") + Preference.json v1.
  *  sync_max_fps caps the kick bridge (receive/forward + HDA recook, 1..60, default
@@ -145,7 +144,6 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
   panel.innerHTML = `
     <div class="cyl-pref-header">
       <span class="cyl-pref-title">Preference</span>
-      <button type="button" class="cyl-pref-popout" aria-label="Pop out" title="Pop out to a separate window">⧉</button>
       <button type="button" class="cyl-pref-close" aria-label="Close" title="Close">✕</button>
     </div>
     <div class="cyl-pref-tabs" role="tablist">
@@ -208,7 +206,7 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
   // close button never starts one.
   const headerEl = panel.querySelector<HTMLElement>(".cyl-pref-header")!;
   headerEl.addEventListener("pointerdown", (e) => {
-    if ((e.target as HTMLElement).closest(".cyl-pref-close, .cyl-pref-popout")) return;
+    if ((e.target as HTMLElement).closest(".cyl-pref-close")) return;
     e.preventDefault(); // stop text-selection / native drag while moving
     const startX = e.clientX;
     const startY = e.clientY;
@@ -216,9 +214,10 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
     const offX = startX - rect.left;
     const offY = startY - rect.top;
     const onMove = (ev: PointerEvent): void => {
-      panel.style.left = `${Math.max(0, ev.clientX - offX)}px`;
-      panel.style.top = `${Math.max(0, ev.clientY - offY)}px`;
+      panel.style.left = `${ev.clientX - offX}px`;
+      panel.style.top = `${ev.clientY - offY}px`;
       panel.style.right = "auto";
+      fitInViewport(panel);
     };
     const onUp = (): void => {
       panel.ownerDocument.removeEventListener("pointermove", onMove);
@@ -237,9 +236,7 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
   const swatch = panel.querySelector<HTMLSpanElement>("#cyl-pref-bg-swatch")!;
   const hexEl = panel.querySelector<HTMLSpanElement>("#cyl-pref-bg-hex")!;
   const fontSelect = panel.querySelector<HTMLSelectElement>("#cyl-pref-font")!;
-  const popoutBtn = panel.querySelector<HTMLButtonElement>(".cyl-pref-popout")!;
   let viewportBg = initial.viewport_bg;
-  let popoutSession: { closePip: () => void } | null = null;
 
   const renderViewportBg = (hex: string): void => {
     viewportBg = parseViewportBg(hex);
@@ -312,7 +309,6 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
   const close = (): void => {
     if (activePanel === panel) activePanel = null;
     if (activeClose === close) activeClose = null;
-    if (popoutSession) popoutSession.closePip();
     panel.remove();
     document.removeEventListener("keydown", onKey);
   };
@@ -321,14 +317,6 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
     if (e.key === "Escape" && document.querySelector(".cyl-cp")) return;
     if (e.key === "Escape") close();
   };
-
-  if (!isPopoutSupported()) popoutBtn.hidden = true;
-  else
-    popoutBtn.addEventListener("click", () => {
-      void popoutElement(panel, { width: 380, height: 640, onClose: close }).then((s) => {
-        popoutSession = s;
-      });
-    });
 
   panel.querySelector<HTMLButtonElement>(".cyl-pref-close")!.addEventListener("click", close);
   panel.querySelector<HTMLButtonElement>(".cyl-pref-cancel")!.addEventListener("click", close);

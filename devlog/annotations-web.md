@@ -530,3 +530,11 @@
 - **拖拽跨文档修复**：色轮/标题栏拖拽监听从 `document` 改 `root.ownerDocument`（preference 用 `panel.ownerDocument`），PiP 文档里拖拽仍可用；header 守卫加 `.cyl-cp-popout`/`.cyl-pref-popout` 避免点按钮误触发拖拽。
 - e2e round15：palette 断言改回 20 色（删 #ffffff），其余 harmony-hint / pal-group=0 断言保留。
 - 验证：tsc 0；vitest 82；e2e round15 **8 passed**。
+## v0.1.00068（2026-08-13）——调色板 Ctrl+Z + HSL 修复 + 色轮 H 错位修复 + 取消 popup/位置兜底
+- **Ctrl+Z 撤回（含 Recent 清理）**：`openColorPicker` 加 `undoStack`/`pushUndo`/`undo`；手势起点埋点（色轮/SV/field-slider `pointerdown`、number/hex `focus`、palette/recent/harmony swatch click、EyeDropper、harmony swatch）；Ctrl/Cmd+Z 在非 `input/textarea/select` 焦点时 `preventDefault`+`undo()`；撤回时 `setColor(prev,{trackRecent:false})` + `removeRecent(undoneHex)`（精确 hex 匹配——用户已手删则该 hex 不存在，不误删别的 recent）；`retarget` 清空历史。
+- **HSL L=100 归零修复**：`PickerState` 增加 `hsl`；`setColor` 加 `preserveHsl`（默认 false 时从 rgb 重算 `state.hsl`）；`displayVals()` 让 HSL 模式显示/编辑走 `state.hsl`，切 tab 到 HSL 时重同步——L/S 拉极端后 H/S 保留、可拉回。
+- **色轮 H 错位修复**：统一「0° 顶部、顺时针」——`syncWheel` 用 `sin`/`-cos`，`applyWheel` 用 `atan2(dx,-dy)`，`syncHarmony` 关联点同步；`renderHarmonyHint` 本已正确不动。
+- **取消 popup**：删除 Document PiP pop-out（color.ts/preference.ts 的 ⧉ 按钮/import/popoutSession，删除 `popout.ts`，CSS 移除 `.cyl-cp-popout`/`.cyl-pref-popout`）。
+- **浮窗位置兜底**：新增 `color.ts` 导出 `fitInViewport`；`openColorPicker` 有 position 时 clamp；`retarget` 检测越界则回 `next.position`（或 CSS 默认右上）；标题栏拖拽 `onMove` 改 `fitInViewport` 防拖出屏；preference 拖拽同样 clamp。
+- e2e round15：P7 拖拽方向改为向左下（避开右上默认触发 clamp）；**8 passed**。
+- 验证：tsc 0；vitest 82；e2e round15 8 passed。

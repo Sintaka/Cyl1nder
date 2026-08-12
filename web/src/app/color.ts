@@ -29,7 +29,6 @@
  * and the color3 param controls (param.ts).
  */
 import "../styles/colorpicker.css";
-import { isPopoutSupported, popoutElement } from "./popout";
 
 export interface RGB {
   /** red channel 0..255 */
@@ -63,6 +62,25 @@ const clamp01 = (n: number): number => Math.max(0, Math.min(1, n));
 /** Clamp a 0..100 percentage value (harmony sat/light multipliers are 0..1). */
 const clamp100 = (n: number): number => Math.max(0, Math.min(100, n));
 const norm360 = (h: number): number => ((h % 360) + 360) % 360;
+
+/**
+ * Clamp a fixed-position floating panel so it stays inside the current viewport.
+ * Keeps at least `margin` px visible on every edge; if the panel is larger than
+ * the viewport, its top-left is pinned to the margin so the header stays reachable.
+ * Only meaningful once the element is in the DOM (reads getBoundingClientRect).
+ */
+export function fitInViewport(el: HTMLElement, margin = 8): void {
+  const rect = el.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const maxLeft = Math.max(margin, vw - rect.width - margin);
+  const maxTop = Math.max(margin, vh - rect.height - margin);
+  const left = Math.max(margin, Math.min(rect.left, maxLeft));
+  const top = Math.max(margin, Math.min(rect.top, maxTop));
+  el.style.left = `${left}px`;
+  el.style.top = `${top}px`;
+  el.style.right = "auto";
+}
 
 /** "#RRGGBB" (uppercase) from an RGB triplet; channels are rounded + clamped. */
 export function rgbToHex(rgb: RGB): string {
@@ -379,6 +397,7 @@ interface PickerState {
   advanced: boolean;
   harmony: HarmonyId;
   base: HslBase;
+  hsl: HslBase;
 }
 
 interface ActivePicker {
@@ -450,6 +469,29 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     advanced: false,
     harmony: "analogous",
     base: { h: initHsl.h, s: initHsl.s, l: initHsl.l },
+    hsl: { h: initHsl.h, s: initHsl.s, l: initHsl.l },
+  };
+
+  /** Current channel values for the active mode (HSL reads the preserved state.hsl). */
+  const displayVals = (): [number, number, number] =>
+    state.mode === "hsl" ? [state.hsl.h, state.hsl.s, state.hsl.l] : valuesForMode(state.mode, state.rgb);
+
+  // ---- Ctrl+Z undo (E): per-gesture snapshot stack; cleared on retarget ----
+  const undoStack: string[] = [];
+  const pushUndo = (): void => {
+    const hex = rgbToHex(state.rgb);
+    if (undoStack.length === 0 || undoStack[undoStack.length - 1] !== hex) undoStack.push(hex);
+    if (undoStack.length > 50) undoStack.shift();
+  };
+  const undo = (): void => {
+    if (undoStack.length === 0) return;
+    const prevHex = undoStack.pop()!;
+    const undoneHex = rgbToHex(state.rgb);
+    const prev = hexToRgb(prevHex);
+    if (!prev) return;
+    setColor(prev, { emit: true, trackRecent: false });
+    removeRecent(undoneHex);
+    renderRecents();
   };
 
   const root = document.createElement("div");
@@ -459,7 +501,6 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
   root.innerHTML = `
     <div class="cyl-cp-head">
       <span class="cyl-cp-title">${esc(target.title ?? "Pick color")}</span>
-      <button type="button" class="cyl-cp-popout" data-part="popout" aria-label="Pop out" title="Pop out to a separate window">⧉</button>
       <button type="button" class="cyl-cp-close" aria-label="Close">✕</button>
     </div>
     <div class="cyl-cp-body">
@@ -519,7 +560,6 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
 
   const head = root.querySelector<HTMLElement>(".cyl-cp-head")!;
   const closeBtn = root.querySelector<HTMLButtonElement>(".cyl-cp-close")!;
-  const popoutBtn = root.querySelector<HTMLButtonElement>('[data-part="popout"]')!;
   const wheelEl = root.querySelector<HTMLElement>('[data-part="wheel"]')!;
   const wheelThumb = root.querySelector<HTMLElement>('[data-part="wheel-thumb"]')!;
   const svEl = root.querySelector<HTMLElement>('[data-part="sv"]')!;
@@ -543,7 +583,6 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
   // ---- recents (P1: right-click delete, Clear all, debounced write) ----
   let pendingRecentHex: string | null = null;
   let recentTimer: number | undefined;
-  let popoutSession: { closePip: () => void } | null = null;
   const renderRecents = (list?: string[]): void => {
     const items = list ?? loadRecents();
     recentsEl.innerHTML = items
@@ -553,7 +592,10 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     recentsEl.querySelectorAll<HTMLButtonElement>(".cyl-cp-swatch").forEach((b) => {
       b.addEventListener("click", () => {
         const rgb = hexToRgb(b.dataset.hex ?? "");
-        if (rgb) setColor(rgb);
+        if (rgb) {
+          pushUndo();
+          setColor(rgb);
+        }
       });
       // P1: right-click removes a single recent swatch
       b.addEventListener("contextmenu", (e) => {
@@ -588,7 +630,10 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     container.querySelectorAll<HTMLButtonElement>(".cyl-cp-swatch").forEach((b) => {
       b.addEventListener("click", () => {
         const rgb = hexToRgb(b.dataset.hex ?? "");
-        if (rgb) setColor(rgb);
+        if (rgb) {
+          pushUndo();
+          setColor(rgb);
+        }
       });
     });
   };
@@ -613,11 +658,17 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
       input.addEventListener("input", () => {
         const n = parseFloat(input.value);
         if (Number.isNaN(n)) return;
-        const vals = valuesForMode(state.mode, state.rgb);
+        const vals = displayVals();
         const def = FIELD_DEFS[state.mode][i];
         vals[i] = Math.max(def.min, Math.min(def.max, n));
-        setColor(colorFromMode(state.mode, vals));
+        if (state.mode === "hsl") {
+          state.hsl = { h: vals[0], s: vals[1], l: vals[2] };
+          setColor(colorFromMode("hsl", vals), { preserveHsl: true });
+        } else {
+          setColor(colorFromMode(state.mode, vals));
+        }
       });
+      input.addEventListener("focus", pushUndo);
       input.addEventListener("change", () => {
         if (Number.isNaN(parseFloat(input.value))) syncFields(); // revert invalid on blur/Enter
       });
@@ -628,16 +679,22 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
       slider.addEventListener("input", () => {
         const n = parseFloat(slider.value);
         if (Number.isNaN(n)) return;
-        const vals = valuesForMode(state.mode, state.rgb);
+        const vals = displayVals();
         vals[i] = n;
-        setColor(colorFromMode(state.mode, vals));
+        if (state.mode === "hsl") {
+          state.hsl = { h: vals[0], s: vals[1], l: vals[2] };
+          setColor(colorFromMode("hsl", vals), { preserveHsl: true });
+        } else {
+          setColor(colorFromMode(state.mode, vals));
+        }
       });
+      slider.addEventListener("pointerdown", pushUndo);
     });
     syncFields();
   };
 
   const syncFields = (): void => {
-    const vals = valuesForMode(state.mode, state.rgb);
+    const vals = displayVals();
     fieldsEl.querySelectorAll<HTMLInputElement>("input[type=number]").forEach((input) => {
       const s = String(Math.round(vals[Number(input.dataset.i)]));
       if (input.value !== s) input.value = s;
@@ -652,6 +709,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     tab.addEventListener("click", () => {
       state.mode = (tab.dataset.mode as Mode) ?? "rgb";
       tabs.forEach((t) => t.classList.toggle("active", t === tab));
+      if (state.mode === "hsl") state.hsl = rgbToHsl(state.rgb);
       renderFields();
     });
   });
@@ -756,8 +814,8 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
         const hue = norm360(state.base.h + p.hue);
         const sat = clamp100(state.base.s * p.sat) / 100; // 0..1 radius factor
         const rad = (hue * Math.PI) / 180;
-        const x = WHEEL_CX + sat * WHEEL_R * Math.cos(rad);
-        const y = WHEEL_CY + sat * WHEEL_R * Math.sin(rad);
+        const x = WHEEL_CX + sat * WHEEL_R * Math.sin(rad);
+        const y = WHEEL_CY - sat * WHEEL_R * Math.cos(rad);
         return `<button type="button" class="cyl-cp-harmony-point" data-harmony-i="${i}" style="left:${x}px;top:${y}px" aria-label="Harmony point ${i}"></button>`;
       })
       .join("");
@@ -772,7 +830,10 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
       })
       .join("");
     harmonySwatchesEl.querySelectorAll<HTMLButtonElement>(".cyl-cp-swatch").forEach((b) => {
-      b.addEventListener("click", () => pickHarmony(Number(b.dataset.harmonyI)));
+      b.addEventListener("click", () => {
+        pushUndo();
+        pickHarmony(Number(b.dataset.harmonyI));
+      });
     });
     renderHarmonyHint();
   };
@@ -792,9 +853,10 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
   });
 
   // ---- main state update: syncs hex/preview/wheel/SV/fields/harmony + fires onColor ----
-  const setColor = (rgb: RGB, o: { emit?: boolean; trackRecent?: boolean; keepBase?: boolean } = {}): void => {
-    const { emit = true, trackRecent = true, keepBase = false } = o;
+  const setColor = (rgb: RGB, o: { emit?: boolean; trackRecent?: boolean; keepBase?: boolean; preserveHsl?: boolean } = {}): void => {
+    const { emit = true, trackRecent = true, keepBase = false, preserveHsl = false } = o;
     state.rgb = { r: clamp255(rgb.r), g: clamp255(rgb.g), b: clamp255(rgb.b) };
+    if (!preserveHsl) state.hsl = rgbToHsl(state.rgb);
     if (state.advanced && !keepBase) {
       const { h, s, l } = rgbToHsl(state.rgb);
       state.base = { h, s, l };
@@ -818,15 +880,15 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     const { h, s } = rgbToHsl(state.rgb);
     const rad = (h * Math.PI) / 180;
     const r = (s / 100) * WHEEL_R;
-    wheelThumb.style.left = `${WHEEL_CX + r * Math.cos(rad)}px`;
-    wheelThumb.style.top = `${WHEEL_CY + r * Math.sin(rad)}px`;
+    wheelThumb.style.left = `${WHEEL_CX + r * Math.sin(rad)}px`;
+    wheelThumb.style.top = `${WHEEL_CY - r * Math.cos(rad)}px`;
   };
 
   const applyWheel = (e: PointerEvent, pointIndex: number): void => {
     const rect = wheelEl.getBoundingClientRect();
     const dx = e.clientX - rect.left - WHEEL_CX;
     const dy = e.clientY - rect.top - WHEEL_CY;
-    const h = norm360((Math.atan2(dy, dx) * 180) / Math.PI);
+    const h = norm360((Math.atan2(dx, -dy) * 180) / Math.PI);
     const radius = clamp01(Math.sqrt(dx * dx + dy * dy) / WHEEL_R);
     if (state.advanced) {
       if (pointIndex >= 0) {
@@ -848,6 +910,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
   };
 
   const startWheelDrag = (e: PointerEvent, pointIndex: number): void => {
+    pushUndo();
     e.preventDefault();
     e.stopPropagation();
     // Document-level listeners (like the header drag): the harmony point
@@ -919,6 +982,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
   svEl.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     svEl.setPointerCapture(e.pointerId);
+    pushUndo();
     applySv(e);
     const move = (ev: PointerEvent): void => applySv(ev);
     const up = (ev: PointerEvent): void => {
@@ -940,6 +1004,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
   hexInput.addEventListener("change", () => {
     if (!hexToRgb(hexInput.value)) hexInput.value = rgbToHex(state.rgb); // revert invalid
   });
+  hexInput.addEventListener("focus", pushUndo);
 
   // ---- P4: native eyedropper (Chrome/Edge). Hidden when unsupported. ----
   const supportsEyeDropper = typeof window !== "undefined" && !!window.EyeDropper;
@@ -953,7 +1018,10 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
       const dropper = new window.EyeDropper();
       const result = await dropper.open();
       const rgb = hexToRgb(result.sRGBHex);
-      if (rgb) setColor(rgb);
+      if (rgb) {
+        pushUndo();
+        setColor(rgb);
+      }
     } catch {
       /* user cancelled the picker -> keep the current color */
     }
@@ -964,11 +1032,15 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
   // at the top of openColorPicker (the open picker is retargeted in place). ----
   const onKey = (e: KeyboardEvent): void => {
     if (e.key === "Escape") close();
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === "z" || e.key === "Z")) {
+      if ((e.target as HTMLElement).closest("input, textarea, select")) return;
+      e.preventDefault();
+      undo();
+    }
   };
   const close = (): void => {
     if (recentTimer !== undefined) window.clearTimeout(recentTimer);
     flushRecent();
-    if (popoutSession) popoutSession.closePip();
     document.removeEventListener("keydown", onKey);
     root.remove();
     if (activePicker?.root === root) activePicker = null;
@@ -976,19 +1048,24 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
   closeBtn.addEventListener("click", close);
   document.addEventListener("keydown", onKey);
 
-  // ---- pop-out (PiP): auto-hidden when unsupported; clicking it pops the
-  // whole panel into an always-on-top Document Picture-in-Picture window. ----
-  if (!isPopoutSupported()) popoutBtn.hidden = true;
-  else {
-    popoutBtn.addEventListener("click", () => {
-      void popoutElement(root, { width: 340, height: 560, onClose: close }).then((s) => {
-        popoutSession = s;
-      });
-    });
-  }
-
   /** Retarget the open picker to a new color (keeps position/state, no re-open). */
   const retarget = (next: ColorPickerOptions): void => {
+    undoStack.length = 0; // new target -> new undo history (avoid cross-param undo)
+    const rect = root.getBoundingClientRect();
+    const off =
+      rect.right < 8 || rect.bottom < 8 || rect.left > window.innerWidth - 8 || rect.top > window.innerHeight - 8;
+    if (off) {
+      if (next.position) {
+        root.style.left = `${next.position.left}px`;
+        root.style.top = `${next.position.top}px`;
+        root.style.right = "auto";
+        fitInViewport(root);
+      } else {
+        root.style.left = "";
+        root.style.top = "";
+        root.style.right = "";
+      }
+    }
     target = next;
     root.querySelector<HTMLElement>(".cyl-cp-title")!.textContent = next.title ?? "Pick color";
     root.setAttribute("aria-label", next.title ?? "Pick color");
@@ -1000,7 +1077,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
 
   // ---- P7: drag the whole panel by its title bar (same as Preference) ----
   head.addEventListener("pointerdown", (e) => {
-    if ((e.target as HTMLElement).closest(".cyl-cp-close, .cyl-cp-popout")) return;
+    if ((e.target as HTMLElement).closest(".cyl-cp-close")) return;
     e.preventDefault(); // stop text-selection / native drag while moving
     const startX = e.clientX;
     const startY = e.clientY;
@@ -1008,9 +1085,10 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
     const offX = startX - rect.left;
     const offY = startY - rect.top;
     const onMove = (ev: PointerEvent): void => {
-      root.style.left = `${Math.max(0, ev.clientX - offX)}px`;
-      root.style.top = `${Math.max(0, ev.clientY - offY)}px`;
+      root.style.left = `${ev.clientX - offX}px`;
+      root.style.top = `${ev.clientY - offY}px`;
       root.style.right = "auto";
+      fitInViewport(root);
     };
     const onUp = (): void => {
       root.ownerDocument.removeEventListener("pointermove", onMove);
@@ -1029,6 +1107,7 @@ export function openColorPicker(opts: ColorPickerOptions): () => void {
   }
 
   document.body.appendChild(root);
+  if (opts.position) fitInViewport(root);
   activePicker = { root, close, retarget };
 
   // initial paint (no onColor / no recents write)

@@ -395,10 +395,12 @@ test("P7 the picker drags by its title bar", async ({ page }) => {
   const before = (await picker.boundingBox())!;
   await page.mouse.move(before.x + 40, before.y + 10); // inside the header
   await page.mouse.down();
-  await page.mouse.move(before.x + 130, before.y + 70, { steps: 6 });
+  // drag left + down (away from the top-right default so fitInViewport clamp
+  // does not stop the movement at the viewport edge)
+  await page.mouse.move(before.x - 130, before.y + 70, { steps: 6 });
   await page.mouse.up();
   const after = (await picker.boundingBox())!;
-  expect(after.x).toBeGreaterThan(before.x + 70);
+  expect(after.x).toBeLessThan(before.x - 70);
   expect(after.y).toBeGreaterThan(before.y + 40);
   await expect(picker.locator(".cyl-cp-title")).toHaveText("Pick color"); // still open after the drag
 });

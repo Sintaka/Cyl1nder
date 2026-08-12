@@ -23,5 +23,9 @@
 - 调色板与 Preference 面板 header 各加一个 **⧉ pop-out 按钮**：`isPopoutSupported()` 为 false 时自动隐藏（主动判断支持）；点击即弹出为 PiP 窗口；面板 `close()` 会连带 `closePip()`。
 - 拖拽监听（色轮 / 标题栏）从 `document` 改为 `root.ownerDocument` / `panel.ownerDocument`，保证在 PiP 文档里拖拽仍可用；Esc 由 popout.ts 在 PiP 文档内单独处理。
 
+## 撤销（v0.1.00068）
+- 实测「PiP 弹回主文档时调色板会被直接 close」+ 拖拽/跨文档复杂度高 → **取消 popup 功能**：删除 `popout.ts`、两个面板的 ⧉ 按钮与相关 import/session，恢复纯页内浮动面板。
+- 替代方案：新增 `fitInViewport()` 位置兜底——拖拽时把面板钳在视口内，retarget/重新召唤时若面板越界则回默认位置，避免「被拖出屏 / 分辨率变化后找不到面板」。
+
 ## 状态
-- 已实现（v0.1.00067，Document PiP 方案）；Firefox/Safari 无此 API → 按钮自动隐藏、退回页内浮动面板。
+- 已取消（v0.1.00068）。若要再上，建议仍用 Document PiP，但先解决「弹回即关」与文档级监听迁移，单独开分支。

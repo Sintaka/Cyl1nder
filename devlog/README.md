@@ -32,7 +32,7 @@
 | 同步信号重设计（事件驱动 + 心跳解耦） | [sync-heartbeat-redesign.md](sync-heartbeat-redesign.md) |
 | 同步速率上限 + bridge 阻塞修复 + 首选项系统 | [sync-rate-limit-and-preference.md](sync-rate-limit-and-preference.md) |
 | 自动保存 + 颜色系统 + 首选项浮动窗 | [autosave-color-prefs-ui.md](autosave-color-prefs-ui.md) |
-| 浮动面板 pop-out（Document PiP） | [popout-windows.md](popout-windows.md) |
+| 浮动面板 pop-out 调研（已取消，改视口钳制） | [popout-windows.md](popout-windows.md) |
 | 优化轮 00059（dock 角标重做/File 菜单/Sync 语义/Layout 框） | [optimize-round-00059.md](optimize-round-00059.md) |
 | 优化轮 00060（dock 外折/点阵层级/Overview 新标签/HDA 重启恢复/视口 Undo） | [optimize-round-00060.md](optimize-round-00060.md) |
 | 优化轮 00061（dock 内侧残留/菜单居中/颜色拾取器体验） | [optimize-round-00061.md](optimize-round-00061.md) |
@@ -99,6 +99,7 @@
 
 ## 最近版本
 - v0.1.00065：bridge 控制台降噪 + 心跳统一 1min——uvicorn access_log 关闭（web 推流无上限，gizmo 拖动不再刷屏 cmd）；STREAM_HOLD_DEFAULT 20→60（/stream 缺省 hold=60s）；web HDA watchdog 15s→60s（离线阈值仍 150s）；主进程 2 路并行（Huygens=bridge / Hypatia=web）+ 主进程合并；pytest 53, tsc 0, vitest 82（e2e 本次未重跑：改动不涉及 e2e 断言覆盖路径）。
+- v0.1.00068：调色板 Ctrl+Z 撤回（含 Recent 精确清理，不误删已手删项）+ HSL L=100 归零修复（state.hsl/preserveHsl）+ 色轮/Adobe 关联点 H 错位修复（0° 顶部顺时针）+ 取消 Document PiP popup（pop 回即关）+ 浮窗视口钳制（拖拽不越界、越界下次召唤回默认）；e2e round15 8 passed；tsc 0, vitest 82。
 - v0.1.00067：调色板 UI 再优化 + pop-out——点击新颜色直接 retarget 已开面板（保持位置，不再回右上角）；Advanced Palette 复用 Simple（去重复/去 5 列单独版）；新增 Document PiP pop-out（⧉ 按钮，isPopoutSupported 主动判断、不支持自动隐藏，调色板与 Preference 都能弹出成独立置顶窗口；拖拽监听改 ownerDocument 跨文档可用）；e2e round15 8 passed；tsc 0, vitest 82。
 - v0.1.00066：调色板 UI 优化——Advanced Palette 改成「Simple 预设(20)+Neutrals(5)」扁平 5 列网格（去英文分类/标签）；harmony 下拉右侧新增自绘关联点 SVG 提示（随 base 颜色实时着色）；调色板不再点外关闭，点击另一 color3 swatch 即 retarget；浮动面板跳出浏览器=Document PiP 方案已调研并记录 popout-windows.md（本轮未实现，待单独开轮）；e2e round15 断言同步；tsc 0, vitest 82。
 - v0.1.00064：视口中断系统重设计 + 本地新鲜度 + kick 限流——web 本地乐观应用（runNetwork 先本地重建再推桥，与 Sync Max FPS 解耦）+ networkEpoch 过时请求整体丢弃 + rAF 合帧刷新 + WS outputs 内容去重/rev 单调；Sync Max FPS 首次 connect 即推（bridge 不再停默认 30）；kick 双端限流（web ≥5s/仅桥重启 re-kick，bridge 2s 去重 throttled）；撤销/重做 Enter gizmo 归位（onParamsApplied + setEnterPosition）；首选项删两行提示 + Default→Viewport Background Color；全部字体跟首选项（CSS 统一 --cyl-font-ui）；bridge _maybe_snapshot 移线程 + no-op 不 log；浮动面板跳出页面=大改不做（记录）；4 路并行（Russell=bridge / Franklin=web核心 / Peirce=undo-gizmo / Meitner=UI）+主进程合并；pytest 53, tsc 0, vitest 82, e2e 73 passed/1 skipped。

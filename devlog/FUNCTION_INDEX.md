@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-12），由 `node scripts/gen-index.mjs` 产出。共 **521** 个函数/类。
+> 机器生成（2026-08-12），由 `node scripts/gen-index.mjs` 产出。共 **520** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -388,27 +388,28 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/color.ts（1063 行）
+## web/src/app/color.ts（1142 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `rgbToHex` | 68 | function | export | 5 |
-| `hexToRgb` | 74 | function | export | 7 |
-| `rgbToHsl` | 95 | function |  | 8 |
-| `hslToRgb` | 115 | function |  | 7 |
-| `rgbToHsv` | 141 | function |  | 5 |
-| `hsvToRgb` | 159 | function |  | 4 |
-| `loadRecents` | 200 | function |  | 4 |
-| `saveRecents` | 214 | function |  | 4 |
-| `recordRecent` | 222 | function |  | 2 |
-| `removeRecent` | 229 | function |  | 2 |
-| `clearRecents` | 236 | function |  | 2 |
-| `esc` | 392 | function |  | 2 |
-| `valuesForMode` | 399 | function |  | 4 |
-| `colorFromMode` | 409 | function |  | 3 |
-| `harmonyDef` | 415 | function |  | 5 |
-| `harmonyColor` | 420 | function |  | 3 |
-| `openColorPicker` | 437 | function | export | 2 |
+| `fitInViewport` | 72 | function | export | 4 |
+| `rgbToHex` | 86 | function | export | 7 |
+| `hexToRgb` | 92 | function | export | 8 |
+| `rgbToHsl` | 113 | function |  | 10 |
+| `hslToRgb` | 133 | function |  | 7 |
+| `rgbToHsv` | 159 | function |  | 5 |
+| `hsvToRgb` | 177 | function |  | 4 |
+| `loadRecents` | 218 | function |  | 4 |
+| `saveRecents` | 232 | function |  | 4 |
+| `recordRecent` | 240 | function |  | 2 |
+| `removeRecent` | 247 | function |  | 3 |
+| `clearRecents` | 254 | function |  | 2 |
+| `esc` | 411 | function |  | 2 |
+| `valuesForMode` | 418 | function |  | 2 |
+| `colorFromMode` | 428 | function |  | 5 |
+| `harmonyDef` | 434 | function |  | 5 |
+| `harmonyColor` | 439 | function |  | 3 |
+| `openColorPicker` | 456 | function | export | 2 |
 
 ## web/src/app/dock.ts（541 行）
 
@@ -471,26 +472,19 @@
 | `renderParams` | 146 | function | export | 1 |
 | `commit` | 187 | arrow |  | 1 |
 
-## web/src/app/popout.ts（90 行）
+## web/src/app/preference.ts（338 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `isPopoutSupported` | 22 | function | export | 2 |
-| `popoutElement` | 26 | function | export | 2 |
-
-## web/src/app/preference.ts（350 行）
-
-| 函数 | 行号 | 类型 | 导出 | calls |
-|---|---|---|---|---|
-| `clampSyncFps` | 45 | function | export | 4 |
-| `parseUpdateMode` | 51 | function |  | 4 |
-| `parseAutosaveInterval` | 56 | function |  | 3 |
-| `parseViewportBg` | 63 | function |  | 4 |
-| `parseUiFont` | 67 | function |  | 4 |
-| `loadPreferences` | 73 | function | export | 1 |
-| `savePreferences` | 98 | function | export | 1 |
-| `applyPreferences` | 105 | function | export | 1 |
-| `openPreferenceDialog` | 128 | function | export | 1 |
+| `clampSyncFps` | 44 | function | export | 4 |
+| `parseUpdateMode` | 50 | function |  | 4 |
+| `parseAutosaveInterval` | 55 | function |  | 3 |
+| `parseViewportBg` | 62 | function |  | 4 |
+| `parseUiFont` | 66 | function |  | 4 |
+| `loadPreferences` | 72 | function | export | 1 |
+| `savePreferences` | 97 | function | export | 1 |
+| `applyPreferences` | 104 | function | export | 1 |
+| `openPreferenceDialog` | 127 | function | export | 1 |
 
 ## web/src/app/scrub.ts（270 行）
 
