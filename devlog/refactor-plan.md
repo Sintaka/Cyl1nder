@@ -44,7 +44,7 @@
 - 验收：tsc 0 + vitest 增量 + e2e round15/round12 不回归；行为零变化。
 
 ### 阶段 2（中拆，分模块）
-- [ ] 2.1 `main.ts` 抽 `core/session.ts`（连接/WS/网络）、`core/shortcuts.ts`、`core/autosave.ts`、`core/gizmo.ts`，`main.ts` 退化为装配。
+- [~] 2.1 `main.ts` 抽 core：已完成 `core/lifecycle.ts`（autosave + hda watchdog）；待续 `core/session.ts`（连接/WS/网络）、`core/shortcuts.ts`、`core/gizmo.ts`。
 - [ ] 2.2 `graph.ts` 拆 `nodes2/graph-view.ts` / `graph-interact.ts` / `undo.ts` 强化；先定函数签名契约再并行。
 - [ ] 2.3 `viewport/renderer.ts` 拆 `scene` / `camera` / `gizmo` / `picking` / `modes`。
 - 验收：tsc 0 + vitest + 全量 e2e；主进程 merge 前 review 写集不越界。
@@ -62,4 +62,4 @@
 - 每完成一项，更新 `devlog/shit-mountains.md` 行数/状态与本文件 checkbox。
 
 ## 六、状态
-- 2026-08-13：建立计划；阶段 1（1.1 color-math 拆出 + 19 单测、1.2 groups parser/matcher 拆出）已完成并合入；1.3 顺延；阶段 2 未开始。
+- 2026-08-13：阶段 1 完成；阶段 2.1 已抽出 `core/lifecycle.ts`（autosave + hda watchdog，round8/9/13/14 e2e 19 passed）；2.1 其余（session/shortcuts/gizmo）待续。
