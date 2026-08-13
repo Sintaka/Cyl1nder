@@ -129,7 +129,7 @@ async def ws_endpoint(websocket: WebSocket) -> None:
         if ws_cur.inputs:
             await manager.send(
                 websocket,
-                {"type": "inputs", "inputs": [i.model_dump() for i in ws_cur.inputs], "rev": ws_cur.input_rev},
+                {"type": "inputs", "inputs": [i.model_dump() for i in ws_cur.inputs], "rev": ws_cur.input_rev, "frame": ws_cur.frame},
             )
         outs = ws_cur.get_outputs_since(0)
         if outs:

@@ -484,3 +484,84 @@ body { font-family: var(--cyl-font-ui); }
    font swap (code <-> system) restyles hex readouts too. */
 .cyl-cp .cyl-cp-hex { font-family: var(--cyl-font-ui); }
 .cyl-color3 .cyl-color3-hex { font-family: var(--cyl-font-ui); }
+
+
+/* ---- local timeline (bottom bar, Phase A) ---- */
+.cyl-timeline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  background: #1b1e24;
+  border: 1px solid #33363c;
+  border-radius: 5px;
+}
+.tl-anchor {
+  color: #7a7f87;
+  font-size: 12px;
+  line-height: 1;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.tl-scrub {
+  width: 160px;
+  accent-color: #2b6cb0;
+  background: #0f1012;
+  border-radius: 4px;
+  height: 4px;
+  cursor: pointer;
+}
+.tl-frame {
+  width: 6ch;
+  background: #0f1012;
+  color: #cfd2d6;
+  border: 1px solid #33363c;
+  border-radius: 4px;
+  padding: 2px 4px;
+  font: 11px/1.3 var(--cyl-font-ui);
+  text-align: center;
+}
+.tl-frame:focus {
+  border-color: #2b6cb0;
+  outline: none;
+}
+.tl-frame::-webkit-inner-spin-button,
+.tl-frame::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.tl-frame {
+  -moz-appearance: textfield;
+  appearance: none;
+}
+.tl-btn {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid #33363c;
+  background: #1c1e22;
+  color: #9aa1ab;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.tl-btn:hover {
+  background: #232a33;
+  color: #cfd2d6;
+}
+.tl-btn:active {
+  background: #2b6cb0;
+  border-color: #2b6cb0;
+  color: #fff;
+}
+.tl-fps {
+  color: #7a7f87;
+  font-size: 11px;
+  white-space: nowrap;
+}

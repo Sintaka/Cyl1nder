@@ -1,4 +1,4 @@
-﻿# python
+# python
 __pycache__/
 *.pyc
 .venv/
@@ -34,3 +34,4 @@ Thumbs.db
 # snapshot data (unified path system) - not source
 Cyl1nder/
 bridge/data/snapshots/
+.pytest_tmp/

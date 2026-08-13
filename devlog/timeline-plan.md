@@ -1,6 +1,7 @@
 # 下一功能周期实施计划：本地时间轴 → 手动同步开关 → IndexedDB 帧缓存
 
 > 日期 2026-08-13 · 角色：主进程（Confucius 子智能体产出，主进程落盘）。目标用户原话：① 时间轴"基本上是本地工作"（scrub 不依赖 Houdini）；② 双向同步改手动开关（右下角，默认 OFF）；③ 只有前两者完成后才接 IndexedDB 帧缓存。分支遵循统一主线 `codex/develop`，每阶段一个 commit + 一条 devlog。**本文件是计划，供新对话执行；msgpack 轮（v0.1.00098）已完成，本计划在其之上。**
+> **状态（v0.1.00100，2026-08-14）**：**Phase A 已实现并合并**——协议三处同步（`InputsPut.frame` / types.ts / protocol.md）+ HDA `(sig, frame)` 推送门 + web `core/timeline.ts` 逐帧快照 + 底部栏时间轴 UI（scrub/帧号/◀▶/播放/30fps/锚定灯○）+ store.frame 切片 + round21 E2E 骨架。验证：pytest 59 / tsc 0 / vitest 158 / hython SMOKE OK。**下一轮做 Phase B（手动双向同步开关，右下角默认 OFF）**；Phase C（IndexedDB 帧缓存）gate = A+B 完成。
 
 ## Phase A — 时间轴（本地优先，纯本地 scrub）
 - **UI（底部栏新增，非 docking）**：scrub 滑条 + 当前帧显示/可键入 + 上一帧/下一帧（Shift ±10）+ 播放/停止（可选）+ 本地 fps=30 只读 + 锚定灯（●Houdini/○本地，v1 恒 ○）。帧范围 v1 = 本地自动扩展 `[min..max]`（默认 1..100）；读取 Houdini playbar range 留到 Phase B engaged 路径。

@@ -74,6 +74,8 @@
 | 缓存系统交接指引（给新会话：现状/路线/契约/先读） | [cache-system-guide.md](cache-system-guide.md) |
 | 视口中断系统重设计 + 本地新鲜度 + kick 限流 | [viewport-interrupt-redesign.md](viewport-interrupt-redesign.md) |
 | 时间轴系统设计（30fps / HDA 锚定门控 / 双向同步） | [timeline-design.md](timeline-design.md) |
+| 时间轴实施计划（本地 scrub → 手动同步开关 → IDB 帧缓存） | [timeline-plan.md](timeline-plan.md) |
+| 时间轴帧缓存设计（内存 LRU + IndexedDB，键含 inputSig/graphVersion/parmRev） | [timeline-frame-cache-design.md](timeline-frame-cache-design.md) |
 | no geometry 诊断与 HDA 热重载恢复 | [no-geometry-diagnosis.md](no-geometry-diagnosis.md) |
 
 ## 关键词 → 专题文件（快速跳读）
@@ -107,6 +109,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00100：**本地时间轴 Phase A（本地优先，纯本地 scrub）**——H→C inputs 捎带可选 frame（HDA `hou.frame()` 采样、(sig,frame) 推送门；bridge 透传；WS 广播）；web `core/timeline.ts` 逐帧快照 + 底部栏时间轴 UI（锚定灯○/scrub/帧号/◀▶ Shift±10/播放/30fps）+ store.frame 切片 + session captureFrame 分流 + round21 E2E 骨架；4 路并行（Sagan=bridge / Darwin=hda / Helmholtz=web-core / Zeno=web-ui）+ 主进程合并（session 类型收紧、legacy 模板补容器）；AGENTS.md 增「代码修改默认派并行子智能体」铁律 8；timeline-plan.md Phase A 标记完成。pytest 59, tsc 0, vitest 158, hython SMOKE OK。
 - v0.1.00099：设计理念写入 dev 偏好（README 关键理念铁律 + development-standards）——缓存与后端计算管理学习 Zeno+Houdini（cook-on-dirty/显示驱动 cook/detail 缓存+增量/stamp 分级/双缓冲/SoA→TypedArray/帧缓存，借鉴不复制）；能用开源就用开源（复用清单见 oss-reuse-audit.md，自研仅限协议胶水与无等价物领域逻辑）。纯文档轮。
 - v0.1.00098：开源库优化 + msgpack 协议化——web `compare.ts` 换 fast-deep-equal（session 热路径去字符串化深比较）；bridge⇄web 几何热路径（PUT/GET outputs + WS）启用 msgpack（`@msgpack/msgpack` + Python `msgpack`，REST 按 Content-Type/Accept、WS 按 `?proto=msgpack` 协商，HDA 保持 JSON）；bridge snapshot 换 orjson；协议三处同步（protocol.py/protocol.md，types.ts 无字段变化）。验证：pytest 59 / tsc 0 / vitest 151 / e2e 84 passed+1 skip / hython SMOKE OK。缓存优化至此告一段落；下一功能周期=时间轴+手动同步开关+IndexedDB 帧缓存（见 timeline-plan.md）。
 - v0.1.00097：分支统一清理（唯一主线 codex/develop，删除 11 个纯祖先检查点分支 + 远端 00087；cyl1nder-v0 待切 GitHub 默认分支后删）+ 分支规范写入 development-standards.md + 时间轴逐帧缓存设计（timeline-frame-cache-design.md：帧切换+无 parm 变化→不重算，内存 LRU+IndexedDB）+ 开源库借鉴审计（oss-reuse-audit.md：Top1 fast-deep-equal 可即做；msgpack/orjson/floating-ui/culori 列入后续；其余保持手搓）。
@@ -115,7 +118,8 @@
 - v0.1.00094：新增缓存系统交接指引（devlog/cache-system-guide.md）——现状盘点（chain-cache/位置-only/pump/HDA _GEO_CACHE/bridge rev buffers）、下一步路线（懒输出→协议二进制化→SoA+Worker→变化分级）、关键契约与坑（协议单源/@P 不 delta/新鲜度门控/不重引入预览 hack）、新会话先读清单。
 - v0.1.00093：缓存与显示管理调研——Zeno（显式节点缓存 CachedByKey/CacheToDisk + 帧缓存 + stamp 变化分级 + MapStablizer 双缓冲增量 diff + GPU id-FBO 拾取）vs Houdini（cook-on-dirty DAG + GU_Detail 缓存 + 显示驱动 cook + 视口常驻 GPU 增量）；产出 devlog/cache-display-research.md（主文档）+ devlog/zeno/cache-display-notes.md（Zeno 源码细读，子智能体）；可借鉴优先级：懒输出跳过未显示分支 / SoA→Float32Array / Worker 双缓冲 / 变化分级 / GPU 拾取 / 节点级缓存。
 - v0.1.00092：视口实时性 P2——链状态缓存 + 免克隆平移（chain-cache.ts：	raceChainSpecs 结构 trace + sig 命中仅 tx/ty/tz 变化走就地 delta 快路径：全点 O(P) 零分配、组子集只改命中点、零 delta 零工作、含 @P 规则全量重 trace；pplyTranslateDeltaInPlace；computeOutputs/computeNodeResult 可选 ctx 走缓存）+ 拓扑变化→cook 补全（graph 管道 after 事件合并 setTimeout(0) cook，拖线建连/Tab 建节点/restoreGraph 后 outputs 立即刷新）；2 路并行（Sartre=链缓存 / Tesla=拓扑 cook）+主进程合并；vitest +12（chain-cache 单测），e2e +round19（组过滤拖拽只动命中点、store points 数组跨帧引用不变=免克隆实锤）；tsc 0, vitest 121, pytest 53, e2e 81 passed/1 skipped；详见 viewport-gizmo-latency.md §6.5
-- v0.1.00091：视口实时性 P1——帧序（flush 先于 render，setPreRenderFlush pump，几何与 gizmo 同帧上屏）+ 拖拽期合并计算（scheduleNetwork latest-wins，每帧至多一次 runNetwork）+ 去双重计算（displayNodeOutputIndex 复用 outputs[i] + efreshNodeFlags(displayBuffer) + flush 顺序调换）+ 输出新鲜度门控（图拓扑版本号 getGraphVersion/isFresh，restore/拖线建连未 cook 时回退 computeNodeResult）+ 隐藏 outputGroup 跳过；2 路并行（Confucius=帧序+合并 pump / Bernoulli=去双重计算）+主进程合并（拓扑版本门控修复 round7 回归）；round17 同步断言改帧内 poll + 新增帧序断言；tsc 0, vitest 109, pytest 53, e2e 80 passed/1 skipped；详见 viewport-gizmo-latency.md §6 链路分析
+- v0.1.00091：视口实时性 P1——帧序（flush 先于 render，setPreRenderFlush pump，几何与 gizmo 同帧上屏）+ 拖拽期合并计算（scheduleNetwork latest-wins，每帧至多一次 runNetwork）+ 去双重计算（displayNodeOutputIndex 复用 outputs[i] + 
+efreshNodeFlags(displayBuffer) + flush 顺序调换）+ 输出新鲜度门控（图拓扑版本号 getGraphVersion/isFresh，restore/拖线建连未 cook 时回退 computeNodeResult）+ 隐藏 outputGroup 跳过；2 路并行（Confucius=帧序+合并 pump / Bernoulli=去双重计算）+主进程合并（拓扑版本门控修复 round7 回归）；round17 同步断言改帧内 poll + 新增帧序断言；tsc 0, vitest 109, pytest 53, e2e 80 passed/1 skipped；详见 viewport-gizmo-latency.md §6 链路分析
 - v0.1.00090：视口理念纠正（撤销矩阵预览 hack——操作时本地执行、更新 parms→视口位置-only 更新→几何跟手、不重建全部网格、不强依赖桥；mouseup 恢复「松手才提交 parms」）+ nodeview 大功能（连线重连 attachReconnect 带抓取/松手/点击/Esc 状态机与流动虚线预览、Ctrl+点击连线插 _dot_ 直通节点、Esc 取消进行中连线/重连/插入（视口 Esc 改为仅悬停时退 Enter）、Delete 删选中节点（v1 无 undo）、nodeview 顶部地址栏 + 面板标题显示当前地址 /<serial>/）；3 路并行（Euclid=viewport / Hilbert=nodeview / Pascal=地址栏）+主进程合并（round3/6/8 Esc 与 fit 测试适配、dot 恢复 seq 防重名）；tsc 0, vitest 101, pytest 53, e2e 79 passed/1 skipped；详见 devlog/annotations-web.md 与 viewport-gizmo-latency.md §5 理念纠正
 - v0.1.00089：视口 Enter gizmo 拖拽本地预览（几何同帧跟手，不重建/不依赖桥）+ 取消选择保持 Spreadsheet/Parms 最后节点 + File/Edit 菜单去箭头 + Auto Update 下拉白底修复；bgeo.sc 缓存调研落库 + dev 设计偏好（对齐 Houdini + 复用第三方库）；3 路并行（Heisenberg=viewport / Godel=selection / Goodall=menus+css）+主进程合并；tsc 0, vitest 101, pytest 53, e2e 74 passed/1 skipped；详见 devlog/bgeo-cache-research.md 与 annotations-web.md
 - v0.1.00088：重整复盘落库（refactor-retrospective.md）；刷新机器生成索引（FUNCTION_INDEX/MODULE_GRAPH/API_INDEX）；更新根 README 版本与架构；清理根目录临时 snapshot 数据与 bridge 日志。

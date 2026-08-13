@@ -21,7 +21,7 @@
 - `GET  /api/health` -> `{status:"ok", version, serials}`
 - `GET  /api/serials` -> `[serial, ...]`
 - `GET  /api/hda/{serial}/status` -> registry + workspace 摘要
-- `PUT  /api/hda/{serial}/inputs`（HDA 推输入，body = InputPayload[]）
+- `PUT  /api/hda/{serial}/inputs`（HDA 推输入，body = InputPayload[]；**v0.1.00100 起**可带可选 `frame`（float|null）——HDA 在 cook 主线程捎带 `hou.frame()`，bridge 透传并随 WS 广播）
 - `GET  /api/hda/{serial}/outputs?since=<rev>`（HDA 拉编辑结果）
 - `PUT  /api/hda/{serial}/outputs`（前端推编辑结果，body = OutputBuffer[]）
 - `GET  /api/hda/{serial}/logs?level=&limit=`
@@ -43,7 +43,7 @@
 - **Preference.json**（快照部件，随场景保存）：`{"schemaVersion":1, "sync_max_fps":30, "update_mode":"auto"}`；`update_mode` 为 enum（`"auto" | "mouseup"`）。
 - **心跳语义（LiveLink 原则：数据帧即心跳）**：高传输时事件本身即 liveness，**零额外心跳**；静默期 stream hold=60s → 心跳约 **1 次/分**。web 端离线判定为**慢时钟**：lastSeen 超 **150s**（2.5×60）判 Houdini 离线。
 ## WebSocket `/ws?serial=<serial>`
-- 服务端 → 客户端：`{type:"hello", serial, rev}` / `{type:"inputs", inputs}` / `{type:"outputs", outputs}` / `{type:"log", ...}`
+- 服务端 → 客户端：`{type:"hello", serial, rev}` / `{type:"inputs", inputs, frame?}`（frame 可选，v0.1.00100 起）/ `{type:"outputs", outputs}` / `{type:"log", ...}`
 - 客户端 → 服务端：`{type:"ping"}` / `{type:"edit", outputs:[...]}`
 
 ## MCP（Cyl1nder 桥 MCP，stdio）

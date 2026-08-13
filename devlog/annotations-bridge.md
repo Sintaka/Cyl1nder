@@ -1,5 +1,12 @@
 # 桥子系统改动标注 / Bridge annotations
 
+## v0.1.00100（2026-08-14）· 本地时间轴 Phase A：inputs 帧透传
+- **protocol.py**：`InputsPut.frame: float | None = None`（可选）；docstring 注明 WS inputs 带可选 frame。
+- **workspace.py**：`Workspace.frame` 存储；`set_inputs(inputs, frame=None)`（frame 不参与 rev 递增）。
+- **routes.py put_inputs**：透传 `payload.frame`，WS 广播 `{type:"inputs", ..., frame}`。
+- **ws.py 重放**：late-joining tab 的 inputs 消息带 `frame: ws_cur.frame`。
+- **测试**：test_routes / test_workspace 补 frame 用例。pytest 59 passed / 1 skipped（test_mcp 因 fastmcp server extra 缺失为环境问题，与本轮无关）。
+
 ## v0.1.0-cyl1nder.1
 - `protocol.py`：REST/WS/MCP 载荷单源（InputPayload / OutputBuffer / InputsPut / OutputsPut；serial 规则 `C1-<base36ms>-<4rand>`）。
 - `registry.py`：SerialRegistry 不可变注册（createdAt 固定，lastSeen/nodePath/label 更新），JSON 落盘 `bridge/data/registry.json`。

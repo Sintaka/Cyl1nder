@@ -14,6 +14,25 @@ def test_inputs_rev_increments() -> None:
     assert w.input_rev == 2
 
 
+def test_inputs_frame_stored_and_defaults_none() -> None:
+    ws = WorkspaceStore()
+    w = ws.get_or_create(SERIAL)
+    assert w.frame is None
+    assert w.set_inputs([InputPayload(index=0, pointCount=3)], 42.5) == 1
+    assert w.frame == 42.5
+    assert w.set_inputs([]) == 2
+    assert w.frame is None
+
+
+def test_inputs_frame_does_not_affect_rev() -> None:
+    ws = WorkspaceStore()
+    w = ws.get_or_create(SERIAL)
+    assert w.set_inputs([InputPayload(index=0)], 42.5) == 1
+    assert w.set_inputs([InputPayload(index=0)], 7.5) == 2
+    assert w.set_inputs([InputPayload(index=0)]) == 3
+    assert w.input_rev == 3
+
+
 def test_outputs_rev_monotonic_and_since() -> None:
     ws = WorkspaceStore()
     w = ws.get_or_create(SERIAL)

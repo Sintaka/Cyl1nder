@@ -1,4 +1,4 @@
-﻿import { createDropdown, type DropdownHandle } from "./widgets";
+import { createDropdown, type DropdownHandle } from "./widgets";
 
 export interface Layout {
   root: HTMLElement;
@@ -20,6 +20,7 @@ export interface Layout {
   updateModeSelect: DropdownHandle;
   menuEdit: HTMLElement;
   syncFpsInput: HTMLInputElement;
+  timelineEl: HTMLElement;
 }
 
 /** v0.1.00062: wire the ▲▼ step buttons of a .cyl-fps-stepper container.
@@ -89,6 +90,7 @@ export function buildLayout(app: HTMLElement): Layout {
       <div id="cyl-dock" class="cyl-dock"></div>
       <div class="cyl-bottom-bar">
         <div id="cyl-update-mode"></div>
+        <div id="cyl-timeline" class="cyl-timeline"></div>
         <label class="cyl-bottom-label" for="cyl-sync-fps" title="kick bridge / HDA 接收上限（1..60，默认 30）">Sync Max FPS</label>
         <div class="cyl-fps-stepper">
           <input type="number" id="cyl-sync-fps" min="1" max="60" value="30" class="cyl-sync-fps" />
@@ -157,6 +159,7 @@ export function buildLayout(app: HTMLElement): Layout {
     logEl,
     updateModeSelect: updateModeDropdown,
     syncFpsInput: $("#cyl-sync-fps"),
+    timelineEl: $("#cyl-timeline"),
   };
 }
 
@@ -224,6 +227,7 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
       <footer id="cyl-log" class="cyl-log"></footer>
       <div class="cyl-bottom-bar">
         <div id="cyl-update-mode"></div>
+        <div id="cyl-timeline" class="cyl-timeline"></div>
         <label class="cyl-bottom-label" for="cyl-sync-fps" title="kick bridge / HDA 接收上限（1..60，默认 30）">Sync Max FPS</label>
         <div class="cyl-fps-stepper">
           <input type="number" id="cyl-sync-fps" min="1" max="60" value="30" class="cyl-sync-fps" />
@@ -268,5 +272,6 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
     logEl: $("#cyl-log"),
     updateModeSelect: updateModeDropdown,
     syncFpsInput: $("#cyl-sync-fps"),
+    timelineEl: $("#cyl-timeline"),
   };
 }

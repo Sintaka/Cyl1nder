@@ -38,6 +38,7 @@ def test_roundtrip_inputs_outputs(tmp_path: Path) -> None:
                 "curves": [{"pointIndices": [0, 1, 2]}],
             }
         ],
+        "frame": 42.5,
         "nodePath": "/obj/geo1/cyl1nder1",
         "label": "Cyl1nder",
     }
@@ -47,6 +48,7 @@ def test_roundtrip_inputs_outputs(tmp_path: Path) -> None:
     status = c.get(f"/api/hda/{serial}/status").json()
     assert status["registry"]["nodePath"] == "/obj/geo1/cyl1nder1"
     assert status["workspace"]["inputRev"] == 1
+    assert get_state().workspaces.get(serial).frame == 42.5
 
     # web pushes an edit
     out = {"outputs": [{"index": 0, "rev": 0, "pointCount": 3, "points": [[0, 0, 0], [1, 1, 0], [2, 2, 0]]}]}
@@ -62,6 +64,14 @@ def test_roundtrip_inputs_outputs(tmp_path: Path) -> None:
     # nothing new after rev
     r = c.get(f"/api/hda/{serial}/outputs", params={"since": rev})
     assert r.json()["outputs"] == []
+
+
+def test_inputs_without_frame_defaults_none(tmp_path: Path) -> None:
+    c = _client(tmp_path)
+    serial = generate_serial()
+    r = c.put(f"/api/hda/{serial}/inputs", json={"inputs": []})
+    assert r.status_code == 200
+    assert get_state().workspaces.get(serial).frame is None
 
 
 def test_invalid_serial_400(tmp_path: Path) -> None:

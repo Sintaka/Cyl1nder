@@ -12,12 +12,14 @@ class Workspace:
         self.serial = serial
         self.inputs: list[InputPayload] = []
         self.input_rev = 0
+        self.frame: float | None = None
         self._outputs: dict[int, OutputBuffer] = {}
         self._output_rev = 0
         self._rev_lock = threading.Lock()
 
-    def set_inputs(self, inputs: list[InputPayload]) -> int:
+    def set_inputs(self, inputs: list[InputPayload], frame: float | None = None) -> int:
         self.inputs = inputs
+        self.frame = frame
         self.input_rev += 1
         return self.input_rev
 

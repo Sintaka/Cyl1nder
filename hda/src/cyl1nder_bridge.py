@@ -49,9 +49,9 @@ class BridgeClient:
         self._thread: threading.Thread | None = None
         self.last_error = ""
 
-    def push_inputs(self, inputs: list[dict], hip: str = "") -> None:
+    def push_inputs(self, inputs: list[dict], hip: str = "", frame: float | None = None) -> None:
         with self._lock:
-            self._pending = (inputs, hip)
+            self._pending = (inputs, hip, frame)
         if self._thread is None or not self._thread.is_alive():
             self._thread = threading.Thread(target=self._pump, daemon=True)
             self._thread.start()
@@ -63,12 +63,13 @@ class BridgeClient:
             self._pending = None
         if pending is None:
             return
-        inputs, hip = pending
+        inputs, hip, frame = pending
         try:
             body = json.dumps(
                 {
                     "inputs": inputs,
                     "hip": hip,
+                    "frame": frame,
                     "nodePath": self.node_path,
                     "label": self.label,
                 }

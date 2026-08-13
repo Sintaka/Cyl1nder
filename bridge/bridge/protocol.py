@@ -28,6 +28,7 @@ Msgpack negotiation (bridge <-> web; HDA stays NDJSON/JSON - see devlog/transpor
   JSON text frames. Frames are msgpack of the same dict payloads as today (server->client:
   hello/inputs/outputs/log/pong; client->server: ping/edit - the client may also send a
   JSON/text {"type":"ping"}). Pack with use_bin_type=False so strings stay str.
+- WS inputs messages carry an optional `frame` (float or null).
 - /stream stays single-line NDJSON JSON and /inputs stays JSON (HDA unchanged).
 
 Snapshot parts (see devlog/snapshot-design.md): io/inputs.json, io/outputs.json,
@@ -42,7 +43,7 @@ import time
 
 from pydantic import BaseModel, Field
 
-VERSION = "0.1.00099"
+VERSION = "0.1.00100"
 HOST = "127.0.0.1"
 PORT = 8375
 BASE_URL = f"http://{HOST}:{PORT}"
@@ -124,6 +125,7 @@ class OutputBuffer(BaseModel):
 class InputsPut(BaseModel):
     """HDA pushes its 4 inputs (+ identity metadata)."""
     inputs: list[InputPayload] = Field(default_factory=list)
+    frame: float | None = None
     hip: str = ""
     nodePath: str = ""
     label: str = ""

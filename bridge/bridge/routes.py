@@ -102,12 +102,12 @@ async def put_inputs(serial: str, payload: InputsPut) -> dict:
     rec = st.registry.register(
         serial, hip=payload.hip, nodePath=payload.nodePath, label=payload.label
     )
-    rev = st.workspaces.get_or_create(serial).set_inputs(payload.inputs)
+    rev = st.workspaces.get_or_create(serial).set_inputs(payload.inputs, payload.frame)
     st.registry.mark_activity(serial)
     st.logs.info("routes", f"inputs pushed ({len(payload.inputs)}), rev={rev}", serial)
     await manager.broadcast(
         serial,
-        {"type": "inputs", "inputs": [i.model_dump() for i in payload.inputs], "rev": rev},
+        {"type": "inputs", "inputs": [i.model_dump() for i in payload.inputs], "rev": rev, "frame": payload.frame},
     )
     await _maybe_snapshot(serial)
     return {"ok": True, "serial": serial, "rev": rev}

@@ -16,9 +16,10 @@ Cyl1nder 是"中间站"项目：Houdini ⇄ 本地桥 ⇄ WebGL 前端 的轻量
 2. 单桥 8375 + serial 路由；不要为每个 HDA 开端口。
 3. 协议以 `bridge/bridge/protocol.py` 为单源；改协议必须同步 `web/src/protocol/types.ts` 与 `devlog/protocol.md`。
 4. 不复制 Animehairstudio 代码（source-available 许可），只借鉴架构与方法论。
-5. 分支：大改独立分支（`codex/<版本>-<操作>`），禁止直接 merge main。
+5. 分支：统一主线 `codex/develop`；仅在并行实验时开短命 `codex/try-<主题>`，合入即删（细则见 devlog/development-standards.md）。
 6. 改动记 devlog：每 commit 一句话 + 指向专题文件。
 7. 验证：bridge=pytest；web=`tsc --noEmit` + vitest；hda=hython 冒烟；跨端=E2E。
+8. **代码修改默认派并行 codex 子智能体**（细则见 devlog/development-standards.md「代码修改默认派子智能体（铁律）」）：主进程负责拆写集（不相交）→ 定契约 → 派发 → 合并 review → 全量验证 → 文档/版本号/索引 → 单 commit；即使只有 1 个子智能体也照派；主进程写集仅限 devlog/文档/版本号/索引/契约锚点。
 
 ## 常用命令
 见 devlog/AGENT_QUICKSTART.md。

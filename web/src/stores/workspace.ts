@@ -42,6 +42,7 @@ export class WorkspaceStore {
   outputs: OutputBuffer[] = [];
   inputRev = 0;
   outputRev = 0;
+  frame = 1;
   status: "offline" | "connecting" | "ok" = "connecting";
   lastError = "";
   logs: string[] = [];
@@ -64,6 +65,12 @@ export class WorkspaceStore {
     this.outputs = [];
     this.inputRev = 0;
     this.outputRev = 0;
+    this.frame = 1;
+    this.emit();
+  }
+
+  setFrame(f: number): void {
+    this.frame = f;
     this.emit();
   }
 

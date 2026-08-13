@@ -10,6 +10,7 @@ export interface SessionDeps {
   log(msg: string): void;
   getInputs(): InputPayload[];
   setInputs(inputs: InputPayload[], rev: number): void;
+  captureFrame(frame: number | undefined, inputs: InputPayload[]): void;
   inputsEqual(a: InputPayload[], b: InputPayload[]): boolean;
   getOutputRev(): number;
   applyOutputs(outputs: OutputBuffer[], rev: number): void;
@@ -53,6 +54,7 @@ export function createSessionController(deps: SessionDeps): {
           deps.log(`hello inputRev=${msg.inputRev} outputRev=${msg.outputRev}`);
           deps.kicker.onHello(serial);
         } else if (msg.type === "inputs") {
+          deps.captureFrame(msg.frame as number | undefined, msg.inputs);
           const changed = !deps.inputsEqual(deps.getInputs(), msg.inputs);
           deps.setInputs(msg.inputs, msg.rev);
           deps.log(`inputs rev=${msg.rev} (${msg.inputs.length})${changed ? "" : " [unchanged]"}`);

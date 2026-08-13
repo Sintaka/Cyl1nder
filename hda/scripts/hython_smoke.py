@@ -426,6 +426,79 @@ def _test_stop_all_sync() -> None:
             cyl1nder_hda._READY.pop(serial, None)
 
 
+def _test_push_inputs_frame() -> None:
+    """push gate now keys on (input sig, frame): frame-only changes re-push.
+
+    The HDA samples hou.frame() on the cook main thread and carries it on the
+    inputs push, so web can collect one snapshot per frame. Directly exercises
+    _push_inputs_if_changed with a fake node/client to cover all three branches:
+    sig change pushes with frame, frame-only change pushes, both unchanged skip.
+    """
+    serial = cyl1nder_hda.generate_serial()
+
+    class _FakeNode:
+        def inputs(self):
+            return []
+
+    class _FakeClient:
+        def __init__(self) -> None:
+            self.pushes: list[tuple[list[dict], str, float | None]] = []
+
+        def push_inputs(self, inputs, hip="", frame=None):
+            self.pushes.append((inputs, hip, frame))
+
+    class _FakeRoot:
+        def path(self):
+            return "/obj/cyl1nder_smoke"
+
+    node = _FakeNode()
+    client = _FakeClient()
+    root = _FakeRoot()
+    bridge_url = "http://127.0.0.1:9"
+
+    orig_sig = cyl1nder_hda._input_signature
+    orig_frame = cyl1nder_hda.hou.frame
+    orig_hip_path = cyl1nder_hda.hou.hipFile.path
+    try:
+        sig = "sig-a"
+        frame = 1.0
+        cyl1nder_hda._input_signature = lambda srcs: sig
+        cyl1nder_hda.hou.frame = lambda: frame
+        cyl1nder_hda.hou.hipFile.path = lambda: "smoke.hip"
+
+        # first push (empty cache) carries the sampled frame
+        assert cyl1nder_hda._push_inputs_if_changed(node, root, serial, bridge_url, client)
+        assert len(client.pushes) == 1, f"expected 1 push, got {len(client.pushes)}"
+        assert client.pushes[-1][1] == "smoke.hip"
+        assert client.pushes[-1][2] == 1.0
+        assert cyl1nder_hda._PUSH_CACHE[serial] == ("sig-a", 1.0)
+
+        # same sig + same frame -> skip (no echo)
+        assert not cyl1nder_hda._push_inputs_if_changed(node, root, serial, bridge_url, client)
+        assert len(client.pushes) == 1, "unchanged sig+frame must not re-push"
+
+        # sig unchanged but frame changed -> re-push with the new frame
+        frame = 2.0
+        assert cyl1nder_hda._push_inputs_if_changed(node, root, serial, bridge_url, client)
+        assert len(client.pushes) == 2, "frame-only change must re-push"
+        assert client.pushes[-1][2] == 2.0
+        assert cyl1nder_hda._PUSH_CACHE[serial] == ("sig-a", 2.0)
+
+        # sig changed on the same frame -> re-push with that frame
+        sig = "sig-b"
+        assert cyl1nder_hda._push_inputs_if_changed(node, root, serial, bridge_url, client)
+        assert len(client.pushes) == 3, "sig change must re-push"
+        assert client.pushes[-1][2] == 2.0
+        assert cyl1nder_hda._PUSH_CACHE[serial] == ("sig-b", 2.0)
+
+        print("push gate (sig, frame): sig/frame change -> push, both unchanged -> skip OK")
+    finally:
+        cyl1nder_hda._input_signature = orig_sig
+        cyl1nder_hda.hou.frame = orig_frame
+        cyl1nder_hda.hou.hipFile.path = orig_hip_path
+        cyl1nder_hda._PUSH_CACHE.pop(serial, None)
+
+
 def main() -> int:
     if HDA not in hou.hda.loadedFiles():
         hou.hda.installFile(HDA)
@@ -596,6 +669,7 @@ def main() -> int:
     _test_stream_loop()
     _test_kick_force_recook()
     _test_stop_all_sync()
+    _test_push_inputs_frame()
 
     print("SMOKE OK")
     return 0

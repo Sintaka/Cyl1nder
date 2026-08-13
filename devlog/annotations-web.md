@@ -1,22 +1,35 @@
 # Web 子系统改动标注 / Web annotations
 
+## v0.1.00100（2026-08-14）· 本地时间轴 Phase A：inputs frame 分流 + TimelineController + 底部栏 UI
+- **protocol/types.ts**：WS `inputs` 消息加可选 `frame?: number`（三处同步之一）。
+- **stores/workspace.ts**：新增 `frame` 切片（初始 1、`setFrame()`、`setSerial` 重置）。
+- **core/timeline.ts（新）**：`createTimelineController`——逐帧 INPUT 快照 Map、min/max 自动扩展（默认 1..100）、本地 fps=30 只读、`setFrame` 命中回放（setInputs(frameInputs[f], rev+1) + scheduleNetwork）/未命中清空几何+log 提示、`step` 钳制、`reset`、pub-sub。
+- **core/session.ts**：`SessionDeps.captureFrame(frame, inputs)`；inputs 分支首行分流（WS frame → timeline 收集）。
+- **app/timeline-ui.ts（新）+ app/layout.ts + main.ts**：底部栏时间轴（锚定灯○ / scrub 滑条 / 帧号输入 / ◀▶ Shift±10 / 播放停止 rAF / 30fps 只读）；main.ts 注入 timeline 控制器 + session.captureFrame + `__cylTimeline` 调试钩子；layout 新旧模板都加 `#cyl-timeline`。
+- **styles/base.css**：追加 `.cyl-timeline` / `.tl-*` 深色圆角样式。
+- **测试**：timeline.test.ts 7 用例（captureFrame 扩展/命中回放/未命中清空/step 钳制/reset/subscribe）；e2e round21 骨架（连 8376，本轮未跑）。tsc 0, vitest 158。
+
 ## v0.1.00092（2026-08-13）· 视口实时性 P2：链状态缓存 + 免克隆平移 + 拓扑 cook
 - **chain-cache.ts（新）**：按 out:<i> / 
 ode:<id> 缓存链状态 { sig, base, specs, points, memberships, fastPath }；	raceChainSpecs（结构 trace，不碰点）→ sig 命中且仅 tx/ty/tz 变化 → 就地 delta（全点 O(P) 零分配；组子集只改命中点；零 delta 返回同一数组零工作）；sig 变或含 @P 规则 → 全量重 trace。	ools/transform.ts 新增 pplyTranslateDeltaInPlace。
 - **network.ts**：	raceChain 重构为基于 	raceChainSpecs + 顺序 pplyTranslateGrouped（纯路径行为一致）；computeOutputs/computeNodeResult 加可选 ctx（有 ctx 走缓存、无 ctx 纯全量，旧测试不破坏）；导出 indFeeder/nodeById/traceChainSpecs/TransformSpec/ChainTrace。
-- **core/network.ts + main.ts**：NetworkDeps.getInputsRev；un() 传 { inputsRev, graphVersion } 给 computeOutputs。
+- **core/network.ts + main.ts**：NetworkDeps.getInputsRev；
+un() 传 { inputsRev, graphVersion } 给 computeOutputs。
 - **core/dataflow.ts**：computeNodeResultCtx 带版本上下文走缓存（fake graph 无 getGraphVersion 时回退裸 3 参调用，单测不破坏）。
 - **graph.ts（拓扑 cook）**：管道 after 事件（connectioncreated/connectionremoved/nodecreated/noderemoved）调度合并 setTimeout(0) cook（ready 守卫 + 宏任务排空后触发 → restore/undo 重放落在最终拓扑）——拖线建连/Tab 建节点/restoreGraph 后 outputs 立即刷新（cook 即显示数据）；显式 onNetworkChanged 保留。
 - **测试**：chain-cache.test.ts 12 用例（全点/子集/多变换链/sig 失效/@P 回退/零 delta/dead chain/缓存命中）；e2e round19（组过滤拖拽只动命中点 + 同一 store points 数组跨帧引用不变 = 免克隆实锤）。全量 tsc 0, vitest 121, pytest 53, e2e 81 passed/1 skipped。
 
 ## v0.1.00091（2026-08-13）· 视口实时性 P1：帧序 + 拖拽合并 + 去双重计算
-- **pre-render pump（帧序）**：iewport/renderer.ts 新增 setPreRenderFlush(fn)，nimate() 在 enderer.render() **之前**调 hook；main.ts 的 store.subscribe 改为只置 pendingFlush，由 pump 每帧先 drain 
+- **pre-render pump（帧序）**：iewport/renderer.ts 新增 setPreRenderFlush(fn)，nimate() 在 
+enderer.render() **之前**调 hook；main.ts 的 store.subscribe 改为只置 pendingFlush，由 pump 每帧先 drain 
 etworkDirty→runNetwork 再 drain pendingFlush→flushStoreView → **几何与 gizmo 同帧上屏**（消除恒定 1 帧间隙）。e2e 新增「单次 objectChange 后首个 render 即画到新几何」断言（包装 renderer.render）。
 - **拖拽合并（latest-wins）**：core/gizmo.ts GizmoDeps.runNetwork → scheduleNetwork，pplyTransformDrag 每事件不再直接 runNetwork；pump 每帧至多一次 
 etwork.run()（取最新 parms），丢过期中间帧。非拖拽调用方（参数面板/kicker/dataflow）保持直接 runNetwork。
-- **去双重计算**：core/dataflow.ts 新增纯函数 displayNodeOutputIndex(snap, displayNodeId)；lush() 每帧只解析一次显示节点 buffer（display 直连 output.out_i 时复用 store.outputs[i]，否则 computeNodeResult 一次），efreshNodeFlags(displayBuffer?) 消费预计算；lush() 顺序改为**先 refreshNodeFlags 后 refresh**（renderer 先知道最终可见性）。
+- **去双重计算**：core/dataflow.ts 新增纯函数 displayNodeOutputIndex(snap, displayNodeId)；lush() 每帧只解析一次显示节点 buffer（display 直连 output.out_i 时复用 store.outputs[i]，否则 computeNodeResult 一次），
+efreshNodeFlags(displayBuffer?) 消费预计算；lush() 顺序改为**先 refreshNodeFlags 后 refresh**（renderer 先知道最终可见性）。
 - **输出新鲜度门控（主进程合并修复）**：graph.ts 管道对 connection/node 增删 bump getGraphVersion；core/network.ts 记录 lastCookGraphVersion + isFresh()；lush() 只在 outputs 与当前拓扑同版本时复用，否则回退 computeNodeResult——修复 restoreGraph/拖线建连未 cook 时复用过期 outputs 导致的 round7 回归（拓扑变化后 store.outputs 是旧的，这是「cook 即显示数据」缺口，P2 用链缓存补全）。
-- **隐藏 outputGroup 跳过**：enderer.refresh() 在 outputGroup 隐藏时不更新几何也不消费 rev（display=transform 时省每帧浪费；切回 output 时同帧重建）。
+- **隐藏 outputGroup 跳过**：
+enderer.refresh() 在 outputGroup 隐藏时不更新几何也不消费 rev（display=transform 时省每帧浪费；切回 output 时同帧重建）。
 - **测试**：round17 同步 store 断言改帧内 poll + 新增帧序测试；新增 dataflow.test.ts（displayNodeOutputIndex 直连/中转/无连接 + flush 复用/回退/顺序）。全量 tsc 0, vitest 109, pytest 53, e2e 80 passed/1 skipped。
 
 ## v0.1.00090（2026-08-13）· 视口理念纠正 + nodeview 重连/dot/Esc/地址栏
@@ -28,7 +41,8 @@ etwork.run()（取最新 parms），丢过期中间帧。非拖拽调用方（�
 - **Esc**：只在视口悬停时退出 Enter 模式（renderer Escape 分支加 	his.hovered 门控），nodeview 内 Esc 留给连线/重连/插入取消。
 - devlog：viewport-gizmo-latency.md 追加 §5 理念纠正。
 ### nodeview（rete 图）
-- **连线重连 ttachReconnect**：pointerdown 命中连线 + 拖 >6px → grabbed（松开鼠标仍保持）；预览 = 未接近端口两段流动虚线穿过鼠标、接近 input/output 端口一段虚线吸附；确认状态机——按住松开：接近→应用/空白→保持 grabbed；中途松开后点左键：接近→应用/空白→取消；Esc 取消。应用时按端口类型改 source 端或 target 端，阻止自连/同端口 no-op，替换已占用 input 并记录 prevConnection，push econnect undo。
+- **连线重连 ttachReconnect**：pointerdown 命中连线 + 拖 >6px → grabbed（松开鼠标仍保持）；预览 = 未接近端口两段流动虚线穿过鼠标、接近 input/output 端口一段虚线吸附；确认状态机——按住松开：接近→应用/空白→保持 grabbed；中途松开后点左键：接近→应用/空白→取消；Esc 取消。应用时按端口类型改 source 端或 target 端，阻止自连/同端口 no-op，替换已占用 input 并记录 prevConnection，push 
+econnect undo。
 - **Ctrl+点击连线插 _dot_N 直通节点**：makeDotNode（1 in/1 out、无 parms/flags、label _dot_N）、NodeView 渲染纯圆点（hover 显示全名、不可改名）、restoreGraph/调色板/network 直通都支持；undo dot-add（undo 移除 dot 恢复原边，redo 重建 + claimDotLabel 防重名；restore 也推进 seq）。
 - **Esc 取消进行中操作**：graph.ts 窗口级 Esc → connection.drop()（取消 rete 连线绘制）+ cancelGraphInteractions()（重连 grab / 拖拽插入 / 调色板）。
 - **Delete/Backspace 删除选中节点**（含其连接；v1 无 undo，devlog 注明为未来工作）。
@@ -39,9 +53,12 @@ etwork.run()（取最新 parms），丢过期中间帧。非拖拽调用方（�
 - 全量：tsc 0, vitest 101, pytest 53, e2e 79 passed/1 skipped。
 
 ## v0.1.00089（2026-08-13）· 视口 gizmo 本地预览 + 选择保持 + 菜单/CSS 修正
-- **Enter gizmo 拖拽本地预览（延迟修复）**：iewport/renderer.ts 新增 updateDragPreview(dx,dy,dz) / endDragPreview() / 私有 eapplyDragPreview()——拖拽期间把当前可见显示组（nodeResultGroup 优先，其次 outputGroup）的 position 直接设为「当前值 - 上次已提交值」的 delta（O(1) 矩阵，不重建、不跑网络），几何体与 gizmo **同帧跟手**；showNodeResult / efresh() 在真实内容变化的 commit 重建时清预览（防双重叠加），内容相同的无操作重建（周期性 layout flush / content-identical 桥回声）则重新贴回预览（防拖拽中几何「跳回」）；endTransformGizmo Esc/切换时清理。
+- **Enter gizmo 拖拽本地预览（延迟修复）**：iewport/renderer.ts 新增 updateDragPreview(dx,dy,dz) / endDragPreview() / 私有 
+eapplyDragPreview()——拖拽期间把当前可见显示组（nodeResultGroup 优先，其次 outputGroup）的 position 直接设为「当前值 - 上次已提交值」的 delta（O(1) 矩阵，不重建、不跑网络），几何体与 gizmo **同帧跟手**；showNodeResult / 
+efresh() 在真实内容变化的 commit 重建时清预览（防双重叠加），内容相同的无操作重建（周期性 layout flush / content-identical 桥回声）则重新贴回预览（防拖拽中几何「跳回」）；endTransformGizmo Esc/切换时清理。
 - **core/gizmo.ts**：记录 dragStart / lastCommitted；onChange 算 delta 后——mouseup 保持「只缓存不写参不跑网络」但新增预览；auto 保持同步 setNodeParams+runNetwork（round17-lag 同步时序不变）并更新 lastCommitted；onEnd 先清预览再最终 commit；onParamsApplied（undo/redo）同步 lastCommitted 防 delta 漂移。撤销语义（dragBefore/dragAfter）不变。
-- **选择保持（Spreadsheet/Parms）**：main.ts efreshSelectionPanels()——sel 为空且已渲染过 → 直接 return 不重渲染（DOM 保持最后选中节点内容，不刷新成「未选择节点/no geometry」）；heldSelectionId 驱动 params onChange 守卫（取消选择后仍可编辑该节点，选中别的节点才切换）；首次无选中仍走 display-flag 回退渲染一次。视口 Enter 模式本就保持 last transform，现已对齐。
+- **选择保持（Spreadsheet/Parms）**：main.ts 
+efreshSelectionPanels()——sel 为空且已渲染过 → 直接 return 不重渲染（DOM 保持最后选中节点内容，不刷新成「未选择节点/no geometry」）；heldSelectionId 驱动 params onChange 守卫（取消选择后仍可编辑该节点，选中别的节点才切换）；首次无选中仍走 display-flag 回退渲染一次。视口 Enter 模式本就保持 last transform，现已对齐。
 - **File/Edit 菜单去箭头**：layout.ts 两个模板 File/Edit 标签从 cyl-menu-layout-box compact（▲▼ caret + 名称块）回退为纯文字 .cyl-menu-label；Layout 菜单箭头框保留。
 - **Auto Update 下拉白底修复**：ase.css .cyl-menu-layout-box 加 ackground: transparent; font: inherit; color: inherit（createDropdown 触发按钮不再显示 UA 白色背景，悬停仍 #2a2d33）；widgets.css 删无用 .compact 规则。
 - **e2e**：round12 新增「拖拽中 nodeResultGroup.position == delta、释放后回 0」断言（fixture display 切到 transform）；round2 新增「取消选择后 Spreadsheet 仍显示 in0、选别的节点才切换」。全量 e2e 74 passed / 1 skipped；tsc 0；vitest 101。

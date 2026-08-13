@@ -30,6 +30,8 @@ import { createNetworkRunner } from "./core/network";
 import { createGizmoController } from "./core/gizmo";
 import { createKickController } from "./core/kick";
 import { createSessionController } from "./core/session";
+import { createTimelineController } from "./core/timeline";
+import { createTimelineUI } from "./app/timeline-ui";
 
 /** Log categories: geo data / viewport / ui / bridge(python runtime). */
 let logFilter = "all";
@@ -471,6 +473,16 @@ const kicker = createKickController({
   runNetwork: () => { void network.run(); },
 });
 
+const timeline = createTimelineController({
+  getInputs: () => store.inputs,
+  getInputRev: () => store.inputRev,
+  setInputs: (inputs, rev) => store.setInputs(inputs, rev),
+  setFrame: (f) => store.setFrame(f),
+  scheduleNetwork,
+  log: (msg) => store.pushLog(msg),
+});
+createTimelineUI(layout.timelineEl, { timeline });
+
 const session = createSessionController({
   getPrefsSyncMaxFps: () => syncMaxFps,
   putSyncFps: (serial, fps) => client.putSyncFps(serial, fps),
@@ -480,6 +492,7 @@ const session = createSessionController({
   log: (msg) => store.pushLog(msg),
   getInputs: () => store.inputs,
   setInputs: (inputs, rev) => store.setInputs(inputs, rev),
+  captureFrame: (frame, inputs) => { if (frame != null) timeline.captureFrame(frame, inputs); },
   inputsEqual,
   getOutputRev: () => store.outputRev,
   applyOutputs: (outputs, rev) => store.applyOutputs(outputs, rev),
@@ -546,6 +559,7 @@ viewport.setPreRenderFlush(() => {
 });
 (window as unknown as Record<string, unknown>).__cylGraph = graph; // debug hook (MCP debug access)
 (window as unknown as Record<string, unknown>).__cylStore = store; // debug hook (full logs for tests)
+(window as unknown as Record<string, unknown>).__cylTimeline = timeline; // debug hook (E2E 时间轴)
 const gizmo = createGizmoController({
   viewport,
   graph: {

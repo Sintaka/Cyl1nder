@@ -40,17 +40,20 @@ ROLE_PUSH = 0
 
 
 def _push_inputs_if_changed(node, root, serial, bridge_url, client) -> bool:
-    """Push inputs only when their content signature changed (cook-on-dirty).
+    """Push inputs when the (signature, frame) cache key changed (cook-on-dirty).
 
-    Shared gate for the runtime cook_core() and legacy cook(role) paths: when the
-    input signature is unchanged the payload is neither re-serialized nor re-pushed,
-    so a recook with identical inputs costs only the signature (breaks the W8 -> W2
-    echo that thrashed the web chain-cache). Returns True when inputs were pushed,
-    False when they were unchanged.
+    Shared gate for the runtime cook_core() and legacy cook(role) paths: when both
+    the input signature and the sampled hou.frame() are unchanged the payload is
+    neither re-serialized nor re-pushed, so a recook with identical inputs costs
+    only the signature (breaks the W8 -> W2 echo that thrashed the web chain-cache).
+    A frame-only change re-pushes so web can collect one input snapshot per frame.
+    Returns True when inputs were pushed, False when they were unchanged.
     """
     srcs = node.inputs()
     sig = _input_signature(srcs)
-    if sig is None or _PUSH_CACHE.get(serial) != sig:
+    frame = hou.frame()
+    cached = _PUSH_CACHE.get(serial)
+    if cached != (sig, frame):
         inputs: list[dict] = []
         for i in range(INPUT_COUNT):
             src = srcs[i] if i < len(srcs) else None
@@ -70,8 +73,8 @@ def _push_inputs_if_changed(node, root, serial, bridge_url, client) -> bool:
             else:
                 inputs.append(serialize_input(geo_i, i, f"in{i}"))
         hip = hou.hipFile.path()
-        client.push_inputs(inputs, hip=hip)
-        _PUSH_CACHE[serial] = sig
+        client.push_inputs(inputs, hip=hip, frame=frame)
+        _PUSH_CACHE[serial] = (sig, frame)
         return True
     return False
 

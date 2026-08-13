@@ -102,7 +102,7 @@ export interface PreferenceJson {
 // WS messages
 export type WsServerMessage =
   | { type: "hello"; serial: string; inputRev: number; outputRev: number }
-  | { type: "inputs"; inputs: InputPayload[]; rev: number }
+  | { type: "inputs"; inputs: InputPayload[]; rev: number; frame?: number }
   | { type: "outputs"; outputs: OutputBuffer[]; rev: number }
   | { type: "pong" };
 

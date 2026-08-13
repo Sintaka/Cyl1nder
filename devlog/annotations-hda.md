@@ -1,5 +1,10 @@
 # HDA 子系统改动标注 / HDA annotations
 
+## v0.1.00100（2026-08-14）· 本地时间轴 Phase A：push_inputs 捎带帧号
+- **cyl1nder_bridge.py**：`push_inputs(inputs, hip="", frame=None)`——pending 元组带 frame，HTTP body 加 `"frame"`。
+- **cyl1nder_hda.py**：`_push_inputs_if_changed` 缓存键改为 `(sig, frame)`；cook 主线程采样 `hou.frame()`，**帧号变（内容不变）也重新推送**——web 才能逐帧收 inputs；sig+frame 都不变照旧跳过（无回声）。
+- **hython_smoke.py**：`_test_push_inputs_frame()` 三分支（sig 变推送 / 仅 frame 变推送 / 都不变跳过）。hython SMOKE OK。
+
 ## v0.1.0-cyl1nder.1
 - 形态：Subnet HDA（SOP），**4 输入 / 4 输出**（4 个 Output SOP `outputidx` 0-3）。
 - 内部：4 个 Python SOP（role 0..3）；Pull Now 回调对内部 python SOP `cook(force=True)` 强制重跑。
