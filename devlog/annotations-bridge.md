@@ -1,5 +1,12 @@
 # 桥子系统改动标注 / Bridge annotations
 
+## v0.1.00101（2026-08-14）· Phase B 手动双向同步开关（bridge gate）
+- **protocol.py**：新增 `SyncEnabledPut`（`enabled` 默认 True）；docstring 补 `PUT /sync-enabled` + `sync_enabled` 语义。
+- **state.py**：per-serial `sync_enabled`（默认 False）+ `set_sync_enabled`/`get_sync_enabled`。
+- **routes.py**：新 `PUT /api/hda/{serial}/sync-enabled`；`put_outputs` 的 `stage_broadcast`/`notify_stream` 按 gate（存储/rev++/snapshot 无条件）；`/pending` 与 `/stream` 全部事件携带 `sync_enabled`；`/status` 返回 `sync` 块。
+- **ws.py**：edit 分支 broadcast/notify 同 gate。
+- **测试**：sync gate 默认 OFF/可设、OFF 存储不回显；stream 精确断言同步。pytest 61 passed / 1 skipped（test_mcp 为环境问题）。
+
 ## v0.1.00100（2026-08-14）· 本地时间轴 Phase A：inputs 帧透传
 - **protocol.py**：`InputsPut.frame: float | None = None`（可选）；docstring 注明 WS inputs 带可选 frame。
 - **workspace.py**：`Workspace.frame` 存储；`set_inputs(inputs, frame=None)`（frame 不参与 rev 递增）。

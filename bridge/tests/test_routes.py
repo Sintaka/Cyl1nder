@@ -153,7 +153,7 @@ def test_stream_reset_when_rev_fell_back(tmp_path: Path) -> None:
     r = c.get(f"/api/hda/{serial}/stream", params={"since": 5, "hold": 5})
     assert r.status_code == 200
     body = r.json()
-    assert body == {"type": "reset", "rev": 0, "fps": 30}
+    assert body == {"type": "reset", "rev": 0, "fps": 30, "sync_enabled": False}
 
 
 def test_stream_timeout_with_small_hold(tmp_path: Path) -> None:
@@ -162,7 +162,7 @@ def test_stream_timeout_with_small_hold(tmp_path: Path) -> None:
     r = c.get(f"/api/hda/{serial}/stream", params={"since": 0, "hold": 0.05})
     assert r.status_code == 200
     body = r.json()
-    assert body == {"type": "timeout", "rev": 0, "fps": 30}
+    assert body == {"type": "timeout", "rev": 0, "fps": 30, "sync_enabled": False}
 
 
 def test_stream_touch_updates_last_seen(tmp_path: Path) -> None:
@@ -209,7 +209,7 @@ def test_stream_kick_wakes_held_poll(tmp_path: Path) -> None:
             assert r.status_code == 200
             resp = await asyncio.wait_for(held, timeout=2)
             body = resp.json()
-            assert body == {"type": "kick", "force": True, "rev": 0, "fps": 30}
+            assert body == {"type": "kick", "force": True, "rev": 0, "fps": 30, "sync_enabled": False}
             assert not st._stream_events.get(serial), "stream waiter not cleaned up"
 
     asyncio.run(scenario())
@@ -240,6 +240,36 @@ def test_stream_events_include_default_fps(tmp_path: Path) -> None:
     body = c.get(f"/api/hda/{serial}/stream", params={"since": 0, "hold": 0.05}).json()
     assert body["type"] == "timeout"
     assert body["fps"] == 30
+
+
+def test_sync_enabled_gate_default_off_and_settable(tmp_path: Path) -> None:
+    c = _client(tmp_path)
+    serial = generate_serial()
+    assert get_state().get_sync_enabled(serial) is False
+    r = c.put(f"/api/hda/{serial}/sync-enabled", json={"enabled": True})
+    assert r.status_code == 200
+    assert r.json()["sync_enabled"] is True
+    assert get_state().get_sync_enabled(serial) is True
+    status = c.get(f"/api/hda/{serial}/status").json()
+    assert status["sync"]["fps"] == get_state().get_sync_fps(serial)
+    assert status["sync"]["sync_enabled"] is True
+    pending = c.get(f"/api/hda/{serial}/pending", params={"since": 0}).json()
+    assert pending["sync_enabled"] is True
+
+
+def test_put_outputs_off_no_broadcast_but_stored(tmp_path: Path) -> None:
+    c = _client(tmp_path)
+    serial = generate_serial()
+    assert get_state().get_sync_enabled(serial) is False
+    out = {"outputs": [{"index": 0, "rev": 0, "pointCount": 2, "points": [[0, 0, 0], [1, 0, 0]]}]}
+    r = c.put(f"/api/hda/{serial}/outputs", json=out)
+    assert r.status_code == 200
+    rev = r.json()["rev"]
+    assert rev >= 1
+    assert get_state().workspaces.get(serial).output_rev() == rev
+    got = c.get(f"/api/hda/{serial}/outputs", params={"since": 0}).json()
+    assert got["rev"] == rev
+    assert got["outputs"][0]["points"] == [[0, 0, 0], [1, 0, 0]]
 
 
 def test_put_snapshot_preference(tmp_path: Path, monkeypatch) -> None:

@@ -1,4 +1,4 @@
-﻿"""Bidirectional /stream sync pump + recook scheduling for the Cyl1nder HDA (3.1 split)."""
+"""Bidirectional /stream sync pump + recook scheduling for the Cyl1nder HDA (3.1 split)."""
 from __future__ import annotations
 
 import threading
@@ -17,6 +17,7 @@ _RECOOK_LOG_ONCE: set[str] = set()
 _SYNC_FPS_DEFAULT = 30
 _SYNC_FPS_MIN = 1
 _SYNC_FPS_MAX = 60
+_PROBE_INTERVAL = 1.5
 
 
 def _stream_loop(
@@ -36,6 +37,10 @@ def _stream_loop(
     {"type":"timeout"} event reconnects immediately (idle keep-alive). The loop
     exits cleanly when its stop event is set (stop_sync / stop_all_sync) or when
     its _SYNC entry is removed / replaced by a restart.
+
+    Phase B adaptive sync gate: OFF (local mode) probes /pending at ~1.5s to
+    discover the sync switch (zero /stream requests); ON runs the /stream
+    long-poll, and a sync_enabled=false on any event switches back to probe mode.
 
     NEVER touches hou.* in this thread: HOM is not thread-safe and a background
     hou.node() probe racing a reload / node rebuild is the HDA crash root
@@ -63,10 +68,21 @@ def _stream_loop(
     client = client if client is not None else BridgeClient(serial, bridge_url=bridge_url)
     last_seen = 0
     last_action = 0.0  # now_fn() of the last pull+schedule action (rate cap window)
-    _refresh_ready(client, serial)  # warm the ready buffer at startup (background)
+    ready_warmed = False  # warm the ready buffer only when entering stream mode
     while True:
         if state["stop"].is_set() or _SYNC.get(serial) is not state:
             return  # stopped / entry removed / restart replaced it -> old loop exits
+        if not state.get("sync_enabled", False):
+            # Phase B OFF（本地模式）: low-rate /pending probe for the gate + heartbeat.
+            # Zero /stream requests while OFF.
+            sleep_fn(_PROBE_INTERVAL)
+            probe = client.probe_once()
+            if probe is not None:
+                state["sync_enabled"] = bool(probe.get("sync_enabled", False))
+            continue
+        if not ready_warmed:
+            ready_warmed = True
+            _refresh_ready(client, serial)  # warm the ready buffer only when entering stream mode
         ev = client.stream_once(last_seen, hold=_STREAM_HOLD)
         if ev is None:
             # connection error (bridge down / malformed line) -> back off, retry
@@ -78,6 +94,11 @@ def _stream_loop(
         if isinstance(fps, (int, float)):
             # bridge forwards the per-serial sync fps -> override the runtime cap
             state["fps"] = max(_SYNC_FPS_MIN, min(_SYNC_FPS_MAX, int(fps)))
+        se = ev.get("sync_enabled")
+        if isinstance(se, bool):
+            state["sync_enabled"] = se
+        if not state["sync_enabled"]:
+            continue  # flipped OFF mid-stream: next iteration probes; no recook
         if etype == "timeout":
             continue  # idle keep-alive: reconnect immediately, no sleep
         if etype == "reset":
@@ -233,6 +254,7 @@ def ensure_sync(root: hou.Node, serial: str) -> None:
         "node_path": root.path(),
         "scheduled": False,
         "fps": fps,
+        "sync_enabled": False,
         "aliveAt": now,
         "stopped": False,
     }

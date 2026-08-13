@@ -19,6 +19,10 @@ PUT /api/hda/{serial}/sync (body {"fps": int}, 1..60, default 30):
   is the persistent source), returns {"ok":true,"serial","fps"}. Bridge throttles
   notify_stream + WS broadcast to <= fps, and registry disk saves are debounced to 1/s.
 
+PUT /api/hda/{serial}/sync-enabled sets the per-serial manual two-way sync gate
+(default False); /pending and /stream events carry `sync_enabled`, and /status
+returns a `sync` block.
+
 Msgpack negotiation (bridge <-> web; HDA stays NDJSON/JSON - see devlog/transport-tech-evaluation.md §B2):
 - REST outputs: PUT /api/hda/{serial}/outputs accepts a msgpack body when
   Content-Type is application/msgpack (msgpack.unpackb then OutputsPut.model_validate);
@@ -43,7 +47,7 @@ import time
 
 from pydantic import BaseModel, Field
 
-VERSION = "0.1.00100"
+VERSION = "0.1.00101"
 HOST = "127.0.0.1"
 PORT = 8375
 BASE_URL = f"http://{HOST}:{PORT}"
@@ -134,3 +138,8 @@ class InputsPut(BaseModel):
 class OutputsPut(BaseModel):
     """Web pushes edited output buffers."""
     outputs: list[OutputBuffer] = Field(default_factory=list)
+
+
+class SyncEnabledPut(BaseModel):
+    """PUT /api/hda/{serial}/sync-enabled body: manual two-way sync gate (web is source of truth)."""
+    enabled: bool = True

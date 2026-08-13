@@ -151,8 +151,9 @@ async def ws_endpoint(websocket: WebSocket) -> None:
                     if accepted:
                         # log only real content changes - no-op echoes would flood the log ring
                         st.logs.info("ws", f"edit pushed ({len(parsed)}, accepted {len(accepted)}), rev={rev}", serial)
-                        st.stage_broadcast(serial, accepted, rev)
-                        st.notify_stream(serial)
+                        if st.get_sync_enabled(serial):
+                            st.stage_broadcast(serial, accepted, rev)
+                            st.notify_stream(serial)
     except WebSocketDisconnect:
         st.logs.info("ws", "client disconnected", serial)
         await manager.disconnect(serial, websocket)

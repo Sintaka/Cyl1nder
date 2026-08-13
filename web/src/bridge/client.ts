@@ -144,6 +144,18 @@ export class BridgeClient {
     );
   }
 
+  /** Push the per-serial manual two-way sync gate to the bridge (web is the source
+   *  of truth; OFF = local mode: zero /stream, zero outputs echo). */
+  async putSyncEnabled(serial: string, enabled: boolean): Promise<{ ok: boolean; sync_enabled: boolean }> {
+    return json(
+      await fetch(`${this.base}/api/hda/${serial}/sync-enabled`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      }),
+    );
+  }
+
   /** Scene library: active (live) scenes + save history. */
   async listScenes(): Promise<{
     active: Array<{ serial: string; label: string; nodePath: string; lastSeen: string; inputRev: number; outputRev: number }>;

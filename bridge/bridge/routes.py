@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, ValidationError
 from .protocol import (
     InputsPut,
     OutputsPut,
+    SyncEnabledPut,
     STREAM_HOLD_DEFAULT,
     SYNC_FPS_DEFAULT,
     SYNC_FPS_MAX,
@@ -92,6 +93,7 @@ async def status(serial: str) -> dict:
         "serial": serial,
         "registry": rec.to_dict() if rec is not None else None,
         "workspace": st.workspaces.status(serial),
+        "sync": {"fps": st.get_sync_fps(serial), "sync_enabled": st.get_sync_enabled(serial)},
     }
 
 
@@ -148,8 +150,9 @@ async def put_outputs(serial: str, request: Request) -> dict:
         st.registry.mark_activity(serial)
         # log only real content changes - no-op echo pushes would flood the log ring
         st.logs.info("routes", f"outputs pushed ({len(payload.outputs)}, accepted {len(accepted)}), rev={rev}", serial)
-        st.stage_broadcast(serial, accepted, rev)
-        st.notify_stream(serial)
+        if st.get_sync_enabled(serial):
+            st.stage_broadcast(serial, accepted, rev)
+            st.notify_stream(serial)
     await _maybe_snapshot(serial)
     return {"ok": True, "serial": serial, "rev": rev}
 
@@ -193,6 +196,15 @@ async def put_sync_fps(serial: str, payload: SyncFpsPut) -> dict:
     return {"ok": True, "serial": serial, "fps": fps}
 
 
+@router.put("/api/hda/{serial}/sync-enabled")
+async def put_sync_enabled(serial: str, payload: SyncEnabledPut) -> dict:
+    """Set the per-serial manual two-way sync gate (default OFF). Web is the source of truth."""
+    _check_serial(serial)
+    enabled = get_state().set_sync_enabled(serial, payload.enabled)
+    get_state().logs.info("routes", f"sync-enabled set to {enabled}", serial)
+    return {"ok": True, "serial": serial, "sync_enabled": enabled}
+
+
 @router.get("/api/hda/{serial}/pending")
 async def pending(serial: str, since: int = Query(0, ge=0)) -> dict:
     """Lightweight dirty check used by the HDA adaptive sync poller.
@@ -212,6 +224,7 @@ async def pending(serial: str, since: int = Query(0, ge=0)) -> dict:
         "rev": rev,
         "reset": since > rev,
         "force": st.take_kick(serial),
+        "sync_enabled": st.get_sync_enabled(serial),
     }
 
 
@@ -238,30 +251,31 @@ async def stream(
     st = get_state()
     st.registry.touch(serial)
     fps = st.get_sync_fps(serial)
+    sync_enabled = st.get_sync_enabled(serial)
     event = st.subscribe(serial)
     try:
         rev = st.workspaces.get_or_create(serial).output_rev()
         # immediate hits (priority: reset > outputs > kick)
         if since > rev:
-            return _ndjson({"type": "reset", "rev": rev, "fps": fps})
+            return _ndjson({"type": "reset", "rev": rev, "fps": fps, "sync_enabled": sync_enabled})
         if rev > since:
-            return _ndjson({"type": "outputs", "rev": rev, "fps": fps})
+            return _ndjson({"type": "outputs", "rev": rev, "fps": fps, "sync_enabled": sync_enabled})
         if st.take_kick(serial):
-            return _ndjson({"type": "kick", "force": True, "rev": rev, "fps": fps})
+            return _ndjson({"type": "kick", "force": True, "rev": rev, "fps": fps, "sync_enabled": sync_enabled})
         # hold: wake on put_outputs accepted / kick armed, else timeout
         try:
             await asyncio.wait_for(event.wait(), timeout=hold)
         except asyncio.TimeoutError:
-            return _ndjson({"type": "timeout", "rev": rev, "fps": fps})
+            return _ndjson({"type": "timeout", "rev": rev, "fps": fps, "sync_enabled": sync_enabled})
         rev = st.workspaces.get_or_create(serial).output_rev()
         if since > rev:
-            return _ndjson({"type": "reset", "rev": rev, "fps": fps})
+            return _ndjson({"type": "reset", "rev": rev, "fps": fps, "sync_enabled": sync_enabled})
         if rev > since:
-            return _ndjson({"type": "outputs", "rev": rev, "fps": fps})
+            return _ndjson({"type": "outputs", "rev": rev, "fps": fps, "sync_enabled": sync_enabled})
         if st.take_kick(serial):
-            return _ndjson({"type": "kick", "force": True, "rev": rev, "fps": fps})
+            return _ndjson({"type": "kick", "force": True, "rev": rev, "fps": fps, "sync_enabled": sync_enabled})
         # spurious wake (e.g. another poller consumed the kick): report timeout
-        return _ndjson({"type": "timeout", "rev": rev, "fps": fps})
+        return _ndjson({"type": "timeout", "rev": rev, "fps": fps, "sync_enabled": sync_enabled})
     finally:
         st.unsubscribe(serial, event)
 

@@ -18,6 +18,7 @@ export interface Preferences {
   autosave_interval_min: number;
   viewport_bg: string;
   ui_font: "code" | "system";
+  sync_enabled: boolean;
 }
 
 export const SYNC_FPS_MIN = 1;
@@ -39,6 +40,7 @@ export const DEFAULT_PREFS: Preferences = {
   autosave_interval_min: AUTOSAVE_INTERVAL_DEFAULT,
   viewport_bg: VIEWPORT_BG_DEFAULT,
   ui_font: UI_FONT_DEFAULT,
+  sync_enabled: false,
 };
 
 /** Clamp + int-ify a sync fps value into 1..60 (invalid -> default 30). */
@@ -82,6 +84,7 @@ export function loadPreferences(): Preferences {
         autosave_interval_min: parseAutosaveInterval(p.autosave_interval_min),
         viewport_bg: parseViewportBg(p.viewport_bg),
         ui_font: parseUiFont(p.ui_font),
+        sync_enabled: p.sync_enabled === true,
       };
     }
   } catch {
@@ -135,6 +138,7 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
     autosave_interval_min: parseAutosaveInterval(current.autosave_interval_min),
     viewport_bg: parseViewportBg(current.viewport_bg),
     ui_font: parseUiFont(current.ui_font),
+    sync_enabled: current.sync_enabled === true,
   };
 
   const panel = document.createElement("div");
@@ -253,6 +257,7 @@ export function openPreferenceDialog(current: Preferences, onSave: (prefs: Prefe
       autosave_interval_min: Math.round(intervalHandle.getValue() * 10) / 10,
       viewport_bg: viewportBg,
       ui_font: parseUiFont(fontHandle.getValue()),
+      sync_enabled: current.sync_enabled === true,
     };
   };
 

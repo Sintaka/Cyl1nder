@@ -20,7 +20,7 @@
 ## REST
 - `GET  /api/health` -> `{status:"ok", version, serials}`
 - `GET  /api/serials` -> `[serial, ...]`
-- `GET  /api/hda/{serial}/status` -> registry + workspace 摘要
+- `GET  /api/hda/{serial}/status` -> registry + workspace 摘要 + `sync` 块（v0.1.00101 起：`{fps, sync_enabled}`）
 - `PUT  /api/hda/{serial}/inputs`（HDA 推输入，body = InputPayload[]；**v0.1.00100 起**可带可选 `frame`（float|null）——HDA 在 cook 主线程捎带 `hou.frame()`，bridge 透传并随 WS 广播）
 - `GET  /api/hda/{serial}/outputs?since=<rev>`（HDA 拉编辑结果）
 - `PUT  /api/hda/{serial}/outputs`（前端推编辑结果，body = OutputBuffer[]）
@@ -28,7 +28,7 @@
 - `GET  /api/logs?level=&limit=`（全局日志）
 
 ### 同步端点（HDA ⇄ bridge，事件驱动）
-- `GET /api/hda/{serial}/pending?since=N`：轻量脏检查 `{pending, rev, reset, force}`。**fallback**：HDA 主同步通道已改 `/stream`，本端点保留兼容与回退（自适应轮询时兼心跳）。
+- `GET /api/hda/{serial}/pending?since=N`：轻量脏检查 `{pending, rev, reset, force, sync_enabled}`（sync_enabled v0.1.00101 起）。**fallback**：HDA 主同步通道已改 `/stream`，本端点保留兼容与回退（自适应轮询时兼心跳）。
 - `POST /api/hda/{serial}/kick`：一次性 force 标记（web 首连/重连踢 HDA）；立即唤醒 `/stream`（返回 `{type:"kick", force:true}`）或 `/pending`（`force:true`）。
 - `GET /api/hda/{serial}/stream?since=0&hold=60`：**NDJSON 长轮询（HDA 主同步通道）**：
   - 请求到达即 `registry.touch`（liveness = 心跳，auto-register 语义同 /pending）。
@@ -36,11 +36,12 @@
   - 否则 hold 至超时（默认 60s、上限 60s；HDA 用 60s）；`put_outputs` accepted 或 kick armed 立即唤醒；超时 → `{type:"timeout", rev}`。
   - 响应单行 NDJSON，`Content-Type: application/x-ndjson`。
 - `PUT /api/hda/{serial}/sync`，body `{"fps": int}`（1..60，默认 30）：设置每-serial 的 **bridge 侧接收+转发速率上限**（内存态；持久源是 web 的 Preference.json）。bridge 用它节流 `notify_stream` 与 WS 广播（合帧 latest-wins，≤ fps）；`/stream` 事件全部附带 `"fps"`，HDA 据此更新运行时接收上限。
+- `PUT /api/hda/{serial}/sync-enabled`，body `{"enabled": bool}`（**v0.1.00101 起**）：设置 per-serial **手动双向同步开关**（默认 False=本地模式；web 是单一事实源，持久化于 Preference.json `sync_enabled`）。False 时 bridge **不广播 WS outputs 回显、不 notify_stream**（outputs 仍存储/rev++，防御纵深）；`/pending` 与 `/stream` 事件携带 `sync_enabled`（HDA 据此在 OFF/ON 间切换），`/status` 返回 `sync` 块。
 - **每端 Sync Max FPS（默认 30，1..60，防守型速率上限）**：
   - Web（发送端）：**Auto Update 推流不设上限（越快越好）**——Sync Max FPS 不是 Cyl1nder 本体运作上限，而是 **kick bridge 的上限**（v0.1.00059 修正）。
   - Bridge（接收+转发端）：`registry` 磁盘保存防抖（≤1 次/秒，杜绝同步写盘阻塞事件循环）；`notify_stream` / WS broadcast 合帧 ≤ fps。
   - HDA（接收端）：`sync_fps` 参数（默认 30）为本地防守；/stream 事件 `fps` 可覆盖运行时值；`_refresh_ready` + recook 调度 ≤ fps（latest-wins）。
-- **Preference.json**（快照部件，随场景保存）：`{"schemaVersion":1, "sync_max_fps":30, "update_mode":"auto"}`；`update_mode` 为 enum（`"auto" | "mouseup"`）。
+- **Preference.json**（快照部件，随场景保存）：`{"schemaVersion":1, "sync_max_fps":30, "update_mode":"auto", "sync_enabled":false}`（sync_enabled v0.1.00101 起）；`update_mode` 为 enum（`"auto" | "mouseup"`）。
 - **心跳语义（LiveLink 原则：数据帧即心跳）**：高传输时事件本身即 liveness，**零额外心跳**；静默期 stream hold=60s → 心跳约 **1 次/分**。web 端离线判定为**慢时钟**：lastSeen 超 **150s**（2.5×60）判 Houdini 离线。
 ## WebSocket `/ws?serial=<serial>`
 - 服务端 → 客户端：`{type:"hello", serial, rev}` / `{type:"inputs", inputs, frame?}`（frame 可选，v0.1.00100 起）/ `{type:"outputs", outputs}` / `{type:"log", ...}`

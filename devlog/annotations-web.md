@@ -1,5 +1,15 @@
 # Web 子系统改动标注 / Web annotations
 
+## v0.1.00101（2026-08-14）· Phase B 手动双向同步开关（web gate + 底部栏）
+- **protocol/types.ts**：`PreferenceJson.sync_enabled`；`StreamEvent` 四成员带 `sync_enabled`。
+- **bridge/client.ts**：`putSyncEnabled(serial, enabled)` → `PUT /sync-enabled`。
+- **core/network.ts**：`NetworkDeps.shouldPush()`；run() 本地算照旧、push 由 gate 决定（OFF 只记「ran locally」日志）。
+- **core/session.ts**：`isSyncEnabled`/`putSyncEnabled` deps；每次连接推 gate；OFF 忽略 WS outputs 回显（日志标 `[sync OFF ignored]`）。
+- **core/kick.ts**：OFF 不 kick。
+- **app/preference.ts**：`Preferences.sync_enabled`（默认 false，`=== true` 解析，缺省 OFF）；偏好面板透传。
+- **app/layout.ts + main.ts + base.css**：底部栏 Sync 开关（`#cyl-sync-enabled`，默认 OFF，margin-left:auto 靠右）；main.ts `syncEnabled` 单一事实源 + change 监听持久化/推桥 + viewport edit 回调 gate + `applyLoadedPreference` 同步 + `__cylSync` 调试钩子。
+- **e2e**：`fixtures.ts` 新增 `toggleSyncEnabled(page, enabled)`（round17/19 等 engaged 假设的 spec 需先开 ON）；round22 骨架（默认 OFF / 点击持久化 / 关回）。tsc 0, vitest 160。
+
 ## v0.1.00100（2026-08-14）· 本地时间轴 Phase A：inputs frame 分流 + TimelineController + 底部栏 UI
 - **protocol/types.ts**：WS `inputs` 消息加可选 `frame?: number`（三处同步之一）。
 - **stores/workspace.ts**：新增 `frame` 切片（初始 1、`setFrame()`、`setSerial` 重置）。

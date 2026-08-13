@@ -14,6 +14,8 @@ export interface SessionDeps {
   inputsEqual(a: InputPayload[], b: InputPayload[]): boolean;
   getOutputRev(): number;
   applyOutputs(outputs: OutputBuffer[], rev: number): void;
+  isSyncEnabled(): boolean;
+  putSyncEnabled(serial: string, enabled: boolean): Promise<unknown>;
   network: { run(): Promise<void>; bumpEpoch(): void };
   startHdaWatch(serial: string): void;
   kicker: { onHello(serial: string): void; onStatus(open: boolean, serial: string): void };
@@ -41,6 +43,8 @@ export function createSessionController(deps: SessionDeps): {
     // Push the persisted Sync Max FPS on EVERY (re)connect: the bridge keeps its
     // default 30 until the web tells it otherwise (first connect + reconnect).
     void deps.putSyncFps(serial, deps.getPrefsSyncMaxFps()).catch(() => undefined);
+    // Phase B: push the manual two-way sync gate on EVERY (re)connect (default OFF).
+    void deps.putSyncEnabled(serial, deps.isSyncEnabled()).catch(() => undefined);
     deps.startHdaWatch(serial);
     deps.log(`connect ${serial}`);
     void deps.loadSnapshot(serial);
@@ -66,11 +70,10 @@ export function createSessionController(deps: SessionDeps): {
           // gate auto-run on real content change: breaks the Force Cook <-> echo feedback loop
           if (autoRun && changed) void deps.network.run();
         } else if (msg.type === "outputs") {
-          // content-dedup + monotonic rev guard drops intermediate coalesced frames.
-          if (msg.rev > deps.getOutputRev()) {
+          if (deps.isSyncEnabled() && msg.rev > deps.getOutputRev()) {
             deps.applyOutputs(msg.outputs, msg.rev);
           }
-          deps.log(`outputs rev=${msg.rev} (${msg.outputs.length})`);
+          deps.log(`outputs rev=${msg.rev} (${msg.outputs.length})${deps.isSyncEnabled() ? "" : " [sync OFF ignored]"}`);
         }
       },
       (open) => {

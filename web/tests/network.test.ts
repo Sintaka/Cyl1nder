@@ -377,7 +377,7 @@ interface RunnerHarness {
 
 /** Fake runner deps: computeOutputs returns caller-controlled outputs + changes. */
 function makeRunner(
-  opts: { changes?: ChainChange[]; outputs?: OutputBuffer[]; rev?: number; pushRev?: number } = {},
+  opts: { changes?: ChainChange[]; outputs?: OutputBuffer[]; rev?: number; pushRev?: number; shouldPush?: boolean } = {},
 ): RunnerHarness {
   const changes = opts.changes ?? ["topology", "topology", "topology", "topology"];
   const outputs = opts.outputs ?? [
@@ -407,6 +407,7 @@ function makeRunner(
     setOutputRev: (rev) => {
       outputRev = rev;
     },
+    shouldPush: vi.fn(() => opts.shouldPush ?? true),
     pushOutputs: async (serial, outs) => {
       pushed.push({ serial, outputs: outs });
       return { rev: pushRev };
@@ -424,6 +425,22 @@ describe("createNetworkRunner lazy output (F4)", () => {
     expect(h.upserted).toHaveLength(0);
     expect(h.pushed).toHaveLength(0);
     expect(h.rev()).toBe(0);
+  });
+
+  it("sync OFF: shouldPush false -> no bridge push, but local upsert still applies", async () => {
+    const h = makeRunner({ changes: ["data", "none", "none", "none"], shouldPush: false });
+    await h.runner.run();
+    expect(h.upserted).toHaveLength(1);
+    expect(h.upserted[0].rev).toBe(1);
+    expect(h.pushed).toHaveLength(0);
+  });
+
+  it("sync ON: shouldPush true -> bridge push is called", async () => {
+    const h = makeRunner({ changes: ["data", "none", "none", "none"], shouldPush: true });
+    await h.runner.run();
+    expect(h.upserted).toHaveLength(1);
+    expect(h.pushed).toHaveLength(1);
+    expect(h.pushed[0].outputs.map((o) => o.index)).toEqual([0]);
   });
 
   it("pushes ONLY changed buffers; unchanged buffers carry their previous rev", async () => {

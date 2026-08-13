@@ -1,6 +1,7 @@
 export interface KickDeps {
   kick(serial: string): Promise<{ ok: boolean }>;
   log(msg: string): void;
+  isSyncEnabled(): boolean;
   hasInputs(): boolean;
   runNetwork(): void;
 }
@@ -25,7 +26,7 @@ export function createKickController(deps: KickDeps): {
   };
 
   const onHello = (serial: string): void => {
-    if (!kickedSerials.has(serial) && (lastKickAt.get(serial) ?? 0) + KICK_MIN_INTERVAL_MS <= Date.now()) {
+    if (deps.isSyncEnabled() && !kickedSerials.has(serial) && (lastKickAt.get(serial) ?? 0) + KICK_MIN_INTERVAL_MS <= Date.now()) {
       kickedSerials.add(serial);
       lastKickAt.set(serial, Date.now());
       void kickOnce(serial);

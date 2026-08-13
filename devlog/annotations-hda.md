@@ -1,5 +1,10 @@
 # HDA 子系统改动标注 / HDA annotations
 
+## v0.1.00101（2026-08-14）· Phase B 手动双向同步开关（HDA 自适应循环）
+- **cyl1nder_bridge.py**：新增 `probe_once()`（GET `/pending`，返回 dict 含 `sync_enabled`，异常 None）。
+- **cyl1nder_sync.py**：`_stream_loop` 自适应——OFF 时 ~1.5s `/pending` 探测 gate（**零 /stream 请求**、兼心跳），ON 才跑 `/stream`；进入 stream 模式才 warm ready buffer；事件 `sync_enabled=false` 立即切回探测且不 recook；`ensure_sync` state 初始 `sync_enabled=False`。
+- **hython_smoke.py**：`_test_sync_enabled_gate()` 三态（OFF 仅 probe / probe=True 进 stream / 事件 false 回 probe）。SMOKE OK。
+
 ## v0.1.00100（2026-08-14）· 本地时间轴 Phase A：push_inputs 捎带帧号
 - **cyl1nder_bridge.py**：`push_inputs(inputs, hip="", frame=None)`——pending 元组带 frame，HTTP body 加 `"frame"`。
 - **cyl1nder_hda.py**：`_push_inputs_if_changed` 缓存键改为 `(sig, frame)`；cook 主线程采样 `hou.frame()`，**帧号变（内容不变）也重新推送**——web 才能逐帧收 inputs；sig+frame 都不变照旧跳过（无回声）。

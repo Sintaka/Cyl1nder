@@ -26,6 +26,7 @@ export interface NetworkDeps {
   getOutputRev(): number;
   upsertOutputs(outputs: OutputBuffer[], rev: number): void;
   setOutputRev(rev: number): void;
+  shouldPush(): boolean;
   pushOutputs(serial: string, outputs: OutputBuffer[]): Promise<{ rev: number }>;
   log(msg: string): void;
 }
@@ -76,17 +77,21 @@ export function createNetworkRunner(deps: NetworkDeps): {
     // b) fire-and-forget bridge push of ONLY the changed buffers; stale responses
     //    (older epochs) are discarded.
     const changed = outputs.filter((_, i) => changeAt(i) !== "none");
-    deps
-      .pushOutputs(serial, changed)
-      .then((r) => {
-        if (cur !== epoch || deps.getSerial() !== serial) return; // stale - discard entirely
-        if (r.rev > deps.getOutputRev()) deps.setOutputRev(r.rev); // align rev, no content re-apply
-        deps.log(`network ran: ${changed.length} outputs → rev=${r.rev}`);
-      })
-      .catch((e) => {
-        if (cur !== epoch || deps.getSerial() !== serial) return;
-        deps.log(`network run failed: ${String(e)}`);
-      });
+    if (deps.shouldPush()) {
+      deps
+        .pushOutputs(serial, changed)
+        .then((r) => {
+          if (cur !== epoch || deps.getSerial() !== serial) return; // stale - discard entirely
+          if (r.rev > deps.getOutputRev()) deps.setOutputRev(r.rev); // align rev, no content re-apply
+          deps.log(`network ran: ${changed.length} outputs → rev=${r.rev}`);
+        })
+        .catch((e) => {
+          if (cur !== epoch || deps.getSerial() !== serial) return;
+          deps.log(`network run failed: ${String(e)}`);
+        });
+    } else {
+      deps.log(`network ran locally (sync OFF): ${changed.length} outputs, no push`);
+    }
   };
 
   const bumpEpoch = (): void => {

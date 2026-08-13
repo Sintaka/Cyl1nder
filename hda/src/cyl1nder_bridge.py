@@ -106,6 +106,16 @@ class BridgeClient:
         except Exception:  # noqa: BLE001
             return False, since, False, False
 
+    def probe_once(self) -> dict | None:
+        """Low-rate /pending probe for the sync gate (OFF mode): returns the parsed
+        dict {pending, rev, reset, force, sync_enabled}, or None on any connection error."""
+        try:
+            url = f"{self.bridge_url}/api/hda/{self.serial}/pending?since=0"
+            with urllib.request.urlopen(url, timeout=1.0) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except Exception:  # noqa: BLE001
+            return None
+
     def stream_once(self, since: int, hold: float = 60.0) -> dict | None:
         """Long-poll one NDJSON stream event from /stream (hold ~= idle heartbeat).
 

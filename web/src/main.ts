@@ -68,6 +68,10 @@ const hdaWatchdog = createHdaWatchdog({
  *  the kick bridge (receive/forward + HDA recook) rate (1..60); Auto Update web
  *  pushes are NOT rate-limited. update_mode picks Enter-gizmo refresh timing. */
 let prefs: Preferences = loadPreferences();
+/** Phase B: manual two-way sync gate. Web is the single source of truth; default OFF
+ *  (local mode: zero /stream, zero push, no outputs echo). Persisted to prefs. */
+let syncEnabled = prefs.sync_enabled === true;
+layout.syncToggle.checked = syncEnabled;
 /** localStorage key remembering which scene's Preference.json was last applied: a plain
  *  reload of the SAME scene keeps the local (working) prefs; only opening/connecting
  *  to a DIFFERENT scene re-applies that scene's Preference.json. */
@@ -464,11 +468,13 @@ const network = createNetworkRunner({
   upsertOutputs: (outputs, rev) => store.upsertOutputs(outputs, rev),
   setOutputRev: (rev) => store.setOutputRev(rev),
   pushOutputs: (serial, outputs) => client.pushOutputs(serial, outputs),
+  shouldPush: () => syncEnabled,
   log: (msg) => store.pushLog(msg),
 });
 const kicker = createKickController({
   kick: (serial) => client.kick(serial),
   log: (msg) => store.pushLog(msg),
+  isSyncEnabled: () => syncEnabled,
   hasInputs: () => store.inputs.length > 0,
   runNetwork: () => { void network.run(); },
 });
@@ -486,6 +492,8 @@ createTimelineUI(layout.timelineEl, { timeline });
 const session = createSessionController({
   getPrefsSyncMaxFps: () => syncMaxFps,
   putSyncFps: (serial, fps) => client.putSyncFps(serial, fps),
+  isSyncEnabled: () => syncEnabled,
+  putSyncEnabled: (serial, enabled) => client.putSyncEnabled(serial, enabled),
   getSerial: () => store.serial,
   setSerial: (serial) => store.setSerial(serial),
   setStatus: (s) => store.setStatus(s),
@@ -532,15 +540,26 @@ layout.syncFpsInput.addEventListener("change", () => {
   store.pushLog(`sync max fps: ${syncMaxFps}`);
   if (store.serial) void client.putSyncFps(store.serial, syncMaxFps).catch(() => undefined);
 });
+layout.syncToggle.addEventListener("change", () => {
+  syncEnabled = layout.syncToggle.checked;
+  prefs = { ...prefs, sync_enabled: syncEnabled };
+  savePreferences(prefs);
+  if (store.serial) void client.putSyncEnabled(store.serial, syncEnabled).catch(() => undefined);
+  store.pushLog(`[sync] 双向同步 ${syncEnabled ? "ON（engaged）" : "OFF（本地模式）"}`);
+});
 
 (window as unknown as Record<string, unknown>).__cylViewport = null; // debug hook
 const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuffer) => {
   if (!store.serial) return;
   const serial = store.serial;
-  client
-    .pushOutputs(serial, [out])
-    .then((r) => store.pushLog(`edit out${out.index} pushed rev=${r.rev}`))
-    .catch((e) => store.pushLog(`edit failed: ${String(e)}`));
+  if (syncEnabled) {
+    client
+      .pushOutputs(serial, [out])
+      .then((r) => store.pushLog(`edit out${out.index} pushed rev=${r.rev}`))
+      .catch((e) => store.pushLog(`edit failed: ${String(e)}`));
+  } else {
+    store.pushLog(`edit out${out.index} local only (sync OFF)`);
+  }
 });
 (window as unknown as Record<string, unknown>).__cylViewport = viewport;
 // Pre-render pump: every animation frame, first drain any network re-run requested
@@ -560,6 +579,13 @@ viewport.setPreRenderFlush(() => {
 (window as unknown as Record<string, unknown>).__cylGraph = graph; // debug hook (MCP debug access)
 (window as unknown as Record<string, unknown>).__cylStore = store; // debug hook (full logs for tests)
 (window as unknown as Record<string, unknown>).__cylTimeline = timeline; // debug hook (E2E 时间轴)
+(window as unknown as Record<string, unknown>).__cylSync = {
+  isEnabled: () => syncEnabled,
+  setEnabled: (v: boolean) => {
+    layout.syncToggle.checked = !!v;
+    layout.syncToggle.dispatchEvent(new Event("change", { bubbles: true }));
+  },
+};
 const gizmo = createGizmoController({
   viewport,
   graph: {
@@ -817,6 +843,7 @@ async function loadSnapshotIntoStore(serial: string): Promise<void> {
 function applyLoadedPreference(json: unknown): void {
   const p = (json ?? {}) as {
     sync_max_fps?: unknown;
+    sync_enabled?: unknown;
     update_mode?: unknown;
     autosave_enabled?: unknown;
     autosave_interval_min?: unknown;
@@ -825,6 +852,7 @@ function applyLoadedPreference(json: unknown): void {
   };
   const next: Preferences = {
     sync_max_fps: clampSyncFps(p.sync_max_fps),
+    sync_enabled: p.sync_enabled === true,
     update_mode: p.update_mode === "mouseup" ? "mouseup" : p.update_mode === "auto" ? "auto" : prefs.update_mode,
     autosave_enabled: p.autosave_enabled !== false,
     autosave_interval_min: Math.max(0.1, Number(p.autosave_interval_min) || 5),
@@ -835,11 +863,16 @@ function applyLoadedPreference(json: unknown): void {
   prefs = next;
   syncMaxFps = next.sync_max_fps;
   updateMode = next.update_mode;
+  syncEnabled = next.sync_enabled;
+  layout.syncToggle.checked = syncEnabled;
   savePreferences(prefs);
   applyPreferences(prefs, layout);
   viewport.setBackgroundColor(prefs.viewport_bg); // V2: loaded Preference.json background applies
-  store.pushLog(`[pref] loaded: sync_max_fps=${next.sync_max_fps} update_mode=${next.update_mode} viewport_bg=${next.viewport_bg} ui_font=${next.ui_font}`);
-  if (store.serial) void client.putSyncFps(store.serial, next.sync_max_fps).catch(() => undefined);
+  store.pushLog(`[pref] loaded: sync_max_fps=${next.sync_max_fps} sync_enabled=${next.sync_enabled} update_mode=${next.update_mode} viewport_bg=${next.viewport_bg} ui_font=${next.ui_font}`);
+  if (store.serial) {
+    void client.putSyncFps(store.serial, next.sync_max_fps).catch(() => undefined);
+    void client.putSyncEnabled(store.serial, next.sync_enabled).catch(() => undefined);
+  }
   autosave.restart();
 }
 

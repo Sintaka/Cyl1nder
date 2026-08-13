@@ -21,6 +21,7 @@ export interface Layout {
   menuEdit: HTMLElement;
   syncFpsInput: HTMLInputElement;
   timelineEl: HTMLElement;
+  syncToggle: HTMLInputElement;
 }
 
 /** v0.1.00062: wire the ▲▼ step buttons of a .cyl-fps-stepper container.
@@ -99,6 +100,9 @@ export function buildLayout(app: HTMLElement): Layout {
             <button type="button" class="cyl-fps-step" data-step="-1" aria-label="decrease max FPS" title="-1">▼</button>
           </div>
         </div>
+        <label class="cyl-sync-toggle" title="双向同步：OFF=本地模式（零 /stream、零 push、无回显）；ON=engaged 双向">
+          <input type="checkbox" id="cyl-sync-enabled" /> Sync
+        </label>
       </div>
     </div>`;
   const $ = <T extends HTMLElement>(sel: string): T => app.querySelector(sel) as T;
@@ -160,6 +164,7 @@ export function buildLayout(app: HTMLElement): Layout {
     updateModeSelect: updateModeDropdown,
     syncFpsInput: $("#cyl-sync-fps"),
     timelineEl: $("#cyl-timeline"),
+    syncToggle: $("#cyl-sync-enabled"),
   };
 }
 
@@ -236,6 +241,9 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
             <button type="button" class="cyl-fps-step" data-step="-1" aria-label="decrease max FPS" title="-1">▼</button>
           </div>
         </div>
+        <label class="cyl-sync-toggle" title="双向同步：OFF=本地模式（零 /stream、零 push、无回显）；ON=engaged 双向">
+          <input type="checkbox" id="cyl-sync-enabled" /> Sync
+        </label>
       </div>
     </div>`;
   const $ = <T extends HTMLElement>(sel: string): T => app.querySelector(sel) as T;
@@ -273,5 +281,6 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
     updateModeSelect: updateModeDropdown,
     syncFpsInput: $("#cyl-sync-fps"),
     timelineEl: $("#cyl-timeline"),
+    syncToggle: $("#cyl-sync-enabled"),
   };
 }

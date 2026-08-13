@@ -98,6 +98,7 @@ export interface PreferenceJson {
   schemaVersion?: number;
   sync_max_fps?: number;
   update_mode?: UpdateMode;
+  sync_enabled?: boolean;
 }
 // WS messages
 export type WsServerMessage =
@@ -108,7 +109,7 @@ export type WsServerMessage =
 
 // NDJSON long-poll events (HDA -> bridge GET /stream; web does not consume)
 export type StreamEvent =
-  | { type: "outputs"; rev: number; fps?: number }
-  | { type: "reset"; rev: number; fps?: number }
-  | { type: "kick"; force: true; rev: number; fps?: number }
-  | { type: "timeout"; rev: number; fps?: number };
+  | { type: "outputs"; rev: number; fps?: number; sync_enabled?: boolean }
+  | { type: "reset"; rev: number; fps?: number; sync_enabled?: boolean }
+  | { type: "kick"; force: true; rev: number; fps?: number; sync_enabled?: boolean }
+  | { type: "timeout"; rev: number; fps?: number; sync_enabled?: boolean };

@@ -38,6 +38,8 @@ class BridgeState:
         # (the web Preference.json is the persistent source)
         self._sync_fps_lock = threading.Lock()
         self._sync_fps: dict[str, int] = {}
+        self._sync_enabled_lock = threading.Lock()
+        self._sync_enabled: dict[str, bool] = {}
         # /stream long-poll waiters + coalescing state (per-serial)
         self._stream_lock = threading.Lock()
         self._stream_events: dict[str, set[asyncio.Event]] = {}
@@ -66,6 +68,15 @@ class BridgeState:
     def get_sync_fps(self, serial: str) -> int:
         with self._sync_fps_lock:
             return self._sync_fps.get(serial, SYNC_FPS_DEFAULT)
+
+    def set_sync_enabled(self, serial: str, enabled: bool) -> bool:
+        with self._sync_enabled_lock:
+            self._sync_enabled[serial] = bool(enabled)
+        return bool(enabled)
+
+    def get_sync_enabled(self, serial: str) -> bool:
+        with self._sync_enabled_lock:
+            return self._sync_enabled.get(serial, False)  # 默认 False（本地模式）
 
     # --- one-shot kick ------------------------------------------------------
 

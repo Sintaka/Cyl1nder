@@ -565,3 +565,29 @@ body { font-family: var(--cyl-font-ui); }
   font-size: 11px;
   white-space: nowrap;
 }
+
+
+/* ---- manual two-way sync toggle (Phase B, bottom bar) ---- */
+.cyl-sync-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  margin-left: auto;           /* push to the right end of the bottom bar */
+  background: #1b1e24;
+  border: 1px solid #33363c;
+  border-radius: 5px;
+  color: #9aa1ab;
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.cyl-sync-toggle input {
+  accent-color: #2b6cb0;
+  cursor: pointer;
+}
+.cyl-sync-toggle:has(input:checked) {
+  border-color: #2b6cb0;
+  color: #cfd2d6;
+}

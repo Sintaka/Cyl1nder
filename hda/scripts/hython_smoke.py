@@ -12,6 +12,7 @@ import os
 import sys
 import threading
 import time
+import urllib.error
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -96,6 +97,7 @@ def _test_stream_loop() -> None:
     stop = threading.Event()
     cyl1nder_hda._SYNC[serial] = {
         "thread": None, "stop": stop, "node_path": "", "scheduled": False, "fps": 30,
+        "sync_enabled": True,
     }
     recooked: list[str] = []
     orig_schedule = cyl1nder_sync._schedule_recook
@@ -110,6 +112,9 @@ def _test_stream_loop() -> None:
             self.stream_sinces: list[int] = []
             self.pull_sinces: list[int] = []
             self.pull_rev = 7
+
+        def probe_once(self) -> dict | None:
+            return {"pending": False, "rev": 0, "reset": False, "force": False, "sync_enabled": True}
 
         def stream_once(self, since: int, hold: float = 60.0):
             self.stream_calls += 1
@@ -311,7 +316,10 @@ def _test_kick_force_recook() -> None:
     cache is dropped so the recook re-pushes (heals a failed first push -> ok)."""
     serial = cyl1nder_hda.generate_serial()
     stop = threading.Event()
-    cyl1nder_hda._SYNC[serial] = {"thread": None, "stop": stop, "node_path": "", "scheduled": False, "fps": 30}
+    cyl1nder_hda._SYNC[serial] = {
+        "thread": None, "stop": stop, "node_path": "", "scheduled": False, "fps": 30,
+        "sync_enabled": True,
+    }
     cyl1nder_hda._PUSH_CACHE[serial] = ("stale-sig",)  # inputs were already pushed once
     recooked: list[str] = []
     orig_schedule = cyl1nder_sync._schedule_recook
@@ -323,6 +331,9 @@ def _test_kick_force_recook() -> None:
             self.last_error = "Connection refused"  # simulate a failed first push
             self.polls = 0
             self.events = [{"type": "kick", "force": True, "rev": 0}]
+
+        def probe_once(self) -> dict | None:
+            return {"pending": False, "rev": 0, "reset": False, "force": False, "sync_enabled": True}
 
         def stream_once(self, since: int, hold: float = 60.0):
             self.polls += 1
@@ -377,6 +388,9 @@ def _test_stop_all_sync() -> None:
         def __init__(self) -> None:
             self.last_error = ""
 
+        def probe_once(self) -> dict | None:
+            return {"pending": False, "rev": 0, "reset": False, "force": False, "sync_enabled": True}
+
         def stream_once(self, since: int, hold: float = 60.0) -> dict | None:
             return None
 
@@ -391,6 +405,7 @@ def _test_stop_all_sync() -> None:
             "node_path": f"/obj/{serial}",
             "scheduled": False,
             "fps": 30,
+            "sync_enabled": True,
             "aliveAt": 0.0,
             "stopped": False,
         }
@@ -499,6 +514,116 @@ def _test_push_inputs_frame() -> None:
         cyl1nder_hda._PUSH_CACHE.pop(serial, None)
 
 
+def _test_sync_enabled_gate() -> None:
+    """Phase B adaptive sync gate: OFF probes /pending, ON streams, event flips back.
+
+    Drives _stream_loop with a programmable fake BridgeClient and a blocking fake
+    sleep_fn. OFF iterations only call probe_once (never stream_once) and sleep
+    for _PROBE_INTERVAL; a probe returning sync_enabled=True enters the /stream
+    branch; a stream event with sync_enabled=False returns the loop to probe mode.
+    """
+    serial = cyl1nder_hda.generate_serial()
+    stop = threading.Event()
+    cyl1nder_hda._SYNC[serial] = {
+        "thread": None, "stop": stop, "node_path": "", "scheduled": False, "fps": 30,
+        "sync_enabled": False,
+    }
+    recooked: list[str] = []
+    orig_schedule = cyl1nder_sync._schedule_recook
+    cyl1nder_sync._schedule_recook = lambda node_path: recooked.append(node_path)  # type: ignore[assignment]
+
+    class _FakeClient:
+        def __init__(self) -> None:
+            self.last_error = ""
+            self.probes = [
+                {"pending": False, "rev": 0, "reset": False, "force": False, "sync_enabled": False},
+                {"pending": False, "rev": 0, "reset": False, "force": False, "sync_enabled": True},
+            ]
+            self.probe_calls = 0
+            self.stream_events = [{"type": "outputs", "rev": 1, "sync_enabled": False}]
+            self.stream_calls = 0
+            self.pull_sinces: list[int] = []
+
+        def probe_once(self) -> dict | None:
+            self.probe_calls += 1
+            return self.probes.pop(0) if self.probes else None
+
+        def stream_once(self, since: int, hold: float = 60.0):
+            self.stream_calls += 1
+            return self.stream_events.pop(0) if self.stream_events else None
+
+        def pull_outputs(self, since: int):
+            self.pull_sinces.append(int(since or 0))
+            return [], int(since or 0)
+
+    class _Gate:
+        """Blocks each loop sleep so the test can step one iteration at a time."""
+
+        def __init__(self) -> None:
+            self.values: list[float] = []
+            self._go = threading.Event()
+
+        def __call__(self, t: float) -> None:
+            self.values.append(t)
+            self._go.wait()
+            self._go.clear()
+
+        def step(self) -> None:
+            self._go.set()
+
+        def wait_len(self, n: int, timeout: float = 5.0) -> None:
+            deadline = time.time() + timeout
+            while len(self.values) < n and time.time() < deadline:
+                time.sleep(0.005)
+            assert len(self.values) >= n, f"only {len(self.values)}/{n} sleeps before timeout"
+
+    client = _FakeClient()
+    gate = _Gate()
+    th = threading.Thread(
+        target=cyl1nder_hda._stream_loop,
+        args=(serial, "", "http://127.0.0.1:9", client),
+        kwargs={"sleep_fn": gate, "now_fn": _FakeClock().now},
+        daemon=True,
+    )
+    th.start()
+    try:
+        # OFF: loop parks before its first /pending probe; never calls /stream.
+        gate.wait_len(1)
+        assert client.probe_calls == 0, "probe must happen after the sleep unblocks"
+        assert client.stream_calls == 0, "OFF must not call stream_once"
+        assert abs(gate.values[-1] - cyl1nder_sync._PROBE_INTERVAL) < 1e-9, \
+            f"OFF probe interval {gate.values[-1]} != {cyl1nder_sync._PROBE_INTERVAL}"
+        gate.step()
+        gate.wait_len(2)
+        assert client.probe_calls == 1, f"OFF should probe once, got {client.probe_calls}"
+        assert client.stream_calls == 0, "OFF probe=False must not enter stream"
+        print("sync gate OFF -> /pending probe only, zero /stream OK")
+
+        # second probe returns True -> next iteration enters the /stream branch.
+        gate.step()
+        gate.wait_len(3)
+        assert client.probe_calls == 2, f"second probe should run, got {client.probe_calls}"
+        assert client.stream_calls == 1, "probe=True must enter stream_once"
+        print("sync gate probe=True -> /stream branch entered OK")
+
+        # the stream event flips sync_enabled=False -> loop returns to probe mode.
+        gate.step()
+        gate.wait_len(4)
+        assert client.probe_calls == 3, "flipped OFF must resume probing"
+        assert client.stream_calls == 1, "flipped OFF must not call stream_once again"
+        assert abs(gate.values[-1] - cyl1nder_sync._PROBE_INTERVAL) < 1e-9, \
+            "flipped OFF must sleep for the probe interval"
+        print("sync gate stream sync_enabled=False -> back to probe mode OK")
+    finally:
+        stop.set()
+        gate._go.set()
+        th.join(timeout=2)
+        assert not th.is_alive(), "loop thread did not exit on stop"
+        cyl1nder_sync._schedule_recook = orig_schedule
+        cyl1nder_hda._SYNC.pop(serial, None)
+        cyl1nder_hda._READY.pop(serial, None)
+
+
 def main() -> int:
     if HDA not in hou.hda.loadedFiles():
         hou.hda.installFile(HDA)
@@ -548,6 +673,19 @@ def main() -> int:
         z = pts[0].position().z()
         assert abs(z - float(i)) < 1e-6, f"out{i} z={z} expected {i} (per-role fallback)"
     print("4-output fallback mapping OK (out_i = in_i)")
+
+    # Phase B: web is the sync gate source of truth. Prefer the real bridge
+    # route; if the running bridge predates /sync-enabled, stub the HDA probe so
+    # the adaptive loop can still enter /stream for the E2E edits below.
+    try:
+        sync_resp = _req("PUT", f"{BRIDGE}/api/hda/{serial}/sync-enabled", {"enabled": True})
+        assert sync_resp.get("sync_enabled") is True, f"failed to enable sync: {sync_resp}"
+    except urllib.error.HTTPError as exc:
+        if exc.code != 404:
+            raise
+        cyl1nder_sync.BridgeClient.probe_once = lambda self: {
+            "pending": False, "rev": 0, "reset": False, "force": False, "sync_enabled": True,
+        }
 
     # web-side edit for output 0 -> pull back into out0
     edit = {
@@ -670,6 +808,7 @@ def main() -> int:
     _test_kick_force_recook()
     _test_stop_all_sync()
     _test_push_inputs_frame()
+    _test_sync_enabled_gate()
 
     print("SMOKE OK")
     return 0
