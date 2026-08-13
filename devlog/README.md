@@ -101,6 +101,7 @@
 
 ## 最近版本
 - v0.1.00065：bridge 控制台降噪 + 心跳统一 1min——uvicorn access_log 关闭（web 推流无上限，gizmo 拖动不再刷屏 cmd）；STREAM_HOLD_DEFAULT 20→60（/stream 缺省 hold=60s）；web HDA watchdog 15s→60s（离线阈值仍 150s）；主进程 2 路并行（Huygens=bridge / Hypatia=web）+ 主进程合并；pytest 53, tsc 0, vitest 82（e2e 本次未重跑：改动不涉及 e2e 断言覆盖路径）。
+- v0.1.00080：**阶段2.1 完成**——main.ts 抽 `core/session.ts`（connect/WS 消息/autoRun/replay），2.1 八子刀全部合入；连接类 e2e round2/8/10/12/13/14 共 22 passed。
 - v0.1.00079：架构重构阶段2.1-session 第一子刀——main.ts 抽 `core/kick.ts`（kick 状态机：首连踢/5s 限流/WS drop 重臂）；round10-kick 1 passed。
 - v0.1.00078：架构重构阶段2.1-network——main.ts 抽 `core/network.ts`（runNetwork+networkEpoch）；2.1 仅剩 connect/WS 收尾；refactor-plan.md 补 2.2 graph 分支计划。
 - v0.1.00077：架构重构阶段2.1-gizmo——main.ts 抽 `core/gizmo.ts`（Enter gizmo 控制器，状态闭包化）；round12/16 6 passed。
