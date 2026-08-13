@@ -68,6 +68,7 @@
 | three.js gizmo 拖拽延迟调研（TS/three.js/WASM 澄清 + 改进方向） | [viewport-gizmo-latency.md](viewport-gizmo-latency.md) |
 | bgeo.sc 二进制几何缓存调研（对比 JSON + 升级分级建议） | [bgeo-cache-research.md](bgeo-cache-research.md) |
 | 缓存与显示管理调研（Zeno stamp/双缓冲 vs Houdini cook/detail 缓存 + 可借鉴清单） | [cache-display-research.md](cache-display-research.md) |
+| 缓存系统交接指引（给新会话：现状/路线/契约/先读） | [cache-system-guide.md](cache-system-guide.md) |
 | 视口中断系统重设计 + 本地新鲜度 + kick 限流 | [viewport-interrupt-redesign.md](viewport-interrupt-redesign.md) |
 | 时间轴系统设计（30fps / HDA 锚定门控 / 双向同步） | [timeline-design.md](timeline-design.md) |
 | no geometry 诊断与 HDA 热重载恢复 | [no-geometry-diagnosis.md](no-geometry-diagnosis.md) |
@@ -103,6 +104,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00094：新增缓存系统交接指引（devlog/cache-system-guide.md）——现状盘点（chain-cache/位置-only/pump/HDA _GEO_CACHE/bridge rev buffers）、下一步路线（懒输出→协议二进制化→SoA+Worker→变化分级）、关键契约与坑（协议单源/@P 不 delta/新鲜度门控/不重引入预览 hack）、新会话先读清单。
 - v0.1.00093：缓存与显示管理调研——Zeno（显式节点缓存 CachedByKey/CacheToDisk + 帧缓存 + stamp 变化分级 + MapStablizer 双缓冲增量 diff + GPU id-FBO 拾取）vs Houdini（cook-on-dirty DAG + GU_Detail 缓存 + 显示驱动 cook + 视口常驻 GPU 增量）；产出 devlog/cache-display-research.md（主文档）+ devlog/zeno/cache-display-notes.md（Zeno 源码细读，子智能体）；可借鉴优先级：懒输出跳过未显示分支 / SoA→Float32Array / Worker 双缓冲 / 变化分级 / GPU 拾取 / 节点级缓存。
 - v0.1.00092：视口实时性 P2——链状态缓存 + 免克隆平移（chain-cache.ts：	raceChainSpecs 结构 trace + sig 命中仅 tx/ty/tz 变化走就地 delta 快路径：全点 O(P) 零分配、组子集只改命中点、零 delta 零工作、含 @P 规则全量重 trace；pplyTranslateDeltaInPlace；computeOutputs/computeNodeResult 可选 ctx 走缓存）+ 拓扑变化→cook 补全（graph 管道 after 事件合并 setTimeout(0) cook，拖线建连/Tab 建节点/restoreGraph 后 outputs 立即刷新）；2 路并行（Sartre=链缓存 / Tesla=拓扑 cook）+主进程合并；vitest +12（chain-cache 单测），e2e +round19（组过滤拖拽只动命中点、store points 数组跨帧引用不变=免克隆实锤）；tsc 0, vitest 121, pytest 53, e2e 81 passed/1 skipped；详见 viewport-gizmo-latency.md §6.5
 - v0.1.00091：视口实时性 P1——帧序（flush 先于 render，setPreRenderFlush pump，几何与 gizmo 同帧上屏）+ 拖拽期合并计算（scheduleNetwork latest-wins，每帧至多一次 runNetwork）+ 去双重计算（displayNodeOutputIndex 复用 outputs[i] + efreshNodeFlags(displayBuffer) + flush 顺序调换）+ 输出新鲜度门控（图拓扑版本号 getGraphVersion/isFresh，restore/拖线建连未 cook 时回退 computeNodeResult）+ 隐藏 outputGroup 跳过；2 路并行（Confucius=帧序+合并 pump / Bernoulli=去双重计算）+主进程合并（拓扑版本门控修复 round7 回归）；round17 同步断言改帧内 poll + 新增帧序断言；tsc 0, vitest 109, pytest 53, e2e 80 passed/1 skipped；详见 viewport-gizmo-latency.md §6 链路分析
