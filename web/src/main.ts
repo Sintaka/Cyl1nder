@@ -24,6 +24,7 @@ import { createAutosave, createHdaWatchdog } from "./core/lifecycle";
 import { bindShortcuts } from "./core/shortcuts";
 import { cloneParams, paramsEqual, readParamFloats, type ParamLike } from "./core/params";
 import { createParamUndo } from "./core/param-undo";
+import { createNetworkRunner } from "./core/network";
 import { createGizmoController } from "./core/gizmo";
 
 /** Log categories: geo data / viewport / ui / bridge(python runtime). */
@@ -405,7 +406,7 @@ const handlers: ReteGraphHandlers = {
     if (flags.display) viewport.pickByNode(kind, 0);
   },
   onNetworkChanged: () => {
-    void runNetwork();
+    void network.run();
     refreshNodeFlags(); // topology changed -> refresh display focus right away
   },
   /** param undo/redo applied -> snap the Enter gizmo back to the reverted node
@@ -430,6 +431,18 @@ const autosave = createAutosave({
 });
 
 const paramUndo = createParamUndo({ pushUndo: (entry) => graph.pushUndo(entry) });
+
+const network = createNetworkRunner({
+  getSerial: () => store.serial,
+  getInputs: () => store.inputs,
+  getNetworkSnapshot: () => graph.getNetworkSnapshot(),
+  computeOutputs: (inputs, snap) => computeOutputs(inputs, snap),
+  getOutputRev: () => store.outputRev,
+  upsertOutputs: (outputs, rev) => store.upsertOutputs(outputs, rev),
+  setOutputRev: (rev) => store.setOutputRev(rev),
+  pushOutputs: (serial, outputs) => client.pushOutputs(serial, outputs),
+  log: (msg) => store.pushLog(msg),
+});
 
 let wsDisconnect: (() => void) | null = null;
 let autoRun = layout.autoRunCheck.checked;
@@ -494,7 +507,7 @@ const gizmo = createGizmoController({
     setNodeParams: (id, params) => graph.setNodeParams(id, params),
     pushUndo: (entry) => graph.pushUndo(entry),
   },
-  runNetwork: () => { void runNetwork(); },
+  runNetwork: () => { void network.run(); },
   log: (msg) => store.pushLog(msg),
   getUpdateMode: () => updateMode,
 });
@@ -582,7 +595,7 @@ function refreshSelectionPanels(): void {
             const v = readParamFloats(params);
             viewport.setEnterPivot(v.px ?? 0, v.py ?? 0, v.pz ?? 0);
           }
-          void runNetwork();
+          void network.run();
         }
       : undefined,
   );
@@ -743,38 +756,6 @@ store.subscribe(() => {
   });
 });
 
-/** Monotonic run counter: a push response whose epoch is no longer current is a
- *  stale frame from a fast drag burst - discard it entirely (no log/emit). */
-let networkEpoch = 0;
-
-/** v1 network: trace the graph topology (input -> null/transform -> output) into 4
- *  output buffers. Local optimistic apply FIRST (viewport rebuilds at the full local
- *  rate via the rAF-coalesced store emit, decoupled from the bridge's Sync Max FPS
- *  forward path), then fire-and-forget push to the bridge. */
-async function runNetwork(): Promise<void> {
-  const serial = store.serial;
-  if (!serial || store.inputs.length === 0) return;
-  const epoch = ++networkEpoch;
-  const snap = graph.getNetworkSnapshot();
-  const outputs: OutputBuffer[] = computeOutputs(store.inputs, snap);
-  // a) local optimistic apply: predicted rev so the viewport rebuilds immediately
-  const predictedRev = store.outputRev + 1;
-  for (const buf of outputs) buf.rev = predictedRev;
-  store.upsertOutputs(outputs, predictedRev);
-  // b) fire-and-forget bridge push; stale responses (older epochs) are discarded
-  client
-    .pushOutputs(serial, outputs)
-    .then((r) => {
-      if (epoch !== networkEpoch || store.serial !== serial) return; // stale - discard entirely
-      if (r.rev > store.outputRev) store.setOutputRev(r.rev); // align rev, no content re-apply
-      store.pushLog(`network ran: ${outputs.length} outputs → rev=${r.rev}`);
-    })
-    .catch((e) => {
-      if (epoch !== networkEpoch || store.serial !== serial) return;
-      store.pushLog(`network run failed: ${String(e)}`);
-    });
-}
-
 /** One-shot HDA kick on the session's first connect to a serial: the bridge sets a
  *  transient force flag + touches lastSeen, so the HDA recooks on its next /pending
  *  poll (offline -> ok). When we already hold inputs, push them back too to drive the
@@ -785,7 +766,7 @@ async function kickHdaOnce(serial: string): Promise<void> {
   const res = await client.kick(serial);
   if (!res.ok) return;
   store.pushLog("[bridge] kick HDA (first connect)");
-  if (store.inputs.length > 0) void runNetwork();
+  if (store.inputs.length > 0) void network.run();
 }
 
 /** Viewport display path: fall back to the unified path system (disk snapshot)
@@ -862,7 +843,7 @@ function connect(serialRaw: string): void {
   wsDisconnect?.();
   replayPending = true;
   store.setSerial(serial);
-  networkEpoch++; // discard in-flight runs from the previous serial
+  network.bumpEpoch(); // discard in-flight runs from the previous serial
   // Push the persisted Sync Max FPS on EVERY (re)connect: the bridge keeps its
   // default 30 until the web tells it otherwise (first connect + reconnect).
   void client.putSyncFps(serial, prefs.sync_max_fps).catch(() => undefined);
@@ -897,7 +878,7 @@ function connect(serialRaw: string): void {
           return;
         }
         // gate auto-run on real content change: breaks the Force Cook <-> echo feedback loop
-        if (autoRun && changed) void runNetwork();
+        if (autoRun && changed) void network.run();
       } else if (msg.type === "outputs") {
         // content-dedup + monotonic rev: applyOutputs skips echoes identical to
         // local optimistic applies; the rev guard below additionally drops echoes
