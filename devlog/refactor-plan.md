@@ -50,7 +50,7 @@
 - 验收：tsc 0 + vitest + 全量 e2e；主进程 merge 前 review 写集不越界。
 
 ### 阶段 3（大拆，跨端）
-- [ ] 3.1 `hda/src/cyl1nder_hda.py` 按 sync/geometry/cache/lifecycle 拆分；hython smoke + 热重载冒烟（reload 前 stop_all_sync）。
+- [x] 3.1 `hda/src/cyl1nder_hda.py` 按 lifecycle/cache/geometry/sync 拆分 + `cyl1nder_hda.py` 外壳 barrel（保留公开模块名 `cyl1nder_hda`，re-export 全部 smoke 依赖名）；hython smoke 全绿（reload_hda MODULES 顺序 + smoke `_schedule_recook` monkeypatch 目标同步到 `cyl1nder_sync`）。
 - [ ] 3.2 `color.ts` 余下 UI 部分拆 `color/` 目录（picker-shell / wheel-sv / harmony / palette）。
 - [ ] 3.3 视口与节点图之间建立更清晰的「编辑 → 网络 → 视口」数据流，消灭 main.ts 的直连。
 - 验收：三端（pytest / tsc+vitest / hython smoke）+ 跨端 E2E 全绿。
@@ -64,17 +64,16 @@
 ## 六、状态
 - 2026-08-13：阶段 1 完成；阶段 2.1 完成（core 八子刀）；阶段 2.2 完成（graph.ts 拆 model/interact/undo + 外壳）；阶段 2.3 完成（viewport/renderer.ts 拆 scene/camera/gizmo/picking/modes/state + 外壳）；下一步阶段 3。
 ## 七、当前执行（in progress，检查点 2026-08-13）
-- 分支：`codex/0.1.00083-refactor-viewport`。
-- 已完成：**2.3**——`web/src/viewport/renderer.ts`（784 行 Viewport 类）拆成 7 文件（写集不相交，5 子智能体并行）：
-  - `modes.ts`（63 行）：DisplayMode / MODE_LABELS / applyDisplayModeToGroup（纯 THREE 遍历）。
-  - `scene.ts`（45 行）：buildViewportScene / makeBox（场景 + 数据组 + 灯光 + debug 盒）。
-  - `camera.ts`（57 行）：createCamera / frameVisible / frameDefault。
-  - `picking.ts`（115 行）：createPicking（射线拾取 / 选中 / commitEdit / pickByNode）。
-  - `gizmo.ts`（258 行）：createGizmo（Enter 编辑 + G 演示盒状态机 + enterBtn/notifyDragEnd）。
-  - `state.ts`（11 行）：ViewportState（enterActive + selectedLine 共享态，按引用传递）。
-  - `renderer.ts`（499 行）：外壳——Viewport 类装配 + 对外 API 不变。
-- 验证：tsc 0 + vitest 101 + `vite build` 通过 + 视口 e2e round2/4/5/6/7/8/12/16/17 共 26 passed（并行 worker 会共享 serial 互相污染，串行 workers=1 全绿；round6-nodeview 2 项仍为既有失败）。
-- 下一步：**阶段 3**——3.1 `hda/src/cyl1nder_hda.py` 拆 sync/geometry/cache/lifecycle；3.2 `color.ts` 余下 UI 拆 `color/`；3.3 视口与节点图数据流清晰化。
+- 分支：`codex/0.1.00084-refactor-hda`。
+- 已完成：**3.1**——`hda/src/cyl1nder_hda.py`（881 行）拆成 5 文件（写集不相交，5 子智能体并行）：
+  - `cyl1nder_lifecycle.py`（127 行）：桥/前端启动 + serial + parm/status 助手。
+  - `cyl1nder_cache.py`（96 行）：_READY/_OUT/_GEO/_PUSH/_CORE/_STATS 缓存与 ready 缓冲。
+  - `cyl1nder_geometry.py`（238 行）：buffer→geo 应用 + 输入/输出快照 + 签名。
+  - `cyl1nder_sync.py`（250 行）：/stream 循环 + 重烤调度 + stop/ensure_sync。
+  - `cyl1nder_hda.py`（172 行）：外壳 barrel——cook/cook_core 入口 + re-export 全部 smoke 依赖名（公开名 `cyl1nder_hda` 不变，build_hda/reload_hda/hython_smoke 无需改 import）。
+  - 调用点适配（主进程）：`reload_hda.py` MODULES 加 4 子模块（依赖先于被依赖）；`hython_smoke.py` 的 `_schedule_recook` monkeypatch 目标改为 `cyl1nder_sync`。
+- 验证：hython smoke 全绿（SMOKE OK，含 cache-hit/fast-path/rebuild/stream/reset/throttle/stop_all_sync）；web tsc 0 + vitest 101；bridge pytest 本次环境问题（.venv python launcher 损坏）未跑——bridge 代码未改动，非协议变更。
+- 下一步：**3.2** `app/color.ts` 余下 UI 拆 `color/` 目录；**3.3** 视口↔节点图数据流清晰化。
 ## 八、2.2 `graph.ts` 分支计划（已完成 2026-08-13）
 - 单独分支：`codex/<版本>-refactor-graph`（从完成 2.1 后的分支切出）。
 - 先做只读边界分析再切，因为 `graph.ts` 是 rete 渲染/连线/拖拽/撤销/参数/选择的耦合体，且对外暴露 `__cylGraph`、`createReteGraph`、`ReteGraphHandlers`。

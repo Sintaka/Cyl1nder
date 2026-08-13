@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.join(ROOT, "src"))
 import hou  # noqa: E402
 
 import cyl1nder_hda  # noqa: E402 - shared module with the HDA python SOPs
+import cyl1nder_sync  # noqa: E402 - owns _schedule_recook (monkeypatched by this smoke)
 
 BRIDGE = "http://127.0.0.1:8375"
 HDA = os.path.join(ROOT, "otls", "Cyl1nder_1.0.hda")
@@ -97,8 +98,8 @@ def _test_stream_loop() -> None:
         "thread": None, "stop": stop, "node_path": "", "scheduled": False, "fps": 30,
     }
     recooked: list[str] = []
-    orig_schedule = cyl1nder_hda._schedule_recook
-    cyl1nder_hda._schedule_recook = lambda node_path: recooked.append(node_path)  # type: ignore[assignment]
+    orig_schedule = cyl1nder_sync._schedule_recook
+    cyl1nder_sync._schedule_recook = lambda node_path: recooked.append(node_path)  # type: ignore[assignment]
     clock = _FakeClock()
 
     class _FakeClient:
@@ -288,7 +289,7 @@ def _test_stream_loop() -> None:
         gate._go.set()  # unblock any parked sleep so the loop thread exits
         th.join(timeout=2)
         assert not th.is_alive(), "loop thread did not exit on stop"
-        cyl1nder_hda._schedule_recook = orig_schedule
+        cyl1nder_sync._schedule_recook = orig_schedule
         cyl1nder_hda._SYNC.pop(serial, None)
         cyl1nder_hda._READY.pop(serial, None)
         cyl1nder_hda._PUSH_CACHE.pop(serial, None)
@@ -313,8 +314,8 @@ def _test_kick_force_recook() -> None:
     cyl1nder_hda._SYNC[serial] = {"thread": None, "stop": stop, "node_path": "", "scheduled": False, "fps": 30}
     cyl1nder_hda._PUSH_CACHE[serial] = ("stale-sig",)  # inputs were already pushed once
     recooked: list[str] = []
-    orig_schedule = cyl1nder_hda._schedule_recook
-    cyl1nder_hda._schedule_recook = lambda node_path: recooked.append(node_path)  # type: ignore[assignment]
+    orig_schedule = cyl1nder_sync._schedule_recook
+    cyl1nder_sync._schedule_recook = lambda node_path: recooked.append(node_path)  # type: ignore[assignment]
     th = None
 
     class _FakeClient:
@@ -348,7 +349,7 @@ def _test_kick_force_recook() -> None:
         assert serial not in cyl1nder_hda._PUSH_CACHE, "kick should drop the push cache (re-push to heal)"
         print("kick stream event -> recook scheduled + push cache dropped (self-heal) OK")
     finally:
-        cyl1nder_hda._schedule_recook = orig_schedule
+        cyl1nder_sync._schedule_recook = orig_schedule
         stop.set()
         if th is not None:
             th.join(timeout=2)

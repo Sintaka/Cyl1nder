@@ -100,6 +100,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00084：阶段3.1 完成——hda/src/cyl1nder_hda.py 拆 lifecycle/cache/geometry/sync + 外壳 barrel（5 子智能体并行、写集不相交）；hython smoke 全绿；reload_hda MODULES 与 smoke monkeypatch 同步适配。
 - v0.1.00083：阶段2.3 完成——viewport/renderer.ts 拆 scene/camera/gizmo/picking/modes/state + 外壳（5 子智能体并行、写集不相交）；tsc 0 + vitest 101 + vite build 通过 + 视口 e2e round2/4/5/6/7/8/12/16/17 共 26 passed。
 - v0.1.00082：阶段2.2 完成——graph.ts 拆 graph-model/graph-interact/graph-undo + 外壳（4 子智能体并行、写集不相交）；tsc 0 + vitest 101 + vite build 通过 + 节点图 e2e round2/16 8 passed。
 - v0.1.00065：bridge 控制台降噪 + 心跳统一 1min——uvicorn access_log 关闭（web 推流无上限，gizmo 拖动不再刷屏 cmd）；STREAM_HOLD_DEFAULT 20→60（/stream 缺省 hold=60s）；web HDA watchdog 15s→60s（离线阈值仍 150s）；主进程 2 路并行（Huygens=bridge / Hypatia=web）+ 主进程合并；pytest 53, tsc 0, vitest 82（e2e 本次未重跑：改动不涉及 e2e 断言覆盖路径）。
