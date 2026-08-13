@@ -31,8 +31,10 @@
 import "../styles/colorpicker.css";
 import { createDropdown } from "./widgets";
 
-import { clamp01, clamp100, clamp255, norm360, hexToRgb, hslToRgb, hsvToRgb, rgbToHex, rgbToHsl, rgbToHsv, type RGB } from "./color-math";
-export { rgbToHex, hexToRgb, rgbToHsl, hslToRgb, rgbToHsv, hsvToRgb, type RGB } from "./color-math";
+import { clamp01, clamp100, clamp255, norm360, hexToRgb, hslToRgb, hsvToRgb, rgbToHex, rgbToHsl, rgbToHsv, type RGB } from "../color/color-math";
+export { rgbToHex, hexToRgb, rgbToHsl, hslToRgb, rgbToHsv, hsvToRgb, type RGB } from "../color/color-math";
+import { HARMONIES, harmonyDef, harmonyColor, type HarmonyId, type HslBase } from "../color/harmony";
+import { PALETTE, clearRecents, loadRecents, recordRecent, removeRecent } from "../color/palette";
 
 export interface ColorPickerOptions {
   initial: RGB;
@@ -71,148 +73,6 @@ export function fitInViewport(el: HTMLElement, margin = 8): void {
   el.style.right = "auto";
 }
 
-// ---------------- recents (localStorage, last 8) ----------------
-
-const RECENTS_KEY = "cyl1nder.colorRecents";
-const RECENTS_MAX = 8;
-
-function loadRecents(): string[] {
-  try {
-    const raw = localStorage.getItem(RECENTS_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw) as unknown;
-    if (!Array.isArray(arr)) return [];
-    return arr
-      .filter((x): x is string => typeof x === "string" && hexToRgb(x) !== null)
-      .slice(0, RECENTS_MAX);
-  } catch {
-    return [];
-  }
-}
-
-function saveRecents(recents: string[]): void {
-  try {
-    localStorage.setItem(RECENTS_KEY, JSON.stringify(recents));
-  } catch {
-    /* storage full / private mode -> recents are best-effort */
-  }
-}
-
-function recordRecent(hex: string): string[] {
-  const recents = [hex, ...loadRecents().filter((x) => x !== hex)].slice(0, RECENTS_MAX);
-  saveRecents(recents);
-  return recents;
-}
-
-/** P1: delete one recent swatch (right-click) and persist. */
-function removeRecent(hex: string): string[] {
-  const recents = loadRecents().filter((x) => x !== hex);
-  saveRecents(recents);
-  return recents;
-}
-
-/** P1: empty the whole recents list. */
-function clearRecents(): void {
-  saveRecents([]);
-}
-
-/** Simple-mode preset palette (shown above the recents row). */
-const PALETTE: string[] = [
-  "#f8f9fa", "#dee2e6", "#adb5bd", "#6c757d", "#212529",
-  "#f03e3e", "#e8590c", "#f59f00", "#37b24d", "#0ca678",
-  "#1098ad", "#1c7ed6", "#4263eb", "#7048e8", "#ae3ec9",
-  "#ff8787", "#ffa94d", "#ffd43b", "#69db7c", "#3bc9db",
-];
-
-// ---------------- Adobe harmony (P5) ----------------
-
-export type HarmonyId = "monochrome" | "complementary" | "analogous" | "triadic" | "compound" | "shades";
-
-interface HarmonyPoint {
-  /** hue offset from the base hue (deg; negative = counter-clockwise). */
-  hue: number;
-  /** saturation multiplier vs the base saturation. */
-  sat: number;
-  /** lightness multiplier vs the base lightness (HSL L). */
-  light: number;
-}
-
-interface HarmonyDef {
-  id: HarmonyId;
-  label: string;
-  /** point 0 is always the base (offset 0 / mult 1 = the current color). */
-  points: HarmonyPoint[];
-}
-
-const HARMONIES: HarmonyDef[] = [
-  {
-    id: "monochrome",
-    label: "Monochrome",
-    points: [
-      { hue: 0, sat: 1, light: 1 },
-      { hue: 0, sat: 0.75, light: 1 },
-      { hue: 0, sat: 1, light: 1.25 },
-      { hue: 0, sat: 1.25, light: 1 },
-      { hue: 0, sat: 0.6, light: 0.8 },
-    ],
-  },
-  {
-    id: "complementary",
-    label: "Complementary",
-    points: [
-      { hue: 0, sat: 1, light: 1 },
-      { hue: 180, sat: 1, light: 1 },
-      { hue: 0, sat: 1, light: 0.8 },
-      { hue: 180, sat: 1, light: 1.2 },
-      { hue: 180, sat: 0.75, light: 1 },
-    ],
-  },
-  {
-    id: "analogous",
-    label: "Analogous",
-    points: [
-      { hue: 0, sat: 1, light: 1 },
-      { hue: -30, sat: 1, light: 1 },
-      { hue: 30, sat: 1, light: 1 },
-      { hue: -15, sat: 0.9, light: 0.85 },
-      { hue: 15, sat: 0.9, light: 1.15 },
-    ],
-  },
-  {
-    id: "triadic",
-    label: "Triadic",
-    points: [
-      { hue: 0, sat: 1, light: 1 },
-      { hue: 120, sat: 1, light: 1 },
-      { hue: 240, sat: 1, light: 1 },
-      { hue: 120, sat: 0.85, light: 0.8 },
-      { hue: 240, sat: 0.85, light: 1.2 },
-    ],
-  },
-  {
-    id: "compound",
-    label: "Compound",
-    points: [
-      { hue: 0, sat: 1, light: 1 },
-      { hue: 150, sat: 1, light: 1 },
-      { hue: 210, sat: 1, light: 1 },
-      { hue: 150, sat: 0.85, light: 0.8 },
-      { hue: 210, sat: 0.85, light: 1.2 },
-    ],
-  },
-  {
-    id: "shades",
-    label: "Shades",
-    points: [
-      { hue: 0, sat: 1, light: 1 },
-      { hue: 0, sat: 1, light: 0.8 },
-      { hue: 0, sat: 1, light: 0.6 },
-      { hue: 0, sat: 1, light: 0.4 },
-      { hue: 0, sat: 1, light: 0.2 },
-    ],
-  },
-];
-
 // ---------------- picker ----------------
 
 type Mode = "rgb" | "hsl" | "hsv";
@@ -243,13 +103,6 @@ const WHEEL_CX = WHEEL_SIZE / 2;
 const WHEEL_CY = WHEEL_SIZE / 2;
 /** Max thumb radius (kept slightly inside the 66px disc edge). */
 const WHEEL_R = 58;
-
-/** HSL base for the Adobe harmony wheel (point 0 = the current color). */
-interface HslBase {
-  h: number;
-  s: number;
-  l: number;
-}
 
 interface PickerState {
   rgb: RGB;
@@ -290,20 +143,6 @@ function colorFromMode(mode: Mode, vals: [number, number, number]): RGB {
   if (mode === "rgb") return { r: vals[0], g: vals[1], b: vals[2] };
   if (mode === "hsl") return hslToRgb(vals[0], vals[1], vals[2]);
   return hsvToRgb(vals[0], vals[1], vals[2]);
-}
-
-function harmonyDef(id: HarmonyId): HarmonyDef {
-  return HARMONIES.find((d) => d.id === id) ?? HARMONIES[0];
-}
-
-/** Color of harmony point i for the current base + preset. */
-function harmonyColor(base: HslBase, def: HarmonyDef, i: number): RGB {
-  const p = def.points[i] ?? def.points[0];
-  return hslToRgb(
-    base.h + p.hue,
-    clamp100(base.s * p.sat),
-    clamp100(base.l * p.light),
-  );
 }
 
 /**

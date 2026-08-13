@@ -51,7 +51,7 @@
 
 ### 阶段 3（大拆，跨端）
 - [x] 3.1 `hda/src/cyl1nder_hda.py` 按 lifecycle/cache/geometry/sync 拆分 + `cyl1nder_hda.py` 外壳 barrel（保留公开模块名 `cyl1nder_hda`，re-export 全部 smoke 依赖名）；hython smoke 全绿（reload_hda MODULES 顺序 + smoke `_schedule_recook` monkeypatch 目标同步到 `cyl1nder_sync`）。
-- [ ] 3.2 `color.ts` 余下 UI 部分拆 `color/` 目录（picker-shell / wheel-sv / harmony / palette）。
+- [-] 3.2 `color.ts` 余下 UI 拆 `color/` 目录：已完成纯函数部分（`color/color-math.ts` 迁入 + `color/harmony.ts` + `color/palette.ts` + recents，barrel 对外 API 不变）；picker-shell / wheel-sv DOM 外壳待续（单闭包、耦合深，后续单独一刀）。
 - [ ] 3.3 视口与节点图之间建立更清晰的「编辑 → 网络 → 视口」数据流，消灭 main.ts 的直连。
 - 验收：三端（pytest / tsc+vitest / hython smoke）+ 跨端 E2E 全绿。
 
@@ -73,7 +73,7 @@
   - `cyl1nder_hda.py`（172 行）：外壳 barrel——cook/cook_core 入口 + re-export 全部 smoke 依赖名（公开名 `cyl1nder_hda` 不变，build_hda/reload_hda/hython_smoke 无需改 import）。
   - 调用点适配（主进程）：`reload_hda.py` MODULES 加 4 子模块（依赖先于被依赖）；`hython_smoke.py` 的 `_schedule_recook` monkeypatch 目标改为 `cyl1nder_sync`。
 - 验证：hython smoke 全绿（SMOKE OK，含 cache-hit/fast-path/rebuild/stream/reset/throttle/stop_all_sync）；web tsc 0 + vitest 101；bridge pytest 本次环境问题（.venv python launcher 损坏）未跑——bridge 代码未改动，非协议变更。
-- 下一步：**3.2** `app/color.ts` 余下 UI 拆 `color/` 目录；**3.3** 视口↔节点图数据流清晰化。
+- 下一步：**3.2 收尾**（wheel-sv / picker-shell DOM 外壳，单闭包 context 化）；**3.3** 视口↔节点图数据流清晰化。
 ## 八、2.2 `graph.ts` 分支计划（已完成 2026-08-13）
 - 单独分支：`codex/<版本>-refactor-graph`（从完成 2.1 后的分支切出）。
 - 先做只读边界分析再切，因为 `graph.ts` 是 rete 渲染/连线/拖拽/撤销/参数/选择的耦合体，且对外暴露 `__cylGraph`、`createReteGraph`、`ReteGraphHandlers`。

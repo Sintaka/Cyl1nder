@@ -11,7 +11,7 @@ import {
   rgbToHsl,
   rgbToHsv,
   type RGB,
-} from "../src/app/color-math";
+} from "../src/color/color-math";
 
 const RGB_CASES: [RGB][] = [
   [{ r: 255, g: 0, b: 0 }], // red
