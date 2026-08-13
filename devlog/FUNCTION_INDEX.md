@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-12），由 `node scripts/gen-index.mjs` 产出。共 **523** 个函数/类。
+> 机器生成（2026-08-13），由 `node scripts/gen-index.mjs` 产出。共 **542** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -289,31 +289,31 @@
 | `_parm_group` | 57 | def |  | 3 |
 | `build` | 116 | def |  | 2 |
 
-## hda/scripts/hython_smoke.py（604 行）
+## hda/scripts/hython_smoke.py（605 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_req` | 29 | def |  | 7 |
-| `_make_curve_input` | 38 | def |  | 2 |
-| `_wait_ready_rev` | 56 | def |  | 4 |
-| `_FakeClock` | 72 | class |  | 2 |
-| `__init__` | 75 | def |  | 5 |
-| `now` | 78 | def |  | 1 |
-| `step` | 81 | def |  | 9 |
-| `_test_stream_loop` | 86 | def |  | 2 |
-| `_FakeClient` | 104 | class |  | 3 |
-| `stream_once` | 113 | def |  | 3 |
-| `pull_outputs` | 119 | def |  | 3 |
-| `_Gate` | 123 | class |  | 1 |
-| `__call__` | 130 | def |  | 1 |
-| `wait_len` | 138 | def |  | 3 |
-| `_feed` | 154 | def |  | 10 |
-| `_seed_caches` | 160 | def |  | 3 |
-| `_assert_caches_cleared` | 169 | def |  | 3 |
-| `_test_kick_force_recook` | 308 | def |  | 2 |
-| `_test_stop_all_sync` | 360 | def |  | 3 |
-| `main` | 428 | def |  | 2 |
-| `_stats` | 506 | def |  | 5 |
+| `_req` | 30 | def |  | 7 |
+| `_make_curve_input` | 39 | def |  | 2 |
+| `_wait_ready_rev` | 57 | def |  | 4 |
+| `_FakeClock` | 73 | class |  | 2 |
+| `__init__` | 76 | def |  | 5 |
+| `now` | 79 | def |  | 1 |
+| `step` | 82 | def |  | 9 |
+| `_test_stream_loop` | 87 | def |  | 2 |
+| `_FakeClient` | 105 | class |  | 3 |
+| `stream_once` | 114 | def |  | 3 |
+| `pull_outputs` | 120 | def |  | 3 |
+| `_Gate` | 124 | class |  | 1 |
+| `__call__` | 131 | def |  | 1 |
+| `wait_len` | 139 | def |  | 3 |
+| `_feed` | 155 | def |  | 10 |
+| `_seed_caches` | 161 | def |  | 3 |
+| `_assert_caches_cleared` | 170 | def |  | 3 |
+| `_test_kick_force_recook` | 309 | def |  | 2 |
+| `_test_stop_all_sync` | 361 | def |  | 3 |
+| `main` | 429 | def |  | 2 |
+| `_stats` | 507 | def |  | 5 |
 
 ## hda/scripts/reload_hda.py（118 行）
 
@@ -341,40 +341,49 @@
 | `stream_once` | 108 | def |  | 1 |
 | `pull_outputs` | 125 | def |  | 1 |
 
-## hda/src/cyl1nder_hda.py（881 行）
+## hda/src/cyl1nder_cache.py（97 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_ui_healthy` | 99 | def |  | 2 |
-| `_ensure_frontend` | 108 | def |  | 3 |
-| `_bridge_healthy` | 133 | def |  | 2 |
-| `_ensure_bridge` | 141 | def |  | 3 |
-| `_ready_state` | 168 | def |  | 2 |
-| `_refresh_ready` | 178 | def |  | 4 |
-| `_reset_ready` | 205 | def |  | 2 |
-| `_reset_caches` | 215 | def |  | 2 |
-| `_stream_loop` | 230 | def |  | 1 |
-| `_schedule_recook` | 320 | def |  | 4 |
-| `_force_cook_node` | 339 | def |  | 1 |
-| `stop_sync` | 367 | def |  | 5 |
-| `stop_all_sync` | 390 | def |  | 1 |
-| `ensure_sync` | 403 | def |  | 6 |
-| `_root` | 461 | def |  | 4 |
-| `_ensure_serial` | 465 | def |  | 3 |
-| `_parm` | 478 | def |  | 14 |
-| `_set_status` | 488 | def |  | 6 |
-| `_serialize_geo` | 497 | def |  | 3 |
-| `_build_detail` | 507 | def |  | 2 |
-| `_buffer_sig` | 538 | def |  | 2 |
-| `_apply_output` | 554 | def |  | 2 |
-| `_snapshot_parts` | 598 | def |  | 2 |
-| `_flat_signature` | 646 | def |  | 2 |
-| `_build_core_detail` | 658 | def |  | 3 |
-| `cook_core` | 682 | def |  | 3 |
-| `_same_geo` | 746 | def |  | 2 |
-| `_role_buffer` | 757 | def |  | 2 |
-| `_input_signature` | 776 | def |  | 2 |
-| `cook` | 811 | def |  | 7 |
+| `_ready_state` | 18 | def |  | 2 |
+| `_refresh_ready` | 28 | def |  | 1 |
+| `_reset_ready` | 55 | def |  | 1 |
+| `_reset_caches` | 65 | def |  | 1 |
+| `_role_buffer` | 80 | def |  | 1 |
+
+## hda/src/cyl1nder_geometry.py（239 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `_serialize_geo` | 14 | def |  | 2 |
+| `_build_detail` | 24 | def |  | 2 |
+| `_buffer_sig` | 55 | def |  | 2 |
+| `_apply_output` | 71 | def |  | 1 |
+| `_snapshot_parts` | 111 | def |  | 1 |
+| `_flat_signature` | 159 | def |  | 2 |
+| `_build_core_detail` | 171 | def |  | 1 |
+| `_same_geo` | 195 | def |  | 1 |
+| `_input_signature` | 206 | def |  | 1 |
+
+## hda/src/cyl1nder_hda.py（172 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `cook_core` | 42 | def |  | 2 |
+| `cook` | 102 | def |  | 2 |
+
+## hda/src/cyl1nder_lifecycle.py（128 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `_ui_healthy` | 25 | def |  | 2 |
+| `_ensure_frontend` | 34 | def |  | 1 |
+| `_bridge_healthy` | 59 | def |  | 2 |
+| `_ensure_bridge` | 67 | def |  | 1 |
+| `_root` | 94 | def |  | 2 |
+| `_ensure_serial` | 98 | def |  | 1 |
+| `_parm` | 111 | def |  | 4 |
+| `_set_status` | 121 | def |  | 2 |
 
 ## hda/src/cyl1nder_serializer.py（63 行）
 
@@ -383,33 +392,26 @@
 | `_norm_value` | 12 | def |  | 2 |
 | `serialize_input` | 20 | def |  | 1 |
 
+## hda/src/cyl1nder_sync.py（251 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `_stream_loop` | 22 | def |  | 1 |
+| `_schedule_recook` | 112 | def |  | 4 |
+| `_force_cook_node` | 131 | def |  | 1 |
+| `stop_sync` | 159 | def |  | 5 |
+| `stop_all_sync` | 182 | def |  | 1 |
+| `ensure_sync` | 195 | def |  | 4 |
+
 ## web/src/app/app-config.ts（7 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/color.ts（1148 行）
+## web/src/app/color.ts（3 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `fitInViewport` | 73 | function | export | 4 |
-| `rgbToHex` | 87 | function | export | 7 |
-| `hexToRgb` | 93 | function | export | 8 |
-| `rgbToHsl` | 114 | function |  | 10 |
-| `hslToRgb` | 134 | function |  | 7 |
-| `rgbToHsv` | 160 | function |  | 5 |
-| `hsvToRgb` | 178 | function |  | 4 |
-| `loadRecents` | 219 | function |  | 4 |
-| `saveRecents` | 233 | function |  | 4 |
-| `recordRecent` | 241 | function |  | 2 |
-| `removeRecent` | 248 | function |  | 3 |
-| `clearRecents` | 255 | function |  | 2 |
-| `esc` | 412 | function |  | 2 |
-| `valuesForMode` | 419 | function |  | 2 |
-| `colorFromMode` | 429 | function |  | 5 |
-| `harmonyDef` | 435 | function |  | 5 |
-| `harmonyColor` | 440 | function |  | 3 |
-| `openColorPicker` | 457 | function | export | 2 |
 
 ## web/src/app/dock.ts（541 行）
 
@@ -530,141 +532,259 @@
 | `connectWs` | 201 | function | export | 1 |
 | `connect` | 206 | arrow |  | 1 |
 
-## web/src/main.ts（1193 行）
+## web/src/color/color-math.ts（147 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `matchLogFilter` | 42 | arrow |  | 0 |
-| `renderLog` | 43 | arrow |  | 3 |
-| `toggle` | 105 | arrow |  | 7 |
-| `updateLayoutMenuLabel` | 137 | function |  | 5 |
-| `getDockJson` | 140 | arrow |  | 6 |
-| `saveCurrentLayout` | 144 | arrow |  | 2 |
-| `refreshLayoutPresets` | 153 | arrow |  | 1 |
-| `writeJsonToDir` | 259 | function |  | 7 |
-| `readJsonFromDir` | 270 | function |  | 5 |
-| `saveSceneAs` | 284 | function |  | 3 |
-| `openSceneFromDir` | 338 | function |  | 2 |
-| `applyLayoutSettings` | 503 | function |  | 4 |
-| `readParamFloats` | 508 | function |  | 4 |
-| `cloneParams` | 519 | function |  | 3 |
-| `paramsEqual` | 524 | function |  | 2 |
-| `flushParamUndo` | 546 | function |  | 2 |
-| `refreshSelectionPanels` | 557 | function |  | 4 |
-| `bindGizmoToTransform` | 626 | function |  | 3 |
-| `bindEnterGizmoToSelection` | 675 | function |  | 3 |
-| `applyTransformDrag` | 693 | function |  | 3 |
-| `toggleEnterEdit` | 708 | function |  | 2 |
-| `getDisplayNodeInfo` | 734 | function |  | 2 |
-| `refreshNodeFlags` | 750 | function |  | 4 |
-| `inputStatsText` | 810 | function |  | 2 |
-| `outputStatsText` | 819 | function |  | 2 |
-| `renderInspector` | 828 | function |  | 2 |
-| `flushStoreView` | 851 | function |  | 2 |
-| `runNetwork` | 886 | function |  | 6 |
-| `kickHdaOnce` | 914 | function |  | 2 |
-| `startHdaWatch` | 927 | function |  | 2 |
-| `check` | 929 | arrow |  | 1 |
-| `stopHdaWatch` | 947 | function |  | 2 |
-| `loadSnapshotIntoStore` | 956 | function |  | 3 |
-| `applyLoadedPreference` | 993 | function |  | 3 |
-| `connect` | 1022 | function |  | 4 |
-| `markGraphDirty` | 1163 | function |  | 2 |
-| `startAutoSave` | 1173 | function |  | 5 |
+| `rgbToHex` | 24 | function | export | 1 |
+| `hexToRgb` | 30 | function | export | 1 |
+| `rgbToHsl` | 49 | function | export | 1 |
+| `hslToRgb` | 69 | function | export | 1 |
+| `rgbToHsv` | 95 | function | export | 1 |
+| `hsvToRgb` | 113 | function | export | 1 |
 
-## web/src/nodes2/graph.ts（1667 行）
+## web/src/color/harmony.ts（104 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `actionContainsParams` | 111 | function |  | 2 |
-| `log` | 116 | arrow |  | 17 |
-| `notifySelection` | 120 | function |  | 3 |
-| `nodeByKind` | 127 | function |  | 4 |
-| `resolveInputSourcePort` | 138 | function |  | 4 |
-| `nodeFromTarget` | 162 | function |  | 7 |
-| `renderNode` | 178 | function |  | 1 |
-| `portIndexFromTarget` | 193 | function |  | 2 |
-| `CylNode` | 205 | class | export | 4 |
-| `makeInputNode` | 236 | function |  | 3 |
-| `makeOutputNode` | 241 | function |  | 3 |
-| `makeNullNode` | 248 | function | export | 2 |
-| `makeTransformNode` | 259 | function | export | 2 |
-| `buildGraph` | 283 | function |  | 2 |
-| `createReteGraph` | 369 | function | export | 1 |
-| `attachTabSearch` | 676 | function |  | 2 |
-| `render` | 692 | arrow |  | 4 |
-| `create` | 707 | arrow |  | 2 |
-| `close` | 736 | arrow |  | 6 |
-| `update` | 742 | arrow |  | 3 |
-| `distToSegment` | 772 | function |  | 2 |
-| `sampleConnectionPath` | 782 | function |  | 2 |
-| `findConnectionByRef` | 804 | function |  | 2 |
-| `applyUndoAction` | 815 | function |  | 3 |
-| `addConn` | 820 | arrow |  | 8 |
-| `delConn` | 828 | arrow |  | 8 |
-| `lbl` | 832 | arrow |  | 2 |
-| `attachCutMode` | 899 | function |  | 2 |
-| `isTyping` | 925 | arrow |  | 1 |
-| `pathLen` | 931 | arrow |  | 1 |
-| `setPoints` | 936 | arrow |  | 2 |
-| `clear` | 940 | arrow |  | 2 |
-| `cutConnection` | 945 | arrow |  | 1 |
-| `cutByPolyline` | 960 | arrow |  | 1 |
-| `up` | 1039 | arrow |  | 0 |
-| `attachFlagMenu` | 1061 | function |  | 2 |
-| `show` | 1073 | arrow |  | 2 |
-| `setNodeStateHandler` | 1127 | function | export | 2 |
-| `fireNodeState` | 1130 | function | export | 1 |
-| `setRenameHandler` | 1136 | function | export | 2 |
-| `fireRename` | 1139 | function | export | 1 |
-| `initTooltip` | 1145 | function | export | 2 |
-| `showTooltip` | 1151 | function | export | 1 |
-| `hideTooltip` | 1164 | function | export | 1 |
-| `attachMMBPan` | 1172 | function |  | 2 |
-| `onMove` | 1180 | arrow |  | 0 |
-| `onUp` | 1183 | arrow |  | 0 |
-| `attachDotGrid` | 1201 | function |  | 2 |
-| `hitTestConnection` | 1232 | function |  | 3 |
-| `connectionPathD` | 1261 | function |  | 3 |
-| `isInsertable` | 1269 | function |  | 2 |
-| `attachInsertion` | 1273 | function |  | 2 |
-| `refreshPreview` | 1321 | arrow |  | 2 |
-| `updatePreview` | 1329 | arrow |  | 1 |
-| `setHover` | 1352 | arrow |  | 2 |
-| `attachRectSelect` | 1472 | function |  | 2 |
-| `attachShakeDisconnect` | 1546 | function |  | 2 |
-| `reset` | 1557 | arrow |  | 0 |
-| `shakeNode` | 1563 | arrow |  | 1 |
+| `harmonyDef` | 93 | function | export | 1 |
+| `harmonyColor` | 97 | function | export | 1 |
 
-## web/src/nodes2/groups.ts（537 行）
+## web/src/color/palette.ts（53 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `tokenize` | 85 | function |  | 2 |
-| `mergeAttrTokens` | 129 | function |  | 2 |
-| `isNumeric` | 149 | function |  | 4 |
-| `parseToken` | 154 | function |  | 2 |
-| `parseGroupExpression` | 193 | function | export | 1 |
-| `stripAttrKey` | 217 | function |  | 2 |
-| `resolveAttribute` | 226 | function | export | 4 |
-| `idSpecMatches` | 243 | function |  | 2 |
-| `uniq` | 271 | function |  | 3 |
-| `primPointSets` | 284 | function |  | 2 |
-| `vertexMap` | 292 | function |  | 2 |
-| `range` | 299 | function |  | 7 |
-| `rulePoint` | 306 | function |  | 2 |
-| `elementPoints` | 330 | function |  | 2 |
-| `compIndex` | 355 | function |  | 2 |
-| `toNum` | 361 | function |  | 7 |
-| `eqScalar` | 369 | function |  | 6 |
-| `arraysEqual` | 374 | function |  | 3 |
-| `parseValueList` | 382 | function |  | 2 |
-| `firstNum` | 390 | function |  | 3 |
-| `compareLhs` | 399 | function |  | 2 |
-| `ruleMatchesElement` | 452 | function |  | 2 |
-| `computeSelection` | 490 | function |  | 3 |
-| `pointInGroup` | 529 | function | export | 1 |
-| `matchingPoints` | 534 | function | export | 1 |
+| `loadRecents` | 14 | function | export | 3 |
+| `saveRecents` | 28 | function | export | 4 |
+| `recordRecent` | 36 | function | export | 1 |
+| `removeRecent` | 43 | function | export | 1 |
+| `clearRecents` | 50 | function | export | 1 |
+
+## web/src/color/picker.ts（713 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `fitInViewport` | 64 | function | export | 4 |
+| `esc` | 117 | function |  | 2 |
+| `valuesForMode` | 124 | function |  | 2 |
+| `colorFromMode` | 134 | function |  | 5 |
+| `openColorPicker` | 148 | function | export | 2 |
+
+## web/src/color/wheel-sv.ts（200 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `createWheelSv` | 51 | function | export | 1 |
+
+## web/src/core/dataflow.ts（144 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `createDataflow` | 29 | function | export | 1 |
+| `getDisplayNodeInfo` | 31 | function |  | 2 |
+| `refreshNodeFlags` | 47 | function |  | 5 |
+| `flush` | 128 | function |  | 2 |
+| `wireSelection` | 134 | function |  | 2 |
+
+## web/src/core/gizmo.ts（154 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `createGizmoController` | 47 | function | export | 1 |
+
+## web/src/core/kick.ts（45 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `createKickController` | 11 | function | export | 1 |
+
+## web/src/core/lifecycle.ts（58 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `createAutosave` | 7 | function | export | 1 |
+| `createHdaWatchdog` | 31 | function | export | 1 |
+| `check` | 42 | arrow |  | 1 |
+
+## web/src/core/network.ts（53 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `createNetworkRunner` | 18 | function | export | 1 |
+
+## web/src/core/param-undo.ts（33 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `createParamUndo` | 10 | function | export | 1 |
+
+## web/src/core/params.ts（31 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `readParamFloats` | 8 | function | export | 1 |
+| `cloneParams` | 19 | function | export | 1 |
+| `paramsEqual` | 24 | function | export | 1 |
+
+## web/src/core/session.ts（86 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `createSessionController` | 25 | function | export | 1 |
+
+## web/src/core/shortcuts.ts（51 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `bindShortcuts` | 15 | function | export | 1 |
+
+## web/src/main.ts（794 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `matchLogFilter` | 51 | arrow |  | 0 |
+| `renderLog` | 52 | arrow |  | 3 |
+| `toggle` | 119 | arrow |  | 8 |
+| `updateLayoutMenuLabel` | 151 | function |  | 5 |
+| `getDockJson` | 154 | arrow |  | 6 |
+| `saveCurrentLayout` | 158 | arrow |  | 2 |
+| `refreshLayoutPresets` | 167 | arrow |  | 1 |
+| `writeJsonToDir` | 273 | function |  | 7 |
+| `readJsonFromDir` | 284 | function |  | 5 |
+| `saveSceneAs` | 298 | function |  | 3 |
+| `openSceneFromDir` | 352 | function |  | 2 |
+| `applyLayoutSettings` | 539 | function |  | 4 |
+| `refreshSelectionPanels` | 546 | function |  | 1 |
+| `inputStatsText` | 608 | function |  | 2 |
+| `outputStatsText` | 617 | function |  | 2 |
+| `renderInspector` | 626 | function |  | 2 |
+| `flushStoreView` | 649 | function |  | 2 |
+| `loadSnapshotIntoStore` | 676 | function |  | 3 |
+| `applyLoadedPreference` | 713 | function |  | 3 |
+| `markGraphDirty` | 787 | function |  | 2 |
+
+## web/src/nodes2/graph-interact.ts（954 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `attachTabSearch` | 48 | function | export | 1 |
+| `render` | 64 | arrow |  | 3 |
+| `create` | 79 | arrow |  | 2 |
+| `close` | 108 | arrow |  | 6 |
+| `update` | 114 | arrow |  | 3 |
+| `distToSegment` | 144 | function |  | 2 |
+| `sampleConnectionPath` | 154 | function |  | 2 |
+| `attachCutMode` | 175 | function | export | 1 |
+| `isTyping` | 201 | arrow |  | 1 |
+| `pathLen` | 207 | arrow |  | 1 |
+| `setPoints` | 212 | arrow |  | 2 |
+| `clear` | 216 | arrow |  | 2 |
+| `cutConnection` | 221 | arrow |  | 1 |
+| `cutByPolyline` | 236 | arrow |  | 1 |
+| `up` | 315 | arrow |  | 0 |
+| `attachFlagMenu` | 337 | function | export | 1 |
+| `show` | 349 | arrow |  | 2 |
+| `setNodeStateHandler` | 403 | function | export | 1 |
+| `fireNodeState` | 409 | function | export | 1 |
+| `setRenameHandler` | 415 | function | export | 1 |
+| `fireRename` | 419 | function | export | 1 |
+| `initTooltip` | 425 | function | export | 1 |
+| `showTooltip` | 432 | function | export | 1 |
+| `hideTooltip` | 446 | function | export | 1 |
+| `attachMMBPan` | 454 | function | export | 1 |
+| `onMove` | 465 | arrow |  | 0 |
+| `onUp` | 468 | arrow |  | 0 |
+| `attachDotGrid` | 486 | function | export | 1 |
+| `hitTestConnection` | 520 | function |  | 3 |
+| `connectionPathD` | 549 | function |  | 3 |
+| `isInsertable` | 557 | function |  | 2 |
+| `attachInsertion` | 561 | function | export | 1 |
+| `refreshPreview` | 609 | arrow |  | 2 |
+| `updatePreview` | 617 | arrow |  | 1 |
+| `setHover` | 640 | arrow |  | 2 |
+| `attachRectSelect` | 760 | function | export | 1 |
+| `attachShakeDisconnect` | 834 | function | export | 1 |
+| `reset` | 845 | arrow |  | 0 |
+| `shakeNode` | 851 | arrow |  | 1 |
+
+## web/src/nodes2/graph-model.ts（354 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `notifySelection` | 85 | function | export | 2 |
+| `onSelectionChange` | 89 | function | export | 1 |
+| `nodeByKind` | 94 | function | export | 1 |
+| `resolveInputSourcePort` | 105 | function | export | 2 |
+| `nodeFromTarget` | 129 | function | export | 1 |
+| `renderNode` | 145 | function | export | 1 |
+| `portIndexFromTarget` | 160 | function | export | 1 |
+| `CylNode` | 168 | class | export | 4 |
+| `makeInputNode` | 197 | function | export | 2 |
+| `makeOutputNode` | 202 | function | export | 2 |
+| `makeNullNode` | 209 | function | export | 2 |
+| `makeTransformNode` | 220 | function | export | 2 |
+| `serializeGraph` | 240 | function | export | 2 |
+| `restoreGraph` | 274 | function | export | 2 |
+| `getNetworkSnapshot` | 340 | function | export | 2 |
+
+## web/src/nodes2/graph-undo.ts（149 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `actionContainsParams` | 15 | function | export | 2 |
+| `findConnectionByRef` | 22 | function |  | 2 |
+| `applyUndoAction` | 33 | function | export | 3 |
+| `addConn` | 38 | arrow |  | 8 |
+| `delConn` | 46 | arrow |  | 8 |
+| `lbl` | 50 | arrow |  | 2 |
+| `createGraphUndoManager` | 117 | function | export | 1 |
+
+## web/src/nodes2/graph.ts（290 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `buildGraph` | 59 | function |  | 2 |
+| `createReteGraph` | 145 | function | export | 1 |
+
+## web/src/nodes2/groups.ts（32 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+
+## web/src/nodes2/groups/matcher.ts（317 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `idSpecMatches` | 23 | function | export | 2 |
+| `uniq` | 51 | function | export | 3 |
+| `primPointSets` | 64 | function | export | 2 |
+| `vertexMap` | 72 | function | export | 2 |
+| `range` | 79 | function | export | 7 |
+| `rulePoint` | 86 | function | export | 2 |
+| `elementPoints` | 110 | function | export | 2 |
+| `compIndex` | 135 | function | export | 2 |
+| `toNum` | 141 | function | export | 7 |
+| `eqScalar` | 149 | function | export | 6 |
+| `arraysEqual` | 154 | function | export | 3 |
+| `parseValueList` | 162 | function | export | 2 |
+| `firstNum` | 170 | function | export | 3 |
+| `compareLhs` | 179 | function | export | 2 |
+| `ruleMatchesElement` | 232 | function | export | 2 |
+| `computeSelection` | 270 | function | export | 3 |
+| `pointInGroup` | 309 | function | export | 1 |
+| `matchingPoints` | 314 | function | export | 1 |
+
+## web/src/nodes2/groups/parser.ts（208 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `tokenize` | 53 | function | export | 2 |
+| `mergeAttrTokens` | 97 | function | export | 2 |
+| `isNumeric` | 117 | function | export | 1 |
+| `parseToken` | 122 | function | export | 2 |
+| `parseGroupExpression` | 161 | function | export | 1 |
+| `stripAttrKey` | 185 | function | export | 2 |
+| `resolveAttribute` | 194 | function | export | 1 |
 
 ## web/src/nodes2/network.ts（200 行）
 
@@ -747,6 +867,14 @@
 |---|---|---|---|---|
 | `createRenderer` | 18 | function | export | 1 |
 
+## web/src/viewport/camera.ts（58 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `createCamera` | 11 | function | export | 1 |
+| `frameVisible` | 18 | function | export | 1 |
+| `frameDefault` | 50 | function | export | 2 |
+
 ## web/src/viewport/controls.ts（117 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
@@ -770,13 +898,49 @@
 | `buildOutputs` | 121 | function | export | 1 |
 | `buildNodeResult` | 138 | function | export | 1 |
 
-## web/src/viewport/renderer.ts（785 行）
+## web/src/viewport/gizmo.ts（258 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `Viewport` | 44 | class | export | 1 |
-| `showModeMenu` | 133 | arrow |  | 1 |
-| `hideModeMenu` | 145 | arrow |  | 2 |
-| `applyMode` | 146 | arrow |  | 1 |
-| `openModeMenu` | 161 | arrow |  | 1 |
-| `closeModeMenu` | 162 | arrow |  | 3 |
+| `createGizmo` | 43 | function | export | 1 |
+| `setEnterEditHandler` | 93 | arrow |  | 1 |
+
+## web/src/viewport/modes.ts（63 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `applyDisplayModeToGroup` | 28 | function | export | 1 |
+
+## web/src/viewport/picking.ts（116 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `createPicking` | 28 | function | export | 1 |
+| `pickByNode` | 33 | function |  | 2 |
+| `onPointerDown` | 63 | function |  | 2 |
+| `select` | 76 | function |  | 3 |
+| `clearSelection` | 89 | function |  | 2 |
+| `commitEdit` | 96 | function |  | 2 |
+
+## web/src/viewport/renderer.ts（499 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `Viewport` | 28 | class | export | 1 |
+| `showModeMenu` | 103 | arrow |  | 1 |
+| `hideModeMenu` | 115 | arrow |  | 2 |
+| `applyMode` | 116 | arrow |  | 1 |
+| `openModeMenu` | 131 | arrow |  | 1 |
+| `closeModeMenu` | 132 | arrow |  | 3 |
+
+## web/src/viewport/scene.ts（46 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `buildViewportScene` | 18 | function | export | 1 |
+| `makeBox` | 40 | function | export | 3 |
+
+## web/src/viewport/state.ts（11 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|

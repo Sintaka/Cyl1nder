@@ -1,6 +1,6 @@
 # API 索引 / API INDEX
 
-> 机器生成（2026-08-12），由 `node scripts/gen-api-index.mjs` 产出。单源：bridge/bridge/*.py
+> 机器生成（2026-08-13），由 `node scripts/gen-api-index.mjs` 产出。单源：bridge/bridge/*.py
 
 ## REST (127.0.0.1:8375)
 

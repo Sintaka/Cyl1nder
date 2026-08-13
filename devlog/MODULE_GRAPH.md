@@ -1,17 +1,19 @@
 # 模块依赖图 / MODULE GRAPH (web/src)
 
-> 机器生成（2026-08-12），由 `node scripts/gen-graph.mjs` 产出。
+> 机器生成（2026-08-13），由 `node scripts/gen-graph.mjs` 产出。
 
 - `app/app-config.ts`
   - three/webgpu
 - `app/color.ts`
-  - styles/colorpicker.css
+  - color/color-math
+  - color/picker
 - `app/dock.ts`
   - bridge/client
   - dockview
   - dockview/dist/styles/dockview.css
   - stores/workspace
 - `app/layout.ts`
+  - app/widgets
 - `app/layouts.ts`
   - app/layouts/Default.json
 - `app/log.ts`
@@ -22,13 +24,50 @@
 - `app/preference.ts`
   - app/color
   - app/layout
+  - app/widgets
   - protocol/types
   - styles/preference-plus.css
 - `app/scrub.ts`
 - `app/spreadsheet.ts`
   - protocol/types
+- `app/widgets.ts`
+  - styles/widgets.css
 - `bridge/client.ts`
   - protocol/types
+- `color/color-math.ts`
+- `color/harmony.ts`
+  - color/color-math
+- `color/palette.ts`
+  - color/color-math
+- `color/picker.ts`
+  - app/widgets
+  - color/color-math
+  - color/harmony
+  - color/palette
+  - color/wheel-sv
+  - styles/colorpicker.css
+- `color/wheel-sv.ts`
+  - color/color-math
+  - color/harmony
+- `core/dataflow.ts`
+  - core/params
+  - nodes2/graph
+  - nodes2/network
+  - stores/workspace
+  - viewport/renderer
+- `core/gizmo.ts`
+  - core/params
+- `core/kick.ts`
+- `core/lifecycle.ts`
+- `core/network.ts`
+  - protocol/types
+- `core/param-undo.ts`
+  - core/params
+- `core/params.ts`
+- `core/session.ts`
+  - bridge/client
+  - protocol/types
+- `core/shortcuts.ts`
 - `main.ts`
   - app/app-config
   - app/dock
@@ -38,6 +77,15 @@
   - app/preference
   - app/spreadsheet
   - bridge/client
+  - core/dataflow
+  - core/gizmo
+  - core/kick
+  - core/lifecycle
+  - core/network
+  - core/param-undo
+  - core/params
+  - core/session
+  - core/shortcuts
   - nodes2/graph
   - nodes2/network
   - protocol/compare
@@ -45,10 +93,32 @@
   - stores/workspace
   - styles.css
   - viewport/renderer
-- `nodes2/graph.ts`
+- `nodes2/graph-interact.ts`
   - fuse.js
   - nodes2/NodeView
+  - nodes2/graph-model
+  - nodes2/undo
+  - rete
+  - rete-area-plugin
+  - stores/workspace
+- `nodes2/graph-model.ts`
   - nodes2/network
+  - nodes2/undo
+  - rete
+  - rete-area-plugin
+  - rete-engine
+  - rete-react-plugin
+  - stores/workspace
+- `nodes2/graph-undo.ts`
+  - nodes2/NodeView
+  - nodes2/graph-model
+  - nodes2/undo
+  - rete
+- `nodes2/graph.ts`
+  - nodes2/NodeView
+  - nodes2/graph-interact
+  - nodes2/graph-model
+  - nodes2/graph-undo
   - nodes2/undo
   - react
   - react-dom/client
@@ -59,6 +129,11 @@
   - rete-react-plugin
   - stores/workspace
 - `nodes2/groups.ts`
+  - nodes2/groups/matcher
+  - nodes2/groups/parser
+- `nodes2/groups/matcher.ts`
+  - nodes2/groups/parser
+- `nodes2/groups/parser.ts`
   - protocol/types
 - `nodes2/network.ts`
   - nodes2/groups
@@ -78,18 +153,45 @@
 - `viewport/backend.ts`
   - app/app-config
   - three
+- `viewport/camera.ts`
+  - stores/workspace
+  - three
+  - viewport/controls
 - `viewport/controls.ts`
   - three
   - three/addons/controls/OrbitControls.js
 - `viewport/geometry.ts`
   - protocol/types
   - three
-- `viewport/renderer.ts`
+- `viewport/gizmo.ts`
+  - stores/workspace
+  - three
+  - three/addons/controls/TransformControls.js
+  - viewport/state
+- `viewport/modes.ts`
+  - three
+- `viewport/picking.ts`
   - protocol/types
   - stores/workspace
   - three
   - three/addons/controls/TransformControls.js
   - tools/transform
+  - viewport/state
+- `viewport/renderer.ts`
+  - protocol/types
+  - stores/workspace
+  - three
+  - three/addons/controls/TransformControls.js
   - viewport/backend
+  - viewport/camera
   - viewport/controls
   - viewport/geometry
+  - viewport/gizmo
+  - viewport/modes
+  - viewport/picking
+  - viewport/scene
+  - viewport/state
+- `viewport/scene.ts`
+  - three
+- `viewport/state.ts`
+  - three

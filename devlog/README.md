@@ -35,6 +35,7 @@
 | 浮动面板 pop-out 调研（已取消，改视口钳制） | [popout-windows.md](popout-windows.md) |
 | 屎山代码（legacy spaghetti）标注 | [shit-mountains.md](shit-mountains.md) |
 | 架构优化持续改进计划 | [refactor-plan.md](refactor-plan.md) |
+| 重构复盘与后续建议 | [refactor-retrospective.md](refactor-retrospective.md) |
 | 优化轮 00059（dock 角标重做/File 菜单/Sync 语义/Layout 框） | [optimize-round-00059.md](optimize-round-00059.md) |
 | 优化轮 00060（dock 外折/点阵层级/Overview 新标签/HDA 重启恢复/视口 Undo） | [optimize-round-00060.md](optimize-round-00060.md) |
 | 优化轮 00061（dock 内侧残留/菜单居中/颜色拾取器体验） | [optimize-round-00061.md](optimize-round-00061.md) |
@@ -100,6 +101,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00088：重整复盘落库（refactor-retrospective.md）；刷新机器生成索引（FUNCTION_INDEX/MODULE_GRAPH/API_INDEX）；更新根 README 版本与架构；清理根目录临时 snapshot 数据与 bridge 日志。
 - v0.1.00087：阶段3.3 完成——抽 core/dataflow.ts（createDataflow 收拢「编辑→网络→视口」数据流，late-bound getter 破鸡生蛋）；main.ts 892→793；tsc 0 + vitest 101 + build 通过 + 视口/节点图 e2e 26 passed。
 - v0.1.00086：阶段3.2 完成——color.ts 全拆 color/（picker/wheel-sv/harmony/palette/color-math + barrel，wheel-sv 用 createWheelSv 依赖注入破 setColor↔wheel 循环）；tsc 0 + vitest 101 + build 通过 + round15-color 8 passed。
 - v0.1.00085：阶段3.2 部分完成——color.ts 纯函数拆 color/（color-math 迁入 + harmony + palette + recents，3 子智能体并行）；tsc 0 + vitest 101 + vite build 通过 + round15-color 8 passed。

@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-12T18:38:10.548Z",
-  "totalFunctions": 523,
+  "generatedAt": "2026-08-13T08:21:43.112Z",
+  "totalFunctions": 542,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -1425,151 +1425,151 @@
     },
     {
       "file": "hda/scripts/hython_smoke.py",
-      "lineCount": 604,
+      "lineCount": 605,
       "functions": [
         {
           "name": "_req",
-          "line": 29,
+          "line": 30,
           "kind": "def",
           "exported": false,
           "calls": 7
         },
         {
           "name": "_make_curve_input",
-          "line": 38,
+          "line": 39,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_wait_ready_rev",
-          "line": 56,
+          "line": 57,
           "kind": "def",
           "exported": false,
           "calls": 4
         },
         {
           "name": "_FakeClock",
-          "line": 72,
+          "line": 73,
           "kind": "class",
           "exported": false,
           "calls": 2
         },
         {
           "name": "__init__",
-          "line": 75,
+          "line": 76,
           "kind": "def",
           "exported": false,
           "calls": 5
         },
         {
           "name": "now",
-          "line": 78,
+          "line": 79,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "step",
-          "line": 81,
+          "line": 82,
           "kind": "def",
           "exported": false,
           "calls": 9
         },
         {
           "name": "_test_stream_loop",
-          "line": 86,
+          "line": 87,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_FakeClient",
-          "line": 104,
+          "line": 105,
           "kind": "class",
           "exported": false,
           "calls": 3
         },
         {
           "name": "stream_once",
-          "line": 113,
+          "line": 114,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "pull_outputs",
-          "line": 119,
+          "line": 120,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_Gate",
-          "line": 123,
+          "line": 124,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "__call__",
-          "line": 130,
+          "line": 131,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "wait_len",
-          "line": 138,
+          "line": 139,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_feed",
-          "line": 154,
+          "line": 155,
           "kind": "def",
           "exported": false,
           "calls": 10
         },
         {
           "name": "_seed_caches",
-          "line": 160,
+          "line": 161,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_assert_caches_cleared",
-          "line": 169,
+          "line": 170,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_test_kick_force_recook",
-          "line": 308,
+          "line": 309,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_test_stop_all_sync",
-          "line": 360,
+          "line": 361,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "main",
-          "line": 428,
+          "line": 429,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_stats",
-          "line": 506,
+          "line": 507,
           "kind": "def",
           "exported": false,
           "calls": 5
@@ -1701,218 +1701,194 @@
       ]
     },
     {
-      "file": "hda/src/cyl1nder_hda.py",
-      "lineCount": 881,
+      "file": "hda/src/cyl1nder_cache.py",
+      "lineCount": 97,
       "functions": [
         {
-          "name": "_ui_healthy",
-          "line": 99,
-          "kind": "def",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "_ensure_frontend",
-          "line": 108,
-          "kind": "def",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "_bridge_healthy",
-          "line": 133,
-          "kind": "def",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "_ensure_bridge",
-          "line": 141,
-          "kind": "def",
-          "exported": false,
-          "calls": 3
-        },
-        {
           "name": "_ready_state",
-          "line": 168,
+          "line": 18,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_refresh_ready",
-          "line": 178,
+          "line": 28,
           "kind": "def",
           "exported": false,
-          "calls": 4
+          "calls": 1
         },
         {
           "name": "_reset_ready",
-          "line": 205,
+          "line": 55,
           "kind": "def",
           "exported": false,
-          "calls": 2
+          "calls": 1
         },
         {
           "name": "_reset_caches",
-          "line": 215,
+          "line": 65,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "_role_buffer",
+          "line": 80,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "hda/src/cyl1nder_geometry.py",
+      "lineCount": 239,
+      "functions": [
+        {
+          "name": "_serialize_geo",
+          "line": 14,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
-          "name": "_stream_loop",
-          "line": 230,
-          "kind": "def",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "_schedule_recook",
-          "line": 320,
-          "kind": "def",
-          "exported": false,
-          "calls": 4
-        },
-        {
-          "name": "_force_cook_node",
-          "line": 339,
-          "kind": "def",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "stop_sync",
-          "line": 367,
-          "kind": "def",
-          "exported": false,
-          "calls": 5
-        },
-        {
-          "name": "stop_all_sync",
-          "line": 390,
-          "kind": "def",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "ensure_sync",
-          "line": 403,
-          "kind": "def",
-          "exported": false,
-          "calls": 6
-        },
-        {
-          "name": "_root",
-          "line": 461,
-          "kind": "def",
-          "exported": false,
-          "calls": 4
-        },
-        {
-          "name": "_ensure_serial",
-          "line": 465,
-          "kind": "def",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "_parm",
-          "line": 478,
-          "kind": "def",
-          "exported": false,
-          "calls": 14
-        },
-        {
-          "name": "_set_status",
-          "line": 488,
-          "kind": "def",
-          "exported": false,
-          "calls": 6
-        },
-        {
-          "name": "_serialize_geo",
-          "line": 497,
-          "kind": "def",
-          "exported": false,
-          "calls": 3
-        },
-        {
           "name": "_build_detail",
-          "line": 507,
+          "line": 24,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_buffer_sig",
-          "line": 538,
+          "line": 55,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_apply_output",
-          "line": 554,
+          "line": 71,
           "kind": "def",
           "exported": false,
-          "calls": 2
+          "calls": 1
         },
         {
           "name": "_snapshot_parts",
-          "line": 598,
+          "line": 111,
           "kind": "def",
           "exported": false,
-          "calls": 2
+          "calls": 1
         },
         {
           "name": "_flat_signature",
-          "line": 646,
+          "line": 159,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_build_core_detail",
-          "line": 658,
+          "line": 171,
           "kind": "def",
           "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "cook_core",
-          "line": 682,
-          "kind": "def",
-          "exported": false,
-          "calls": 3
+          "calls": 1
         },
         {
           "name": "_same_geo",
-          "line": 746,
+          "line": 195,
           "kind": "def",
           "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "_role_buffer",
-          "line": 757,
-          "kind": "def",
-          "exported": false,
-          "calls": 2
+          "calls": 1
         },
         {
           "name": "_input_signature",
-          "line": 776,
+          "line": 206,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "hda/src/cyl1nder_hda.py",
+      "lineCount": 172,
+      "functions": [
+        {
+          "name": "cook_core",
+          "line": 42,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "cook",
-          "line": 811,
+          "line": 102,
           "kind": "def",
           "exported": false,
-          "calls": 7
+          "calls": 2
+        }
+      ]
+    },
+    {
+      "file": "hda/src/cyl1nder_lifecycle.py",
+      "lineCount": 128,
+      "functions": [
+        {
+          "name": "_ui_healthy",
+          "line": 25,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_ensure_frontend",
+          "line": 34,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "_bridge_healthy",
+          "line": 59,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_ensure_bridge",
+          "line": 67,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "_root",
+          "line": 94,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_ensure_serial",
+          "line": 98,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "_parm",
+          "line": 111,
+          "kind": "def",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "_set_status",
+          "line": 121,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
         }
       ]
     },
@@ -1937,141 +1913,62 @@
       ]
     },
     {
+      "file": "hda/src/cyl1nder_sync.py",
+      "lineCount": 251,
+      "functions": [
+        {
+          "name": "_stream_loop",
+          "line": 22,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "_schedule_recook",
+          "line": 112,
+          "kind": "def",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "_force_cook_node",
+          "line": 131,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "stop_sync",
+          "line": 159,
+          "kind": "def",
+          "exported": false,
+          "calls": 5
+        },
+        {
+          "name": "stop_all_sync",
+          "line": 182,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "ensure_sync",
+          "line": 195,
+          "kind": "def",
+          "exported": false,
+          "calls": 4
+        }
+      ]
+    },
+    {
       "file": "web/src/app/app-config.ts",
       "lineCount": 7,
       "functions": []
     },
     {
       "file": "web/src/app/color.ts",
-      "lineCount": 1148,
-      "functions": [
-        {
-          "name": "fitInViewport",
-          "line": 73,
-          "kind": "function",
-          "exported": true,
-          "calls": 4
-        },
-        {
-          "name": "rgbToHex",
-          "line": 87,
-          "kind": "function",
-          "exported": true,
-          "calls": 7
-        },
-        {
-          "name": "hexToRgb",
-          "line": 93,
-          "kind": "function",
-          "exported": true,
-          "calls": 8
-        },
-        {
-          "name": "rgbToHsl",
-          "line": 114,
-          "kind": "function",
-          "exported": false,
-          "calls": 10
-        },
-        {
-          "name": "hslToRgb",
-          "line": 134,
-          "kind": "function",
-          "exported": false,
-          "calls": 7
-        },
-        {
-          "name": "rgbToHsv",
-          "line": 160,
-          "kind": "function",
-          "exported": false,
-          "calls": 5
-        },
-        {
-          "name": "hsvToRgb",
-          "line": 178,
-          "kind": "function",
-          "exported": false,
-          "calls": 4
-        },
-        {
-          "name": "loadRecents",
-          "line": 219,
-          "kind": "function",
-          "exported": false,
-          "calls": 4
-        },
-        {
-          "name": "saveRecents",
-          "line": 233,
-          "kind": "function",
-          "exported": false,
-          "calls": 4
-        },
-        {
-          "name": "recordRecent",
-          "line": 241,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "removeRecent",
-          "line": 248,
-          "kind": "function",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "clearRecents",
-          "line": 255,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "esc",
-          "line": 412,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "valuesForMode",
-          "line": 419,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "colorFromMode",
-          "line": 429,
-          "kind": "function",
-          "exported": false,
-          "calls": 5
-        },
-        {
-          "name": "harmonyDef",
-          "line": 435,
-          "kind": "function",
-          "exported": false,
-          "calls": 5
-        },
-        {
-          "name": "harmonyColor",
-          "line": 440,
-          "kind": "function",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "openColorPicker",
-          "line": 457,
-          "kind": "function",
-          "exported": true,
-          "calls": 2
-        }
-      ]
+      "lineCount": 3,
+      "functions": []
     },
     {
       "file": "web/src/app/dock.ts",
@@ -2616,683 +2513,760 @@
       ]
     },
     {
-      "file": "web/src/main.ts",
-      "lineCount": 1193,
+      "file": "web/src/color/color-math.ts",
+      "lineCount": 147,
       "functions": [
         {
-          "name": "matchLogFilter",
-          "line": 42,
-          "kind": "arrow",
-          "exported": false,
-          "calls": 0
-        },
-        {
-          "name": "renderLog",
-          "line": 43,
-          "kind": "arrow",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "toggle",
-          "line": 105,
-          "kind": "arrow",
-          "exported": false,
-          "calls": 7
-        },
-        {
-          "name": "updateLayoutMenuLabel",
-          "line": 137,
+          "name": "rgbToHex",
+          "line": 24,
           "kind": "function",
-          "exported": false,
-          "calls": 5
-        },
-        {
-          "name": "getDockJson",
-          "line": 140,
-          "kind": "arrow",
-          "exported": false,
-          "calls": 6
-        },
-        {
-          "name": "saveCurrentLayout",
-          "line": 144,
-          "kind": "arrow",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "refreshLayoutPresets",
-          "line": 153,
-          "kind": "arrow",
-          "exported": false,
+          "exported": true,
           "calls": 1
         },
         {
-          "name": "writeJsonToDir",
-          "line": 259,
+          "name": "hexToRgb",
+          "line": 30,
           "kind": "function",
-          "exported": false,
-          "calls": 7
+          "exported": true,
+          "calls": 1
         },
         {
-          "name": "readJsonFromDir",
-          "line": 270,
+          "name": "rgbToHsl",
+          "line": 49,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "hslToRgb",
+          "line": 69,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "rgbToHsv",
+          "line": 95,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "hsvToRgb",
+          "line": 113,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/color/harmony.ts",
+      "lineCount": 104,
+      "functions": [
+        {
+          "name": "harmonyDef",
+          "line": 93,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "harmonyColor",
+          "line": 97,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/color/palette.ts",
+      "lineCount": 53,
+      "functions": [
+        {
+          "name": "loadRecents",
+          "line": 14,
+          "kind": "function",
+          "exported": true,
+          "calls": 3
+        },
+        {
+          "name": "saveRecents",
+          "line": 28,
+          "kind": "function",
+          "exported": true,
+          "calls": 4
+        },
+        {
+          "name": "recordRecent",
+          "line": 36,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "removeRecent",
+          "line": 43,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "clearRecents",
+          "line": 50,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/color/picker.ts",
+      "lineCount": 713,
+      "functions": [
+        {
+          "name": "fitInViewport",
+          "line": 64,
+          "kind": "function",
+          "exported": true,
+          "calls": 4
+        },
+        {
+          "name": "esc",
+          "line": 117,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "valuesForMode",
+          "line": 124,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "colorFromMode",
+          "line": 134,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
-          "name": "saveSceneAs",
-          "line": 284,
+          "name": "openColorPicker",
+          "line": 148,
           "kind": "function",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "openSceneFromDir",
-          "line": 338,
-          "kind": "function",
-          "exported": false,
+          "exported": true,
           "calls": 2
-        },
+        }
+      ]
+    },
+    {
+      "file": "web/src/color/wheel-sv.ts",
+      "lineCount": 200,
+      "functions": [
         {
-          "name": "applyLayoutSettings",
-          "line": 503,
+          "name": "createWheelSv",
+          "line": 51,
           "kind": "function",
-          "exported": false,
-          "calls": 4
-        },
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/core/dataflow.ts",
+      "lineCount": 144,
+      "functions": [
         {
-          "name": "readParamFloats",
-          "line": 508,
+          "name": "createDataflow",
+          "line": 29,
           "kind": "function",
-          "exported": false,
-          "calls": 4
-        },
-        {
-          "name": "cloneParams",
-          "line": 519,
-          "kind": "function",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "paramsEqual",
-          "line": 524,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "flushParamUndo",
-          "line": 546,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "refreshSelectionPanels",
-          "line": 557,
-          "kind": "function",
-          "exported": false,
-          "calls": 4
-        },
-        {
-          "name": "bindGizmoToTransform",
-          "line": 626,
-          "kind": "function",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "bindEnterGizmoToSelection",
-          "line": 675,
-          "kind": "function",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "applyTransformDrag",
-          "line": 693,
-          "kind": "function",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "toggleEnterEdit",
-          "line": 708,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
+          "exported": true,
+          "calls": 1
         },
         {
           "name": "getDisplayNodeInfo",
-          "line": 734,
+          "line": 31,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "refreshNodeFlags",
-          "line": 750,
+          "line": 47,
+          "kind": "function",
+          "exported": false,
+          "calls": 5
+        },
+        {
+          "name": "flush",
+          "line": 128,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "wireSelection",
+          "line": 134,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        }
+      ]
+    },
+    {
+      "file": "web/src/core/gizmo.ts",
+      "lineCount": 154,
+      "functions": [
+        {
+          "name": "createGizmoController",
+          "line": 47,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/core/kick.ts",
+      "lineCount": 45,
+      "functions": [
+        {
+          "name": "createKickController",
+          "line": 11,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/core/lifecycle.ts",
+      "lineCount": 58,
+      "functions": [
+        {
+          "name": "createAutosave",
+          "line": 7,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "createHdaWatchdog",
+          "line": 31,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "check",
+          "line": 42,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/core/network.ts",
+      "lineCount": 53,
+      "functions": [
+        {
+          "name": "createNetworkRunner",
+          "line": 18,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/core/param-undo.ts",
+      "lineCount": 33,
+      "functions": [
+        {
+          "name": "createParamUndo",
+          "line": 10,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/core/params.ts",
+      "lineCount": 31,
+      "functions": [
+        {
+          "name": "readParamFloats",
+          "line": 8,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "cloneParams",
+          "line": 19,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "paramsEqual",
+          "line": 24,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/core/session.ts",
+      "lineCount": 86,
+      "functions": [
+        {
+          "name": "createSessionController",
+          "line": 25,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/core/shortcuts.ts",
+      "lineCount": 51,
+      "functions": [
+        {
+          "name": "bindShortcuts",
+          "line": 15,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/main.ts",
+      "lineCount": 794,
+      "functions": [
+        {
+          "name": "matchLogFilter",
+          "line": 51,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 0
+        },
+        {
+          "name": "renderLog",
+          "line": 52,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "toggle",
+          "line": 119,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 8
+        },
+        {
+          "name": "updateLayoutMenuLabel",
+          "line": 151,
+          "kind": "function",
+          "exported": false,
+          "calls": 5
+        },
+        {
+          "name": "getDockJson",
+          "line": 154,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 6
+        },
+        {
+          "name": "saveCurrentLayout",
+          "line": 158,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "refreshLayoutPresets",
+          "line": 167,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "writeJsonToDir",
+          "line": 273,
+          "kind": "function",
+          "exported": false,
+          "calls": 7
+        },
+        {
+          "name": "readJsonFromDir",
+          "line": 284,
+          "kind": "function",
+          "exported": false,
+          "calls": 5
+        },
+        {
+          "name": "saveSceneAs",
+          "line": 298,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "openSceneFromDir",
+          "line": 352,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "applyLayoutSettings",
+          "line": 539,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
+          "name": "refreshSelectionPanels",
+          "line": 546,
+          "kind": "function",
+          "exported": false,
+          "calls": 1
+        },
+        {
           "name": "inputStatsText",
-          "line": 810,
+          "line": 608,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "outputStatsText",
-          "line": 819,
+          "line": 617,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderInspector",
-          "line": 828,
+          "line": 626,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "flushStoreView",
-          "line": 851,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "runNetwork",
-          "line": 886,
-          "kind": "function",
-          "exported": false,
-          "calls": 6
-        },
-        {
-          "name": "kickHdaOnce",
-          "line": 914,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "startHdaWatch",
-          "line": 927,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "check",
-          "line": 929,
-          "kind": "arrow",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "stopHdaWatch",
-          "line": 947,
+          "line": 649,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "loadSnapshotIntoStore",
-          "line": 956,
+          "line": 676,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "applyLoadedPreference",
-          "line": 993,
+          "line": 713,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
-          "name": "connect",
-          "line": 1022,
-          "kind": "function",
-          "exported": false,
-          "calls": 4
-        },
-        {
           "name": "markGraphDirty",
-          "line": 1163,
+          "line": 787,
           "kind": "function",
           "exported": false,
           "calls": 2
-        },
-        {
-          "name": "startAutoSave",
-          "line": 1173,
-          "kind": "function",
-          "exported": false,
-          "calls": 5
         }
       ]
     },
     {
-      "file": "web/src/nodes2/graph.ts",
-      "lineCount": 1667,
+      "file": "web/src/nodes2/graph-interact.ts",
+      "lineCount": 954,
       "functions": [
         {
-          "name": "actionContainsParams",
-          "line": 111,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "log",
-          "line": 116,
-          "kind": "arrow",
-          "exported": false,
-          "calls": 17
-        },
-        {
-          "name": "notifySelection",
-          "line": 120,
-          "kind": "function",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "nodeByKind",
-          "line": 127,
-          "kind": "function",
-          "exported": false,
-          "calls": 4
-        },
-        {
-          "name": "resolveInputSourcePort",
-          "line": 138,
-          "kind": "function",
-          "exported": false,
-          "calls": 4
-        },
-        {
-          "name": "nodeFromTarget",
-          "line": 162,
-          "kind": "function",
-          "exported": false,
-          "calls": 7
-        },
-        {
-          "name": "renderNode",
-          "line": 178,
-          "kind": "function",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "portIndexFromTarget",
-          "line": 193,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "CylNode",
-          "line": 205,
-          "kind": "class",
-          "exported": true,
-          "calls": 4
-        },
-        {
-          "name": "makeInputNode",
-          "line": 236,
-          "kind": "function",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "makeOutputNode",
-          "line": 241,
-          "kind": "function",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "makeNullNode",
-          "line": 248,
-          "kind": "function",
-          "exported": true,
-          "calls": 2
-        },
-        {
-          "name": "makeTransformNode",
-          "line": 259,
-          "kind": "function",
-          "exported": true,
-          "calls": 2
-        },
-        {
-          "name": "buildGraph",
-          "line": 283,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "createReteGraph",
-          "line": 369,
-          "kind": "function",
-          "exported": true,
-          "calls": 1
-        },
-        {
           "name": "attachTabSearch",
-          "line": 676,
+          "line": 48,
           "kind": "function",
-          "exported": false,
-          "calls": 2
+          "exported": true,
+          "calls": 1
         },
         {
           "name": "render",
-          "line": 692,
+          "line": 64,
           "kind": "arrow",
           "exported": false,
-          "calls": 4
+          "calls": 3
         },
         {
           "name": "create",
-          "line": 707,
+          "line": 79,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "close",
-          "line": 736,
+          "line": 108,
           "kind": "arrow",
           "exported": false,
           "calls": 6
         },
         {
           "name": "update",
-          "line": 742,
+          "line": 114,
           "kind": "arrow",
           "exported": false,
           "calls": 3
         },
         {
           "name": "distToSegment",
-          "line": 772,
+          "line": 144,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "sampleConnectionPath",
-          "line": 782,
+          "line": 154,
           "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "findConnectionByRef",
-          "line": 804,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "applyUndoAction",
-          "line": 815,
-          "kind": "function",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "addConn",
-          "line": 820,
-          "kind": "arrow",
-          "exported": false,
-          "calls": 8
-        },
-        {
-          "name": "delConn",
-          "line": 828,
-          "kind": "arrow",
-          "exported": false,
-          "calls": 8
-        },
-        {
-          "name": "lbl",
-          "line": 832,
-          "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "attachCutMode",
-          "line": 899,
+          "line": 175,
           "kind": "function",
-          "exported": false,
-          "calls": 2
+          "exported": true,
+          "calls": 1
         },
         {
           "name": "isTyping",
-          "line": 925,
+          "line": 201,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "pathLen",
-          "line": 931,
+          "line": 207,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "setPoints",
-          "line": 936,
+          "line": 212,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "clear",
-          "line": 940,
+          "line": 216,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "cutConnection",
-          "line": 945,
+          "line": 221,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "cutByPolyline",
-          "line": 960,
+          "line": 236,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "up",
-          "line": 1039,
+          "line": 315,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "attachFlagMenu",
-          "line": 1061,
+          "line": 337,
           "kind": "function",
-          "exported": false,
-          "calls": 2
+          "exported": true,
+          "calls": 1
         },
         {
           "name": "show",
-          "line": 1073,
+          "line": 349,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "setNodeStateHandler",
-          "line": 1127,
+          "line": 403,
           "kind": "function",
           "exported": true,
-          "calls": 2
+          "calls": 1
         },
         {
           "name": "fireNodeState",
-          "line": 1130,
+          "line": 409,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "setRenameHandler",
-          "line": 1136,
+          "line": 415,
           "kind": "function",
           "exported": true,
-          "calls": 2
+          "calls": 1
         },
         {
           "name": "fireRename",
-          "line": 1139,
+          "line": 419,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "initTooltip",
-          "line": 1145,
+          "line": 425,
           "kind": "function",
           "exported": true,
-          "calls": 2
+          "calls": 1
         },
         {
           "name": "showTooltip",
-          "line": 1151,
+          "line": 432,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "hideTooltip",
-          "line": 1164,
+          "line": 446,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "attachMMBPan",
-          "line": 1172,
+          "line": 454,
           "kind": "function",
-          "exported": false,
-          "calls": 2
+          "exported": true,
+          "calls": 1
         },
         {
           "name": "onMove",
-          "line": 1180,
+          "line": 465,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "onUp",
-          "line": 1183,
+          "line": 468,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "attachDotGrid",
-          "line": 1201,
+          "line": 486,
           "kind": "function",
-          "exported": false,
-          "calls": 2
+          "exported": true,
+          "calls": 1
         },
         {
           "name": "hitTestConnection",
-          "line": 1232,
+          "line": 520,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "connectionPathD",
-          "line": 1261,
+          "line": 549,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "isInsertable",
-          "line": 1269,
+          "line": 557,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "attachInsertion",
-          "line": 1273,
+          "line": 561,
           "kind": "function",
-          "exported": false,
-          "calls": 2
+          "exported": true,
+          "calls": 1
         },
         {
           "name": "refreshPreview",
-          "line": 1321,
+          "line": 609,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "updatePreview",
-          "line": 1329,
+          "line": 617,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "setHover",
-          "line": 1352,
+          "line": 640,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "attachRectSelect",
-          "line": 1472,
+          "line": 760,
           "kind": "function",
-          "exported": false,
-          "calls": 2
+          "exported": true,
+          "calls": 1
         },
         {
           "name": "attachShakeDisconnect",
-          "line": 1546,
+          "line": 834,
           "kind": "function",
-          "exported": false,
-          "calls": 2
+          "exported": true,
+          "calls": 1
         },
         {
           "name": "reset",
-          "line": 1557,
+          "line": 845,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "shakeNode",
-          "line": 1563,
+          "line": 851,
           "kind": "arrow",
           "exported": false,
           "calls": 1
@@ -3300,180 +3274,377 @@
       ]
     },
     {
-      "file": "web/src/nodes2/groups.ts",
-      "lineCount": 537,
+      "file": "web/src/nodes2/graph-model.ts",
+      "lineCount": 354,
       "functions": [
         {
-          "name": "tokenize",
+          "name": "notifySelection",
           "line": 85,
           "kind": "function",
-          "exported": false,
+          "exported": true,
           "calls": 2
         },
         {
-          "name": "mergeAttrTokens",
-          "line": 129,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "isNumeric",
-          "line": 149,
-          "kind": "function",
-          "exported": false,
-          "calls": 4
-        },
-        {
-          "name": "parseToken",
-          "line": 154,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "parseGroupExpression",
-          "line": 193,
+          "name": "onSelectionChange",
+          "line": 89,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
-          "name": "stripAttrKey",
-          "line": 217,
+          "name": "nodeByKind",
+          "line": 94,
           "kind": "function",
-          "exported": false,
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "resolveInputSourcePort",
+          "line": 105,
+          "kind": "function",
+          "exported": true,
           "calls": 2
         },
         {
-          "name": "resolveAttribute",
-          "line": 226,
+          "name": "nodeFromTarget",
+          "line": 129,
           "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "renderNode",
+          "line": 145,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "portIndexFromTarget",
+          "line": 160,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "CylNode",
+          "line": 168,
+          "kind": "class",
           "exported": true,
           "calls": 4
         },
         {
-          "name": "idSpecMatches",
-          "line": 243,
+          "name": "makeInputNode",
+          "line": 197,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "makeOutputNode",
+          "line": 202,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "makeNullNode",
+          "line": 209,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "makeTransformNode",
+          "line": 220,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "serializeGraph",
+          "line": 240,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "restoreGraph",
+          "line": 274,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "getNetworkSnapshot",
+          "line": 340,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        }
+      ]
+    },
+    {
+      "file": "web/src/nodes2/graph-undo.ts",
+      "lineCount": 149,
+      "functions": [
+        {
+          "name": "actionContainsParams",
+          "line": 15,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "findConnectionByRef",
+          "line": 22,
           "kind": "function",
           "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "applyUndoAction",
+          "line": 33,
+          "kind": "function",
+          "exported": true,
+          "calls": 3
+        },
+        {
+          "name": "addConn",
+          "line": 38,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 8
+        },
+        {
+          "name": "delConn",
+          "line": 46,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 8
+        },
+        {
+          "name": "lbl",
+          "line": 50,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "createGraphUndoManager",
+          "line": 117,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/nodes2/graph.ts",
+      "lineCount": 290,
+      "functions": [
+        {
+          "name": "buildGraph",
+          "line": 59,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "createReteGraph",
+          "line": 145,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/nodes2/groups.ts",
+      "lineCount": 32,
+      "functions": []
+    },
+    {
+      "file": "web/src/nodes2/groups/matcher.ts",
+      "lineCount": 317,
+      "functions": [
+        {
+          "name": "idSpecMatches",
+          "line": 23,
+          "kind": "function",
+          "exported": true,
           "calls": 2
         },
         {
           "name": "uniq",
-          "line": 271,
+          "line": 51,
           "kind": "function",
-          "exported": false,
+          "exported": true,
           "calls": 3
         },
         {
           "name": "primPointSets",
-          "line": 284,
+          "line": 64,
           "kind": "function",
-          "exported": false,
+          "exported": true,
           "calls": 2
         },
         {
           "name": "vertexMap",
-          "line": 292,
+          "line": 72,
           "kind": "function",
-          "exported": false,
+          "exported": true,
           "calls": 2
         },
         {
           "name": "range",
-          "line": 299,
+          "line": 79,
           "kind": "function",
-          "exported": false,
+          "exported": true,
           "calls": 7
         },
         {
           "name": "rulePoint",
-          "line": 306,
+          "line": 86,
           "kind": "function",
-          "exported": false,
+          "exported": true,
           "calls": 2
         },
         {
           "name": "elementPoints",
-          "line": 330,
+          "line": 110,
           "kind": "function",
-          "exported": false,
+          "exported": true,
           "calls": 2
         },
         {
           "name": "compIndex",
-          "line": 355,
+          "line": 135,
           "kind": "function",
-          "exported": false,
+          "exported": true,
           "calls": 2
         },
         {
           "name": "toNum",
-          "line": 361,
+          "line": 141,
           "kind": "function",
-          "exported": false,
+          "exported": true,
           "calls": 7
         },
         {
           "name": "eqScalar",
-          "line": 369,
+          "line": 149,
           "kind": "function",
-          "exported": false,
+          "exported": true,
           "calls": 6
         },
         {
           "name": "arraysEqual",
-          "line": 374,
+          "line": 154,
           "kind": "function",
-          "exported": false,
+          "exported": true,
           "calls": 3
         },
         {
           "name": "parseValueList",
-          "line": 382,
+          "line": 162,
           "kind": "function",
-          "exported": false,
+          "exported": true,
           "calls": 2
         },
         {
           "name": "firstNum",
-          "line": 390,
+          "line": 170,
           "kind": "function",
-          "exported": false,
+          "exported": true,
           "calls": 3
         },
         {
           "name": "compareLhs",
-          "line": 399,
+          "line": 179,
           "kind": "function",
-          "exported": false,
+          "exported": true,
           "calls": 2
         },
         {
           "name": "ruleMatchesElement",
-          "line": 452,
+          "line": 232,
           "kind": "function",
-          "exported": false,
+          "exported": true,
           "calls": 2
         },
         {
           "name": "computeSelection",
-          "line": 490,
+          "line": 270,
           "kind": "function",
-          "exported": false,
+          "exported": true,
           "calls": 3
         },
         {
           "name": "pointInGroup",
-          "line": 529,
+          "line": 309,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "matchingPoints",
-          "line": 534,
+          "line": 314,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/nodes2/groups/parser.ts",
+      "lineCount": 208,
+      "functions": [
+        {
+          "name": "tokenize",
+          "line": 53,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "mergeAttrTokens",
+          "line": 97,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "isNumeric",
+          "line": 117,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "parseToken",
+          "line": 122,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "parseGroupExpression",
+          "line": 161,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "stripAttrKey",
+          "line": 185,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "resolveAttribute",
+          "line": 194,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -3815,6 +3986,33 @@
       ]
     },
     {
+      "file": "web/src/viewport/camera.ts",
+      "lineCount": 58,
+      "functions": [
+        {
+          "name": "createCamera",
+          "line": 11,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "frameVisible",
+          "line": 18,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "frameDefault",
+          "line": 50,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        }
+      ]
+    },
+    {
       "file": "web/src/viewport/controls.ts",
       "lineCount": 117,
       "functions": [
@@ -3918,52 +4116,158 @@
       ]
     },
     {
+      "file": "web/src/viewport/gizmo.ts",
+      "lineCount": 258,
+      "functions": [
+        {
+          "name": "createGizmo",
+          "line": 43,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "setEnterEditHandler",
+          "line": 93,
+          "kind": "arrow",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/viewport/modes.ts",
+      "lineCount": 63,
+      "functions": [
+        {
+          "name": "applyDisplayModeToGroup",
+          "line": 28,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "web/src/viewport/picking.ts",
+      "lineCount": 116,
+      "functions": [
+        {
+          "name": "createPicking",
+          "line": 28,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "pickByNode",
+          "line": 33,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "onPointerDown",
+          "line": 63,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "select",
+          "line": 76,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "clearSelection",
+          "line": 89,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "commitEdit",
+          "line": 96,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        }
+      ]
+    },
+    {
       "file": "web/src/viewport/renderer.ts",
-      "lineCount": 785,
+      "lineCount": 499,
       "functions": [
         {
           "name": "Viewport",
-          "line": 44,
+          "line": 28,
           "kind": "class",
           "exported": true,
           "calls": 1
         },
         {
           "name": "showModeMenu",
-          "line": 133,
+          "line": 103,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "hideModeMenu",
-          "line": 145,
+          "line": 115,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "applyMode",
-          "line": 146,
+          "line": 116,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "openModeMenu",
-          "line": 161,
+          "line": 131,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "closeModeMenu",
-          "line": 162,
+          "line": 132,
           "kind": "arrow",
           "exported": false,
           "calls": 3
         }
       ]
+    },
+    {
+      "file": "web/src/viewport/scene.ts",
+      "lineCount": 46,
+      "functions": [
+        {
+          "name": "buildViewportScene",
+          "line": 18,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "makeBox",
+          "line": 40,
+          "kind": "function",
+          "exported": true,
+          "calls": 3
+        }
+      ]
+    },
+    {
+      "file": "web/src/viewport/state.ts",
+      "lineCount": 11,
+      "functions": []
     }
   ]
 }
