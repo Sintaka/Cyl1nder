@@ -44,7 +44,7 @@
 - 验收：tsc 0 + vitest 增量 + e2e round15/round12 不回归；行为零变化。
 
 ### 阶段 2（中拆，分模块）
-- [~] 2.1 `main.ts` 抽 core：已完成 `core/lifecycle.ts` + `core/shortcuts.ts` + `core/params.ts` + `core/param-undo.ts` + `core/gizmo.ts`；待续 `core/session.ts`（连接/WS/网络）。
+- [~] 2.1 `main.ts` 抽 core：已完成 `core/lifecycle.ts` + `core/shortcuts.ts` + `core/params.ts` + `core/param-undo.ts` + `core/gizmo.ts` + `core/network.ts`（runNetwork+networkEpoch）；**仅剩** `core/session.ts`（connect/WS 消息/踢线/kick 状态）。
 - [ ] 2.2 `graph.ts` 拆 `nodes2/graph-view.ts` / `graph-interact.ts` / `undo.ts` 强化；先定函数签名契约再并行。
 - [ ] 2.3 `viewport/renderer.ts` 拆 `scene` / `camera` / `gizmo` / `picking` / `modes`。
 - 验收：tsc 0 + vitest + 全量 e2e；主进程 merge 前 review 写集不越界。
@@ -65,7 +65,7 @@
 - 2026-08-13：阶段 1 完成；阶段 2.1 已抽出 `core/lifecycle.ts` + `core/shortcuts.ts` + `core/params.ts` + `core/param-undo.ts`（round5/8/12/14/16 e2e 通过）；2.1 其余（session/gizmo）待续。
 ## 七、当前执行（in progress，检查点 2026-08-13）
 - 分支：`codex/0.1.00075-refactor-gizmo-session`（已从 `codex/cyl1nder-v0` 切出）。
-- 已完成：**2.1-gizmo** 抽 `web/src/core/gizmo.ts`（round12/16 6 passed）。\n- 下一步：**2.1-session** 抽 `web/src/core/session.ts`（connect/WS/networkEpoch/runNetwork/applyOutputs），继续本分支。
+- 已完成：**2.1-gizmo** + **2.1-network** 抽出（round12/16 6 passed）。\n- 下一步：**2.1-session 收尾** 抽 `web/src/core/session.ts`（connect/WS 消息/踢线/kick 状态，依赖 store/layout/client/prefs/network/hdaWatchdog/loadSnapshotIntoStore）。
   - 状态收拢为闭包对象：`pendingTransform / dragNodeId / dragBefore / dragAfter / lastTransformId`。
   - 工厂签名（契约，主进程先定骨架）：
     ```ts
@@ -85,3 +85,14 @@
   - main.ts 保留调用点：`viewport.setEnterEditHandler(gizmo.toggle)`、`graph.onSelectionChanged(() => { paramUndo.flush(); refreshSelectionPanels(); if (viewport.isEnterActive()) gizmo.bindToSelection(); })`、`handlers.onParamsApplied` 里转调 `gizmo.onParamsApplied`。
   - 验证：tsc 0 + vitest 101 + e2e round12/16。
 - 之后：**2.1-session** 抽 `web/src/core/session.ts`（connect/WS/networkEpoch/runNetwork/applyOutputs），同分支继续。
+## 八、2.2 `graph.ts` 分支计划（重新审视）
+- 单独分支：`codex/<版本>-refactor-graph`（从完成 2.1 后的分支切出）。
+- 先做只读边界分析再切，因为 `graph.ts` 是 rete 渲染/连线/拖拽/撤销/参数/选择的耦合体，且对外暴露 `__cylGraph`、`createReteGraph`、`ReteGraphHandlers`。
+- 建议拆成 3 个内部模块 + barrel（保持 `./nodes2/graph` 对外 API 不变）：
+  1. `nodes2/graph-model.ts`：节点/连线/选中态/网络快照（纯数据结构 + 只读查询）。
+  2. `nodes2/graph-interact.ts`：拖拽、连线、框选、快捷键交互（依赖 model + rete）。
+  3. `nodes2/graph-undo.ts`：`pushUndo`/`pushUndoGroup`/undo-redo 状态机（现 `nodes2/undo.ts` 已有，迁移/强化）。
+  - `graph.ts` 保留 `createReteGraph()` 装配 + `ReteGraphHandlers` 回调派发，退化为外壳。
+- 契约锚点：先定 `GraphModel` 与 `GraphInteract` 的导出函数签名，主进程建骨架；子智能体按写集实现（model/interact/undo 三个写集不相交）。
+- 验证：`tsc 0` + `vitest`（undo/network/groups 相关）+ 全量 e2e（round2~8 节点图 + round12/16）。
+- 风险：`graph.ts` 1564 行是当前最大屎山，建议作为独立一轮、单独分支、分 2-3 刀切，不与 session 收尾并发。
