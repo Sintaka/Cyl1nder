@@ -229,7 +229,7 @@ git -C D:\code\dev\Cyl1nder grep -n "inputsEqual" -- web/src
 1. **每次 commit**：一句话 + 指向专题文件；dailybuild+1（`node scripts/bump-version.mjs`）；同步 protocol.py VERSION / app-config.ts APP_VERSION / devlog/README「最近版本」。
 2. **改动标注**：桥→annotations-bridge.md；HDA→annotations-hda.md；web→annotations-web.md；跨端改动三端各记一条，且必须三端同验（bridge pytest + web tsc + hython 冒烟）。
 3. **协议改动**：`protocol.py` / `web/src/protocol/types.ts` / `devlog/protocol.md` 三处同步，缺一不可。
-4. **分支**：大改（重构/新功能/修 bug）独立分支 `codex/<版本>-<操作>`；文档/版本号/单点修复可当前分支直提；禁止直接 merge main，合并由主进程负责。
+4. **分支（2026-08-13 起）**：唯一长期主线 `codex/develop`，所有轮次直接在其上提交；不再为每轮开 `codex/<版本>-<操作>` 分支（见 development-standards.md 分支管理）。仅在真正并行/分叉实验时开短命分支，合入即删。
 5. **并行**：按文件/子系统边界切分，子 agent 产出主进程审查整合；跨端功能（协议、双向同步）单 agent 串行；关键路径阻塞任务不委托。
 6. **MCP 优先**：Houdini 侧只用官方 fxhoudinimcp（8100，被占自动 8101+），不写自己的 Houdini MCP；Cyl1nder 桥状态用自带 7 个 `cyl1nder_*` 工具，先 ping 再查 serial/日志/几何/索引。
 
