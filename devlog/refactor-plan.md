@@ -52,7 +52,7 @@
 ### 阶段 3（大拆，跨端）
 - [x] 3.1 `hda/src/cyl1nder_hda.py` 按 lifecycle/cache/geometry/sync 拆分 + `cyl1nder_hda.py` 外壳 barrel（保留公开模块名 `cyl1nder_hda`，re-export 全部 smoke 依赖名）；hython smoke 全绿（reload_hda MODULES 顺序 + smoke `_schedule_recook` monkeypatch 目标同步到 `cyl1nder_sync`）。
 - [x] 3.2 `color.ts` 余下 UI 拆 `color/` 目录：`color/color-math.ts` + `color/harmony.ts` + `color/palette.ts` + `color/wheel-sv.ts`（createWheelSv 依赖注入，setColorRef/pickHarmonyRef 破环）+ `color/picker.ts`（openColorPicker 外壳）+ `app/color.ts` 2 行 barrel；公开 API 不变。
-- [ ] 3.3 视口与节点图之间建立更清晰的「编辑 → 网络 → 视口」数据流，消灭 main.ts 的直连。
+- [x] 3.3 视口↔节点图数据流清晰化：抽 `core/dataflow.ts`（createDataflow：getDisplayNodeInfo/refreshNodeFlags/handlers/flush/wireSelection，graph·network·viewport·gizmo 全部 late-bound getter 破 chicken-and-egg）；main.ts 793 行退化为 UI 装配。
 - 验收：三端（pytest / tsc+vitest / hython smoke）+ 跨端 E2E 全绿。
 
 ## 五、执行纪律（与现有规范一致）
@@ -62,12 +62,12 @@
 - 每完成一项，更新 `devlog/shit-mountains.md` 行数/状态与本文件 checkbox。
 
 ## 六、状态
-- 2026-08-13：阶段 1 完成；阶段 2.1 完成（core 八子刀）；阶段 2.2 完成（graph.ts 拆 model/interact/undo + 外壳）；阶段 2.3 完成（viewport/renderer.ts 拆 scene/camera/gizmo/picking/modes/state + 外壳）；下一步阶段 3。
-## 七、当前执行（in progress，检查点 2026-08-13）
-- 分支：`codex/0.1.00085-refactor-color`。
-- 已完成 **3.1**（分支 `codex/0.1.00084-refactor-hda`）：`hda/src/cyl1nder_hda.py`（881 行）拆 lifecycle(127)/cache(96)/geometry(238)/sync(250) + 外壳 barrel(172)；hython smoke 全绿。
-- 已完成 **3.2**（分支 `codex/0.1.00085-refactor-color`）：`app/color.ts`（1007 行）拆 `color/` 目录——`color-math.ts`(147) + `harmony.ts`(104) + `palette.ts`(52) + `wheel-sv.ts`(199，createWheelSv 依赖注入，setColorRef/pickHarmonyRef 破 setColor↔wheel 循环) + `picker.ts`(712，openColorPicker 外壳) + `app/color.ts` 2 行 barrel；公开 API 不变。验证 tsc 0 + vitest 101 + build 通过 + round15-color 8 passed。
-- 下一步：**3.3** 视口↔节点图数据流清晰化（见 §九）。
+- 2026-08-13：阶段 1 完成；阶段 2.1 完成（core 八子刀）；阶段 2.2 完成（graph.ts 拆 model/interact/undo + 外壳）；阶段 2.3 完成（viewport/renderer.ts 拆 scene/camera/gizmo/picking/modes/state + 外壳）；阶段 3.1 完成（hda 拆 lifecycle/cache/geometry/sync）；阶段 3.2 完成（color 拆 color/ 五件套）；阶段 3.3 完成（core/dataflow 数据流）。全部完成。
+## 七、当前执行（检查点 2026-08-13）
+- 分支：`codex/0.1.00087-refactor-dataflow`。
+- 已完成 **3.3**：抽 `web/src/core/dataflow.ts`（143 行，createDataflow）——把 main.ts 里「编辑 → 网络 → 视口」的四处直连（`handlers` 的 onNodePick/onFlagsChanged/onNetworkChanged/onParamsApplied + `refreshNodeFlags` + `graph.onSelectionChanged` + `flushStoreView` 的数据流段）收拢成 `{ handlers, refreshNodeFlags, flush, wireSelection }`；graph/network/viewport/gizmo 用 late-bound getter 破「graph 需 handlers，handlers 需 graph」的鸡生蛋。main.ts 892→793 行，只留 UI 装配 + 布局/会话/菜单/快捷键。
+- 验证：tsc 0 + vitest 101 + build 通过 + 视口/节点图 e2e（round2/4/5/6/7/8/12/16/17）26 passed。
+- 阶段 3 全部完成（3.1 hda / 3.2 color / 3.3 dataflow）。
 ## 八、2.2 `graph.ts` 分支计划（已完成 2026-08-13）
 - 单独分支：`codex/<版本>-refactor-graph`（从完成 2.1 后的分支切出）。
 - 先做只读边界分析再切，因为 `graph.ts` 是 rete 渲染/连线/拖拽/撤销/参数/选择的耦合体，且对外暴露 `__cylGraph`、`createReteGraph`、`ReteGraphHandlers`。
@@ -123,7 +123,7 @@ nodes2/graph.ts（外壳，只装配 rete + 回调派发，~200 行）
 - 契约锚点：`GraphModel`、`GraphInteract` 的导出函数签名由主进程先建骨架；子智能体按 model/interact/undo 三个写集实现。
 - 验证：`tsc 0` + `vitest`（undo/network/groups）+ 节点图 e2e（round2/4/5/6/7/8/12/16）。
 
-## 九、3.3 数据流清晰化方案（准备中，2026-08-13）
+## 九、3.3 数据流清晰化方案（已完成 2026-08-13）
 ### 现状
 `main.ts` 仍是「编辑 → 网络 → 视口」的唯一接线员，四处直连：
 - `graph.onNodePick` → `viewport.pickByNode`

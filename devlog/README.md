@@ -100,6 +100,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00087：阶段3.3 完成——抽 core/dataflow.ts（createDataflow 收拢「编辑→网络→视口」数据流，late-bound getter 破鸡生蛋）；main.ts 892→793；tsc 0 + vitest 101 + build 通过 + 视口/节点图 e2e 26 passed。
 - v0.1.00086：阶段3.2 完成——color.ts 全拆 color/（picker/wheel-sv/harmony/palette/color-math + barrel，wheel-sv 用 createWheelSv 依赖注入破 setColor↔wheel 循环）；tsc 0 + vitest 101 + build 通过 + round15-color 8 passed。
 - v0.1.00085：阶段3.2 部分完成——color.ts 纯函数拆 color/（color-math 迁入 + harmony + palette + recents，3 子智能体并行）；tsc 0 + vitest 101 + vite build 通过 + round15-color 8 passed。
 - v0.1.00084：阶段3.1 完成——hda/src/cyl1nder_hda.py 拆 lifecycle/cache/geometry/sync + 外壳 barrel（5 子智能体并行、写集不相交）；hython smoke 全绿；reload_hda MODULES 与 smoke monkeypatch 同步适配。

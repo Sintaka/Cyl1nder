@@ -9,7 +9,7 @@
 | 文件 | 行数 | 主要职责混杂 | 建议拆法 | 优先级 |
 |---|---|---|---|---|
 | web/src/nodes2/graph.ts | 290（外壳） | 已拆 2.2：graph-model(354) / graph-interact(954) / graph-undo(149) + 外壳 barrel | ✅ 2026-08-13 完成 | - |
-| web/src/main.ts | 1144 | 启动 / 连接 / 网络 / 视口 / gizmo / 菜单 / 快捷键 / 自动保存 | boot / session-connect / shortcuts / autosave / gizmo | P1 |
+| web/src/main.ts | 793 | 启动 / 连接 / 菜单 / 快捷键 / 自动保存 / 布局持久化（已抽 2.1 core 模块 + 3.3 core/dataflow 数据流） | UI 装配 / 布局持久化 | P2 |
 | web/src/app/color.ts | 2（barrel） | 已拆 3.2：picker(712)/wheel-sv(199)/harmony(104)/palette(52)/color-math(147) + barrel | ✅ 2026-08-13 完成 | - |
 | hda/src/cyl1nder_hda.py | 172（外壳 barrel） | 已拆 3.1：lifecycle(127)/cache(96)/geometry(238)/sync(250) + 外壳 barrel | ✅ 2026-08-13 完成 | - |
 | web/src/viewport/renderer.ts | 499（外壳） | 已拆 2.3：scene(45)/camera(57)/gizmo(258)/picking(115)/modes(63)/state(11) + 外壳 barrel | ✅ 2026-08-13 完成 | - |

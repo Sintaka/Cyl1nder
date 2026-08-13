@@ -7,8 +7,8 @@ import { renderParams } from "./app/param";
 import { store } from "./stores/workspace";
 import { BridgeClient } from "./bridge/client";
 import { createReteGraph, type ReteGraphHandlers } from "./nodes2/graph";
-import { computeNodeResult, computeOutputs } from "./nodes2/network";
-import { Viewport, type ReferenceItem } from "./viewport/renderer";
+import { computeOutputs } from "./nodes2/network";
+import { Viewport } from "./viewport/renderer";
 import { APP_VERSION } from "./app/app-config";
 import { inputsEqual } from "./protocol/compare";
 import type { InputPayload, OutputBuffer, UpdateMode } from "./protocol/types";
@@ -20,6 +20,7 @@ import {
   savePreferences,
   type Preferences,
 } from "./app/preference";
+import { createDataflow } from "./core/dataflow";
 import { createAutosave, createHdaWatchdog } from "./core/lifecycle";
 import { bindShortcuts } from "./core/shortcuts";
 import { cloneParams, paramsEqual, readParamFloats, type ParamLike } from "./core/params";
@@ -399,27 +400,15 @@ async function openSceneFromDir(): Promise<void> {
     .catch((e) => store.pushLog(`[file] open scene error: ${String(e)}`));
 }
 
-const handlers: ReteGraphHandlers = {
-  onNodePick: (kind, index, _nodeId) => viewport.pickByNode(kind, index),
-  onFlagsChanged: (kind, flags) => {
-    store.pushLog(`node ${kind} flags -> ${JSON.stringify(flags)}`);
-    refreshNodeFlags();
-    // Display flag: default to showing this node's FIRST port data in the viewport
-    if (flags.display) viewport.pickByNode(kind, 0);
-  },
-  onNetworkChanged: () => {
-    void network.run();
-    refreshNodeFlags(); // topology changed -> refresh display focus right away
-  },
-  /** param undo/redo applied -> snap the Enter gizmo back to the reverted node
-   *  params (when it is the one being edited) + refresh the selection panels.
-   *  params are the affected node's values AFTER the undo/redo mutation. */
-  onParamsApplied: (nodeId, params) => {
-    gizmo.onParamsApplied(nodeId, params);
-    refreshSelectionPanels();
-  },
-};
-const graph = await createReteGraph(layout.graphContainer, handlers);
+const dataflow = createDataflow({
+  getGraph: () => graph,
+  getNetwork: () => network,
+  getViewport: () => viewport,
+  getGizmo: () => gizmo,
+  flushParamUndo: () => paramUndo.flush(),
+  refreshSelectionPanels,
+});
+const graph = await createReteGraph(layout.graphContainer, dataflow.handlers);
 
 const autosave = createAutosave({
   getPrefs: () => prefs,
@@ -526,6 +515,7 @@ const gizmo = createGizmoController({
   getUpdateMode: () => updateMode,
 });
 viewport.setEnterEditHandler(gizmo.toggle); // left toolbar Enter icon -> activation
+dataflow.wireSelection();
 viewport.setBackgroundColor(prefs.viewport_bg); // V2: apply loaded viewport background at startup
 
 // Default startup layout: bundled Default.json (the user's Desk1 arrangement, versioned in the
@@ -615,93 +605,6 @@ function refreshSelectionPanels(): void {
   );
 }
 
-// node selection changes -> refresh Spreadsheet + Params immediately
-// (store.subscribe alone does not fire when only the graph selection changes)
-graph.onSelectionChanged(() => {
-  paramUndo.flush(); // selection switched -> close the pending param undo session
-  refreshSelectionPanels();
-  // Enter mode follows the FIRST SELECTED node: transform -> rebind the gizmo to
-  // it; null/input/output/none -> drop the gizmo but keep Enter mode active.
-  if (viewport.isEnterActive()) gizmo.bindToSelection();
-});
-
-/** Display node object (id + params) via the live editor (ReteGraph exposes editor). */
-function getDisplayNodeInfo(): {
-  id: string;
-  kind: string;
-  params: ParamLike[];
-} | null {
-  const nodes = graph.editor.getNodes() as unknown as Array<{
-    id: string;
-    kind: string;
-    params?: ParamLike[];
-    flags: { display: boolean };
-  }>;
-  const n = nodes.find((x) => x.flags.display);
-  return n ? { id: n.id, kind: n.kind, params: n.params ?? [] } : null;
-}
-
-/** Node flags -> viewport: display visibility + reference reference overlays. */
-function refreshNodeFlags(): void {
-  // Viewport follows the node-view display flag of WHATEVER node is displayed,
-  // at PORT level (not just node kind):
-  //   _input_  -> show ONLY the first source input (in0)
-  //   null     -> passthrough: show ONLY the input segment wired through it
-  //               (graph.getDisplayPortIndex() resolves in0..in3 from the graph;
-  //               no in0 connection -> -1 hides every input port)
-  //   _output_ -> show ONLY the first output buffer (out0); nothing when Houdini hasn't pushed
-  //   no display node -> keep showing inputs (safe source view)
-  const disp = graph.getDisplayNode();
-  const kind = disp?.kind ?? null;
-  const hasOutputs = store.outputs.length > 0;
-  const showOutputs = kind === "output" && hasOutputs;
-  const showInputs = kind === "input" || kind === "null" || kind === "transform" || kind === null;
-  viewport.setVisibility("inputs", showInputs);
-  viewport.setVisibility("outputs", showOutputs);
-  if (kind === "null" || kind === "transform") {
-    const idx = graph.getDisplayPortIndex();
-    // a displayed null/transform shows its CURRENT chain output (transformed
-    // geometry), not the untransformed source input: hide every input port and
-    // render the node result instead; a disconnected display hides both
-    viewport.setDisplayFocus("inputs", -1);
-    const dispNode = getDisplayNodeInfo();
-    if (idx !== null && dispNode) {
-      const snap = graph.getNetworkSnapshot();
-      viewport.showNodeResult(computeNodeResult(snap, store.inputs, dispNode.id));
-    } else {
-      viewport.showNodeResult(null);
-    }
-  } else if (kind === "input") {
-    // _input_ displayed: Houdini shows ONE source - only the first port
-    viewport.showNodeResult(null);
-    viewport.setDisplayFocus("inputs", 0);
-  } else {
-    viewport.showNodeResult(null);
-    viewport.setDisplayFocus("inputs", null);
-  }
-  if (kind === "output") {
-    viewport.setDisplayFocus("outputs", 0); // only the first output buffer
-  } else {
-    viewport.setDisplayFocus("outputs", null);
-  }
-
-  const inFlags = graph.getFlags("input");
-  const outFlags = graph.getFlags("output");
-  const refs: ReferenceItem[] = [];
-  if (inFlags?.reference) {
-    for (const inp of store.inputs) {
-      if (inp.curves.length > 0) refs.push({ points: inp.points, curves: inp.curves, color: 0x4fc3f7 });
-    }
-  }
-  if (outFlags?.reference) {
-    const outRefs = store.outputs.flatMap((o) =>
-      o.curves.length > 0 ? [{ points: o.points, curves: o.curves, color: 0xff5252 }] : [],
-    );
-    if (outRefs.length > 0) refs.push(...outRefs);
-  }
-  viewport.setReference(refs.length > 0 ? refs : null);
-}
-
 function inputStatsText(): string {
   const lines: string[] = [];
   for (let i = 0; i < 4; i++) {
@@ -749,9 +652,7 @@ function flushStoreView(): void {
   renderInspector();
   renderLog();
   layout.statusDot.className = `cyl-status ${store.status}`;
-  viewport.refresh();
-  refreshNodeFlags();
-  refreshSelectionPanels(); // Spreadsheet + Params follow the selected node
+  dataflow.flush();
   markGraphDirty();
   const showHint = !store.serial || store.status === "offline";
   layout.hintEl.classList.toggle("hidden", !showHint);
