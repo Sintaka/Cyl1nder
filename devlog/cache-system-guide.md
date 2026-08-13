@@ -1,7 +1,7 @@
 # 缓存系统交接指引（给新会话）
 
 > 目的：开新会话迭代 Cyl1nder 缓存系统时，先读这篇 + 下面 3 篇，即可动手。
-> 状态：P1/P2 已完成（链缓存/位置-only/pump）；v0.1.00095 完成「懒输出（显示驱动 cook）+ 变化分级（none/data/topology）+ HDA cook-on-dirty 输入门控 + 推送/rev 分级」——见 cache-lazy-stamp-round.md。下一轮候选：节点级输出缓存/脏传播、SoA→Float32Array+Worker、协议/快照二进制化（msgpack/bgeo.sc 旁路）、HDA per-buffer 内容盖章。
+> 状态：P1/P2 已完成（链缓存/位置-only/pump）；v0.1.00095 完成「懒输出（显示驱动 cook）+ 变化分级（none/data/topology）+ HDA cook-on-dirty 输入门控 + 推送/rev 分级」——见 cache-lazy-stamp-round.md。v0.1.00096 修复 display focus 重建清除 bug（round20 回归）；浏览器支持评估见 cache-browser-support-eval.md（下一轮候选：节点级输出缓存/脏传播 → SoA+Worker+msgpack 合并一轮 → HDA per-buffer 盖章 → IndexedDB 帧缓存 → WebGL2 GPU 拾取；WebGPU/SharedArrayBuffer/WebTransport 明确推迟）。
 
 ## 1. 现在有什么（读完就知道从哪里接）
 

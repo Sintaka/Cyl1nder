@@ -964,16 +964,16 @@
 | `clearSelection` | 89 | function |  | 2 |
 | `commitEdit` | 96 | function |  | 2 |
 
-## web/src/viewport/renderer.ts（570 行）
+## web/src/viewport/renderer.ts（594 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `Viewport` | 31 | class | export | 1 |
-| `showModeMenu` | 114 | arrow |  | 1 |
-| `hideModeMenu` | 126 | arrow |  | 2 |
-| `applyMode` | 127 | arrow |  | 1 |
-| `openModeMenu` | 142 | arrow |  | 1 |
-| `closeModeMenu` | 143 | arrow |  | 3 |
+| `showModeMenu` | 119 | arrow |  | 1 |
+| `hideModeMenu` | 131 | arrow |  | 2 |
+| `applyMode` | 132 | arrow |  | 1 |
+| `openModeMenu` | 147 | arrow |  | 1 |
+| `closeModeMenu` | 148 | arrow |  | 3 |
 
 ## web/src/viewport/scene.ts（46 行）
 

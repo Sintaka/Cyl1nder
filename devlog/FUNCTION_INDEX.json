@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-13T14:12:28.409Z",
+  "generatedAt": "2026-08-13T14:53:05.901Z",
   "totalFunctions": 579,
   "files": [
     {
@@ -4463,7 +4463,7 @@
     },
     {
       "file": "web/src/viewport/renderer.ts",
-      "lineCount": 570,
+      "lineCount": 594,
       "functions": [
         {
           "name": "Viewport",
@@ -4474,35 +4474,35 @@
         },
         {
           "name": "showModeMenu",
-          "line": 114,
+          "line": 119,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "hideModeMenu",
-          "line": 126,
+          "line": 131,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "applyMode",
-          "line": 127,
+          "line": 132,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "openModeMenu",
-          "line": 142,
+          "line": 147,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "closeModeMenu",
-          "line": 143,
+          "line": 148,
           "kind": "arrow",
           "exported": false,
           "calls": 3

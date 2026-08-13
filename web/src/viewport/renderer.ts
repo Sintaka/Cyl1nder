@@ -46,6 +46,11 @@ export class Viewport {
   private ambient: THREE.AmbientLight;
   private lastInputRev = -1;
   private lastOutputRev = -1;
+  /** Persisted display focus (null = show all), re-applied by refresh() after a
+   *  group rebuild so a rebuilt input/output group can never wipe the port-level
+   *  display focus (the pending flush is already drained by then). */
+  private inputFocus: number | null = null;
+  private outputFocus: number | null = null;
   /** Last buffer shown by showNodeResult - lets position-only updates skip rebuilds
    *  and no-op frames (same store object) short-circuit entirely. */
   private lastNodeResult: OutputBuffer | null = null;
@@ -251,6 +256,9 @@ export class Viewport {
     if (store.inputRev !== this.lastInputRev) {
       this.inputGroup.clear();
       this.inputGroup.add(buildInputs(store.inputs));
+      // A rebuild replaces every inputN sub-group with visible=true defaults;
+      // re-apply the persisted focus so the display port survives the same frame.
+      this.applyPortFocus("inputs", this.inputFocus);
       this.lastInputRev = store.inputRev;
       store.pushLogSilent(`[viewport] inputs rebuilt rev=${store.inputRev} curves=${store.inputs.reduce((n, i) => n + i.curves.length, 0)} faces=${store.inputs.reduce((n, i) => n + (i.faces?.length ?? 0), 0)}`);
       this.applyDisplayMode();
@@ -294,6 +302,9 @@ export class Viewport {
         if (!updated) {
           this.outputGroup.clear();
           this.outputGroup.add(buildOutputs(store.outputs));
+          // A rebuild replaces every outputN sub-group with visible=true defaults;
+          // re-apply the persisted focus so the display port survives the same frame.
+          this.applyPortFocus("outputs", this.outputFocus);
         }
         this.lastShownOutputs = store.outputs.map((o) => ({ ...o }));
         this.lastOutputRev = store.outputRev;
@@ -320,6 +331,19 @@ export class Viewport {
    *  index=null shows the whole group; index=-1 hides the whole group (a display
    *  null/transform with no connected input -> nothing to show). */
   setDisplayFocus(kind: "inputs" | "outputs", index: number | null): void {
+    // Persist the focus so refresh() can re-apply it after a group rebuild (the
+    // rebuilt port sub-groups default to visible=true and would otherwise wipe
+    // the display focus for the rest of the frame / until the next interaction).
+    if (kind === "inputs") this.inputFocus = index;
+    else this.outputFocus = index;
+    this.applyPortFocus(kind, index);
+  }
+
+  /** Apply a port-level display focus to the CURRENT input/output port sub-groups.
+   *  index=null shows the whole group; index=-1 hides the whole group; otherwise
+   *  only the matching inputN/outputN sub-group is visible. Extracted from
+   *  setDisplayFocus so refresh() can re-apply the persisted focus after a rebuild. */
+  private applyPortFocus(kind: "inputs" | "outputs", index: number | null): void {
     // buildInputs/buildOutputs wrap the per-port groups inside one Group; traverse
     // to find the actual inputN/outputN groups (face/wire meshes live inside them).
     const root = kind === "inputs" ? this.inputGroup : this.outputGroup;

@@ -104,6 +104,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00096：修复视口 display focus 被组重建清掉（拖 transform gizmo 时输入/输出四个口一起显示的偶发 bug——refresh 重建 input/output 组后同帧重放 focus，Viewport 自持 focus 状态；新增 round20-display-focus 逐帧回归 3 例）+ 浏览器支持评估（cache-browser-support-eval.md：纯 JS/TypedArray/Worker(Transferable)/WebGL2/IndexedDB/msgpack 全通用可直接做；WebGPU/SharedArrayBuffer(COOP/COEP)/WebTransport 推迟）。验证：tsc 0 / vitest 145 / e2e 84 passed+1 skip。
 - v0.1.00095：缓存对齐 Zeno/Houdini——懒输出（显示驱动 cook：只算激活链，未显示链零工作）+ 变化分级（stamp：none/data/topology）+ HDA cook-on-dirty 输入门控（_push_inputs_if_changed）+ 推送/rev 分级（只推变了的链，no-op 帧零工作）。4 子智能体并行（Descartes=chain-cache / Gibbs=runner+dataflow / Lovelace=viewport / Hilbert=hda）+ 主进程契约锚点与合并；整合修复 activeNodeId（显示 transform 直连输出链保持 live，修 round7 回归）。验证：tsc 0 / vitest 145 / pytest 53 / e2e 81 passed+1 skip / hython SMOKE OK。详见 devlog/cache-lazy-stamp-round.md。
 - v0.1.00094：新增缓存系统交接指引（devlog/cache-system-guide.md）——现状盘点（chain-cache/位置-only/pump/HDA _GEO_CACHE/bridge rev buffers）、下一步路线（懒输出→协议二进制化→SoA+Worker→变化分级）、关键契约与坑（协议单源/@P 不 delta/新鲜度门控/不重引入预览 hack）、新会话先读清单。
 - v0.1.00093：缓存与显示管理调研——Zeno（显式节点缓存 CachedByKey/CacheToDisk + 帧缓存 + stamp 变化分级 + MapStablizer 双缓冲增量 diff + GPU id-FBO 拾取）vs Houdini（cook-on-dirty DAG + GU_Detail 缓存 + 显示驱动 cook + 视口常驻 GPU 增量）；产出 devlog/cache-display-research.md（主文档）+ devlog/zeno/cache-display-notes.md（Zeno 源码细读，子智能体）；可借鉴优先级：懒输出跳过未显示分支 / SoA→Float32Array / Worker 双缓冲 / 变化分级 / GPU 拾取 / 节点级缓存。
