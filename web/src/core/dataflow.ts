@@ -9,6 +9,7 @@ import { computeNodeResult, type NetworkSnapshot } from "../nodes2/network";
 import type { ReteGraph, ReteGraphHandlers } from "../nodes2/graph";
 import type { ReferenceItem, Viewport } from "../viewport/renderer";
 import type { ParamLike } from "./params";
+import type { ActiveChains } from "./network";
 import type { InputPayload, OutputBuffer } from "../protocol/types";
 
 export interface DataflowDeps {
@@ -18,6 +19,8 @@ export interface DataflowDeps {
   getGizmo(): { onParamsApplied(nodeId: string, params: ParamLike[]): void; bindToSelection(): void };
   flushParamUndo(): void;
   refreshSelectionPanels(): void;
+  /** Publish the resolved active-chain set (display focus + reference flags). */
+  setActiveChains(next: ActiveChains): void;
 }
 
 export interface Dataflow {
@@ -93,8 +96,27 @@ export function createDataflow(deps: DataflowDeps): Dataflow {
     //               no in0 connection -> -1 hides every input port)
     //   _output_ -> show ONLY the first output buffer (out0); nothing when Houdini hasn't pushed
     //   no display node -> keep showing inputs (safe source view)
-    const disp = deps.getGraph().getDisplayNode();
-    const kind = disp?.kind ?? null;
+    const dispInfo = getDisplayNodeInfo();
+    const kind = dispInfo?.kind ?? null;
+    // Lazy output: only the chains the viewport ACTUALLY displays cook this frame.
+    //   display=output -> out0 only (the displayed port); the output reference
+    //     flag keeps ALL 4 output chains live (Houdini shows every out with the
+    //     reference overlay on).
+    //   otherwise      -> no output chain cooks by default; the output reference
+    //     flag still keeps all 4 live.
+    //   node           -> the displayed null/transform id: its chain stays live so
+    //     the node result / Enter-gizmo target keeps updating while displayed.
+    const outRef = deps.getGraph().getFlags("output")?.reference ?? false;
+    const outputs: boolean[] =
+      kind === "output"
+        ? outRef
+          ? [true, true, true, true]
+          : [true, false, false, false]
+        : outRef
+          ? [true, true, true, true]
+          : [false, false, false, false];
+    const node: string | null = kind === "null" || kind === "transform" ? (dispInfo?.id ?? null) : null;
+    deps.setActiveChains({ outputs, node });
     const hasOutputs = store.outputs.length > 0;
     const showOutputs = kind === "output" && hasOutputs;
     const showInputs = kind === "input" || kind === "null" || kind === "transform" || kind === null;

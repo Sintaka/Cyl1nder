@@ -91,8 +91,18 @@ interface FakeViewport {
   order: string[];
 }
 
-/** Build a fake DataflowDeps wired to a displayed transform graph + a call-logging viewport. */
-function makeDeps(overrides: { snap?: NetworkSnapshot; portIndex?: number | null } = {}): {
+/** Build a fake DataflowDeps wired to a displayed graph + a call-logging viewport.
+ *  Defaults preserve the historical fixture (display = transform id "disp"); the
+ *  active-chain tests override displayKind/displayId/outRef. */
+function makeDeps(
+  overrides: {
+    snap?: NetworkSnapshot;
+    portIndex?: number | null;
+    displayKind?: string | null;
+    displayId?: string | null;
+    outRef?: boolean;
+  } = {},
+): {
   deps: DataflowDeps;
   viewport: FakeViewport;
 } {
@@ -107,18 +117,26 @@ function makeDeps(overrides: { snap?: NetworkSnapshot; portIndex?: number | null
     isEnterActive: () => false,
     pickByNode: vi.fn(),
   };
+  const displayKind = overrides.displayKind ?? "transform";
+  const displayId = overrides.displayId ?? "disp";
+  const displayNode =
+    displayKind === null
+      ? null
+      : { id: displayId, kind: displayKind, params: [], flags: { ...FLAGS, display: true } };
   const graph = {
     editor: {
       getNodes: () => [
         { id: "in", kind: "input", params: [], flags: FLAGS },
-        { id: "disp", kind: "transform", params: [], flags: { ...FLAGS, display: true } },
+        ...(displayNode ? [displayNode] : []),
         { id: "out", kind: "output", params: [], flags: FLAGS },
       ],
     },
-    getDisplayNode: () => ({ kind: "transform", flags: { ...FLAGS, display: true } }),
+    getDisplayNode: () =>
+      displayNode ? { kind: displayNode.kind, flags: { ...displayNode.flags } } : null,
     getDisplayPortIndex: () => overrides.portIndex ?? 0,
     getNetworkSnapshot: () => snap,
-    getFlags: () => undefined,
+    getFlags: (kind: string) =>
+      kind === "output" ? { ...FLAGS, reference: overrides.outRef ?? false } : { ...FLAGS },
   };
   const deps: DataflowDeps = {
     getGraph: () => graph as never,
@@ -127,6 +145,7 @@ function makeDeps(overrides: { snap?: NetworkSnapshot; portIndex?: number | null
     getGizmo: () => ({ onParamsApplied: vi.fn(), bindToSelection: vi.fn() }),
     flushParamUndo: vi.fn(),
     refreshSelectionPanels: vi.fn(),
+    setActiveChains: vi.fn(),
   };
   return {
     deps,
@@ -200,5 +219,56 @@ describe("flush displayBuffer dedup (P1)", () => {
     expect(mocks.computeNodeResult).toHaveBeenCalledTimes(1);
     expect(mocks.computeNodeResult).toHaveBeenCalledWith(TF_DIRECT_SNAP, store.inputs, "disp");
     expect(viewport.showNodeResult).toHaveBeenCalledWith(mocks.computeNodeResult.mock.results[0].value);
+  });
+});
+describe("refreshNodeFlags active chains (lazy output)", () => {
+  beforeEach(() => {
+    store.inputs = [];
+    store.outputs = [];
+    mocks.computeNodeResult.mockReset();
+    mocks.computeNodeResult.mockReturnValue(makeBuffer(0, [[9, 9, 9]]));
+  });
+
+  const activeCalls = (deps: DataflowDeps) =>
+    (deps.setActiveChains as unknown as ReturnType<typeof vi.fn>).mock.calls;
+
+  it("display=output -> only out0 active, no node chain", () => {
+    const { deps } = makeDeps({ displayKind: "output", displayId: "out" });
+    const df = createDataflow(deps);
+
+    df.refreshNodeFlags();
+
+    expect(activeCalls(deps)).toHaveLength(1);
+    expect(activeCalls(deps)[0][0]).toEqual({ outputs: [true, false, false, false], node: null });
+  });
+
+  it("display=transform -> no output chain active, node chain = display id", () => {
+    const { deps } = makeDeps(); // default display transform id "disp"
+    const df = createDataflow(deps);
+
+    df.refreshNodeFlags();
+
+    expect(activeCalls(deps)).toHaveLength(1);
+    expect(activeCalls(deps)[0][0]).toEqual({ outputs: [false, false, false, false], node: "disp" });
+  });
+
+  it("output reference flag -> all four output chains stay active", () => {
+    const { deps } = makeDeps({ outRef: true });
+    const df = createDataflow(deps);
+
+    df.refreshNodeFlags();
+
+    expect(activeCalls(deps)).toHaveLength(1);
+    expect(activeCalls(deps)[0][0]).toEqual({ outputs: [true, true, true, true], node: "disp" });
+  });
+
+  it("display=output + output reference -> all-true outputs, node null", () => {
+    const { deps } = makeDeps({ displayKind: "output", displayId: "out", outRef: true });
+    const df = createDataflow(deps);
+
+    df.refreshNodeFlags();
+
+    expect(activeCalls(deps)).toHaveLength(1);
+    expect(activeCalls(deps)[0][0]).toEqual({ outputs: [true, true, true, true], node: null });
   });
 });

@@ -5,8 +5,8 @@
  * (points.map(p => [...p])) for every transform. Houdini evaluates a group once
  * on the node input and only writes P in place for the HIT points; a full (empty)
  * group shifts the whole block in place. This module caches each chain's output
- * state { base, specs, points, memberships, fastPath } keyed by output index
- * ("out:<i>") / display node id ("node:<id>") so that:
+ * state { base, specs, points, memberships, fastPath, change } keyed by output
+ * index ("out:<i>") / display node id ("node:<id>") so that:
  *   - sig unchanged + only tx/ty/tz changed -> apply the translate DELTAS in place
  *     to the cached points (all-points: O(P) zero-allocation; grouped: only the
  *     hit points move) and reuse the SAME array every frame;
@@ -15,6 +15,15 @@
  *   - any chain containing a position-dependent group rule (@P with an operator,
  *     e.g. "@P.y>0") NEVER takes the delta path: its membership can change when
  *     points move, so it always full re-traces.
+ *
+ * Lazy output (F1, Houdini display-driven cook): each chain is computed with an
+ * `active` flag (caller decides from ChainCtx.activeOutputs). An inactive chain
+ * with a param-only edit SKIPS the delta entirely (change "none", zero work) and
+ * keeps the last-applied specs: entry.specs still holds the params that were
+ * actually applied to `points`, so a later active delta (or full re-trace)
+ * self-heals by applying the accumulated delta in one pass. Structural changes
+ * (miss / sig changed) still re-trace even for inactive chains - they are
+ * discrete events that must keep the cache valid.
  *
  * Correctness: translations over a FIXED index set commute, so as long as every
  * spec is @P-free (memberships depend only on indices/attributes, never on
@@ -41,17 +50,39 @@ import {
   type TransformSpec,
 } from "./network";
 
+/** Change grade for one chain (Zeno-stamp style, simplified to three levels):
+ *  none = zero work, data = position-only in-place delta, topology = full
+ *  re-trace / rebuild. */
+export type ChainChange = "none" | "data" | "topology";
+
+/** Output buffers + per-chain change grade (runner hot path uses it to skip
+ *  no-op frames and push only what actually changed). */
+export interface ComputeResult {
+  outputs: OutputBuffer[];
+  changes: ChainChange[];
+}
+
 /** Version context that invalidates cached chain state: any change forces a full
  *  re-trace (the delta fast path is only valid for translate-only param edits). */
 export interface ChainCtx {
   inputsRev: number;
   graphVersion: number;
+  /** Per-output-index active flags (out0..out3): false = skip point-level work
+   *  (lazy output / Houdini display-driven cook). Defaults to all-active. */
+  activeOutputs?: boolean[] | null;
+  /** Displayed null/transform node id: any chain whose specs CONTAIN this node
+   *  is always active (its result is the displayed data AND feeds the bridge -
+   *  Houdini display-driven cook). Keeps a directly-fed output chain live when
+   *  the display is the transform itself (round7 param-edit regression). */
+  activeNodeId?: string | null;
 }
 
 /** Minimal cached chain output handed to the OutputBuffer wrapper. */
 export interface CachedChainResult {
   points: number[][];
   base: InputPayload;
+  /** Change grade for this chain this run (runner pushes only non-"none"). */
+  change: ChainChange;
 }
 
 /** One cached chain: the mutable output points + everything needed to (a) detect a
@@ -69,14 +100,44 @@ interface CacheEntry {
   memberships: (Set<number> | null)[];
   /** true when every spec is position-independent -> delta path allowed. */
   fastPath: boolean;
+  /** Zeno-stamp grade of the last computation that WROTE this entry: "data" after
+   *  an in-place delta, "topology" after a rebuild. "none" runs never touch the
+   *  entry (zero work), so they leave the last write grade in place. */
+  change: ChainChange;
 }
 
 /** Module-level singleton cache (single-graph scene is enough). */
 const cache = new Map<string, CacheEntry>();
 
+/** Dead-chain fallback memo (F1 lazy output): "fb:<i>" -> the passthrough buffer
+ *  built for output port i + the inputsRev it was built with. Reusing the SAME
+ *  buffer object across runs with an unchanged inputsRev (stable object identity)
+ *  lets the runner skip unchanged pushes; a new inputsRev rebuilds the buffer. */
+const fallbackMemo = new Map<string, { inputsRev: number; buffer: OutputBuffer }>();
+
 /** Clear the whole cache (tests / serial switch). */
 export function resetChainCache(): void {
   cache.clear();
+}
+
+/** Clear the dead-chain fallback memo (tests / serial switch). The memo holds
+ *  per-output passthrough buffers keyed by inputsRev; it must be reset alongside
+ *  the chain cache so a fresh context never serves a stale passthrough buffer. */
+export function resetFallbackMemo(): void {
+  fallbackMemo.clear();
+}
+
+/** Change grade for a cached chain key (tests): undefined when no entry exists. */
+export function getCacheChange(key: string): ChainChange | undefined {
+  return cache.get(key)?.change;
+}
+
+/** Test-only: last-APPLIED transform params for a cached key (undefined when no
+ *  entry). Lazy-skip runs must NOT move these (they still describe the params that
+ *  were applied to `points`), so tests assert this directly. Returns a shallow copy
+ *  so callers cannot mutate the live entry. */
+export function getCacheEntrySpecs(key: string): TransformSpec[] | undefined {
+  return cache.get(key)?.specs.map((s) => ({ ...s }));
 }
 
 /** Structural signature: unchanged when only tx/ty/tz moved (param edits). */
@@ -150,6 +211,12 @@ function wrapBuffer(res: CachedChainResult, index: number): OutputBuffer {
 /**
  * Per-chain cached computation (single chain): structural trace -> sig lookup ->
  * delta fast path (in-place, zero clone) or full re-trace + entry rebuild.
+ * `active` = caller decision (ChainCtx.activeOutputs[i] for output chains, always
+ * true for the displayed node chain): an inactive chain with a param-only edit
+ * lazily skips the delta (change "none", zero work, specs/points untouched), so a
+ * non-displayed branch never pays point-level work. A miss / sig change always
+ * re-traces + rebuilds (change "topology") - even for inactive chains - to keep the
+ * cache valid for discrete input/topology events.
  * Returns null for a dead chain (caller falls back to passthrough).
  */
 function computeChainCached(
@@ -159,9 +226,16 @@ function computeChainCached(
   snap: NetworkSnapshot,
   ctx: ChainCtx,
   key: string,
+  active: boolean,
 ): CachedChainResult | null {
   const traced = traceChainSpecs(node, sourceOutput, inputs, snap, new Set());
   if (!traced) return null; // dead chain
+
+  // A chain containing the DISPLAYED node is always active: its result is what
+  // the viewport shows AND what the bridge/Houdini recooks, so a param edit on
+  // the displayed transform must never be lazily skipped.
+  const isActive =
+    active || (ctx.activeNodeId != null && traced.specs.some((s) => s.nodeId === ctx.activeNodeId));
 
   const sig = buildSig(ctx, traced.specs);
   const entry = cache.get(key);
@@ -174,8 +248,14 @@ function computeChainCached(
       dz: s.tz - entry.specs[i].tz,
     }));
     const anyDelta = deltas.some((d) => d.dx !== 0 || d.dy !== 0 || d.dz !== 0);
-    if (!anyDelta) return { points: entry.points, base: entry.base }; // zero work
+    if (!anyDelta) return { points: entry.points, base: entry.base, change: "none" }; // zero work
     if (entry.fastPath) {
+      if (!isActive) {
+        // Lazy skip (non-displayed branch): reuse cached points unchanged and do
+        // NOT move entry.specs - they still hold the params LAST APPLIED to points,
+        // so a later active delta (or full re-trace) self-heals.
+        return { points: entry.points, base: entry.base, change: "none" };
+      }
       for (let i = 0; i < traced.specs.length; i++) {
         const d = deltas[i];
         if (d.dx === 0 && d.dy === 0 && d.dz === 0) continue;
@@ -184,12 +264,15 @@ function computeChainCached(
         entry.specs[i].ty = traced.specs[i].ty;
         entry.specs[i].tz = traced.specs[i].tz;
       }
-      return { points: entry.points, base: entry.base };
+      entry.change = "data";
+      return { points: entry.points, base: entry.base, change: "data" };
     }
-    // delta but a @P rule exists: membership may have changed -> full re-trace.
+    // delta but a @P rule exists: membership may have changed. Active -> full
+    // re-trace below; inactive -> lazy skip (same zero-work rule as fastPath).
+    if (!isActive) return { points: entry.points, base: entry.base, change: "none" };
   }
 
-  // Miss / sig changed / non-fastPath with deltas -> full re-trace + rebuild entry.
+  // Miss / sig changed / non-fastPath-with-delta (active) -> full re-trace + rebuild.
   const { points, memberships, fastPath } = fullReTrace(traced);
   const newEntry: CacheEntry = {
     key,
@@ -199,37 +282,63 @@ function computeChainCached(
     points,
     memberships,
     fastPath,
+    change: "topology",
   };
   cache.set(key, newEntry);
-  return { points, base: traced.base };
+  return { points, base: traced.base, change: "topology" };
 }
 
 /**
  * Cached equivalent of computeOutputs: 4 output buffers + dead-chain fallback,
  * per-output-index cache entries ("out:<i>"), clone-free translate on param edits.
+ * F1 lazy output: an output index is only `active` when ctx.activeOutputs[i] !==
+ * false; inactive live chains skip param-edit deltas (change "none", zero work).
+ * Dead chains fall back through the fallbackMemo (stable buffer object per
+ * inputsRev) so the runner can skip unchanged pushes.
  */
 export function computeOutputsCached(
   inputs: InputPayload[],
   snap: NetworkSnapshot,
   ctx: ChainCtx,
-): OutputBuffer[] {
-  if (inputs.length === 0) return [];
+): ComputeResult {
+  if (inputs.length === 0) return { outputs: [], changes: [] };
   const outNode = snap.nodes.find((n) => n.kind === "output");
   const outputs: OutputBuffer[] = [];
+  const changes: ChainChange[] = [];
   for (let i = 0; i < 4; i++) {
     const feeder = outNode ? findFeeder(snap, outNode.id, `out${i}`) : undefined;
     const src = feeder ? nodeById(snap, feeder.source) : undefined;
-    const res =
-      feeder && src ? computeChainCached(src, feeder.sourceOutput, inputs, snap, ctx, `out:${i}`) : null;
-    outputs.push(res ? wrapBuffer(res, i) : fallbackBuffer(inputs[i], i));
+    const active = ctx.activeOutputs?.[i] ?? true;
+    if (feeder && src) {
+      const res = computeChainCached(src, feeder.sourceOutput, inputs, snap, ctx, `out:${i}`, active);
+      if (res) {
+        outputs.push(wrapBuffer(res, i));
+        changes.push(res.change);
+        continue;
+      }
+    }
+    // Dead chain: passthrough fallback, memoized per output index by inputsRev so
+    // the SAME buffer object is reused while the inputs are unchanged.
+    const memoKey = `fb:${i}`;
+    const memo = fallbackMemo.get(memoKey);
+    if (memo && memo.inputsRev === ctx.inputsRev) {
+      outputs.push(memo.buffer);
+      changes.push("none");
+    } else {
+      const buffer = fallbackBuffer(inputs[i], i);
+      fallbackMemo.set(memoKey, { inputsRev: ctx.inputsRev, buffer });
+      outputs.push(buffer);
+      changes.push("data");
+    }
   }
-  return outputs;
+  return { outputs, changes };
 }
 
 /**
  * Cached equivalent of computeNodeResult: the REAL output of a displayed
  * null/transform node (cache key "node:<id>"), clone-free translate on param edits.
  * Broken chain / missing input / non-null-transform node -> null.
+ * The displayed node is active by definition, so it always applies deltas.
  */
 export function computeNodeResultCached(
   snap: NetworkSnapshot,
@@ -239,6 +348,6 @@ export function computeNodeResultCached(
 ): OutputBuffer | null {
   const node = nodeById(snap, nodeId);
   if (!node || (node.kind !== "null" && node.kind !== "transform")) return null;
-  const res = computeChainCached(node, "out0", inputs, snap, ctx, `node:${nodeId}`);
+  const res = computeChainCached(node, "out0", inputs, snap, ctx, `node:${nodeId}`, true);
   return res ? wrapBuffer(res, 0) : null;
 }

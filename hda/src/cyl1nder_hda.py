@@ -39,25 +39,18 @@ from cyl1nder_sync import (
 ROLE_PUSH = 0
 
 
-def cook_core() -> None:
-    """Single-python-SOP runtime: push 4 inputs once, pull 4 outputs once, merge.
+def _push_inputs_if_changed(node, root, serial, bridge_url, client) -> bool:
+    """Push inputs only when their content signature changed (cook-on-dirty).
 
-    The merged detail carries `cyl1nder_role` (prim) so downstream blasts split it.
+    Shared gate for the runtime cook_core() and legacy cook(role) paths: when the
+    input signature is unchanged the payload is neither re-serialized nor re-pushed,
+    so a recook with identical inputs costs only the signature (breaks the W8 -> W2
+    echo that thrashed the web chain-cache). Returns True when inputs were pushed,
+    False when they were unchanged.
     """
-    node = hou.pwd()
-    root = _root(node)
-    serial = _ensure_serial(node)
-    bridge_url = _parm(root, "bridge_url", "http://127.0.0.1:8375")
-    auto_push = bool(_parm(root, "auto_push", 1))
-    auto_pull = bool(_parm(root, "auto_pull", 1))
-    geo = node.geometry()
-
-    client = BridgeClient(serial, bridge_url=bridge_url, node_path=root.path(), label="Cyl1nder")
-    _ensure_bridge(root)
-    _ensure_frontend(root)
-
-    if auto_push:
-        srcs = node.inputs()
+    srcs = node.inputs()
+    sig = _input_signature(srcs)
+    if sig is None or _PUSH_CACHE.get(serial) != sig:
         inputs: list[dict] = []
         for i in range(INPUT_COUNT):
             src = srcs[i] if i < len(srcs) else None
@@ -78,6 +71,30 @@ def cook_core() -> None:
                 inputs.append(serialize_input(geo_i, i, f"in{i}"))
         hip = hou.hipFile.path()
         client.push_inputs(inputs, hip=hip)
+        _PUSH_CACHE[serial] = sig
+        return True
+    return False
+
+
+def cook_core() -> None:
+    """Single-python-SOP runtime: push 4 inputs once, pull 4 outputs once, merge.
+
+    The merged detail carries `cyl1nder_role` (prim) so downstream blasts split it.
+    """
+    node = hou.pwd()
+    root = _root(node)
+    serial = _ensure_serial(node)
+    bridge_url = _parm(root, "bridge_url", "http://127.0.0.1:8375")
+    auto_push = bool(_parm(root, "auto_push", 1))
+    auto_pull = bool(_parm(root, "auto_pull", 1))
+    geo = node.geometry()
+
+    client = BridgeClient(serial, bridge_url=bridge_url, node_path=root.path(), label="Cyl1nder")
+    _ensure_bridge(root)
+    _ensure_frontend(root)
+
+    if auto_push:
+        _push_inputs_if_changed(node, root, serial, bridge_url, client)
         _set_status(root, "ok" if not client.last_error else "offline")
 
     if auto_pull:
@@ -113,30 +130,7 @@ def cook(role: int) -> None:
     _ensure_frontend(root)
 
     if role == ROLE_PUSH and auto_push:
-        srcs = node.inputs()
-        sig = _input_signature(srcs)
-        if sig is None or _PUSH_CACHE.get(serial) != sig:
-            inputs: list[dict] = []
-            for i in range(INPUT_COUNT):
-                src = srcs[i] if i < len(srcs) else None
-                geo_i = src.geometry() if src is not None else None
-                if geo_i is None:
-                    inputs.append(
-                        {
-                            "index": i,
-                            "name": f"in{i}",
-                            "pointCount": 0,
-                            "primCount": 0,
-                            "points": [],
-                            "curves": [],
-                            "attributes": {},
-                        }
-                    )
-                else:
-                    inputs.append(serialize_input(geo_i, i, f"in{i}"))
-            hip = hou.hipFile.path()
-            client.push_inputs(inputs, hip=hip)
-            _PUSH_CACHE[serial] = sig
+        _push_inputs_if_changed(node, root, serial, bridge_url, client)
         _set_status(root, "ok" if not client.last_error else "offline")
 
     if auto_pull:

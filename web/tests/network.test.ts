@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { computeNodeResult, computeOutputs, type NetworkNode, type NetworkSnapshot } from "../src/nodes2/network";
-import type { InputPayload } from "../src/protocol/types";
+import {
+  computeNodeResult,
+  computeOutputs,
+  computeOutputsDetailed,
+  type NetworkNode,
+  type NetworkSnapshot,
+} from "../src/nodes2/network";
+import type { ChainChange } from "../src/nodes2/chain-cache";
+import { createNetworkRunner, type NetworkDeps } from "../src/core/network";
+import type { InputPayload, OutputBuffer } from "../src/protocol/types";
 
 /**
  * Deterministic fake for ../src/tools/transform#applyTranslateGrouped: the real
@@ -326,5 +334,135 @@ describe("computeNodeResult", () => {
     // unknown node id / non-null-transform kind -> null
     expect(computeNodeResult(empty, inputs4, "nope")).toBeNull();
     expect(computeNodeResult(empty, inputs4, "out")).toBeNull();
+  });
+});
+describe("computeOutputsDetailed", () => {
+  it("returns 4 output buffers with aligned changes (no ctx -> full-trace topology)", () => {
+    const snap: NetworkSnapshot = {
+      nodes: [n("in", "input"), outNode],
+      connections: [c("in", "in0", "out", "out0")],
+    };
+    const res = computeOutputsDetailed(inputs4, snap);
+    expect(res.outputs).toHaveLength(4);
+    expect(res.changes).toHaveLength(4);
+    expect(res.outputs.map((o) => o.index)).toEqual([0, 1, 2, 3]);
+    expect(res.changes).toEqual(["topology", "topology", "topology", "topology"]);
+    // same buffer content as the array form
+    expect(res.outputs[0].points).toEqual(inputs4[0].points);
+    expect(res.outputs[1].points).toEqual(inputs4[1].points);
+  });
+});
+
+/** Minimal OutputBuffer fixture for the runner (F4) tests. */
+function makeOut(index: number, points: number[][]): OutputBuffer {
+  return {
+    index,
+    rev: 0,
+    pointCount: points.length,
+    primCount: 1,
+    points,
+    curves: [{ pointIndices: points.map((_, i) => i), widths: null }],
+    faces: [],
+    attributes: {},
+  };
+}
+
+interface RunnerHarness {
+  deps: NetworkDeps;
+  runner: ReturnType<typeof createNetworkRunner>;
+  upserted: { outputs: OutputBuffer[]; rev: number }[];
+  pushed: { serial: string; outputs: OutputBuffer[] }[];
+  rev: () => number;
+}
+
+/** Fake runner deps: computeOutputs returns caller-controlled outputs + changes. */
+function makeRunner(
+  opts: { changes?: ChainChange[]; outputs?: OutputBuffer[]; rev?: number; pushRev?: number } = {},
+): RunnerHarness {
+  const changes = opts.changes ?? ["topology", "topology", "topology", "topology"];
+  const outputs = opts.outputs ?? [
+    makeOut(0, [[0, 0, 0]]),
+    makeOut(1, [[1, 0, 0]]),
+    makeOut(2, [[2, 0, 0]]),
+    makeOut(3, [[3, 0, 0]]),
+  ];
+  let outputRev = opts.rev ?? 0;
+  const pushRev = opts.pushRev ?? 5;
+  const upserted: RunnerHarness["upserted"] = [];
+  const pushed: RunnerHarness["pushed"] = [];
+  const deps: NetworkDeps = {
+    getSerial: () => "C1-test",
+    getInputs: () => [makeInput(0, [[0, 0, 0]])],
+    getNetworkSnapshot: () => ({ nodes: [], connections: [] }),
+    getGraphVersion: () => 1,
+    getInputsRev: () => 0,
+    computeOutputs: () => ({ outputs, changes }),
+    getActiveChains: () => ({ outputs: [true, true, true, true], node: null }),
+    getEditedNodeId: () => null,
+    getOutputRev: () => outputRev,
+    upsertOutputs: (outs, rev) => {
+      upserted.push({ outputs: outs, rev });
+      outputRev = rev;
+    },
+    setOutputRev: (rev) => {
+      outputRev = rev;
+    },
+    pushOutputs: async (serial, outs) => {
+      pushed.push({ serial, outputs: outs });
+      return { rev: pushRev };
+    },
+    log: vi.fn(),
+  };
+  const runner = createNetworkRunner(deps);
+  return { deps, runner, upserted, pushed, rev: () => outputRev };
+}
+
+describe("createNetworkRunner lazy output (F4)", () => {
+  it("no-op frame: all changes 'none' -> no upsert, no rev bump, no push", async () => {
+    const h = makeRunner({ changes: ["none", "none", "none", "none"] });
+    await h.runner.run();
+    expect(h.upserted).toHaveLength(0);
+    expect(h.pushed).toHaveLength(0);
+    expect(h.rev()).toBe(0);
+  });
+
+  it("pushes ONLY changed buffers; unchanged buffers carry their previous rev", async () => {
+    const h = makeRunner({ changes: ["data", "none", "topology", "none"] });
+    await h.runner.run();
+    expect(h.upserted).toHaveLength(1);
+    expect(h.upserted[0].rev).toBe(1); // predicted rev = outputRev + 1
+    // changed indices 0 + 2 get the predicted rev; unchanged 1 + 3 carry 0
+    expect(h.upserted[0].outputs.map((o) => o.rev)).toEqual([1, 0, 1, 0]);
+    expect(h.pushed).toHaveLength(1);
+    expect(h.pushed[0].outputs.map((o) => o.index)).toEqual([0, 2]);
+    expect(h.pushed[0].outputs.every((o) => o.rev === 1)).toBe(true);
+  });
+
+  it("second run bumps only changed revs; unchanged keep the previous run's rev", async () => {
+    // pushRev 0: the bridge response never aligns outputRev up, so the second
+    // predicted rev stays deterministic (getOutputRev()+1 = 2).
+    const h = makeRunner({ changes: ["data", "none", "none", "none"], pushRev: 0 });
+    await h.runner.run();
+    expect(h.upserted[0].rev).toBe(1);
+    await h.runner.run();
+    expect(h.upserted).toHaveLength(2);
+    expect(h.upserted[1].rev).toBe(2);
+    expect(h.upserted[1].outputs.map((o) => o.rev)).toEqual([2, 0, 0, 0]);
+  });
+
+  it("short changes array: missing tail treated defensively as 'data' (changed)", async () => {
+    const h = makeRunner({ changes: ["none"] });
+    await h.runner.run();
+    expect(h.upserted).toHaveLength(1);
+    expect(h.upserted[0].outputs.map((o) => o.rev)).toEqual([0, 1, 1, 1]);
+    expect(h.pushed[0].outputs.map((o) => o.index)).toEqual([1, 2, 3]);
+  });
+
+  it("stale-epoch discard + rev-align response logic preserved", async () => {
+    const h = makeRunner({ changes: ["data", "none", "none", "none"], pushRev: 7 });
+    await h.runner.run();
+    expect(h.upserted[0].rev).toBe(1); // optimistic local rev applied first
+    await new Promise((r) => setTimeout(r, 0)); // flush the push-response .then
+    expect(h.rev()).toBe(7); // aligned up to the bridge rev
   });
 });

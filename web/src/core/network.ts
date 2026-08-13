@@ -1,5 +1,12 @@
 import type { InputPayload, OutputBuffer } from "../protocol/types";
-import type { ChainCtx } from "../nodes2/chain-cache";
+import type { ChainChange, ChainCtx, ComputeResult } from "../nodes2/chain-cache";
+
+/** Which chains need real point-level work this frame (Houdini display-driven
+ *  cook): outputs = per-output-index flags, node = displayed null/transform id. */
+export interface ActiveChains {
+  outputs: boolean[];
+  node: string | null;
+}
 
 export interface NetworkDeps {
   getSerial(): string | null;
@@ -11,7 +18,11 @@ export interface NetworkDeps {
   /** Inputs revision (store.inputRev): part of the chain-cache invalidation sig -
    *  a new Houdini push must re-trace, never delta a stale cached chain. */
   getInputsRev(): number;
-  computeOutputs(inputs: InputPayload[], snap: any, ctx?: ChainCtx): OutputBuffer[];
+  computeOutputs(inputs: InputPayload[], snap: any, ctx?: ChainCtx): ComputeResult;
+  /** Active chains for this frame (display focus + reference flags). */
+  getActiveChains(): ActiveChains;
+  /** Node being edited in the viewport (Enter gizmo target), if any. */
+  getEditedNodeId(): string | null;
   getOutputRev(): number;
   upsertOutputs(outputs: OutputBuffer[], rev: number): void;
   setOutputRev(rev: number): void;
@@ -30,6 +41,8 @@ export function createNetworkRunner(deps: NetworkDeps): {
 } {
   let epoch = 0;
   let lastCookGraphVersion = -1;
+  /** Per-run output buffers (rev-carryover source for unchanged chains). */
+  let lastOutputs: OutputBuffer[] = [];
 
   const run = async (): Promise<void> => {
     const serial = deps.getSerial();
@@ -39,21 +52,36 @@ export function createNetworkRunner(deps: NetworkDeps): {
     lastCookGraphVersion = deps.getGraphVersion();
     // P2: hand the version context to the chain cache so param-only edits take the
     // clone-free delta path and any input/topology change full re-traces.
-    const outputs = deps.computeOutputs(deps.getInputs(), snap, {
+    const res = deps.computeOutputs(deps.getInputs(), snap, {
       inputsRev: deps.getInputsRev(),
       graphVersion: deps.getGraphVersion(),
+      activeOutputs: deps.getActiveChains().outputs,
+      activeNodeId: deps.getActiveChains().node,
     });
-    // a) local optimistic apply: predicted rev so the viewport rebuilds immediately
+    const outputs = res.outputs;
+    const changes = res.changes ?? [];
+    // Defensive: a shorter-than-outputs changes array treats the missing tail as
+    // "data" (changed) so we never silently drop a buffer.
+    const changeAt = (i: number): ChainChange => (i < changes.length ? changes[i] : "data");
+    // F4: every chain unchanged -> no-op frame: skip upsert / rev bump / push.
+    if (outputs.every((_, i) => changeAt(i) === "none")) return;
+    // a) local optimistic apply: predicted rev so the viewport rebuilds immediately;
+    //    unchanged buffers CARRY their previous rev (renderer skips them by rev).
     const predictedRev = deps.getOutputRev() + 1;
-    for (const buf of outputs) buf.rev = predictedRev;
+    for (let i = 0; i < outputs.length; i++) {
+      outputs[i].rev = changeAt(i) !== "none" ? predictedRev : (lastOutputs[i]?.rev ?? 0);
+    }
     deps.upsertOutputs(outputs, predictedRev);
-    // b) fire-and-forget bridge push; stale responses (older epochs) are discarded
+    lastOutputs = outputs;
+    // b) fire-and-forget bridge push of ONLY the changed buffers; stale responses
+    //    (older epochs) are discarded.
+    const changed = outputs.filter((_, i) => changeAt(i) !== "none");
     deps
-      .pushOutputs(serial, outputs)
+      .pushOutputs(serial, changed)
       .then((r) => {
         if (cur !== epoch || deps.getSerial() !== serial) return; // stale - discard entirely
         if (r.rev > deps.getOutputRev()) deps.setOutputRev(r.rev); // align rev, no content re-apply
-        deps.log(`network ran: ${outputs.length} outputs → rev=${r.rev}`);
+        deps.log(`network ran: ${changed.length} outputs → rev=${r.rev}`);
       })
       .catch((e) => {
         if (cur !== epoch || deps.getSerial() !== serial) return;

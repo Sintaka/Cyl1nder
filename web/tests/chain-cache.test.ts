@@ -2,10 +2,17 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   computeNodeResult,
   computeOutputs,
+  computeOutputsDetailed,
   type NetworkNode,
   type NetworkSnapshot,
 } from "../src/nodes2/network";
-import { resetChainCache, type ChainCtx } from "../src/nodes2/chain-cache";
+import {
+  getCacheChange,
+  getCacheEntrySpecs,
+  resetChainCache,
+  resetFallbackMemo,
+  type ChainCtx,
+} from "../src/nodes2/chain-cache";
 import type { InputPayload } from "../src/protocol/types";
 
 /**
@@ -52,8 +59,13 @@ function transformNode(
   ]);
 }
 
-function ctx(inputsRev = 1, graphVersion = 1): ChainCtx {
-  return { inputsRev, graphVersion };
+function ctx(inputsRev = 1, graphVersion = 1, activeOutputs?: boolean[]): ChainCtx {
+  return activeOutputs ? { inputsRev, graphVersion, activeOutputs } : { inputsRev, graphVersion };
+}
+
+/** ChainCtx with explicit active flags + displayed-node id (lazy output tests). */
+function ctxActive(activeOutputs: boolean[] | null, activeNodeId: string | null, inputsRev = 1, graphVersion = 1): ChainCtx {
+  return { inputsRev, graphVersion, activeOutputs, activeNodeId };
 }
 
 /** in -> t(tx/ty/tz/group) -> out (single transform feeding out0). */
@@ -68,6 +80,7 @@ const TWO_PTS = [[0, 0, 0], [1, 0, 0]];
 
 beforeEach(() => {
   resetChainCache();
+  resetFallbackMemo();
 });
 
 describe("computeOutputs cached - clone-free translate", () => {
@@ -186,6 +199,28 @@ describe("computeOutputs cached - clone-free translate", () => {
   });
 });
 
+  it("displayed transform's directly-fed output chain stays active (activeNodeId overrides lazy skip)", () => {
+    const inputs = [makeInput(0, TWO_PTS)];
+    const snap = (tx: number): NetworkSnapshot => singleTransformSnap({ tx });
+    // activeOutputs all-false, but the display node "t" feeds out0 -> chain stays live.
+    // first call builds the entry (topology); the activeNodeId makes it live even
+    // though every activeOutputs flag is false.
+    const a = computeOutputsDetailed(inputs, snap(1), ctxActive([false, false, false, false], "t"));
+    expect(a.changes[0]).toBe("topology");
+    expect(a.outputs[0].points).toEqual([[1, 0, 0], [2, 0, 0]]);
+
+    const b = computeOutputsDetailed(inputs, snap(3), ctxActive([false, false, false, false], "t"));
+    expect(b.changes[0]).toBe("data");
+    expect(b.outputs[0].points).toBe(a.outputs[0].points); // in-place, no clone
+    expect(b.outputs[0].points).toEqual([[3, 0, 0], [4, 0, 0]]);
+
+    // without activeNodeId the same chain is lazily skipped (not pushed).
+    const c = computeOutputsDetailed(inputs, snap(5), ctxActive([false, false, false, false], null));
+    expect(c.changes[0]).toBe("none");
+    expect(c.outputs[0].points).toBe(b.outputs[0].points);
+    expect(c.outputs[0].points).toEqual([[3, 0, 0], [4, 0, 0]]);
+  });
+
 describe("computeNodeResult cached", () => {
   it("param-only edit reuses the cached node-result array (in-place delta)", () => {
     const inputs = [makeInput(0, TWO_PTS)];
@@ -219,5 +254,133 @@ describe("computeNodeResult cached", () => {
     expect(computeNodeResult(snap, inputs, "in", ctx())).toBeNull();
     expect(computeNodeResult(snap, inputs, "out", ctx())).toBeNull();
     expect(computeNodeResult(snap, inputs, "nope", ctx())).toBeNull();
+  });
+});
+
+
+describe("computeOutputsDetailed cached - change grades + lazy output (F1/F2)", () => {
+  it("active chain delta -> change data + points moved in place", () => {
+    const inputs = [makeInput(0, TWO_PTS)];
+    const act = () => ctx(1, 1, [true, false, false, false]); // out0 active
+    const a = computeOutputsDetailed(inputs, singleTransformSnap({ tx: 5 }), act());
+    expect(a.changes[0]).toBe("topology"); // initial build
+
+    const b = computeOutputsDetailed(inputs, singleTransformSnap({ tx: 8 }), act());
+    expect(b.changes[0]).toBe("data"); // in-place delta on the active chain
+    expect(b.outputs[0].points).toBe(a.outputs[0].points); // moved in place
+    expect(b.outputs[0].points).toEqual([[8, 0, 0], [9, 0, 0]]);
+  });
+
+  it("inactive chain param edit -> change none, same array, delta skipped, specs not moved", () => {
+    // out0 active, out1 INACTIVE (activeOutputs[1] === false) - both live chains.
+    const inputs = [makeInput(0, TWO_PTS), makeInput(1, TWO_PTS)];
+    const snap = (t0x: number, t1y: number): NetworkSnapshot => ({
+      nodes: [
+        n("in0", "input"),
+        n("in1", "input"),
+        transformNode("t0", { tx: t0x }),
+        transformNode("t1", { ty: t1y }),
+        outNode,
+      ],
+      connections: [
+        c("in0", "in0", "t0", "in0"),
+        c("t0", "out0", "out", "out0"),
+        c("in1", "in0", "t1", "in0"),
+        c("t1", "out0", "out", "out1"),
+      ],
+    });
+    const act = () => ctx(1, 1, [true, false, false, false]);
+
+    const a = computeOutputsDetailed(inputs, snap(5, 5), act());
+    expect(a.outputs[1].points).toEqual([[0, 5, 0], [1, 5, 0]]);
+
+    // param edit on the INACTIVE chain ty 5 -> 9: lazy skip (zero work)
+    const b = computeOutputsDetailed(inputs, snap(5, 9), act());
+    expect(b.changes[1]).toBe("none");
+    expect(b.outputs[1].points).toBe(a.outputs[1].points); // same array identity
+    expect(b.outputs[1].points).toEqual([[0, 5, 0], [1, 5, 0]]); // delta NOT applied
+    expect(getCacheEntrySpecs("out:1")![0].ty).toBe(5); // specs NOT moved
+
+    // re-activate (all outputs active) with ty=9: accumulated delta applied -> self-heal
+    const r = computeOutputsDetailed(inputs, snap(5, 9), ctx(1, 1, [true, true, true, true]));
+    expect(r.changes[1]).toBe("data");
+    expect(r.outputs[1].points).toBe(a.outputs[1].points);
+    expect(r.outputs[1].points).toEqual([[0, 9, 0], [1, 9, 0]]);
+    expect(getCacheEntrySpecs("out:1")![0].ty).toBe(9);
+  });
+
+  it("inactive @P-rule chain param edit -> change none (lazy skip); active -> topology re-trace", () => {
+    // @P.y>0 chain on out0, INACTIVE: the delta exists but the lazy skip wins
+    // (no re-trace). Re-activating forces the full re-trace (change "topology").
+    const pts = [[0, 1, 0], [0, -1, 0], [0, 2, 0]];
+    const inputs = [makeInput(0, pts)];
+    const snap = (ty: number): NetworkSnapshot =>
+      singleTransformSnap({ ty, group: "@P.y>0", class: "points" });
+    const inactive = () => ctx(1, 1, [false, false, false, false]);
+
+    const a = computeOutputsDetailed(inputs, snap(1), inactive());
+    expect(a.outputs[0].points).toEqual([[0, 2, 0], [0, -1, 0], [0, 3, 0]]);
+
+    const b = computeOutputsDetailed(inputs, snap(3), inactive());
+    expect(b.changes[0]).toBe("none"); // lazy skip, cached points reused
+    expect(b.outputs[0].points).toBe(a.outputs[0].points);
+    expect(b.outputs[0].points).toEqual([[0, 2, 0], [0, -1, 0], [0, 3, 0]]); // NOT re-traced
+
+    const r = computeOutputsDetailed(inputs, snap(3), ctx()); // active again
+    expect(r.changes[0]).toBe("topology"); // @P rule -> full re-trace, fresh array
+    expect(r.outputs[0].points).not.toBe(a.outputs[0].points);
+    expect(r.outputs[0].points).toEqual([[0, 4, 0], [0, -1, 0], [0, 5, 0]]);
+  });
+
+  it("zero delta -> change none, same array", () => {
+    const inputs = [makeInput(0, TWO_PTS)];
+    const snap = singleTransformSnap({ tx: 5 });
+    const a = computeOutputsDetailed(inputs, snap, ctx());
+    expect(a.changes[0]).toBe("topology");
+    const b = computeOutputsDetailed(inputs, snap, ctx());
+    expect(b.changes[0]).toBe("none");
+    expect(b.outputs[0].points).toBe(a.outputs[0].points);
+  });
+
+  it("sig miss -> change topology + new points array", () => {
+    const inputs = [makeInput(0, TWO_PTS)];
+    const a = computeOutputsDetailed(inputs, singleTransformSnap({ tx: 1 }), ctx(1, 1));
+    expect(a.changes[0]).toBe("topology");
+    const b = computeOutputsDetailed(inputs, singleTransformSnap({ tx: 1 }), ctx(2, 1)); // inputsRev sig miss
+    expect(b.changes[0]).toBe("topology");
+    expect(b.outputs[0].points).not.toBe(a.outputs[0].points); // fresh array
+    expect(b.outputs[0].points).toEqual([[1, 0, 0], [2, 0, 0]]);
+  });
+
+  it("dead-chain fallback memo: same buffer + change none across runs with same inputsRev; new buffer + data after", () => {
+    const inputs = [makeInput(0, TWO_PTS), makeInput(1, [[9, 0, 0], [8, 0, 0]])];
+    const snap: NetworkSnapshot = {
+      nodes: [n("in", "input"), outNode],
+      connections: [c("in", "in0", "out", "out0")],
+    };
+    // only out0 wired -> out1..3 dead; unique inputsRev so this test owns the memo
+    const a = computeOutputsDetailed(inputs, snap, ctx(50));
+    expect(a.changes[1]).toBe("data"); // first build for this inputsRev
+    const bufA = a.outputs[1];
+    expect(bufA.points).toBe(inputs[1].points); // passthrough shares the input points
+
+    const b = computeOutputsDetailed(inputs, snap, ctx(50));
+    expect(b.outputs[1]).toBe(bufA); // SAME buffer object (stable identity)
+    expect(b.changes[1]).toBe("none");
+
+    const cc = computeOutputsDetailed(inputs, snap, ctx(51));
+    expect(cc.outputs[1]).not.toBe(bufA); // inputsRev changed -> rebuilt
+    expect(cc.changes[1]).toBe("data");
+  });
+
+  it("getCacheChange returns the entry's change grade", () => {
+    const inputs = [makeInput(0, TWO_PTS)];
+    expect(getCacheChange("out:0")).toBeUndefined(); // no entry yet
+    computeOutputsDetailed(inputs, singleTransformSnap({ tx: 5 }), ctx());
+    expect(getCacheChange("out:0")).toBe("topology"); // initial build
+    computeOutputsDetailed(inputs, singleTransformSnap({ tx: 7 }), ctx());
+    expect(getCacheChange("out:0")).toBe("data"); // in-place delta
+    computeOutputsDetailed(inputs, singleTransformSnap({ tx: 7, group: "0-1" }), ctx());
+    expect(getCacheChange("out:0")).toBe("topology"); // sig changed -> rebuild
   });
 });

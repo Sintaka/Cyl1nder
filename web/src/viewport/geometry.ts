@@ -10,8 +10,13 @@ function toVec(p: number[]): THREE.Vector3 {
 
 /** Wireframe edges built manually from faces (dedup), like Anime Hair Studio's approach
  *  (scalpBuilderCurveLatticeEdges): no internal triangle diagonals, no wireframe-Mesh quirks. */
-function buildWireSegments(points: number[][], faces: number[][], color: number): THREE.LineSegments | null {
-  const edges = new Set<string>();
+function buildWireSegments(
+  points: number[][],
+  faces: number[][],
+  color: number,
+): { line: THREE.LineSegments | null; edges: Array<[number, number]> } {
+  const seen = new Set<string>();
+  const edges: Array<[number, number]> = [];
   const pos: number[] = [];
   for (const face of faces) {
     const n = face.length;
@@ -19,18 +24,19 @@ function buildWireSegments(points: number[][], faces: number[][], color: number)
       const a = face[i];
       const b = face[(i + 1) % n];
       const key = a < b ? `${a}-${b}` : `${b}-${a}`;
-      if (edges.has(key)) continue;
-      edges.add(key);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      edges.push([a, b]);
       const pa = points[a];
       const pb = points[b];
       if (!pa || !pb) continue;
       pos.push(pa[0] ?? 0, pa[1] ?? 0, pa[2] ?? 0, pb[0] ?? 0, pb[1] ?? 0, pb[2] ?? 0);
     }
   }
-  if (pos.length === 0) return null;
+  if (pos.length === 0) return { line: null, edges };
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));
-  return new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color }));
+  return { line: new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color })), edges };
 }
 
 /** Mesh faces -> group of { faceMesh, wireMesh } so the renderer can switch display modes
@@ -58,11 +64,13 @@ export function buildMeshFaces(points: number[][], faces: number[][], color: num
   geo.computeVertexNormals(); // MeshLambertMaterial requires normals; without them faces don't shade
   const face = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x666666, side: THREE.DoubleSide }));
   const wire = buildWireSegments(points, faces, 0x000000); // default black; renderer overrides per display mode
-  if (wire) wire.visible = false;
+  if (wire.line) wire.line.visible = false;
   const group = new THREE.Group();
   group.add(face);
-  if (wire) group.add(wire);
-  group.userData = { color, face, wire };
+  if (wire.line) group.add(wire.line);
+  // Cache the deduped wire edge list on the mesh group too (it owns the wire);
+  // buildCurves aggregates it into the full group cache for updateGroupPositions.
+  group.userData = { color, face, wire: wire.line, edges: wire.edges };
   return group;
 }
 
@@ -102,9 +110,20 @@ export function buildCurves(
   }
   for (const face of faces) face.forEach((i) => used.add(i));
   const mesh = buildMeshFaces(points, faces, color);
-  if (mesh) group.add(mesh);
+  let edges: Array<[number, number]> = [];
+  if (mesh) {
+    group.add(mesh);
+    edges = (mesh.userData as { edges?: Array<[number, number]> }).edges ?? [];
+  }
+  const isolated: number[] = [];
+  points.forEach((_, i) => {
+    if (!used.has(i)) isolated.push(i);
+  });
   const pts = buildPoints(points, used, color);
   if (pts) group.add(pts);
+  // Derived per-group structures for updateGroupPositions' position-only fast
+  // path: reuse instead of re-deriving O(C+F+E) on every frame.
+  group.userData.cylCache = { used, isolated, edges };
   return group;
 }
 
@@ -153,6 +172,12 @@ export function buildNodeResult(buffer: OutputBuffer): THREE.Group | null {
  *  The full index arrays are compared (not just lengths) so the deduped wire
  *  edge set is guaranteed identical too. */
 export function sameTopology(a: OutputBuffer, b: OutputBuffer): boolean {
+  // O(1) fast path: same point count + same curve/face ARRAY REFERENCES => same
+  // topology. Param-only (translate) edits reuse the base curves/faces arrays,
+  // so this covers the hot drag case; topology changes produce new arrays and
+  // fall through to the deep compare below (different references but identical
+  // content must still return true).
+  if (a.pointCount === b.pointCount && a.curves === b.curves && a.faces === b.faces) return true;
   if (a.pointCount !== b.pointCount) return false;
   const aCurves = a.curves ?? [];
   const bCurves = b.curves ?? [];
@@ -175,26 +200,66 @@ export function sameTopology(a: OutputBuffer, b: OutputBuffer): boolean {
   return true;
 }
 
+/** Derived per-group geometry structures cached on the group's userData at build
+ *  time (buildCurves / buildMeshFaces / buildOutputs / buildNodeResult) so the
+ *  per-frame position-only path never re-derives O(C+F+E). */
+interface GroupDerivedCache {
+  /** Point indices referenced by any curve/face. */
+  used: Set<number>;
+  /** Indices of isolated points (not referenced by any curve/face). */
+  isolated: number[];
+  /** Deduped wire edge pairs (same order buildWireSegments emitted them). */
+  edges: Array<[number, number]>;
+}
+
+/** Locate the derived-structure cache on `group` or a descendant (buildNodeResult
+ *  groups are wrapped: updateGroupPositions receives the scene nodeResultGroup,
+ *  whose child "cyl-node-result" carries the cache). Null when the group was
+ *  built by an older path without the cache -> callers fall back to re-deriving. */
+function findDerivedCache(group: THREE.Group): GroupDerivedCache | null {
+  const top = (group.userData as { cylCache?: GroupDerivedCache }).cylCache;
+  if (top) return top;
+  let found: GroupDerivedCache | null = null;
+  group.traverse((obj) => {
+    if (found) return;
+    if ((obj as THREE.Group).isGroup) {
+      const c = ((obj as THREE.Group).userData as { cylCache?: GroupDerivedCache }).cylCache;
+      if (c) found = c;
+    }
+  });
+  return found;
+}
+
 /** In-place position update for a group produced by buildCurves() (a node-result
  *  group, an outputN sub-group, ...): rewrites the position attribute of every
- *  curve Line, the face Mesh (index unchanged, then recomputes normals), its
- *  wire LineSegments (same topology => same deduped edge set), and the
- *  isolated-point Points. Every length is validated; ANY mismatch returns false
- *  so the caller falls back to a full rebuild. */
+ *  curve Line, the face Mesh (index unchanged; pure tx/ty/tz translation is
+ *  normal-invariant, so computeVertexNormals is SKIPPED), its wire LineSegments
+ *  (same topology => same deduped edge set), and the isolated-point Points.
+ *  The used/isolated/edges structures are reused from the group's cached
+ *  userData (built by buildCurves); a missing cache falls back to re-deriving
+ *  them (older build path - never crash, never stale). Every length is
+ *  validated; ANY mismatch returns false so the caller falls back to a full
+ *  rebuild. */
 export function updateGroupPositions(group: THREE.Group, buffer: OutputBuffer): boolean {
   const points = buffer.points ?? [];
   const curves = buffer.curves ?? [];
   const faces = buffer.faces ?? [];
-  const used = new Set<number>();
-  for (const curve of curves) {
-    for (const i of curve.pointIndices) if (i >= 0 && i < points.length) used.add(i);
-  }
-  for (const face of faces) {
-    for (const i of face) if (i >= 0 && i < points.length) used.add(i);
-  }
-  // Same topology => the same deduped edge set buildWireSegments was built with.
-  const edges: Array<[number, number]> = [];
-  {
+  const cache = findDerivedCache(group);
+  let edges: Array<[number, number]>;
+  let isolated: number[];
+  if (cache) {
+    edges = cache.edges;
+    isolated = cache.isolated;
+  } else {
+    const used = new Set<number>();
+    for (const curve of curves) {
+      for (const i of curve.pointIndices) if (i >= 0 && i < points.length) used.add(i);
+    }
+    for (const face of faces) {
+      for (const i of face) if (i >= 0 && i < points.length) used.add(i);
+    }
+    // Same topology => the same deduped edge set buildWireSegments was built with.
+    edges = [];
     const seen = new Set<string>();
     for (const face of faces) {
       const n = face.length;
@@ -207,8 +272,8 @@ export function updateGroupPositions(group: THREE.Group, buffer: OutputBuffer): 
         edges.push([a, b]);
       }
     }
+    isolated = points.map((_, i) => i).filter((i) => !used.has(i));
   }
-  const isolated = points.filter((_, i) => !used.has(i));
 
   let ok = true;
   group.traverse((obj) => {
@@ -227,7 +292,7 @@ export function updateGroupPositions(group: THREE.Group, buffer: OutputBuffer): 
         arr[i * 3 + 2] = p[2] ?? 0;
       });
       attr.needsUpdate = true;
-      mesh.geometry.computeVertexNormals();
+      // Pure tx/ty/tz translation is normal-invariant - skip computeVertexNormals.
       return;
     }
     const segs = obj as THREE.LineSegments;
@@ -290,7 +355,12 @@ export function updateGroupPositions(group: THREE.Group, buffer: OutputBuffer): 
         return;
       }
       const arr = attr.array as Float32Array;
-      isolated.forEach((p, k) => {
+      isolated.forEach((idx, k) => {
+        const p = points[idx];
+        if (!p) {
+          ok = false;
+          return;
+        }
         arr[k * 3] = p[0] ?? 0;
         arr[k * 3 + 1] = p[1] ?? 0;
         arr[k * 3 + 2] = p[2] ?? 0;

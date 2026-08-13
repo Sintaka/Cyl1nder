@@ -1,7 +1,7 @@
 # 缓存系统交接指引（给新会话）
 
 > 目的：开新会话迭代 Cyl1nder 缓存系统时，先读这篇 + 下面 3 篇，即可动手。
-> 状态：视口实时性 P1/P2 已完成（链缓存/位置-only/pump），缓存系统下一轮做「协议/快照二进制化 + 懒输出」。
+> 状态：P1/P2 已完成（链缓存/位置-only/pump）；v0.1.00095 完成「懒输出（显示驱动 cook）+ 变化分级（none/data/topology）+ HDA cook-on-dirty 输入门控 + 推送/rev 分级」——见 cache-lazy-stamp-round.md。下一轮候选：节点级输出缓存/脏传播、SoA→Float32Array+Worker、协议/快照二进制化（msgpack/bgeo.sc 旁路）、HDA per-buffer 内容盖章。
 
 ## 1. 现在有什么（读完就知道从哪里接）
 
@@ -21,10 +21,10 @@
 
 ## 2. 下一步路线（按优先级，一次一轮）
 
-1. **懒输出：跳过未显示分支计算**（Houdini 显示驱动 cook）——`computeOutputsCached` 现在每帧算 4 条 output 链；只对「显示/被编辑」的链做点级工作，未显示链零 delta 返回即可。小、低风险。
+1. ~~**懒输出：跳过未显示分支计算**~~ ✅ 已落地（v0.1.00095）——`computeOutputsCached` 按 ChainCtx.activeOutputs/activeNodeId 只对激活链做点级工作——`computeOutputsCached` 现在每帧算 4 条 output 链；只对「显示/被编辑」的链做点级工作，未显示链零 delta 返回即可。小、低风险。
 2. **协议/快照二进制化**（bgeo.sc 式，见 `bgeo-cache-research.md`）——`proto:"msgpack"`（bridge⇄web 先启用，HDA 端 JSON→桥转码）或 flat Float32Array；快照新增二进制旁路（读优先/写双写，JSON 保可读）；**必须三处同步** protocol.py/types.ts/protocol.md。
 3. **SoA→Float32Array + Worker 双缓冲**（Zeno AttrVector/MapStablizer）——flat 数组直传 BufferAttribute；计算+几何写入进 Web Worker、帧首原子替换防撕裂（与 pre-render pump 组合）。
-4. **变化分级显式化**（Zeno stamp 简化版：none/data/topology）——比每次 sameTopology 更省。
+4. ~~**变化分级显式化**~~ ✅ 已落地（v0.1.00095）——ChainChange none/data/topology + sameTopology O(1) 引用快路径 + 跳过 computeVertexNormals + per-buffer rev 跳过。
 5. （中期）HDA 直接 `hou.Geometry.saveToFile(*.bgeo.sc)` 复用官方格式 / GPU 拾取替代 raycast / IndexedDB 帧缓存 / 节点级输出缓存+脏传播。
 
 ## 3. 关键契约 / 坑（务必遵守）

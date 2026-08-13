@@ -17,7 +17,8 @@ import type { InputPayload, OutputBuffer } from "../protocol/types";
 import type { GroupClass } from "./groups";
 import { parseGroupExpression } from "./groups";
 import { applyTranslateGrouped } from "../tools/transform";
-import { computeOutputsCached, computeNodeResultCached, type ChainCtx } from "./chain-cache";
+import { computeOutputsCached, computeNodeResultCached, type ChainCtx, type ComputeResult } from "./chain-cache";
+export type { ComputeResult, ChainChange, ChainCtx } from "./chain-cache";
 
 export interface NetworkNode {
   id: string;
@@ -238,12 +239,12 @@ function bufferFromResolved(res: Resolved, index: number): OutputBuffer {
  * `ctx` (P2): when supplied, routes through the chain cache (clone-free delta
  * translates). Without ctx the pure full-trace path runs (existing tests).
  */
-export function computeOutputs(
+export function computeOutputsDetailed(
   inputs: InputPayload[],
   snap: NetworkSnapshot,
   ctx?: ChainCtx,
-): OutputBuffer[] {
-  if (inputs.length === 0) return [];
+): ComputeResult {
+  if (inputs.length === 0) return { outputs: [], changes: [] };
   if (ctx) return computeOutputsCached(inputs, snap, ctx);
   const outNode = snap.nodes.find((n) => n.kind === "output");
   const outputs: OutputBuffer[] = [];
@@ -254,9 +255,18 @@ export function computeOutputs(
       feeder && src ? traceChain(src, feeder.sourceOutput, inputs, snap, new Set()) : null;
     outputs.push(res ? bufferFromResolved(res, i) : fallbackBuffer(inputs[i], i));
   }
-  return outputs;
+  return { outputs, changes: outputs.map(() => "topology" as const) };
 }
 
+/** Compute the 4 output buffers (index 0..3); array form kept for existing tests
+ *  and callers that only need the buffers (change grade lives in Detailed). */
+export function computeOutputs(
+  inputs: InputPayload[],
+  snap: NetworkSnapshot,
+  ctx?: ChainCtx,
+): OutputBuffer[] {
+  return computeOutputsDetailed(inputs, snap, ctx).outputs;
+}
 
 /**
  * Compute the REAL output of a single node (display viewport): trace the node's

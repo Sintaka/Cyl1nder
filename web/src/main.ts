@@ -7,7 +7,8 @@ import { renderParams } from "./app/param";
 import { store } from "./stores/workspace";
 import { BridgeClient } from "./bridge/client";
 import { createReteGraph, type ReteGraphHandlers } from "./nodes2/graph";
-import { computeOutputs } from "./nodes2/network";
+import { computeOutputsDetailed } from "./nodes2/network";
+import type { ActiveChains } from "./core/network";
 import { Viewport } from "./viewport/renderer";
 import { APP_VERSION } from "./app/app-config";
 import { inputsEqual } from "./protocol/compare";
@@ -411,6 +412,7 @@ async function openSceneFromDir(): Promise<void> {
     .catch((e) => store.pushLog(`[file] open scene error: ${String(e)}`));
 }
 
+let activeChains: ActiveChains = { outputs: [true, true, true, true], node: null };
 const dataflow = createDataflow({
   getGraph: () => graph,
   getNetwork: () => network,
@@ -418,6 +420,9 @@ const dataflow = createDataflow({
   getGizmo: () => gizmo,
   flushParamUndo: () => paramUndo.flush(),
   refreshSelectionPanels,
+  setActiveChains: (next) => {
+    activeChains = next;
+  },
 });
 const graph = await createReteGraph(layout.graphContainer, dataflow.handlers);
 
@@ -434,13 +439,25 @@ const autosave = createAutosave({
 
 const paramUndo = createParamUndo({ pushUndo: (entry) => graph.pushUndo(entry) });
 
+/** Late-bound Enter-gizmo handle (createGizmoController runs AFTER the network
+ *  runner in this file): the runner queries it each frame for the edited-node id
+ *  (editing keeps ALL chains live) and main.ts for the display override. */
+let gizmoRef: { getEditNodeId(): string | null } | null = null;
+
 const network = createNetworkRunner({
   getSerial: () => store.serial,
   getInputs: () => store.inputs,
   getNetworkSnapshot: () => graph.getNetworkSnapshot(),
   getGraphVersion: () => graph.getGraphVersion(),
   getInputsRev: () => store.inputRev,
-  computeOutputs: (inputs, snap, ctx) => computeOutputs(inputs, snap, ctx),
+  computeOutputs: (inputs, snap, ctx) => computeOutputsDetailed(inputs, snap, ctx),
+  // While a transform is being edited (Enter gizmo), ALL chains stay active so
+  // the edited chain remains live even when it feeds a non-displayed port.
+  getActiveChains: () => ({
+    ...activeChains,
+    outputs: gizmoRef?.getEditNodeId() ? [true, true, true, true] : activeChains.outputs,
+  }),
+  getEditedNodeId: () => gizmoRef?.getEditNodeId() ?? null,
   getOutputRev: () => store.outputRev,
   upsertOutputs: (outputs, rev) => store.upsertOutputs(outputs, rev),
   setOutputRev: (rev) => store.setOutputRev(rev),
@@ -541,6 +558,7 @@ const gizmo = createGizmoController({
   log: (msg) => store.pushLog(msg),
   getUpdateMode: () => updateMode,
 });
+gizmoRef = gizmo; // late bind: gizmo is created AFTER the network runner
 viewport.setEnterEditHandler(gizmo.toggle); // left toolbar Enter icon -> activation
 dataflow.wireSelection();
 viewport.setBackgroundColor(prefs.viewport_bg); // V2: apply loaded viewport background at startup

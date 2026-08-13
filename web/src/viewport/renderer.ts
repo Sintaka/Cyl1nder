@@ -46,7 +46,8 @@ export class Viewport {
   private ambient: THREE.AmbientLight;
   private lastInputRev = -1;
   private lastOutputRev = -1;
-  /** Last buffer shown by showNodeResult - lets position-only updates skip rebuilds. */
+  /** Last buffer shown by showNodeResult - lets position-only updates skip rebuilds
+   *  and no-op frames (same store object) short-circuit entirely. */
   private lastNodeResult: OutputBuffer | null = null;
   /** Last output buffers shown by refresh() - lets position-only updates skip rebuilds. */
   private lastShownOutputs: OutputBuffer[] = [];
@@ -275,7 +276,11 @@ export class Viewport {
           store.outputs.every((o, i) => sameTopology(o, this.lastShownOutputs[i]))
         ) {
           let ok = true;
-          for (const buf of store.outputs) {
+          for (let i = 0; i < store.outputs.length; i++) {
+            const buf = store.outputs[i];
+            // Per-buffer revs (set by the network runner): this buffer's content
+            // didn't change -> skip its position rewrite entirely.
+            if (buf.rev === this.lastShownOutputs[i].rev) continue;
             const sub = this.outputGroup.children.find(
               (c) => c.name === `output${buf.index}` && c instanceof THREE.Group,
             ) as THREE.Group | undefined;
@@ -332,10 +337,13 @@ export class Viewport {
    *  drag) updates the existing group's positions IN PLACE - no clear, no rebuild;
    *  a topology change falls back to a full rebuild. */
   showNodeResult(buffer: OutputBuffer | null): void {
+    // No-op frame: the network runner passes the SAME store buffer object when
+    // nothing changed - skip all work (no rebuild, no in-place rewrite).
+    if (buffer === this.lastNodeResult) return;
     if (buffer && this.lastNodeResult && sameTopology(buffer, this.lastNodeResult)) {
       if (updateGroupPositions(this.nodeResultGroup, buffer)) {
         this.nodeResultGroup.visible = true;
-        this.lastNodeResult = { ...buffer };
+        this.lastNodeResult = buffer;
         this.applyDisplayMode();
         return;
       }
@@ -348,7 +356,7 @@ export class Viewport {
     } else {
       this.nodeResultGroup.visible = false;
     }
-    this.lastNodeResult = buffer ? { ...buffer } : null;
+    this.lastNodeResult = buffer;
     this.applyDisplayMode();
   }
 

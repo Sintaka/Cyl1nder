@@ -52,6 +52,7 @@ export function createGizmoController(deps: GizmoDeps): {
   toggle(): void;
   bindToSelection(): void;
   onParamsApplied(nodeId: string, params: ParamLike[]): void;
+  getEditNodeId(): string | null;
 } {
   let pendingTransform: { id: string; tx: number; ty: number; tz: number } | null = null;
   let dragNodeId: string | null = null;
@@ -157,5 +158,5 @@ export function createGizmoController(deps: GizmoDeps): {
     }
   };
 
-  return { toggle, bindToSelection, onParamsApplied };
+  return { toggle, bindToSelection, onParamsApplied, getEditNodeId: () => lastTransformId };
 }
