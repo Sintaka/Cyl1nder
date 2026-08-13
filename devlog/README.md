@@ -102,6 +102,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00090：视口理念纠正（撤销矩阵预览 hack——操作时本地执行、更新 parms→视口位置-only 更新→几何跟手、不重建全部网格、不强依赖桥；mouseup 恢复「松手才提交 parms」）+ nodeview 大功能（连线重连 attachReconnect 带抓取/松手/点击/Esc 状态机与流动虚线预览、Ctrl+点击连线插 _dot_ 直通节点、Esc 取消进行中连线/重连/插入（视口 Esc 改为仅悬停时退 Enter）、Delete 删选中节点（v1 无 undo）、nodeview 顶部地址栏 + 面板标题显示当前地址 /<serial>/）；3 路并行（Euclid=viewport / Hilbert=nodeview / Pascal=地址栏）+主进程合并（round3/6/8 Esc 与 fit 测试适配、dot 恢复 seq 防重名）；tsc 0, vitest 101, pytest 53, e2e 79 passed/1 skipped；详见 devlog/annotations-web.md 与 viewport-gizmo-latency.md §5 理念纠正
 - v0.1.00089：视口 Enter gizmo 拖拽本地预览（几何同帧跟手，不重建/不依赖桥）+ 取消选择保持 Spreadsheet/Parms 最后节点 + File/Edit 菜单去箭头 + Auto Update 下拉白底修复；bgeo.sc 缓存调研落库 + dev 设计偏好（对齐 Houdini + 复用第三方库）；3 路并行（Heisenberg=viewport / Godel=selection / Goodall=menus+css）+主进程合并；tsc 0, vitest 101, pytest 53, e2e 74 passed/1 skipped；详见 devlog/bgeo-cache-research.md 与 annotations-web.md
 - v0.1.00088：重整复盘落库（refactor-retrospective.md）；刷新机器生成索引（FUNCTION_INDEX/MODULE_GRAPH/API_INDEX）；更新根 README 版本与架构；清理根目录临时 snapshot 数据与 bridge 日志。
 - v0.1.00087：阶段3.3 完成——抽 core/dataflow.ts（createDataflow 收拢「编辑→网络→视口」数据流，late-bound getter 破鸡生蛋）；main.ts 892→793；tsc 0 + vitest 101 + build 通过 + 视口/节点图 e2e 26 passed。

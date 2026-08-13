@@ -15,7 +15,7 @@ import type { UndoAction } from "./undo";
 export type Schemes = ClassicScheme;
 export type AreaExtra = ReactArea2D<Schemes>;
 
-export type NodeKind = "input" | "output" | "null" | "transform";
+export type NodeKind = "input" | "output" | "null" | "transform" | "dot";
 
 export interface NodeFlags {
   display: boolean;
@@ -119,7 +119,7 @@ export function resolveInputSourcePort(
     const m = /^in(\d)$/.exec(out);
     return m ? Number(m[1]) : null;
   }
-  if ((src?.kind === "null" || src?.kind === "transform") && out === "out0") {
+  if ((src?.kind === "null" || src?.kind === "transform" || src?.kind === "dot") && out === "out0") {
     return resolveInputSourcePort(editor, src.id, visited);
   }
   return null;
@@ -215,6 +215,26 @@ export function makeNullNode(): CylNode {
   n.addOutput("out0", new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
   return n;
 }
+/** Houdini-style unique naming: _dot_1, _dot_2… (independent seq). */
+let dotSeq = 1;
+export function makeDotNode(): CylNode {
+  const name = `_dot_${dotSeq}`;
+  dotSeq += 1;
+  const n = new CylNode(name, "dot");
+  n.baseLabel = "_dot_";
+  n.addInput("in0", new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
+  n.addOutput("out0", new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
+  return n;
+}
+/** Reserve the dot sequence counter past a restored label so undo-redo rebuilds
+ *  never collide with an existing _dot_ label. */
+export function claimDotLabel(label: string): void {
+  const m = /^_dot_(\d+)$/.exec(label);
+  if (m) {
+    const n = Number(m[1]);
+    if (dotSeq <= n) dotSeq = n + 1;
+  }
+}
 /** Houdini-style unique naming: transform1, transform2… (independent seq). */
 let transformSeq = 1;
 export function makeTransformNode(): CylNode {
@@ -302,6 +322,7 @@ export async function restoreGraph(
     if (nd.kind === "input") n = makeInputNode();
     else if (nd.kind === "output") n = makeOutputNode();
     else if (nd.kind === "transform") n = makeTransformNode();
+    else if (nd.kind === "dot") n = makeDotNode();
     else n = makeNullNode();
     const flags = { ...DEFAULT_FLAGS, ...(nd.flags ?? {}) };
     if (flags.display && displayAssigned) {
@@ -311,6 +332,7 @@ export async function restoreGraph(
     }
     n.flags = flags;
     n.label = nd.label ?? n.label;
+    if (n.kind === "dot") claimDotLabel(n.label); // restore advances the seq so Ctrl+add never collides
     n.baseLabel = nd.baseLabel ?? n.baseLabel;
     if (nd.params) n.params = nd.params;
     await editor.addNode(n);

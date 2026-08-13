@@ -289,7 +289,8 @@ test("Enter mode follows the first selected node: rebinds to new transform, idle
   await page.locator(".cyl-rp-title", { hasText: /^transform2$/ }).first().click({ timeout: 15000 });
   await expect.poll(gizmoState, { timeout: 10000 }).toEqual({ active: true, x: 7 });
 
-  // Esc exits the mode
+  // Esc exits the mode (Esc only exits Enter while the mouse hovers the viewport)
+  await page.locator(".cyl-viewport canvas").hover();
   await page.keyboard.press("Escape");
   await expect.poll(gizmoState, { timeout: 10000 }).toEqual({ active: false, x: null });
 });

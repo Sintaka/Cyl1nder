@@ -95,9 +95,18 @@ spreadsheetEl.className = "cyl-spreadsheet";
 const paramEl = document.createElement("div");
 paramEl.id = "cyl-param";
 paramEl.className = "cyl-param";
+// Graph panel shell: Houdini node-view style address bar above the rete graph.
+// setupDock gets the SHELL as the graph panel's content element; createReteGraph
+// still renders into layout.graphContainer (the inner .cyl-graph) below the bar.
+const graphShell = document.createElement("div");
+graphShell.className = "cyl-graph-shell";
+const graphAddr = document.createElement("div");
+graphAddr.className = "cyl-graph-addr";
+graphShell.appendChild(graphAddr);
+graphShell.appendChild(layout.graphContainer);
 (window as unknown as Record<string, unknown>).__cylDv = null; // debug hook (MCP debug access)
 const dv = setupDock(layout.dockContainer, {
-  graph: layout.graphContainer,
+  graph: graphShell,
   viewport: layout.viewportContainer,
   inspector: layout.inspectorEl,
   log: layout.logEl,
@@ -105,6 +114,8 @@ const dv = setupDock(layout.dockContainer, {
   param: paramEl,
 });
 (window as unknown as Record<string, unknown>).__cylDv = dv;
+// Initial serial may already be set (?serial=...); paint address + panel title now.
+updateGraphAddress();
 // dockview lazily mounts inactive tab content: the Log panel's .cyl-log element is NOT in
 // the DOM until its tab is activated. Re-render accumulated logs when it comes on screen.
 (dv as unknown as { api?: { onDidActiveChange?: (fn: (e: { panel: { id: string } }) => void) => unknown } }).api
@@ -661,6 +672,26 @@ function renderInspector(): void {
   layout.inspectorEl.innerHTML = rows.join("");
 }
 
+/** Graph panel chrome: address bar text + dock panel title follow the current
+ *  serial ("/<serial>/", Houdini node-view style); without a serial the bar shows
+ *  "/" and the panel keeps its "Node Graph" title. Idempotent - safe to run on
+ *  every store flush and once right after setupDock. */
+function updateGraphAddress(): void {
+  const address = store.serial ? `/${store.serial}/` : "";
+  graphAddr.textContent = address || "/";
+  const title = store.serial ? `/${store.serial}/` : "Node Graph";
+  // dockview panel title via type assertion (no dockview type dependency): prefer
+  // api.getPanel("graph"), fall back to scanning api.panels for the graph panel.
+  const dock = dv as unknown as {
+    api: {
+      getPanel?(id: string): { api: { setTitle(t: string): void } } | undefined;
+      panels?: Array<{ id: string; api: { setTitle(t: string): void } }>;
+    };
+  };
+  const panel = dock.api.getPanel?.("graph") ?? dock.api.panels?.find((p) => p.id === "graph");
+  panel?.api.setTitle(title);
+}
+
 /** Store emit -> ONE viewport/UI refresh pass per animation frame. The heavy body
  *  (viewport rebuild + node flags + selection panels + inspector + log + dirty
  *  marker) runs at most once per rAF, batching every emit within a frame (drag
@@ -668,6 +699,7 @@ function renderInspector(): void {
  *  frame; tests poll so timing is fine. */
 let pendingFlush = false;
 function flushStoreView(): void {
+  updateGraphAddress();
   graph.setStats("input", inputStatsText());
   graph.setStats("output", outputStatsText());
   renderInspector();

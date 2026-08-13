@@ -80,6 +80,20 @@ export function NodeView({ data, emit }: Props) {
     };
   }, [editing]);
 
+  // _dot_ junction node: a pure circle (no head/chips/ports/stats). Still hit by
+  // nodeFromTarget so it can be selected / dragged / deleted; tooltip shows the
+  // full label. No rename (double-click does nothing).
+  if (node.kind === "dot") {
+    return (
+      <div
+        className={`cyl-rp-dot ${node.selected ? "selected" : ""}`}
+        onMouseEnter={(e) => showTooltip(e.clientX, e.clientY, node.label)}
+        onMouseMove={(e) => showTooltip(e.clientX, e.clientY, node.label)}
+        onMouseLeave={() => hideTooltip()}
+      />
+    );
+  }
+
   const startRename = () => {
     lastTitleDown = null;
     editingNodeId = node.id as string;

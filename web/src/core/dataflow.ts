@@ -105,12 +105,12 @@ export function createDataflow(deps: DataflowDeps): Dataflow {
   }
 
   const handlers: ReteGraphHandlers = {
-    onNodePick: (kind, index, _nodeId) => deps.getViewport().pickByNode(kind, index),
+    onNodePick: (kind, index, _nodeId) => deps.getViewport().pickByNode(kind as "input" | "output" | "null" | "transform", index),
     onFlagsChanged: (kind, flags) => {
       store.pushLog(`node ${kind} flags -> ${JSON.stringify(flags)}`);
       refreshNodeFlags();
       // Display flag: default to showing this node's FIRST port data in the viewport
-      if (flags.display) deps.getViewport().pickByNode(kind, 0);
+      if (flags.display) deps.getViewport().pickByNode(kind as "input" | "output" | "null" | "transform", 0);
     },
     onNetworkChanged: () => {
       void deps.getNetwork().run();

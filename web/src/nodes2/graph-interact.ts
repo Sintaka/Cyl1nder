@@ -12,6 +12,7 @@ import type { ConnectionRef, UndoManager } from "./undo";
 import type { CylNode, NodeFlags } from "./graph-model";
 import {
   log,
+  makeDotNode,
   makeNullNode,
   makeTransformNode,
   nodeFromTarget,
@@ -31,6 +32,7 @@ const PALETTE: PaletteEntry[] = [
   { kind: "output", label: "_output_", desc: "4-input sink", keywords: "sink output 输出 终点" },
   { kind: "null", label: "null", desc: "passthrough 1+1", keywords: "null passthrough 直通" },
   { kind: "transform", label: "transform", desc: "translate by group 变换/移动", keywords: "transform translate move 变换 移动 组" },
+  { kind: "dot", label: "_dot_", desc: "junction dot passthrough 连接点", keywords: "dot junction 连接点 _dot_" },
 ];
 
 const fuse = new Fuse(PALETTE, {
@@ -44,6 +46,31 @@ const fuse = new Fuse(PALETTE, {
 });
 
 let lastGraphMouse = { x: 0, y: 0 };
+
+// ---------------------------------------------------------------------------
+// Cross-mode interaction coordination: a connection reconnect gesture claims the
+// pointer, so rect-select / shake / insertion must not start while it is busy.
+// Window-level Escape (graph.ts) cancels every in-flight gesture via the registry.
+// ---------------------------------------------------------------------------
+let reconnectPointerActive = false; // pointerdown started on a connection
+let reconnectGrabbed = false;       // connection drag is live (preview follows mouse)
+
+/** True while a connection reconnect gesture owns the pointer. */
+export function isReconnectBusy(): boolean {
+  return reconnectPointerActive || reconnectGrabbed;
+}
+
+type InteractionCanceller = () => void;
+let interactionCancellers: InteractionCanceller[] = [];
+
+export function registerInteractionCanceller(fn: InteractionCanceller): void {
+  if (!interactionCancellers.includes(fn)) interactionCancellers.push(fn);
+}
+
+/** Runs every registered Escape-canceller (reconnect / insertion / palette). */
+export function cancelGraphInteractions(): void {
+  for (const fn of [...interactionCancellers]) fn();
+}
 
 export function attachTabSearch(
   editor: NodeEditor<Schemes>,
@@ -91,8 +118,8 @@ export function attachTabSearch(
         y: (lastGraphMouse.y - rect.top - t.y) / t.k,
       };
     }
-    if (entry.kind === "null" || entry.kind === "transform") {
-      const make = entry.kind === "transform" ? makeTransformNode : makeNullNode;
+    if (entry.kind === "null" || entry.kind === "transform" || entry.kind === "dot") {
+      const make = entry.kind === "transform" ? makeTransformNode : entry.kind === "dot" ? makeDotNode : makeNullNode;
       let n = make();
       while (editor.getNodes().some((x) => (x as CylNode).label === n.label)) n = make();
       await editor.addNode(n);
@@ -110,6 +137,8 @@ export function attachTabSearch(
     overlay.classList.add("hidden");
     input.blur();
   };
+  // Window-level Escape (graph.ts) closes the palette too.
+  registerInteractionCanceller(close);
 
   const update = (q: string) => {
     results = q.trim() ? fuse.search(q).map((r) => r.item) : PALETTE;
@@ -655,6 +684,7 @@ export function attachInsertion(
     "pointerdown",
     (e) => {
       if (e.button !== 0) return;
+      if (isReconnectBusy()) return; // reconnect grab owns the pointer
       const target = e.target as Element;
       // Only dragging the node BODY (title/head/stats) starts insertion
       // tracking - ports/sockets, chips, buttons and the rename input must not.
@@ -751,6 +781,14 @@ export function attachInsertion(
     })();
   };
   window.addEventListener("pointerup", up);
+
+  // Window-level Escape (graph.ts) cancels an in-progress drag-insert gesture.
+  registerInteractionCanceller(() => {
+    if (!draggingNodeId) return;
+    draggingNodeId = null;
+    draggingNode = null;
+    setHover(null);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -774,6 +812,8 @@ export function attachRectSelect(
       if (e.button !== 0 || e.altKey || e.metaKey || e.ctrlKey) return;
       const target = e.target as Element;
       if (target.closest(".cyl-ns") || target.closest(".cyl-rp-port") || target.closest("button") || target instanceof HTMLInputElement) return;
+      if (target.closest('[data-testid="connection"]')) return; // connection click/reconnect, not rect select
+      if (isReconnectBusy()) return; // reconnect grab owns the pointer
       if (nodeFromTarget(editor, area, target)) return; // node drag, not rect select
       sel = { x0: e.clientX, y0: e.clientY };
       overlay.classList.remove("hidden");
@@ -911,6 +951,7 @@ export function attachShakeDisconnect(
     "pointerdown",
     (e) => {
       if (e.button !== 0) return;
+      if (isReconnectBusy()) return; // reconnect grab owns the pointer
       const target = e.target as Element;
       if (target.closest?.(".cyl-rp-port") || target.closest?.(".cyl-ns") || target.closest?.("button") || target instanceof HTMLInputElement) return;
       const hit = nodeFromTarget(editor, area, target);
@@ -951,4 +992,377 @@ export function attachShakeDisconnect(
 
   window.addEventListener("pointerup", reset);
   window.addEventListener("pointercancel", reset);
+}
+// ---------------------------------------------------------------------------
+// Connection reconnect: grab an existing connection (pointerdown + drag >6px),
+// preview a re-route through the mouse with flowing dashed curves, then confirm
+// on release-over-a-port (while holding) or on a follow-up click (after release).
+// ESC / click-on-blank cancels; Ctrl+click on a connection splices a _dot_ node.
+// ---------------------------------------------------------------------------
+
+interface PortHit {
+  nodeId: string;
+  key: string;
+  side: "input" | "output";
+}
+
+/** Nearest port socket circle center to (mouseX, mouseY) within threshold px
+ *  (screen space), or null. Uses the RefSocket span like the insertion preview. */
+function hitTestPort(
+  area: AreaPlugin<Schemes, AreaExtra>,
+  mouseX: number,
+  mouseY: number,
+  threshold = 20,
+): { hit: PortHit; x: number; y: number } | null {
+  let best: { hit: PortHit; x: number; y: number } | null = null;
+  let bestDist = threshold;
+  for (const [nodeId, view] of area.nodeViews) {
+    const els = view.element.querySelectorAll<HTMLElement>("[data-port-id]");
+    for (const el of els) {
+      const key = el.getAttribute("data-port-id") ?? "";
+      if (!key) continue;
+      const sock = el.querySelector(":scope > span.input, :scope > span.output");
+      const target = (sock ?? el) as HTMLElement;
+      const r = target.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const dist = Math.hypot(cx - mouseX, cy - mouseY);
+      if (dist <= bestDist) {
+        bestDist = dist;
+        best = {
+          hit: {
+            nodeId,
+            key,
+            side: sock ? (sock.classList.contains("output") ? "output" : "input") : "input",
+          },
+          x: cx,
+          y: cy,
+        };
+      }
+    }
+  }
+  return best;
+}
+
+export function attachReconnect(
+  editor: NodeEditor<Schemes>,
+  area: AreaPlugin<Schemes, AreaExtra>,
+  container: HTMLElement,
+  handlers: ReteGraphHandlers,
+  undoManager: UndoManager,
+): void {
+  let grabbed = false;
+  let holding = false;
+  let trackedConnId: string | null = null;
+  let grabbedConnId: string | null = null;
+  let grabStart = { x: 0, y: 0 };
+
+  // Reconnect preview overlay: two flowing dashed curves (same look as the
+  // insert preview; .cyl-reconnect-preview carries the full dash style in CSS so
+  // the insertion overlay selector svg.cyl-insert-preview stays unambiguous).
+  const overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  overlay.setAttribute("class", "cyl-reconnect-preview");
+  overlay.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:3;";
+  overlay.style.width = "100%";
+  overlay.style.height = "100%";
+  container.appendChild(overlay);
+  const previewA = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  const previewB = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  for (const path of [previewA, previewB]) {
+    path.setAttribute("class", "cyl-insert-preview-path");
+    overlay.appendChild(path);
+  }
+
+  const toLocal = (clientX: number, clientY: number) => {
+    const rect = container.getBoundingClientRect();
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  };
+
+  /** Original connection path endpoints in screen space (exact line touch points). */
+  const connEndpoints = (connId: string): { start: { x: number; y: number }; end: { x: number; y: number } } | null => {
+    const view = area.connectionViews.get(connId);
+    const svg = view?.element.querySelector("path") as SVGPathElement | null;
+    if (!svg || typeof svg.getTotalLength !== "function") return null;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    const len = svg.getTotalLength();
+    const p0 = svg.getPointAtLength(0);
+    const p1 = svg.getPointAtLength(len);
+    const start = new DOMPoint(p0.x, p0.y).matrixTransform(ctm);
+    const end = new DOMPoint(p1.x, p1.y).matrixTransform(ctm);
+    return { start: { x: start.x, y: start.y }, end: { x: end.x, y: end.y } };
+  };
+
+  let hoverPortEl: Element | null = null;
+  const setPortHighlight = (port: PortHit | null) => {
+    if (hoverPortEl) {
+      hoverPortEl.classList.remove("reconnect-hover");
+      hoverPortEl = null;
+    }
+    if (port) {
+      const el = area.nodeViews.get(port.nodeId)?.element.querySelector(`[data-port-id="${port.key}"]`);
+      if (el) {
+        el.classList.add("reconnect-hover");
+        hoverPortEl = el;
+      }
+    }
+  };
+
+  const markGrabbedPath = (targeted: boolean) => {
+    const view = grabbedConnId ? area.connectionViews.get(grabbedConnId) : undefined;
+    const path = view?.element.querySelector("path");
+    path?.classList.add("reconnect-grabbed");
+    if (targeted) path?.classList.add("reconnect-target");
+    else path?.classList.remove("reconnect-target");
+  };
+
+  /** Dash preview: near a port -> one segment; else the whole line through the mouse. */
+  const updatePreview = (clientX: number, clientY: number) => {
+    previewA.setAttribute("d", "");
+    previewB.setAttribute("d", "");
+    if (!grabbed || !grabbedConnId) return;
+    const eps = connEndpoints(grabbedConnId);
+    if (!eps) return;
+    const rect = container.getBoundingClientRect();
+    const mouse = toLocal(clientX, clientY);
+    const near = hitTestPort(area, clientX, clientY);
+    setPortHighlight(near ? near.hit : null);
+    markGrabbedPath(!!near);
+    const s = { x: eps.start.x - rect.left, y: eps.start.y - rect.top };
+    const e = { x: eps.end.x - rect.left, y: eps.end.y - rect.top };
+    if (near) {
+      const p = toLocal(near.x, near.y);
+      if (near.hit.side === "input") {
+        // re-target: original source socket -> hovered input port
+        previewA.setAttribute("d", connectionPathD(s.x, s.y, p.x, p.y));
+      } else {
+        // re-source: hovered output port -> original target socket
+        previewA.setAttribute("d", connectionPathD(p.x, p.y, e.x, e.y));
+      }
+    } else {
+      // whole line "passes through" the mouse
+      previewA.setAttribute("d", connectionPathD(s.x, s.y, mouse.x, mouse.y));
+      previewB.setAttribute("d", connectionPathD(mouse.x, mouse.y, e.x, e.y));
+    }
+  };
+
+  const clearReconnect = () => {
+    if (grabbedConnId) {
+      const view = area.connectionViews.get(grabbedConnId);
+      view?.element.querySelector("path")?.classList.remove("reconnect-grabbed", "reconnect-target");
+    }
+    setPortHighlight(null);
+    grabbed = false;
+    holding = false;
+    trackedConnId = null;
+    grabbedConnId = null;
+    reconnectPointerActive = false;
+    reconnectGrabbed = false;
+    previewA.setAttribute("d", "");
+    previewB.setAttribute("d", "");
+  };
+
+  const labelOf = (id: string) => (editor.getNode(id) as CylNode | undefined)?.label ?? id;
+
+  /** Re-route the grabbed connection to the hovered port (with undo + replace). */
+  const applyReconnect = async (port: PortHit) => {
+    const connId = grabbedConnId;
+    if (!connId) {
+      clearReconnect();
+      return;
+    }
+    const conn = editor.getConnection(connId) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
+    if (!conn) {
+      clearReconnect();
+      return;
+    }
+    const before: ConnectionRef = {
+      source: conn.source,
+      sourceOutput: conn.sourceOutput,
+      target: conn.target,
+      targetInput: conn.targetInput,
+    };
+    let after: ConnectionRef;
+    if (port.side === "input") {
+      if (port.nodeId === conn.source) {
+        log(`reconnect blocked: self-connection on ${labelOf(port.nodeId)}`);
+        clearReconnect();
+        return;
+      }
+      after = { source: conn.source, sourceOutput: conn.sourceOutput, target: port.nodeId, targetInput: port.key };
+    } else {
+      if (port.nodeId === conn.target) {
+        log(`reconnect blocked: self-connection on ${labelOf(port.nodeId)}`);
+        clearReconnect();
+        return;
+      }
+      after = { source: port.nodeId, sourceOutput: port.key, target: conn.target, targetInput: conn.targetInput };
+    }
+    if (
+      after.source === before.source &&
+      after.sourceOutput === before.sourceOutput &&
+      after.target === before.target &&
+      after.targetInput === before.targetInput
+    ) {
+      log("reconnect no-op: same port");
+      clearReconnect();
+      return;
+    }
+    // rete Input is single-connection: replacing an occupied target input drops
+    // the old feeder first and records it (undo restores both).
+    let prevConnection: ConnectionRef | null = null;
+    if (port.side === "input") {
+      const existing = editor.getConnections().find(
+        (c) => c.target === after.target && c.targetInput === after.targetInput && c.id !== connId,
+      ) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
+      if (existing) {
+        prevConnection = {
+          source: existing.source,
+          sourceOutput: existing.sourceOutput,
+          target: existing.target,
+          targetInput: existing.targetInput,
+        };
+        await editor.removeConnection(existing.id);
+        log(
+          `reconnect replaced ${labelOf(existing.source)}.${existing.sourceOutput} -> ${labelOf(existing.target)}.${existing.targetInput}`,
+        );
+      }
+    }
+    const srcNode = editor.getNode(after.source) as CylNode | undefined;
+    const tgtNode = editor.getNode(after.target) as CylNode | undefined;
+    if (!srcNode || !tgtNode) {
+      clearReconnect();
+      return;
+    }
+    await editor.removeConnection(connId);
+    await editor.addConnection(
+      new ClassicPreset.Connection(srcNode, after.sourceOutput as string, tgtNode, after.targetInput as string) as unknown as Schemes["Connection"],
+    );
+    undoManager.push({ type: "reconnect", before, after, prevConnection });
+    handlers.onNetworkChanged?.();
+    log(
+      `reconnect ${labelOf(before.source)}.${before.sourceOutput} -> ${labelOf(before.target)}.${before.targetInput} => ${labelOf(after.source)}.${after.sourceOutput} -> ${labelOf(after.target)}.${after.targetInput}`,
+    );
+    clearReconnect();
+  };
+
+  /** Ctrl+click on a connection: splice a _dot_ junction node into it. */
+  const insertDotAt = async (connId: string, clientX: number, clientY: number) => {
+    const conn = editor.getConnection(connId) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
+    if (!conn) return;
+    const srcNode = editor.getNode(conn.source) as CylNode | undefined;
+    const tgtNode = editor.getNode(conn.target) as CylNode | undefined;
+    if (!srcNode || !tgtNode) return;
+    const before: ConnectionRef = {
+      source: conn.source,
+      sourceOutput: conn.sourceOutput,
+      target: conn.target,
+      targetInput: conn.targetInput,
+    };
+    const dot = makeDotNode();
+    const rect = container.getBoundingClientRect();
+    const t = area.area.transform;
+    const pos = { x: (clientX - rect.left - t.x) / t.k, y: (clientY - rect.top - t.y) / t.k };
+    await editor.removeConnection(connId);
+    await editor.addNode(dot);
+    await area.translate(dot.id, pos);
+    await editor.addConnection(
+      new ClassicPreset.Connection(srcNode, conn.sourceOutput as string, dot, "in0") as unknown as Schemes["Connection"],
+    );
+    await editor.addConnection(
+      new ClassicPreset.Connection(dot, "out0", tgtNode, conn.targetInput as string) as unknown as Schemes["Connection"],
+    );
+    undoManager.push({ type: "dot-add", nodeId: dot.id, nodeLabel: dot.label, connection: before, x: pos.x, y: pos.y });
+    handlers.onNetworkChanged?.();
+    log(`dot-add ${dot.label} spliced into ${srcNode.label} -> ${tgtNode.label}`);
+  };
+
+  container.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (e.button !== 0) return;
+      const target = e.target as Element;
+      // Confirm a previously-released grab: near a port = apply, blank = cancel.
+      if (grabbed && !holding) {
+        e.preventDefault();
+        e.stopPropagation();
+        const port = hitTestPort(area, e.clientX, e.clientY);
+        if (port) void applyReconnect(port.hit);
+        else clearReconnect();
+        return;
+      }
+      // Ports/sockets belong to the ConnectionPlugin and node bodies to node drag
+      // (both can sit within 14px of a connection line), so a pointerdown on them
+      // must never start a reconnect grab or dot-splice.
+      if (target.closest?.(".cyl-rp-port")) return;
+      if (nodeFromTarget(editor, area, target)) return;
+      // Ctrl+click on a connection -> splice a _dot_ junction node right there.
+      if (e.ctrlKey) {
+        const connId = hitTestConnection(area, e.clientX, e.clientY);
+        if (connId) {
+          e.preventDefault();
+          e.stopPropagation();
+          void insertDotAt(connId, e.clientX, e.clientY);
+        }
+        return;
+      }
+      // Start tracking a grab: pointerdown on an existing connection (left button).
+      const connId = hitTestConnection(area, e.clientX, e.clientY);
+      if (connId) {
+        e.preventDefault();
+        e.stopPropagation();
+        trackedConnId = connId;
+        holding = true;
+        grabStart = { x: e.clientX, y: e.clientY };
+        reconnectPointerActive = true;
+      }
+    },
+    true,
+  );
+
+  container.addEventListener(
+    "pointermove",
+    (e) => {
+      lastGraphMouse = { x: e.clientX, y: e.clientY };
+      if (grabbed && grabbedConnId) {
+        updatePreview(e.clientX, e.clientY);
+      } else if (trackedConnId && !grabbed) {
+        const dx = e.clientX - grabStart.x;
+        const dy = e.clientY - grabStart.y;
+        if (dx * dx + dy * dy > 36) {
+          // crossed the >6px threshold: enter grabbed (button may be released now)
+          grabbed = true;
+          grabbedConnId = trackedConnId;
+          reconnectGrabbed = true;
+          markGrabbedPath(false);
+          updatePreview(e.clientX, e.clientY);
+        }
+      }
+    },
+    true,
+  );
+
+  const up = (e: PointerEvent) => {
+    if (!trackedConnId && !grabbed) return;
+    if (grabbed && holding) {
+      holding = false;
+      const port = hitTestPort(area, e.clientX, e.clientY);
+      if (port) {
+        void applyReconnect(port.hit);
+      }
+      // released over blank: stay grabbed, the preview keeps following the mouse
+      return;
+    }
+    // plain click on a connection (never dragged past the threshold)
+    clearReconnect();
+  };
+  window.addEventListener("pointerup", up);
+  window.addEventListener("pointercancel", () => {
+    if (grabbed || trackedConnId) clearReconnect();
+  });
+
+  // Window-level Escape (graph.ts) cancels the reconnect grab.
+  registerInteractionCanceller(() => {
+    if (grabbed || trackedConnId || reconnectGrabbed || reconnectPointerActive) clearReconnect();
+  });
 }

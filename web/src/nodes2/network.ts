@@ -121,7 +121,7 @@ function traceChain(
     return base ? { base, points: base.points } : null;
   }
 
-  if (node.kind === "null" || node.kind === "transform") {
+  if (node.kind === "null" || node.kind === "transform" || node.kind === "dot") {
     const up = findFeeder(snap, node.id, "in0");
     const upNode = up ? nodeById(snap, up.source) : undefined;
     if (!up || !upNode) return null;

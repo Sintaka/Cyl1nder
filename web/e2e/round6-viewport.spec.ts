@@ -153,7 +153,8 @@ test("Enter edit persists across node selection change; gizmo drag still updates
   expect(out0.points[2]).toEqual([2.5, 0.75, 0.5]);
   expect(out0.points[3]).toEqual([1.5, 0.75, 0.5]);
 
-  // Esc exits the mode
+  // Esc exits the mode (Esc only exits Enter while the mouse hovers the viewport)
+  await page.locator(".cyl-viewport canvas").hover();
   await page.keyboard.press("Escape");
   expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(false);
 });

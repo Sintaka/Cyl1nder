@@ -43,6 +43,7 @@ import {
   attachFlagMenu,
   attachInsertion,
   attachMMBPan,
+  attachReconnect,
   attachRectSelect,
   attachShakeDisconnect,
   attachTabSearch,
@@ -50,6 +51,7 @@ import {
   setNodeStateHandler,
   setRenameHandler,
 } from "./graph-interact";
+import { cancelGraphInteractions } from "./graph-interact";
 import { createGraphUndoManager } from "./graph-undo";
 
 export type { NodeKind, NodeFlags, ParamSpec, SelectedNodeInfo, ReteGraphHandlers, ReteGraph } from "./graph-model";
@@ -138,7 +140,7 @@ async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
     true,
   );
 
-  return { editor, area, engine, input, output, react, selectable };
+  return { editor, area, engine, input, output, react, selectable, connection };
 }
 
 /** Create the graph; returns a handle with UI helpers. */
@@ -151,7 +153,7 @@ export async function createReteGraph(
   // Param undo/redo wiring lives in graph-undo: it applies actions through the
   // chained topology replay and fires onNetworkChanged / onSelectionChanged /
   // onParamsApplied once at the end of a params edit.
-  const undoManager = createGraphUndoManager(g.editor, handlers);
+  const undoManager = createGraphUndoManager(g.editor, handlers, g.area);
 
   attachTabSearch(g.editor, g.area, container);
   attachCutMode(g.editor, g.area, container, handlers, undoManager);
@@ -160,6 +162,7 @@ export async function createReteGraph(
   attachDotGrid(g.area, container);
   initTooltip(container);
   attachInsertion(g.editor, g.area, container, handlers, undoManager);
+  attachReconnect(g.editor, g.area, container, handlers, undoManager);
   attachRectSelect(g.editor, g.area, container, g.selectable);
   attachShakeDisconnect(g.editor, g.area, container, handlers, undoManager);
 
@@ -177,6 +180,49 @@ export async function createReteGraph(
       e.preventDefault();
       undoManager.redo();
     }
+  });
+
+  // Escape cancels in-flight graph gestures: rete connection draw (drop() is a
+  // no-op when nothing is being drawn), reconnect grab / drag-insert / palette
+  // (registered by graph-interact). Rename/palette inputs keep their own Esc.
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    const el = document.activeElement;
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
+    (g.connection as unknown as { drop(): void }).drop();
+    cancelGraphInteractions();
+  });
+
+  // Delete / Backspace removes every selected node + its connections (no undo in
+  // v1; devlog notes it as future work). Skipped while typing in an input.
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Delete" && e.key !== "Backspace") return;
+    const el = document.activeElement;
+    // skip while typing in a visible input (rename / palette search / params)
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+      if (el.getClientRects().length > 0) return;
+    }
+    const selected = (g.editor.getNodes() as CylNode[]).filter((n) => (n as ClassicPreset.Node).selected);
+    if (selected.length === 0) return;
+    e.preventDefault();
+    void (async () => {
+      for (const n of selected) {
+        const touching = g.editor.getConnections().filter((c) => c.source === n.id || c.target === n.id);
+        for (const c of touching) {
+          const s = (g.editor.getNode(c.source) as CylNode | undefined)?.label ?? c.source;
+          const t = (g.editor.getNode(c.target) as CylNode | undefined)?.label ?? c.target;
+          log(`delete removed connection ${c.id} (${s} -> ${t})`);
+          await g.editor.removeConnection(c.id);
+        }
+        log(`delete removed node ${n.label} (${n.kind})`);
+        await g.editor.removeNode(n.id);
+      }
+      handlers.onNetworkChanged?.();
+      window.setTimeout(() => {
+        handlers.onSelectionChanged?.();
+        notifySelection();
+      }, 0);
+    })();
   });
 
   // Houdini display semantics: only ONE node per network may be displayed.

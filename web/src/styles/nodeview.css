@@ -184,3 +184,40 @@
   z-index: 30; pointer-events: none;
 }
 .cyl-rect-select.hidden { display: none; }
+/* ---- _dot_ junction node (NodeView.tsx): pure circle, no head/chips/ports ---- */
+.cyl-graph .cyl-rp-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #1b1e24;
+  border: 1.5px solid #7ce3a8;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 2px 8px rgba(0,0,0,.45);
+  cursor: pointer;
+}
+.cyl-graph .cyl-rp-dot:hover {
+  border-color: #fde68a;
+  box-shadow: 0 0 0 1px rgba(253,224,71,.5), 0 2px 8px rgba(0,0,0,.45);
+}
+.cyl-graph .cyl-rp-dot.selected {
+  border-color: #fde047;
+  box-shadow: 0 0 0 1px rgba(253,224,71,.55), 0 2px 8px rgba(0,0,0,.3);
+}
+/* ---- connection reconnect (attachReconnect) ---- */
+/* grabbed original line: kept in place, dimmed while the dashed preview shows the reroute */
+.cyl-graph [data-testid="connection"] path.reconnect-grabbed {
+  stroke: #7ce3a8 !important; stroke-width: 1.6 !important; opacity: .9;
+}
+/* near a target port: grabbed line glows (yellow, like insertion drop-target) */
+.cyl-graph [data-testid="connection"] path.reconnect-target {
+  stroke: #ffd166 !important; stroke-width: 3 !important;
+  filter: drop-shadow(0 0 6px rgba(255, 209, 102, 0.8));
+}
+/* hovered port highlight while grabbing */
+.cyl-graph .cyl-rp-port.reconnect-hover { font-weight: 700; color: #e6e9ef; }
+.cyl-graph .cyl-rp-port.reconnect-hover div[title] {
+  border-width: 2.5px; box-shadow: 0 0 8px rgba(124, 227, 168, .9);
+}
+/* reconnect preview overlay: flows above nodes; same dash animation as insertion */
+.cyl-graph .cyl-reconnect-preview { z-index: 3; pointer-events: none; }
+.cyl-graph .cyl-reconnect-preview path {
+  stroke: #7ce3a8; stroke-width: 2.5; fill: none; stroke-dasharray: 7 5;
+  animation: cyl-dash-flow 0.6s linear infinite;
+}

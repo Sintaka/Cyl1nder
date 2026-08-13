@@ -72,3 +72,18 @@ TypeScript 与延迟无关（类型在编译期消失，浏览器跑的是被 JI
 
 - TS/three.js/WASM 都不是原因：TS 类型编译期即消失；three.js 是 JS + WebGL（GPU 光栅化）；真正差异是**数据路径**——Cyl1nder 每帧"全量 JSON 回路 + 主线程全量重建（双重建）且无节流"，Houdini 是"原生增量 + 常驻 GPU buffer"。
 - 本轮**仅调研**：无代码改动、无提交、未触碰 bridge/HDA/其他 devlog；后续按 §3 顺序实现并各自配 devlog 专题与跨端验证。
+
+
+---
+
+## 5. 理念纠正（v0.1.00090 起，取代 §3 #1 的旧「本地预览」实现）
+
+> 用户明确：Cyl1nder 的计算理念是「**操作时本地执行、不重建所有网格、不强依赖桥**；桥推送与网格重建只在数据真正更新时发生」。跟手的正确机制是「**更新 parms → 触发视口刷新 → 几何体移动**」，gizmo 与几何体**分离**（gizmo=TransformControls 临时对象，几何体=显示节点结果），而不是直接去摆弄几何体做预览。
+
+- **v0.1.00089 的实现是错误的**：`updateDragPreview/endDragPreview` 直接改 nodeResultGroup/outputGroup 的 position 做矩阵预览，绕过了 parms；且让 mouseup 模式拖拽期间几何体也跟手（违背 mouseup 本意 = 松手才更新 parms → 视口才更新）。
+- **v0.1.00090 起改为**：
+  1. 删除矩阵预览 hack（core/gizmo 的 lastCommitted delta、renderer 的 dragPreview）。
+  2. **mouseup**：拖拽只动 gizmo、不改 parms、不动几何；松手提交 parms → runNetwork → 视口刷新。
+  3. **auto**：每次拖拽帧更新 parms（本地）→ runNetwork 本地乐观计算 → store emit → 视口刷新，**拓扑不变时只做位置-only 更新**（原地写 BufferGeometry position + needsUpdate，必要时重算法线，不 clear+rebuild、不分配新几何）——这才是「不重建所有网格 + 不强依赖桥」的实现；桥推送是 fire-and-forget，只是数据更新触发。
+  4. §3 #1 的「本地预览」重释为「**位置-only 更新（由 parms 触发）**」，不再是脱离 parms 的手动矩阵平移；§3 #2 节流/合并 runNetwork 仍列为后续可选优化（当前 auto 保持同步乐观，保证 round17 回归）。
+  5. Esc：只在视口悬停时退出 Enter 模式；nodeview 内 Esc 用于取消进行中的连线/重连/插入操作（见 nodeview 交互轮）。

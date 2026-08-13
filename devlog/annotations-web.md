@@ -1,5 +1,24 @@
 # Web 子系统改动标注 / Web annotations
 
+## v0.1.00090（2026-08-13）· 视口理念纠正 + nodeview 重连/dot/Esc/地址栏
+### 视口（理念纠正，撤销 v0.1.00089 的矩阵预览 hack）
+- **理念**：操作时本地执行、不重建全部网格、不强依赖桥；桥推送与网格重建只在数据真正更新时触发。跟手 = 更新节点 parms → 触发视口刷新 → 几何体移动；gizmo 与几何体分离。
+- 删除 renderer 的 updateDragPreview/endDragPreview/reapplyDragPreview/dragPreview 与 core/gizmo 的 lastCommitted/dragStart delta 预览。
+- **mouseup**：拖拽只动 gizmo、不改 parms、不动几何；松手提交 parms → runNetwork → 视口刷新。
+- **auto**：拖拽帧更新 parms → runNetwork 本地乐观 → store emit → 视口刷新，**拓扑不变走位置-only 更新**（geometry.ts 新增 sameTopology + updateGroupPositions：原地写 BufferGeometry position + needsUpdate、Mesh 重算法线、wire/孤立点重写，不 clear+rebuild）。
+- **Esc**：只在视口悬停时退出 Enter 模式（renderer Escape 分支加 	his.hovered 门控），nodeview 内 Esc 留给连线/重连/插入取消。
+- devlog：viewport-gizmo-latency.md 追加 §5 理念纠正。
+### nodeview（rete 图）
+- **连线重连 ttachReconnect**：pointerdown 命中连线 + 拖 >6px → grabbed（松开鼠标仍保持）；预览 = 未接近端口两段流动虚线穿过鼠标、接近 input/output 端口一段虚线吸附；确认状态机——按住松开：接近→应用/空白→保持 grabbed；中途松开后点左键：接近→应用/空白→取消；Esc 取消。应用时按端口类型改 source 端或 target 端，阻止自连/同端口 no-op，替换已占用 input 并记录 prevConnection，push econnect undo。
+- **Ctrl+点击连线插 _dot_N 直通节点**：makeDotNode（1 in/1 out、无 parms/flags、label _dot_N）、NodeView 渲染纯圆点（hover 显示全名、不可改名）、restoreGraph/调色板/network 直通都支持；undo dot-add（undo 移除 dot 恢复原边，redo 重建 + claimDotLabel 防重名；restore 也推进 seq）。
+- **Esc 取消进行中操作**：graph.ts 窗口级 Esc → connection.drop()（取消 rete 连线绘制）+ cancelGraphInteractions()（重连 grab / 拖拽插入 / 调色板）。
+- **Delete/Backspace 删除选中节点**（含其连接；v1 无 undo，devlog 注明为未来工作）。
+- **地址栏 + 面板标题**：main.ts 把 graph 面板内容包成 .cyl-graph-shell（flex column），顶部 .cyl-graph-addr 显示 /<serial>/；面板 tab 标题同步为地址（无 serial 时 "Node Graph"）；base.css 补 shell/addr 样式。
+### 测试与合并
+- 新增 round18-reconnect.spec.ts（5 用例：重连改端口/空白保持+Esc 恢复/Ctrl+点插 dot/端口拖线 Esc 取消/Delete 删节点）。
+- 适配：round12 断言改为「mouseup 拖拽中几何不动、释放后跟随」（删除旧预览断言）；round6/round8 的 Esc 退出 Enter 前先 hover 视口；round3 fitGraphForCut 改固定 zoom（消除持久化 dock 布局漂移导致的 cut 过切）。
+- 全量：tsc 0, vitest 101, pytest 53, e2e 79 passed/1 skipped。
+
 ## v0.1.00089（2026-08-13）· 视口 gizmo 本地预览 + 选择保持 + 菜单/CSS 修正
 - **Enter gizmo 拖拽本地预览（延迟修复）**：iewport/renderer.ts 新增 updateDragPreview(dx,dy,dz) / endDragPreview() / 私有 eapplyDragPreview()——拖拽期间把当前可见显示组（nodeResultGroup 优先，其次 outputGroup）的 position 直接设为「当前值 - 上次已提交值」的 delta（O(1) 矩阵，不重建、不跑网络），几何体与 gizmo **同帧跟手**；showNodeResult / efresh() 在真实内容变化的 commit 重建时清预览（防双重叠加），内容相同的无操作重建（周期性 layout flush / content-identical 桥回声）则重新贴回预览（防拖拽中几何「跳回」）；endTransformGizmo Esc/切换时清理。
 - **core/gizmo.ts**：记录 dragStart / lastCommitted；onChange 算 delta 后——mouseup 保持「只缓存不写参不跑网络」但新增预览；auto 保持同步 setNodeParams+runNetwork（round17-lag 同步时序不变）并更新 lastCommitted；onEnd 先清预览再最终 commit；onParamsApplied（undo/redo）同步 lastCommitted 防 delta 漂移。撤销语义（dragBefore/dragAfter）不变。

@@ -31,7 +31,27 @@ export type UndoAction =
       /** existing connection into the inserted node's in0 that was dropped (if any) */
       prevConnection: ConnectionRef | null;
     }
-  | { type: "shake"; cut: ConnectionRef[]; added: ConnectionRef[] };
+  | { type: "shake"; cut: ConnectionRef[]; added: ConnectionRef[] }
+  | {
+      /** A connection re-routed to a different port (one end changed).
+       *  before = the original connection; after = the new one;
+       *  prevConnection = an existing connection into the new target input that
+       *  was replaced (rete Input is single-connection), or null. */
+      type: "reconnect";
+      before: ConnectionRef;
+      after: ConnectionRef;
+      prevConnection: ConnectionRef | null;
+    }
+  | {
+      /** Ctrl+click on a connection spliced a _dot_ junction node into it:
+       *  A->B becomes A->dot.in0 + dot.out0->B at (x, y). */
+      type: "dot-add";
+      nodeId: string;
+      nodeLabel: string;
+      connection: ConnectionRef;
+      x: number;
+      y: number;
+    };
 
 export interface UndoManager {
   push(action: UndoAction): void;

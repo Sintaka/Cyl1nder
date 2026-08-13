@@ -4,10 +4,11 @@
  * stack state machine in ./undo.
  */
 import { ClassicPreset, NodeEditor } from "rete";
+import { AreaPlugin } from "rete-area-plugin";
 import { notifyNodeChanged } from "./NodeView";
 import { createUndoManager, type ConnectionRef, type UndoAction, type UndoManager } from "./undo";
-import { CylNode, log } from "./graph-model";
-import type { ReteGraphHandlers, Schemes } from "./graph-model";
+import { claimDotLabel, CylNode, log, makeDotNode } from "./graph-model";
+import type { AreaExtra, ReteGraphHandlers, Schemes } from "./graph-model";
 
 /** Does an action contain a params edit (recursively through group children)?
  *  Group undo/redo refreshes the network once at the end when a child is a params
@@ -34,6 +35,7 @@ export async function applyUndoAction(
   editor: NodeEditor<Schemes>,
   action: UndoAction,
   direction: "undo" | "redo",
+  area?: AreaPlugin<Schemes, AreaExtra>,
 ): Promise<void> {
   const addConn = async (ref: ConnectionRef) => {
     const src = editor.getNode(ref.source) as CylNode | undefined;
@@ -88,6 +90,56 @@ export async function applyUndoAction(
       for (const ref of action.connections) await delConn(ref);
     }
     log(`${direction} cut ${action.connections.length} connection(s) via polyline`);
+  } else if (action.type === "reconnect") {
+    if (direction === "undo") {
+      await delConn(action.after);
+      if (action.prevConnection) await addConn(action.prevConnection);
+      await addConn(action.before);
+    } else {
+      await delConn(action.before);
+      if (action.prevConnection) await delConn(action.prevConnection);
+      await addConn(action.after);
+    }
+    log(`${direction} reconnect ${lbl(action.before)} -> ${lbl(action.after)}`);
+  } else if (action.type === "dot-add") {
+    if (direction === "undo") {
+      // tear the dot back out: A->dot + dot->B removed, original A->B restored
+      await delConn({
+        source: action.connection.source,
+        sourceOutput: action.connection.sourceOutput,
+        target: action.nodeId,
+        targetInput: "in0",
+      });
+      await delConn({
+        source: action.nodeId,
+        sourceOutput: "out0",
+        target: action.connection.target,
+        targetInput: action.connection.targetInput,
+      });
+      await editor.removeNode(action.nodeId);
+      await addConn(action.connection);
+    } else {
+      // rebuild the dot at its stored position; label + sequence stay unique
+      await delConn(action.connection);
+      const dot = makeDotNode();
+      dot.label = action.nodeLabel;
+      claimDotLabel(action.nodeLabel);
+      await editor.addNode(dot);
+      if (area) await area.translate(dot.id, { x: action.x, y: action.y });
+      await addConn({
+        source: action.connection.source,
+        sourceOutput: action.connection.sourceOutput,
+        target: dot.id,
+        targetInput: "in0",
+      });
+      await addConn({
+        source: dot.id,
+        sourceOutput: "out0",
+        target: action.connection.target,
+        targetInput: action.connection.targetInput,
+      });
+    }
+    log(`${direction} dot-add ${action.nodeLabel} into ${lbl(action.connection)}`);
   } else if (action.type === "params") {
     const n = editor.getNode(action.nodeId) as CylNode | undefined;
     if (n) {
@@ -100,7 +152,7 @@ export async function applyUndoAction(
     // Nested groups recurse; params children notify the caller once at the end
     // via the createUndoManager apply wrapper (actionContainsParams).
     const ordered = direction === "undo" ? [...action.actions].reverse() : action.actions;
-    for (const sub of ordered) await applyUndoAction(editor, sub, direction);
+    for (const sub of ordered) await applyUndoAction(editor, sub, direction, area);
     log(`${direction} group (${action.actions.length} actions)`);
   } else if (action.type === "shake") {
     if (direction === "undo") {
@@ -117,6 +169,7 @@ export async function applyUndoAction(
 export function createGraphUndoManager(
   editor: NodeEditor<Schemes>,
   handlers: ReteGraphHandlers,
+  area?: AreaPlugin<Schemes, AreaExtra>,
 ): UndoManager {
   // param undo/redo applied -> notify the affected node(s) so the caller can
   // refresh the Enter gizmo position + panels (params AFTER the mutation).
@@ -134,7 +187,7 @@ export function createGraphUndoManager(
   let undoChain: Promise<void> = Promise.resolve();
   return createUndoManager((action, direction) => {
     undoChain = undoChain
-      .then(() => applyUndoAction(editor, action, direction))
+      .then(() => applyUndoAction(editor, action, direction, area))
       .then(() => {
         if (actionContainsParams(action)) {
           // param undo/redo re-runs the network and refreshes the panels; a group

@@ -146,3 +146,157 @@ export function buildNodeResult(buffer: OutputBuffer): THREE.Group | null {
   });
   return group;
 }
+/** Topology equality for position-only updates: same point count, same curve
+ *  point-index structure, same face structure. Point VALUES are ignored - a
+ *  transform (translate) only changes coordinates, never the topology, so a
+ *  same-topology buffer can update an existing group IN PLACE (no rebuild).
+ *  The full index arrays are compared (not just lengths) so the deduped wire
+ *  edge set is guaranteed identical too. */
+export function sameTopology(a: OutputBuffer, b: OutputBuffer): boolean {
+  if (a.pointCount !== b.pointCount) return false;
+  const aCurves = a.curves ?? [];
+  const bCurves = b.curves ?? [];
+  if (aCurves.length !== bCurves.length) return false;
+  for (let i = 0; i < aCurves.length; i++) {
+    const ai = aCurves[i].pointIndices;
+    const bi = bCurves[i].pointIndices;
+    if (ai.length !== bi.length) return false;
+    for (let j = 0; j < ai.length; j++) if (ai[j] !== bi[j]) return false;
+  }
+  const aFaces = a.faces ?? [];
+  const bFaces = b.faces ?? [];
+  if (aFaces.length !== bFaces.length) return false;
+  for (let i = 0; i < aFaces.length; i++) {
+    const af = aFaces[i];
+    const bf = bFaces[i];
+    if (af.length !== bf.length) return false;
+    for (let j = 0; j < af.length; j++) if (af[j] !== bf[j]) return false;
+  }
+  return true;
+}
+
+/** In-place position update for a group produced by buildCurves() (a node-result
+ *  group, an outputN sub-group, ...): rewrites the position attribute of every
+ *  curve Line, the face Mesh (index unchanged, then recomputes normals), its
+ *  wire LineSegments (same topology => same deduped edge set), and the
+ *  isolated-point Points. Every length is validated; ANY mismatch returns false
+ *  so the caller falls back to a full rebuild. */
+export function updateGroupPositions(group: THREE.Group, buffer: OutputBuffer): boolean {
+  const points = buffer.points ?? [];
+  const curves = buffer.curves ?? [];
+  const faces = buffer.faces ?? [];
+  const used = new Set<number>();
+  for (const curve of curves) {
+    for (const i of curve.pointIndices) if (i >= 0 && i < points.length) used.add(i);
+  }
+  for (const face of faces) {
+    for (const i of face) if (i >= 0 && i < points.length) used.add(i);
+  }
+  // Same topology => the same deduped edge set buildWireSegments was built with.
+  const edges: Array<[number, number]> = [];
+  {
+    const seen = new Set<string>();
+    for (const face of faces) {
+      const n = face.length;
+      for (let i = 0; i < n; i++) {
+        const a = face[i];
+        const b = face[(i + 1) % n];
+        const key = a < b ? `${a}-${b}` : `${b}-${a}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        edges.push([a, b]);
+      }
+    }
+  }
+  const isolated = points.filter((_, i) => !used.has(i));
+
+  let ok = true;
+  group.traverse((obj) => {
+    if (!ok) return;
+    const mesh = obj as THREE.Mesh;
+    if (mesh.isMesh) {
+      const attr = mesh.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
+      if (!attr || attr.count !== points.length) {
+        ok = false;
+        return;
+      }
+      const arr = attr.array as Float32Array;
+      points.forEach((p, i) => {
+        arr[i * 3] = p[0] ?? 0;
+        arr[i * 3 + 1] = p[1] ?? 0;
+        arr[i * 3 + 2] = p[2] ?? 0;
+      });
+      attr.needsUpdate = true;
+      mesh.geometry.computeVertexNormals();
+      return;
+    }
+    const segs = obj as THREE.LineSegments;
+    if (segs.isLineSegments) {
+      const attr = segs.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
+      if (!attr || attr.count !== edges.length * 2) {
+        ok = false;
+        return;
+      }
+      const arr = attr.array as Float32Array;
+      edges.forEach(([a, b], i) => {
+        const pa = points[a];
+        const pb = points[b];
+        if (!pa || !pb) {
+          ok = false;
+          return;
+        }
+        arr[i * 6] = pa[0] ?? 0;
+        arr[i * 6 + 1] = pa[1] ?? 0;
+        arr[i * 6 + 2] = pa[2] ?? 0;
+        arr[i * 6 + 3] = pb[0] ?? 0;
+        arr[i * 6 + 4] = pb[1] ?? 0;
+        arr[i * 6 + 5] = pb[2] ?? 0;
+      });
+      attr.needsUpdate = true;
+      return;
+    }
+    const line = obj as THREE.Line;
+    if (line.isLine) {
+      const curve = line.userData?.curve as CurveData | undefined;
+      const attr = line.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
+      if (!attr || !curve) {
+        ok = false;
+        return;
+      }
+      const idxs = curve.pointIndices.filter((i) => i >= 0 && i < points.length);
+      if (attr.count !== idxs.length) {
+        ok = false;
+        return;
+      }
+      const arr = attr.array as Float32Array;
+      idxs.forEach((i, k) => {
+        const p = points[i];
+        if (!p) {
+          ok = false;
+          return;
+        }
+        arr[k * 3] = p[0] ?? 0;
+        arr[k * 3 + 1] = p[1] ?? 0;
+        arr[k * 3 + 2] = p[2] ?? 0;
+      });
+      attr.needsUpdate = true;
+      return;
+    }
+    const pts = obj as THREE.Points;
+    if (pts.isPoints) {
+      const attr = pts.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
+      if (!attr || attr.count !== isolated.length) {
+        ok = false;
+        return;
+      }
+      const arr = attr.array as Float32Array;
+      isolated.forEach((p, k) => {
+        arr[k * 3] = p[0] ?? 0;
+        arr[k * 3 + 1] = p[1] ?? 0;
+        arr[k * 3 + 2] = p[2] ?? 0;
+      });
+      attr.needsUpdate = true;
+    }
+  });
+  return ok;
+}

@@ -18,6 +18,10 @@ body { font-family: var(--cyl-font-ui); }
 .cyl-left { flex: 0 0 300px; display: flex; flex-direction: column; border-right: 1px solid #2a2d33; min-height: 0; min-width: 0; overflow: hidden; }
 .cyl-panel-title { padding: 4px 8px; color: #7a7f87; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
 .cyl-graph { flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
+/* graph panel shell (dock panel content): Houdini-style address bar above the rete graph */
+.cyl-graph-shell { display: flex; flex-direction: column; height: 100%; min-height: 0; background: #101216; }
+.cyl-graph-addr { flex: 0 0 auto; padding: 3px 10px; font: 11px/1.6 var(--cyl-font-code); color: #8f959e; background: #0c0d0f; border-bottom: 1px solid #22252a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text; }
+.cyl-graph-shell .cyl-graph { flex: 1 1 auto; min-height: 0; }
 .cyl-center { flex: 1; min-width: 0; position: relative; }
 .cyl-right { flex: 0 0 250px; min-width: 0; border-left: 1px solid #2a2d33; overflow: auto; }
 .cyl-inspector { padding: 6px 10px; }

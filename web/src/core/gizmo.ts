@@ -24,11 +24,6 @@ export interface GizmoViewport {
   ): void;
   endTransformGizmo(opts?: { keepActive?: boolean }): void;
   setEnterPosition(x: number, y: number, z: number): void;
-  /** Local drag-preview: nudge the visible geometry group by (dx,dy,dz) so it follows
-   *  the gizmo on the SAME frame without a rebuild. Cleared by endDragPreview(). */
-  updateDragPreview(dx: number, dy: number, dz: number): void;
-  /** Clear any in-flight drag preview offset (idempotent). */
-  endDragPreview(): void;
 }
 
 export interface GizmoGraph {
@@ -48,7 +43,11 @@ export interface GizmoDeps {
 
 /** Enter-gizmo controller: owns the drag session state (pendingTransform +
  *  drag undo before/after + last bound transform) and the viewport/graph glue.
- *  main.ts only wires toggle / bindToSelection / onParamsApplied. */
+ *  main.ts only wires toggle / bindToSelection / onParamsApplied.
+ *
+ *  Principle: the gizmo is a SEPARATE temp object from the displayed geometry.
+ *  Following the geometry happens by updating node parms -> viewport refresh ->
+ *  position-only geometry update; nothing here ever moves geometry directly. */
 export function createGizmoController(deps: GizmoDeps): {
   toggle(): void;
   bindToSelection(): void;
@@ -59,8 +58,6 @@ export function createGizmoController(deps: GizmoDeps): {
   let dragBefore: ParamLike[] | null = null;
   let dragAfter: ParamLike[] | null = null;
   let lastTransformId: string | null = null;
-  let dragStart: { tx: number; ty: number; tz: number } | null = null;
-  let lastCommitted: { tx: number; ty: number; tz: number } | null = null;
 
   /** setNodeParams + runNetwork for a gizmo translate value (both update modes). */
   const applyTransformDrag = (id: string, x: number, y: number, z: number): void => {
@@ -81,8 +78,6 @@ export function createGizmoController(deps: GizmoDeps): {
     dragNodeId = node.id;
     dragBefore = cloneParams(node.params ?? []);
     dragAfter = null;
-    dragStart = { tx: v.tx ?? 0, ty: v.ty ?? 0, tz: v.tz ?? 0 };
-    lastCommitted = { ...dragStart };
     deps.viewport.beginTransformGizmo(
       node.id,
       v.tx ?? 0,
@@ -92,33 +87,22 @@ export function createGizmoController(deps: GizmoDeps): {
       v.py ?? 0,
       v.pz ?? 0,
       (x, y, z) => {
-        // Delta from the last committed value: the preview offset points the currently
-        // displayed geometry at the gizmo position (committed + delta = current), so
-        // the rebuilt geometry never double-stacks with a stale offset.
-        const dx = x - (lastCommitted?.tx ?? 0);
-        const dy = y - (lastCommitted?.ty ?? 0);
-        const dz = z - (lastCommitted?.tz ?? 0);
         if (deps.getUpdateMode() === "mouseup") {
-          // On Mouse Up: buffer only the latest value - zero network + zero rebuild during
-          // the drag; the local preview still makes the geometry follow the gizmo live.
+          // On Mouse Up: only cache the latest value - NO param write, NO network,
+          // NO geometry touch. The gizmo follows the pointer; geometry + parms
+          // move only on release (mouseup commits pendingTransform once).
           pendingTransform = { id: node.id, tx: x, ty: y, tz: z };
-          deps.viewport.updateDragPreview(dx, dy, dz);
           return;
         }
         applyTransformDrag(node.id, x, y, z);
-        lastCommitted = { tx: x, ty: y, tz: z };
-        deps.viewport.updateDragPreview(dx, dy, dz);
       },
       () => {
-        // drag ended: clear the preview offset first (the committed rebuild takes over),
-        // then mouseup commits the single buffered value once; BOTH modes close the drag
-        // session as ONE undo entry (one drag = one undo step).
-        deps.viewport.endDragPreview();
+        // drag ended: mouseup commits the single buffered value once first, then BOTH
+        // modes close the drag session as ONE undo entry (one drag = one undo step).
         if (deps.getUpdateMode() === "mouseup" && pendingTransform) {
           const p = pendingTransform;
           pendingTransform = null;
           applyTransformDrag(p.id, p.tx, p.ty, p.tz);
-          lastCommitted = { tx: p.tx, ty: p.ty, tz: p.tz }; // keep later drag deltas honest
         }
         if (dragNodeId && dragBefore && dragAfter && !paramsEqual(dragBefore, dragAfter)) {
           deps.graph.pushUndo({ type: "params", nodeId: dragNodeId, before: dragBefore, after: dragAfter });
@@ -169,7 +153,6 @@ export function createGizmoController(deps: GizmoDeps): {
     if (deps.viewport.isEnterActive() && nodeId === lastTransformId) {
       const v = readParamFloats(params);
       deps.viewport.setEnterPosition(v.tx ?? 0, v.ty ?? 0, v.tz ?? 0);
-      lastCommitted = { tx: v.tx ?? 0, ty: v.ty ?? 0, tz: v.tz ?? 0 }; // preview deltas stay honest after undo/redo
     }
   };
 

@@ -164,6 +164,19 @@ async function releaseGizmo(page: import("@playwright/test").Page): Promise<void
   });
 }
 
+/** First point of the displayed node-result geometry (or null when not built). */
+async function nodeResultFirstPoint(page: import("@playwright/test").Page): Promise<number[] | null> {
+  return page.evaluate(() => {
+    const v: any = (window as any).__cylViewport;
+    const root = v.nodeResultGroup.getObjectByName("cyl-node-result");
+    if (!root) return null;
+    const line = root.children.find((c: any) => c.isLine);
+    if (!line || !line.geometry || !line.geometry.attributes.position) return null;
+    const arr = line.geometry.attributes.position.array;
+    return [arr[0], arr[1], arr[2]];
+  });
+}
+
 test("bottom bar: non-docking strip + 15ch update-mode dropdown, default Auto Update, localStorage restore", async ({ page }) => {
   await openGraph(page);
 
@@ -240,13 +253,14 @@ test("On Mouse Up: drag only buffers tx/ty/tz; release commits once (zero networ
   expect(during0.points).toEqual(before0.points);
   expect(await nodeAndLogs(page)).toEqual(beforeState);
 
-  // local drag-preview: the visible geometry group follows the gizmo on the SAME frame
-  // (its position equals the delta from the committed baseline - no rebuild, no lag)
-  const previewPos = await page.evaluate(() => {
+  // during the drag the GEOMETRY does not move (mouseup intent: only the gizmo follows
+  // the pointer; parms + geometry move on release - never by touching geometry directly)
+  const dragPos = await page.evaluate(() => {
     const v: any = (window as any).__cylViewport;
     return { x: v.nodeResultGroup.position.x, y: v.nodeResultGroup.position.y, z: v.nodeResultGroup.position.z };
   });
-  expect(previewPos).toEqual({ x: 2.5, y: 0.5, z: 0.75 });
+  expect(dragPos).toEqual({ x: 0, y: 0, z: 0 });
+  expect(await nodeResultFirstPoint(page)).toEqual(ORIGIN_OUT0[0]);
 
   // release -> exactly one commit lands the FINAL buffered value
   await releaseGizmo(page);
@@ -264,14 +278,11 @@ test("On Mouse Up: drag only buffers tx/ty/tz; release commits once (zero networ
   expect(out0.points).toEqual([[2.5, 0.5, 0.75], [3.5, 0.5, 0.75], [3.5, 1.5, 0.75], [2.5, 1.5, 0.75]]);
   expect(await nodeAndLogs(page)).toMatchObject({ tx: 2.5, ty: 0.5, tz: 0.75 });
 
-  // release cleared the drag preview - rebuilt geometry sits at (0,0,0), no double offset
-  const endPos = await page.evaluate(() => {
-    const v: any = (window as any).__cylViewport;
-    return { x: v.nodeResultGroup.position.x, y: v.nodeResultGroup.position.y, z: v.nodeResultGroup.position.z };
-  });
-  expect(endPos).toEqual({ x: 0, y: 0, z: 0 });
+  // release moved the geometry: the viewport first point follows the committed value
+  await expect.poll(() => nodeResultFirstPoint(page), { timeout: 10000 }).toEqual([2.5, 0.5, 0.75]);
 
-  // Esc exits Enter mode
+  // Esc exits Enter mode (only while the pointer hovers the viewport)
+  await page.locator(".cyl-viewport canvas").hover();
   await page.keyboard.press("Escape");
   expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(false);
 });
@@ -312,6 +323,8 @@ test("Auto Update: gizmo drag pushes bridge outputs every frame (pre-round-12 be
     "auto translated outputs (frame 2)",
   );
 
+  // Esc exits Enter mode (only while the pointer hovers the viewport)
+  await page.locator(".cyl-viewport canvas").hover();
   await page.keyboard.press("Escape");
   expect(await page.evaluate(() => (window as any).__cylViewport.isEnterActive())).toBe(false);
 });

@@ -95,11 +95,14 @@ async function fitGraphForCut(page: import("@playwright/test").Page): Promise<vo
     const maxX = Math.max(...xs) + 300; // node width
     const minY = Math.min(...ys);
     const maxY = Math.max(...ys) + 100;
-    const k = Math.min((rect.width - 60) / (maxX - minX), (rect.height - 100) / (maxY - minY), 0.9);
+    // Deterministic zoom (independent of the panel size / persisted dock layout):
+    // the persisted ui-layout.json drifts across suite runs, and a size-driven k
+    // compresses connections enough for the 8px cut tolerance to hit neighbours.
+    const k = 0.55;
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
     await g.area.area.zoom(k);
-    await g.area.area.translate(rect.width * 0.8 - cx * k, rect.height * 0.6 - cy * k);
+    await g.area.area.translate(rect.width / 2 - cx * k, rect.height / 2 - cy * k);
     await new Promise((r) => setTimeout(r, 150));
   });
 }
