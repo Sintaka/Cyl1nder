@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-13T12:12:15.065Z",
-  "totalFunctions": 561,
+  "generatedAt": "2026-08-13T12:41:49.515Z",
+  "totalFunctions": 573,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -2677,7 +2677,7 @@
     },
     {
       "file": "web/src/core/dataflow.ts",
-      "lineCount": 201,
+      "lineCount": 219,
       "functions": [
         {
           "name": "displayNodeOutputIndex",
@@ -2695,28 +2695,28 @@
         },
         {
           "name": "getDisplayNodeInfo",
-          "line": 51,
+          "line": 67,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "refreshNodeFlags",
-          "line": 71,
+          "line": 87,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "flush",
-          "line": 156,
+          "line": 174,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "wireSelection",
-          "line": 191,
+          "line": 209,
           "kind": "function",
           "exported": false,
           "calls": 2
@@ -2778,11 +2778,11 @@
     },
     {
       "file": "web/src/core/network.ts",
-      "lineCount": 62,
+      "lineCount": 72,
       "functions": [
         {
           "name": "createNetworkRunner",
-          "line": 21,
+          "line": 25,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -2857,7 +2857,7 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 865,
+      "lineCount": 866,
       "functions": [
         {
           "name": "matchLogFilter",
@@ -2938,80 +2938,149 @@
         },
         {
           "name": "applyLayoutSettings",
-          "line": 565,
+          "line": 566,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "refreshSelectionPanels",
-          "line": 580,
+          "line": 581,
           "kind": "function",
           "exported": false,
           "calls": 1
         },
         {
           "name": "inputStatsText",
-          "line": 655,
+          "line": 656,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "outputStatsText",
-          "line": 664,
+          "line": 665,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderInspector",
-          "line": 673,
+          "line": 674,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "updateGraphAddress",
-          "line": 694,
+          "line": 695,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "scheduleNetwork",
-          "line": 719,
+          "line": 720,
           "kind": "function",
           "exported": false,
           "calls": 1
         },
         {
           "name": "flushStoreView",
-          "line": 722,
+          "line": 723,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "loadSnapshotIntoStore",
-          "line": 747,
+          "line": 748,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "applyLoadedPreference",
-          "line": 784,
+          "line": 785,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "markGraphDirty",
-          "line": 858,
+          "line": 859,
           "kind": "function",
           "exported": false,
           "calls": 2
+        }
+      ]
+    },
+    {
+      "file": "web/src/nodes2/chain-cache.ts",
+      "lineCount": 245,
+      "functions": [
+        {
+          "name": "resetChainCache",
+          "line": 78,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "buildSig",
+          "line": 83,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "fullReTrace",
+          "line": 93,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "emptyBuffer",
+          "line": 117,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "fallbackBuffer",
+          "line": 122,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "wrapBuffer",
+          "line": 137,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "computeChainCached",
+          "line": 155,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "computeOutputsCached",
+          "line": 211,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "computeNodeResultCached",
+          "line": 234,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
         }
       ]
     },
@@ -3560,7 +3629,7 @@
     },
     {
       "file": "web/src/nodes2/graph.ts",
-      "lineCount": 346,
+      "lineCount": 369,
       "functions": [
         {
           "name": "buildGraph",
@@ -3571,7 +3640,7 @@
         },
         {
           "name": "createReteGraph",
-          "line": 156,
+          "line": 174,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -3772,88 +3841,102 @@
     },
     {
       "file": "web/src/nodes2/network.ts",
-      "lineCount": 200,
+      "lineCount": 282,
       "functions": [
         {
           "name": "paramValue",
-          "line": 35,
+          "line": 65,
           "kind": "function",
           "exported": true,
           "calls": 6
         },
         {
           "name": "asFiniteNumber",
-          "line": 46,
+          "line": 76,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "toGroupClass",
-          "line": 52,
+          "line": 82,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "findFeeder",
-          "line": 57,
+          "line": 87,
           "kind": "function",
-          "exported": false,
+          "exported": true,
           "calls": 3
         },
         {
           "name": "nodeById",
-          "line": 65,
+          "line": 95,
           "kind": "function",
-          "exported": false,
+          "exported": true,
           "calls": 4
         },
         {
           "name": "parseInPort",
-          "line": 70,
+          "line": 100,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
+          "name": "isPositionDependent",
+          "line": 112,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "traceChainSpecs",
+          "line": 127,
+          "kind": "function",
+          "exported": true,
+          "calls": 3
+        },
+        {
           "name": "emptyBuffer",
-          "line": 76,
+          "line": 170,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "fallbackBuffer",
-          "line": 81,
+          "line": 175,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "traceChain",
-          "line": 108,
+          "line": 202,
           "kind": "function",
           "exported": false,
-          "calls": 4
+          "calls": 3
         },
         {
           "name": "bufferFromResolved",
-          "line": 148,
+          "line": 219,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "computeOutputs",
-          "line": 168,
+          "line": 241,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "computeNodeResult",
-          "line": 191,
+          "line": 270,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -4052,7 +4135,7 @@
     },
     {
       "file": "web/src/tools/transform.ts",
-      "lineCount": 71,
+      "lineCount": 100,
       "functions": [
         {
           "name": "translatePoint",
@@ -4085,6 +4168,13 @@
         {
           "name": "applyTranslateGrouped",
           "line": 52,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "applyTranslateDeltaInPlace",
+          "line": 77,
           "kind": "function",
           "exported": true,
           "calls": 1

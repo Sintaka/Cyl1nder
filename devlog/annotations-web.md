@@ -1,5 +1,14 @@
 # Web 子系统改动标注 / Web annotations
 
+## v0.1.00092（2026-08-13）· 视口实时性 P2：链状态缓存 + 免克隆平移 + 拓扑 cook
+- **chain-cache.ts（新）**：按 out:<i> / 
+ode:<id> 缓存链状态 { sig, base, specs, points, memberships, fastPath }；	raceChainSpecs（结构 trace，不碰点）→ sig 命中且仅 tx/ty/tz 变化 → 就地 delta（全点 O(P) 零分配；组子集只改命中点；零 delta 返回同一数组零工作）；sig 变或含 @P 规则 → 全量重 trace。	ools/transform.ts 新增 pplyTranslateDeltaInPlace。
+- **network.ts**：	raceChain 重构为基于 	raceChainSpecs + 顺序 pplyTranslateGrouped（纯路径行为一致）；computeOutputs/computeNodeResult 加可选 ctx（有 ctx 走缓存、无 ctx 纯全量，旧测试不破坏）；导出 indFeeder/nodeById/traceChainSpecs/TransformSpec/ChainTrace。
+- **core/network.ts + main.ts**：NetworkDeps.getInputsRev；un() 传 { inputsRev, graphVersion } 给 computeOutputs。
+- **core/dataflow.ts**：computeNodeResultCtx 带版本上下文走缓存（fake graph 无 getGraphVersion 时回退裸 3 参调用，单测不破坏）。
+- **graph.ts（拓扑 cook）**：管道 after 事件（connectioncreated/connectionremoved/nodecreated/noderemoved）调度合并 setTimeout(0) cook（ready 守卫 + 宏任务排空后触发 → restore/undo 重放落在最终拓扑）——拖线建连/Tab 建节点/restoreGraph 后 outputs 立即刷新（cook 即显示数据）；显式 onNetworkChanged 保留。
+- **测试**：chain-cache.test.ts 12 用例（全点/子集/多变换链/sig 失效/@P 回退/零 delta/dead chain/缓存命中）；e2e round19（组过滤拖拽只动命中点 + 同一 store points 数组跨帧引用不变 = 免克隆实锤）。全量 tsc 0, vitest 121, pytest 53, e2e 81 passed/1 skipped。
+
 ## v0.1.00091（2026-08-13）· 视口实时性 P1：帧序 + 拖拽合并 + 去双重计算
 - **pre-render pump（帧序）**：iewport/renderer.ts 新增 setPreRenderFlush(fn)，nimate() 在 enderer.render() **之前**调 hook；main.ts 的 store.subscribe 改为只置 pendingFlush，由 pump 每帧先 drain 
 etworkDirty→runNetwork 再 drain pendingFlush→flushStoreView → **几何与 gizmo 同帧上屏**（消除恒定 1 帧间隙）。e2e 新增「单次 objectChange 后首个 render 即画到新几何」断言（包装 renderer.render）。

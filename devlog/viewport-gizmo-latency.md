@@ -119,3 +119,14 @@ TypeScript 与延迟无关（类型在编译期消失，浏览器跑的是被 JI
 ### 6.4 P2 预告（下一轮）
 - 免克隆平移 + 链状态缓存：按 output/显示节点缓存 `{ base, points, sig, lastParams }`，`sig` 不变且仅 tx/ty/tz 变化 → 对缓存 points 就地加 delta（全点 O(P) 零分配；组子集用缓存命中集只改命中点，命中集在节点输入上求、以输入 sig 作失效键）；`sig` 变 → 全量重 trace。`applyTranslateGrouped` 保留给全量重 trace，新增就地 delta 模式。
 - 拓扑变化 → cook 语义补全（拖线建连/Tab 建节点也应刷新 outputs，对齐「cook 即显示数据」；P1 用新鲜度门控兜底，P2 链缓存后可直接补 cook）。
+
+## 6.5 P2 落地（v0.1.00092）：链状态缓存 + 免克隆平移 + 拓扑 cook
+
+- **chain-cache.ts（新模块）**：按 `out:<i>` / `node:<id>` 缓存 `{ sig, base, specs, points, memberships, fastPath }`；`sig = inputsRev|graphVersion|节点结构(组表达式/class/@P依赖)`。
+  - `traceChainSpecs`（结构 trace，不碰点）→ sig 命中且仅 tx/ty/tz 变化 → **就地加 delta**（全点 O(P) 零分配；组子集只改命中点；零 delta 直接返回同一数组零工作）。
+  - sig 变 / 链含 @P 规则（`rule.kind=="attr" && name=="P" && op!=""`）→ 全量重 trace 重建缓存（@P 命中集可能随位置变化，绝不走 delta）。
+  - `tools/transform.ts` 新增 `applyTranslateDeltaInPlace`；`network.ts` 的 `computeOutputs/computeNodeResult` 加可选 `ctx`（有 ctx 走缓存、无 ctx 纯全量，旧测试不破坏）。
+  - 共享可变 points 数组安全：`store.upsertOutputs` 不做内容去重（总是替换+emit）、`pushOutputs` 调用时同步 stringify、视口 `sameTopology` 位置-only 更新读最新值。
+- **拓扑变化 → cook 补全**：graph.ts 管道对 after 事件（`connectioncreated/connectionremoved/nodecreated/noderemoved`）调度合并的 `setTimeout(0)` cook（ready 守卫 + 宏任务排空后触发 → restore/undo 重放落在最终拓扑）；拖线建连、Tab 建节点、restoreGraph 后 outputs 立即刷新（cook 即显示数据）。
+- 验证：tsc 0, vitest 121（+12 chain-cache 单测：全点/子集/多变换链/sig 失效/@P 回退/零 delta/dead chain），pytest 53, e2e 81 passed/1 skipped（+round19：组过滤拖拽只动命中点、同一 store points 数组跨帧引用不变=免克隆实锤）。
+- 后续候选：全点平移进一步用「矩阵延迟到几何写入」（O(1)），或计算/几何写进 Web Worker。

@@ -1,4 +1,5 @@
 import type { InputPayload, OutputBuffer } from "../protocol/types";
+import type { ChainCtx } from "../nodes2/chain-cache";
 
 export interface NetworkDeps {
   getSerial(): string | null;
@@ -7,7 +8,10 @@ export interface NetworkDeps {
   /** Topology version of the graph when this run() computes (freshness gate for
    *  the viewport display-buffer reuse). */
   getGraphVersion(): number;
-  computeOutputs(inputs: InputPayload[], snap: any): OutputBuffer[];
+  /** Inputs revision (store.inputRev): part of the chain-cache invalidation sig -
+   *  a new Houdini push must re-trace, never delta a stale cached chain. */
+  getInputsRev(): number;
+  computeOutputs(inputs: InputPayload[], snap: any, ctx?: ChainCtx): OutputBuffer[];
   getOutputRev(): number;
   upsertOutputs(outputs: OutputBuffer[], rev: number): void;
   setOutputRev(rev: number): void;
@@ -33,7 +37,12 @@ export function createNetworkRunner(deps: NetworkDeps): {
     const cur = ++epoch;
     const snap = deps.getNetworkSnapshot();
     lastCookGraphVersion = deps.getGraphVersion();
-    const outputs = deps.computeOutputs(deps.getInputs(), snap);
+    // P2: hand the version context to the chain cache so param-only edits take the
+    // clone-free delta path and any input/topology change full re-traces.
+    const outputs = deps.computeOutputs(deps.getInputs(), snap, {
+      inputsRev: deps.getInputsRev(),
+      graphVersion: deps.getGraphVersion(),
+    });
     // a) local optimistic apply: predicted rev so the viewport rebuilds immediately
     const predictedRev = deps.getOutputRev() + 1;
     for (const buf of outputs) buf.rev = predictedRev;

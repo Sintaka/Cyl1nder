@@ -68,6 +68,21 @@ async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
   // the LIVE graph. flush() only reuses the already-computed output buffer for a
   // displayed null/transform when outputs were cooked for the CURRENT topology
   // (otherwise it falls back to computeNodeResult - always correct, no extra cook).
+  // Topology cook (P2): after a connection/node is added or removed (the rete
+  // AFTER events), re-run the network so outputs always reflect the live graph.
+  // `ready` guards the initial buildGraph phase (input/output + 4 default
+  // connections); restoreGraph/undo replays are async loops of awaits, so the
+  // setTimeout(0) fires only after the current macrotask AND all its microtasks
+  // drain - the cook lands on the FINAL topology, never half a graph.
+  const cookState = { ready: false, scheduled: false };
+  const scheduleTopologyCook = (): void => {
+    if (!cookState.ready || cookState.scheduled) return;
+    cookState.scheduled = true;
+    setTimeout(() => {
+      cookState.scheduled = false;
+      handlers.onNetworkChanged?.();
+    }, 0);
+  };
   let graphVersion = 0;
   (editor as unknown as { addPipe(mw: (ctx: { type: string; data?: { source?: string; target?: string } }) => unknown): void }).addPipe((ctx) => {
     if (ctx.type === "connectioncreate") {
@@ -80,6 +95,9 @@ async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
     }
     if (ctx.type === "connectioncreate" || ctx.type === "connectionremove" || ctx.type === "nodecreate" || ctx.type === "noderemove") {
       graphVersion += 1;
+    }
+    if (ctx.type === "connectioncreated" || ctx.type === "connectionremoved" || ctx.type === "nodecreated" || ctx.type === "noderemoved") {
+      scheduleTopologyCook();
     }
     return ctx;
   });
@@ -149,7 +167,7 @@ async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
     true,
   );
 
-  return { editor, area, engine, input, output, react, selectable, connection, getGraphVersion: () => graphVersion };
+  return { editor, area, engine, input, output, react, selectable, connection, cookState, getGraphVersion: () => graphVersion };
 }
 
 /** Create the graph; returns a handle with UI helpers. */
@@ -275,6 +293,11 @@ export async function createReteGraph(
     notifyNodeChanged();
     return final;
   });
+
+  // P2: all wiring (attach*/keydown/display/rename) is registered above; topology
+  // changes from here on (drag-connect / Tab-create / restoreGraph / undo replay)
+  // must trigger a deferred cook via the pipe's after events.
+  g.cookState.ready = true;
 
   return {
     editor: g.editor,

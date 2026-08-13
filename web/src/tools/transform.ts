@@ -68,3 +68,32 @@ export function applyTranslateGrouped(
   }
   return next;
 }
+
+/** In-place translate: add (dx,dy,dz) to EVERY point when `matched` is null
+ *  (all-points group), otherwise only to the points whose index is in `matched`.
+ *  Mutates the input array - zero allocation (clone-free translate fast path).
+ *  P2: the chain cache applies per-frame translate deltas directly to its own
+ *  mutable output points instead of re-cloning the whole array every frame. */
+export function applyTranslateDeltaInPlace(
+  points: number[][],
+  matched: Set<number> | null,
+  dx: number,
+  dy: number,
+  dz: number,
+): void {
+  if (matched === null) {
+    for (const p of points) {
+      p[0] += dx;
+      p[1] += dy;
+      p[2] += dz;
+    }
+    return;
+  }
+  for (const i of matched) {
+    const p = points[i];
+    if (!p) continue;
+    p[0] += dx;
+    p[1] += dy;
+    p[2] += dz;
+  }
+}

@@ -9,7 +9,7 @@ import { computeNodeResult, type NetworkSnapshot } from "../nodes2/network";
 import type { ReteGraph, ReteGraphHandlers } from "../nodes2/graph";
 import type { ReferenceItem, Viewport } from "../viewport/renderer";
 import type { ParamLike } from "./params";
-import type { OutputBuffer } from "../protocol/types";
+import type { InputPayload, OutputBuffer } from "../protocol/types";
 
 export interface DataflowDeps {
   getGraph(): ReteGraph;
@@ -47,6 +47,22 @@ export function displayNodeOutputIndex(snap: NetworkSnapshot, displayNodeId: str
 }
 
 export function createDataflow(deps: DataflowDeps): Dataflow {
+  /** computeNodeResult through the chain cache (P2): pass the version context
+   *  { inputsRev, graphVersion } so a displayed node reuses its cached mutable
+   *  points (clone-free translate). Minimal fakes without getGraphVersion (unit
+   *  tests) fall back to the bare 3-arg pure call. */
+  const computeNodeResultCtx = (
+    snap: NetworkSnapshot,
+    inputs: InputPayload[],
+    nodeId: string,
+  ): OutputBuffer | null => {
+    const graph = deps.getGraph() as { getGraphVersion?: () => number };
+    const gv = typeof graph.getGraphVersion === "function" ? graph.getGraphVersion() : undefined;
+    return gv === undefined
+      ? computeNodeResult(snap, inputs, nodeId)
+      : computeNodeResult(snap, inputs, nodeId, { inputsRev: store.inputRev, graphVersion: gv });
+  };
+
   /** Display node object (id + params) via the live editor (ReteGraph exposes editor). */
   function getDisplayNodeInfo(): {
     id: string;
@@ -96,7 +112,9 @@ export function createDataflow(deps: DataflowDeps): Dataflow {
         // Precomputed by flush() -> reuse without re-tracing; undefined (direct
         // callers) -> compute here as before.
         const result =
-          displayBuffer !== undefined ? displayBuffer : computeNodeResult(snap, store.inputs, dispNode.id);
+          displayBuffer !== undefined
+            ? displayBuffer
+            : computeNodeResultCtx(snap, store.inputs, dispNode.id);
         deps.getViewport().showNodeResult(result);
       } else {
         deps.getViewport().showNodeResult(null);
@@ -176,7 +194,7 @@ export function createDataflow(deps: DataflowDeps): Dataflow {
       const net = deps.getNetwork();
       const fresh = !net.isFresh || net.isFresh();
       const matched = outIdx !== null && fresh ? store.outputs.find((o) => o.index === outIdx) : undefined;
-      displayBuffer = matched ?? computeNodeResult(snap, store.inputs, dispNode.id);
+      displayBuffer = matched ?? computeNodeResultCtx(snap, store.inputs, dispNode.id);
     }
     // refreshNodeFlags FIRST so the renderer knows the final input/outputGroup
     // visibility before refresh() rebuilds (or safely skips) them; the two are

@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-13），由 `node scripts/gen-index.mjs` 产出。共 **561** 个函数/类。
+> 机器生成（2026-08-13），由 `node scripts/gen-index.mjs` 产出。共 **573** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -576,16 +576,16 @@
 |---|---|---|---|---|
 | `createWheelSv` | 51 | function | export | 1 |
 
-## web/src/core/dataflow.ts（201 行）
+## web/src/core/dataflow.ts（219 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `displayNodeOutputIndex` | 38 | function | export | 2 |
 | `createDataflow` | 49 | function | export | 1 |
-| `getDisplayNodeInfo` | 51 | function |  | 3 |
-| `refreshNodeFlags` | 71 | function |  | 5 |
-| `flush` | 156 | function |  | 5 |
-| `wireSelection` | 191 | function |  | 2 |
+| `getDisplayNodeInfo` | 67 | function |  | 3 |
+| `refreshNodeFlags` | 87 | function |  | 5 |
+| `flush` | 174 | function |  | 5 |
+| `wireSelection` | 209 | function |  | 2 |
 
 ## web/src/core/gizmo.ts（161 行）
 
@@ -607,11 +607,11 @@
 | `createHdaWatchdog` | 31 | function | export | 1 |
 | `check` | 42 | arrow |  | 1 |
 
-## web/src/core/network.ts（62 行）
+## web/src/core/network.ts（72 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `createNetworkRunner` | 21 | function | export | 1 |
+| `createNetworkRunner` | 25 | function | export | 1 |
 
 ## web/src/core/param-undo.ts（33 行）
 
@@ -639,7 +639,7 @@
 |---|---|---|---|---|
 | `bindShortcuts` | 15 | function | export | 1 |
 
-## web/src/main.ts（865 行）
+## web/src/main.ts（866 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -654,17 +654,31 @@
 | `readJsonFromDir` | 295 | function |  | 5 |
 | `saveSceneAs` | 309 | function |  | 3 |
 | `openSceneFromDir` | 363 | function |  | 2 |
-| `applyLayoutSettings` | 565 | function |  | 4 |
-| `refreshSelectionPanels` | 580 | function |  | 1 |
-| `inputStatsText` | 655 | function |  | 2 |
-| `outputStatsText` | 664 | function |  | 2 |
-| `renderInspector` | 673 | function |  | 2 |
-| `updateGraphAddress` | 694 | function |  | 3 |
-| `scheduleNetwork` | 719 | function |  | 1 |
-| `flushStoreView` | 722 | function |  | 2 |
-| `loadSnapshotIntoStore` | 747 | function |  | 3 |
-| `applyLoadedPreference` | 784 | function |  | 3 |
-| `markGraphDirty` | 858 | function |  | 2 |
+| `applyLayoutSettings` | 566 | function |  | 4 |
+| `refreshSelectionPanels` | 581 | function |  | 1 |
+| `inputStatsText` | 656 | function |  | 2 |
+| `outputStatsText` | 665 | function |  | 2 |
+| `renderInspector` | 674 | function |  | 2 |
+| `updateGraphAddress` | 695 | function |  | 3 |
+| `scheduleNetwork` | 720 | function |  | 1 |
+| `flushStoreView` | 723 | function |  | 2 |
+| `loadSnapshotIntoStore` | 748 | function |  | 3 |
+| `applyLoadedPreference` | 785 | function |  | 3 |
+| `markGraphDirty` | 859 | function |  | 2 |
+
+## web/src/nodes2/chain-cache.ts（245 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `resetChainCache` | 78 | function | export | 1 |
+| `buildSig` | 83 | function |  | 2 |
+| `fullReTrace` | 93 | function |  | 2 |
+| `emptyBuffer` | 117 | function |  | 2 |
+| `fallbackBuffer` | 122 | function |  | 2 |
+| `wrapBuffer` | 137 | function |  | 3 |
+| `computeChainCached` | 155 | function |  | 3 |
+| `computeOutputsCached` | 211 | function | export | 1 |
+| `computeNodeResultCached` | 234 | function | export | 1 |
 
 ## web/src/nodes2/graph-interact.ts（1369 行）
 
@@ -756,12 +770,12 @@
 | `lbl` | 52 | arrow |  | 5 |
 | `createGraphUndoManager` | 169 | function | export | 1 |
 
-## web/src/nodes2/graph.ts（346 行）
+## web/src/nodes2/graph.ts（369 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `buildGraph` | 61 | function |  | 2 |
-| `createReteGraph` | 156 | function | export | 1 |
+| `createReteGraph` | 174 | function | export | 1 |
 
 ## web/src/nodes2/groups.ts（32 行）
 
@@ -803,22 +817,24 @@
 | `stripAttrKey` | 185 | function | export | 2 |
 | `resolveAttribute` | 194 | function | export | 1 |
 
-## web/src/nodes2/network.ts（200 行）
+## web/src/nodes2/network.ts（282 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `paramValue` | 35 | function | export | 6 |
-| `asFiniteNumber` | 46 | function |  | 4 |
-| `toGroupClass` | 52 | function |  | 2 |
-| `findFeeder` | 57 | function |  | 3 |
-| `nodeById` | 65 | function |  | 4 |
-| `parseInPort` | 70 | function |  | 2 |
-| `emptyBuffer` | 76 | function |  | 2 |
-| `fallbackBuffer` | 81 | function |  | 2 |
-| `traceChain` | 108 | function |  | 4 |
-| `bufferFromResolved` | 148 | function |  | 3 |
-| `computeOutputs` | 168 | function | export | 1 |
-| `computeNodeResult` | 191 | function | export | 1 |
+| `paramValue` | 65 | function | export | 6 |
+| `asFiniteNumber` | 76 | function |  | 4 |
+| `toGroupClass` | 82 | function |  | 2 |
+| `findFeeder` | 87 | function | export | 3 |
+| `nodeById` | 95 | function | export | 4 |
+| `parseInPort` | 100 | function |  | 2 |
+| `isPositionDependent` | 112 | function |  | 2 |
+| `traceChainSpecs` | 127 | function | export | 3 |
+| `emptyBuffer` | 170 | function |  | 2 |
+| `fallbackBuffer` | 175 | function |  | 2 |
+| `traceChain` | 202 | function |  | 3 |
+| `bufferFromResolved` | 219 | function |  | 3 |
+| `computeOutputs` | 241 | function | export | 1 |
+| `computeNodeResult` | 270 | function | export | 1 |
 
 ## web/src/nodes2/undo.ts（135 行）
 
@@ -868,7 +884,7 @@
 | `outputsEqual` | 26 | function | export | 2 |
 | `WorkspaceStore` | 39 | class | export | 1 |
 
-## web/src/tools/transform.ts（71 行）
+## web/src/tools/transform.ts（100 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -877,6 +893,7 @@
 | `applyTranslateToCurve` | 14 | function | export | 1 |
 | `inputToOutput` | 31 | function | export | 1 |
 | `applyTranslateGrouped` | 52 | function | export | 1 |
+| `applyTranslateDeltaInPlace` | 77 | function | export | 1 |
 
 ## web/src/viewport/backend.ts（31 行）
 
