@@ -44,7 +44,7 @@
 - 验收：tsc 0 + vitest 增量 + e2e round15/round12 不回归；行为零变化。
 
 ### 阶段 2（中拆，分模块）
-- [~] 2.1 `main.ts` 抽 core：已完成 `core/lifecycle.ts` + `core/shortcuts.ts` + `core/params.ts` + `core/param-undo.ts` + `core/gizmo.ts` + `core/network.ts`（runNetwork+networkEpoch）；**仅剩** `core/session.ts`（connect/WS 消息/踢线/kick 状态）。
+- [~] 2.1 `main.ts` 抽 core：已完成 `core/lifecycle.ts` + `core/shortcuts.ts` + `core/params.ts` + `core/param-undo.ts` + `core/gizmo.ts` + `core/network.ts`（runNetwork+networkEpoch）+ `core/kick.ts`（kick 状态机）；**仅剩** `core/session.ts`（connect / WS 消息 / loadSnapshotIntoStore / applyLoadedPreference）。
 - [ ] 2.2 `graph.ts` 拆 `nodes2/graph-view.ts` / `graph-interact.ts` / `undo.ts` 强化；先定函数签名契约再并行。
 - [ ] 2.3 `viewport/renderer.ts` 拆 `scene` / `camera` / `gizmo` / `picking` / `modes`。
 - 验收：tsc 0 + vitest + 全量 e2e；主进程 merge 前 review 写集不越界。
