@@ -11,7 +11,7 @@
 - **版本号（2026-08-10 起，参考 Anime Hair Studio）**：`x.xxx.xxxxx`（主版本.次版本.每日构建5位），如 `0.1.00001`；**每次 commit 时 dailybuild++**；主/次版本升级时 dailybuild 清零。写入 `bridge/bridge/protocol.py` 的 `VERSION`、`web/src/app/app-config.ts` 的 `APP_VERSION`、devlog「最近版本」。用 `node scripts/bump-version.mjs [build|minor|major]` 递增（默认 build）。
 - **Codex 子智能体**：适当时候可以直接使用子智能体（并行调研 / 独立小改动）。
 - **许可证**：本项目采用 **Cyl1nder Source-Available Non-Commercial License**（见根 LICENSE）：源码可用、**禁止商用**、个人学习/非商业不限、允许修改（宽松，衍生作品同约束并保留声明署名）、**最终使用者负全责、与作者无关**。引入第三方代码时确保许可兼容；Animehairstudio / Zeno(MPL-2.0) 代码只借鉴不复制。
-- **设计对齐 Houdini 原生行为 + 尽量复用第三方库（2026-08-13 起）**：交互/术语/语义对齐 Houdini（gizmo 拖拽几何体即时跟手、display 排他、参数表、缓存思想对齐 bgeo/File Cache）；优先使用成熟第三方库（three.js / rete.js / msgpack / zstd / Snappy 等）而不是自研半成品；自研仅限协议胶水与轻量交互。
+- **设计理念：缓存与后端计算管理学习 Zeno + Houdini；能用开源就用开源（2026-08-13 起，铁律）**：① 缓存/计算管理以 Houdini（cook-on-dirty DAG、显示驱动 cook、detail 缓存 + 增量 P、交互不重 cook、bgeo.sc）与 Zeno（显式节点缓存、stamp none/data/topology 变化分级、双缓冲增量 diff、SoA→TypedArray、帧缓存）为参考系，借鉴方法论不复制代码（Zeno MPL-2.0 可借鉴；Houdini 闭源只对齐行为）——详见 cache-display-research.md / cache-system-guide.md；② 能用开源就用开源：优先成熟第三方库（three.js / rete.js / FastAPI / FastMCP / msgpack / orjson / fast-deep-equal 等），自研仅限协议胶水、轻量交互与无成熟等价物的领域逻辑（group 表达式 / undo 回放 / 链缓存）——取舍清单见 oss-reuse-audit.md，引入前核对许可证兼容；③ 交互/术语/语义对齐 Houdini（gizmo 拖拽即时跟手、display 排他、参数表）。
 
 ﻿## 并行修改规范 / Parallel modification standards（2026-08-11 起）
 **规则（铁律）：用户要求"codex 子智能体并行完成"时，主进程必须按此流程执行，子智能体必须遵守。**

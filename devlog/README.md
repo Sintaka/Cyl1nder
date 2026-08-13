@@ -11,6 +11,9 @@
 - **单桥 + 序列号路由**：一个端口 8375，按 serial 路由，不是每 HDA 一端口。
 - **统一属性系统（v0.1.00062 起）**：属性操作（编辑/重置/颜色等）属于统一属性类型系统——float/int/string/vector/enum/color3 一律通用；如 Ctrl+中键重置、色块点开调色板等在任何类型上都生效，而不是只针对 float。
 - **创建即不可变序列号**：创建瞬间生成、持久化、绝不 cook 时现算。
+- **设计理念学习 Zeno + Houdini（2026-08-13 起，缓存与后端计算管理）**：Cyl1nder 的缓存/计算管理以两个参考系为准——**Houdini**：cook-on-dirty DAG（未 dirty 直接复用缓存）、显示驱动 cook（只算显示分支）、detail 缓存 + 增量更新（拓扑不变只动 P）、交互不重 cook（矩阵/增量上屏）、bgeo.sc 落盘；**Zeno（MPL-2.0）**：显式节点缓存（CachedByKey/CacheToDisk）、stamp 变化分级（none/data/topology）、双缓冲增量 diff（MapStablizer，未变对象零上传）、SoA→TypedArray 直传、帧缓存 + stampInfo 切帧。借鉴方法论与架构、不复制代码（Zeno 可借鉴；Houdini 闭源只对齐行为）。落地索引：devlog/cache-display-research.md / cache-system-guide.md / cache-lazy-stamp-round.md。
+- **能用开源就用开源（2026-08-13 起）**：优先复用成熟开源库（three.js / rete / FastAPI / FastMCP / msgpack / orjson / fast-deep-equal 等，floating-ui/culori 列入候选），自研仅限协议胶水与领域专用逻辑（group 表达式、undo 回放、链缓存等无成熟等价物）；具体取舍见 devlog/oss-reuse-audit.md；引入前核对许可证兼容（本项目 Source-Available，第三方须宽松兼容）。
+
 
 ## 字典
 | 主题 | 文件 |
@@ -104,6 +107,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00099：设计理念写入 dev 偏好（README 关键理念铁律 + development-standards）——缓存与后端计算管理学习 Zeno+Houdini（cook-on-dirty/显示驱动 cook/detail 缓存+增量/stamp 分级/双缓冲/SoA→TypedArray/帧缓存，借鉴不复制）；能用开源就用开源（复用清单见 oss-reuse-audit.md，自研仅限协议胶水与无等价物领域逻辑）。纯文档轮。
 - v0.1.00098：开源库优化 + msgpack 协议化——web `compare.ts` 换 fast-deep-equal（session 热路径去字符串化深比较）；bridge⇄web 几何热路径（PUT/GET outputs + WS）启用 msgpack（`@msgpack/msgpack` + Python `msgpack`，REST 按 Content-Type/Accept、WS 按 `?proto=msgpack` 协商，HDA 保持 JSON）；bridge snapshot 换 orjson；协议三处同步（protocol.py/protocol.md，types.ts 无字段变化）。验证：pytest 59 / tsc 0 / vitest 151 / e2e 84 passed+1 skip / hython SMOKE OK。缓存优化至此告一段落；下一功能周期=时间轴+手动同步开关+IndexedDB 帧缓存（见 timeline-plan.md）。
 - v0.1.00097：分支统一清理（唯一主线 codex/develop，删除 11 个纯祖先检查点分支 + 远端 00087；cyl1nder-v0 待切 GitHub 默认分支后删）+ 分支规范写入 development-standards.md + 时间轴逐帧缓存设计（timeline-frame-cache-design.md：帧切换+无 parm 变化→不重算，内存 LRU+IndexedDB）+ 开源库借鉴审计（oss-reuse-audit.md：Top1 fast-deep-equal 可即做；msgpack/orjson/floating-ui/culori 列入后续；其余保持手搓）。
 - v0.1.00096：修复视口 display focus 被组重建清掉（拖 transform gizmo 时输入/输出四个口一起显示的偶发 bug——refresh 重建 input/output 组后同帧重放 focus，Viewport 自持 focus 状态；新增 round20-display-focus 逐帧回归 3 例）+ 浏览器支持评估（cache-browser-support-eval.md：纯 JS/TypedArray/Worker(Transferable)/WebGL2/IndexedDB/msgpack 全通用可直接做；WebGPU/SharedArrayBuffer(COOP/COEP)/WebTransport 推迟）。验证：tsc 0 / vitest 145 / e2e 84 passed+1 skip。
