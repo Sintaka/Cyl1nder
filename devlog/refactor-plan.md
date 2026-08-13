@@ -96,3 +96,46 @@
 - 契约锚点：先定 `GraphModel` 与 `GraphInteract` 的导出函数签名，主进程建骨架；子智能体按写集实现（model/interact/undo 三个写集不相交）。
 - 验证：`tsc 0` + `vitest`（undo/network/groups 相关）+ 全量 e2e（round2~8 节点图 + round12/16）。
 - 风险：`graph.ts` 1564 行是当前最大屎山，建议作为独立一轮、单独分支、分 2-3 刀切，不与 session 收尾并发。
+## 八·补 2.2 关系图与基础架构图（分支 `codex/0.1.00080-refactor-graph`，2026-08-13 复核）
+
+### graph.ts 关系图（当前）
+```
+graph.ts (1564 行)
+  导入:
+    rete (ClassicPreset, NodeEditor)
+    rete-area-plugin (AreaPlugin, AreaExtensions)
+    rete-connection-plugin (ConnectionPlugin, Presets)
+    rete-engine (DataflowEngine)
+    rete-react-plugin (Presets, ReactPlugin, useRete, ClassicScheme, ReactArea2D)
+    react-dom/client (createRoot), react
+    ./NodeView (NodeView, notifyNodeChanged, setDisplayHandler)
+    fuse.js (Fuse)
+    ../stores/workspace (store)
+    ./network (type NetworkSnapshot)
+    ./undo (createUndoManager, ConnectionRef, UndoAction, UndoManager)
+
+  导出:
+    createReteGraph()          ← 唯一入口（main.ts 调用）
+    ReteGraphHandlers, ReteGraph
+    NodeKind, NodeFlags, DEFAULT_FLAGS, ParamSpec, SelectedNodeInfo
+    CylNode, makeNullNode, makeTransformNode
+    setNodeStateHandler/fireNodeState, setRenameHandler/fireRename
+    initTooltip/showTooltip/hideTooltip
+
+  唯一外部消费者:
+    main.ts → createReteGraph, ReteGraphHandlers
+```
+
+### 目标基础架构图（2.2 完成后）
+```
+main.ts（装配层）
+   └── import ./nodes2/graph（对外 API 不变）
+
+nodes2/graph.ts（外壳，只装配 rete + 回调派发，~200 行）
+   ├── nodes2/graph-model.ts   节点/连线/选中态/网络快照/参数/序列化/restoreGraph
+   ├── nodes2/graph-interact.ts 拖拽/连线/框选/快捷键/tooltip/state handler/rename
+   ├── nodes2/graph-undo.ts     pushUndo/pushUndoGroup/undo/redo（复用 nodes2/undo.ts）
+   └── nodes2/undo.ts           （已有，纯撤销状态机，保持）
+```
+- 契约锚点：`GraphModel`、`GraphInteract` 的导出函数签名由主进程先建骨架；子智能体按 model/interact/undo 三个写集实现。
+- 验证：`tsc 0` + `vitest`（undo/network/groups）+ 节点图 e2e（round2/4/5/6/7/8/12/16）。
