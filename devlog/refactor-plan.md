@@ -45,7 +45,7 @@
 
 ### 阶段 2（中拆，分模块）
 - [x] 2.1 `main.ts` 抽 core：已完成 `core/lifecycle.ts` + `core/shortcuts.ts` + `core/params.ts` + `core/param-undo.ts` + `core/gizmo.ts` + `core/network.ts` + `core/kick.ts` + `core/session.ts`。
-- [ ] 2.2 `graph.ts` 拆 `nodes2/graph-view.ts` / `graph-interact.ts` / `undo.ts` 强化；先定函数签名契约再并行。
+- [x] 2.2 `graph.ts` 拆 `nodes2/graph-model.ts` / `graph-interact.ts` / `graph-undo.ts`（barrel 保持 `./nodes2/graph` 对外 API 不变）；主进程建契约骨架 + 4 子智能体并行（model/interact/undo/shell 写集不相交）；tsc 0 + vitest 101 + vite build 通过 + 节点图 e2e round2/16 8 passed。
 - [ ] 2.3 `viewport/renderer.ts` 拆 `scene` / `camera` / `gizmo` / `picking` / `modes`。
 - 验收：tsc 0 + vitest + 全量 e2e；主进程 merge 前 review 写集不越界。
 
@@ -62,30 +62,17 @@
 - 每完成一项，更新 `devlog/shit-mountains.md` 行数/状态与本文件 checkbox。
 
 ## 六、状态
-- 2026-08-13：阶段 1 完成；阶段 2.1 已抽出 `core/lifecycle.ts` + `core/shortcuts.ts` + `core/params.ts` + `core/param-undo.ts`（round5/8/12/14/16 e2e 通过）；2.1 其余（session/gizmo）待续。
+- 2026-08-13：阶段 1 完成；阶段 2.1 完成（core 八子刀：lifecycle/shortcuts/params/param-undo/gizmo/network/kick/session）；阶段 2.2 完成（graph.ts 拆 graph-model / graph-interact / graph-undo + 外壳）；下一步 2.3 viewport/renderer.ts。
 ## 七、当前执行（in progress，检查点 2026-08-13）
-- 分支：`codex/0.1.00075-refactor-gizmo-session`（已从 `codex/cyl1nder-v0` 切出）。
-- 已完成：**2.1-gizmo** + **2.1-network** 抽出（round12/16 6 passed）。\n- 下一步：**2.1-session 收尾** 抽 `web/src/core/session.ts`（connect/WS 消息/踢线/kick 状态，依赖 store/layout/client/prefs/network/hdaWatchdog/loadSnapshotIntoStore）。
-  - 状态收拢为闭包对象：`pendingTransform / dragNodeId / dragBefore / dragAfter / lastTransformId`。
-  - 工厂签名（契约，主进程先定骨架）：
-    ```ts
-    export interface GizmoDeps {
-      viewport: Pick<Viewport, "isEnterActive" | "setEnterActive" | "beginTransformGizmo" | "endTransformGizmo" | "setEnterPosition" | "setEnterPivot">;
-      graph: Pick<ReteGraph, "getSelectedNode" | "getNetworkSnapshot" | "setNodeParams" | "pushUndo">;
-      runNetwork(): void;
-      log(msg: string): void;
-      getUpdateMode(): "auto" | "mouseup";
-    }
-    export function createGizmoController(deps: GizmoDeps): {
-      toggle(): void;
-      bindToSelection(): void;
-      onParamsApplied(nodeId: string, params: ParamLike[]): void;
-    };
-    ```
-  - main.ts 保留调用点：`viewport.setEnterEditHandler(gizmo.toggle)`、`graph.onSelectionChanged(() => { paramUndo.flush(); refreshSelectionPanels(); if (viewport.isEnterActive()) gizmo.bindToSelection(); })`、`handlers.onParamsApplied` 里转调 `gizmo.onParamsApplied`。
-  - 验证：tsc 0 + vitest 101 + e2e round12/16。
-- 之后：**2.1-session** 抽 `web/src/core/session.ts`（connect/WS/networkEpoch/runNetwork/applyOutputs），同分支继续。
-## 八、2.2 `graph.ts` 分支计划（重新审视）
+- 分支：`codex/0.1.00080-refactor-graph`。
+- 已完成：**2.2**——`web/src/nodes2/graph.ts`（1666 行）拆成 4 文件（写集不相交，4 子智能体并行）：
+  - `graph-model.ts`（354 行）：类型 / CylNode / 工厂 / 只读查询 / serializeGraph / restoreGraph / getNetworkSnapshot。
+  - `graph-interact.ts`（954 行）：Tab 搜索 / Y 剪切 / flags 菜单 / MMB 平移 / 点阵 / 插入 / 框选 / 摇一摇 / tooltip / state·rename handler。
+  - `graph-undo.ts`（149 行）：actionContainsParams / applyUndoAction / createGraphUndoManager（复用 `undo.ts`）。
+  - `graph.ts`（290 行）：外壳——buildGraph + createReteGraph 装配 + 对外 API barrel 不变。
+- 验证：tsc 0 + vitest 101 + `vite build` 通过 + 节点图 e2e round2/16 8 passed（round6-nodeview 2 项为既有失败，HEAD 复现，非本次引入）。
+- 下一步：**2.3** `viewport/renderer.ts` 拆 `scene` / `camera` / `gizmo` / `picking` / `modes`（同分支或新分支）。
+## 八、2.2 `graph.ts` 分支计划（已完成 2026-08-13）
 - 单独分支：`codex/<版本>-refactor-graph`（从完成 2.1 后的分支切出）。
 - 先做只读边界分析再切，因为 `graph.ts` 是 rete 渲染/连线/拖拽/撤销/参数/选择的耦合体，且对外暴露 `__cylGraph`、`createReteGraph`、`ReteGraphHandlers`。
 - 建议拆成 3 个内部模块 + barrel（保持 `./nodes2/graph` 对外 API 不变）：
@@ -126,7 +113,7 @@ graph.ts (1564 行)
     main.ts → createReteGraph, ReteGraphHandlers
 ```
 
-### 目标基础架构图（2.2 完成后）
+### 2.2 完成后基础架构图（已落地）
 ```
 main.ts（装配层）
    └── import ./nodes2/graph（对外 API 不变）

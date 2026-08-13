@@ -8,7 +8,7 @@
 ## 当前屎山（按行数，2026-08-13 统计）
 | 文件 | 行数 | 主要职责混杂 | 建议拆法 | 优先级 |
 |---|---|---|---|---|
-| web/src/nodes2/graph.ts | 1564 | 节点渲染 / 连线 / 拖拽 / 撤销 / 参数 / 选择 / 事件 | nodes-renderer / edges / undo / params / selection | P1 |
+| web/src/nodes2/graph.ts | 290（外壳） | 已拆 2.2：graph-model(354) / graph-interact(954) / graph-undo(149) + 外壳 barrel | ✅ 2026-08-13 完成 | - |
 | web/src/main.ts | 1144 | 启动 / 连接 / 网络 / 视口 / gizmo / 菜单 / 快捷键 / 自动保存 | boot / session-connect / shortcuts / autosave / gizmo | P1 |
 | web/src/app/color.ts | 1073 | 色彩数学 / 色轮 / SV / 和谐 / 调色板 / 最近色 / 撤销 / 浮窗 | color-math / wheel-sv / harmony / palette / picker-shell | P2 |
 | hda/src/cyl1nder_hda.py | 782 | cook / 推拉 / 流循环 / 几何应用 / 缓存 / 启动 | sync / geometry / cache / lifecycle | P1 |

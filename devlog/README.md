@@ -100,6 +100,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00082：阶段2.2 完成——graph.ts 拆 graph-model/graph-interact/graph-undo + 外壳（4 子智能体并行、写集不相交）；tsc 0 + vitest 101 + vite build 通过 + 节点图 e2e round2/16 8 passed。
 - v0.1.00065：bridge 控制台降噪 + 心跳统一 1min——uvicorn access_log 关闭（web 推流无上限，gizmo 拖动不再刷屏 cmd）；STREAM_HOLD_DEFAULT 20→60（/stream 缺省 hold=60s）；web HDA watchdog 15s→60s（离线阈值仍 150s）；主进程 2 路并行（Huygens=bridge / Hypatia=web）+ 主进程合并；pytest 53, tsc 0, vitest 82（e2e 本次未重跑：改动不涉及 e2e 断言覆盖路径）。
 - v0.1.00081：切 2.2 分支 `codex/0.1.00080-refactor-graph`；refactor-plan.md 补 graph.ts 关系图与目标基础架构图。
 - v0.1.00080：**阶段2.1 完成**——main.ts 抽 `core/session.ts`（connect/WS 消息/autoRun/replay），2.1 八子刀全部合入；连接类 e2e round2/8/10/12/13/14 共 22 passed。
