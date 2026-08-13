@@ -100,6 +100,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00086：阶段3.2 完成——color.ts 全拆 color/（picker/wheel-sv/harmony/palette/color-math + barrel，wheel-sv 用 createWheelSv 依赖注入破 setColor↔wheel 循环）；tsc 0 + vitest 101 + build 通过 + round15-color 8 passed。
 - v0.1.00085：阶段3.2 部分完成——color.ts 纯函数拆 color/（color-math 迁入 + harmony + palette + recents，3 子智能体并行）；tsc 0 + vitest 101 + vite build 通过 + round15-color 8 passed。
 - v0.1.00084：阶段3.1 完成——hda/src/cyl1nder_hda.py 拆 lifecycle/cache/geometry/sync + 外壳 barrel（5 子智能体并行、写集不相交）；hython smoke 全绿；reload_hda MODULES 与 smoke monkeypatch 同步适配。
 - v0.1.00083：阶段2.3 完成——viewport/renderer.ts 拆 scene/camera/gizmo/picking/modes/state + 外壳（5 子智能体并行、写集不相交）；tsc 0 + vitest 101 + vite build 通过 + 视口 e2e round2/4/5/6/7/8/12/16/17 共 26 passed。

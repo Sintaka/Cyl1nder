@@ -51,7 +51,7 @@
 
 ### 阶段 3（大拆，跨端）
 - [x] 3.1 `hda/src/cyl1nder_hda.py` 按 lifecycle/cache/geometry/sync 拆分 + `cyl1nder_hda.py` 外壳 barrel（保留公开模块名 `cyl1nder_hda`，re-export 全部 smoke 依赖名）；hython smoke 全绿（reload_hda MODULES 顺序 + smoke `_schedule_recook` monkeypatch 目标同步到 `cyl1nder_sync`）。
-- [-] 3.2 `color.ts` 余下 UI 拆 `color/` 目录：已完成纯函数部分（`color/color-math.ts` 迁入 + `color/harmony.ts` + `color/palette.ts` + recents，barrel 对外 API 不变）；picker-shell / wheel-sv DOM 外壳待续（单闭包、耦合深，后续单独一刀）。
+- [x] 3.2 `color.ts` 余下 UI 拆 `color/` 目录：`color/color-math.ts` + `color/harmony.ts` + `color/palette.ts` + `color/wheel-sv.ts`（createWheelSv 依赖注入，setColorRef/pickHarmonyRef 破环）+ `color/picker.ts`（openColorPicker 外壳）+ `app/color.ts` 2 行 barrel；公开 API 不变。
 - [ ] 3.3 视口与节点图之间建立更清晰的「编辑 → 网络 → 视口」数据流，消灭 main.ts 的直连。
 - 验收：三端（pytest / tsc+vitest / hython smoke）+ 跨端 E2E 全绿。
 
@@ -64,16 +64,10 @@
 ## 六、状态
 - 2026-08-13：阶段 1 完成；阶段 2.1 完成（core 八子刀）；阶段 2.2 完成（graph.ts 拆 model/interact/undo + 外壳）；阶段 2.3 完成（viewport/renderer.ts 拆 scene/camera/gizmo/picking/modes/state + 外壳）；下一步阶段 3。
 ## 七、当前执行（in progress，检查点 2026-08-13）
-- 分支：`codex/0.1.00084-refactor-hda`。
-- 已完成：**3.1**——`hda/src/cyl1nder_hda.py`（881 行）拆成 5 文件（写集不相交，5 子智能体并行）：
-  - `cyl1nder_lifecycle.py`（127 行）：桥/前端启动 + serial + parm/status 助手。
-  - `cyl1nder_cache.py`（96 行）：_READY/_OUT/_GEO/_PUSH/_CORE/_STATS 缓存与 ready 缓冲。
-  - `cyl1nder_geometry.py`（238 行）：buffer→geo 应用 + 输入/输出快照 + 签名。
-  - `cyl1nder_sync.py`（250 行）：/stream 循环 + 重烤调度 + stop/ensure_sync。
-  - `cyl1nder_hda.py`（172 行）：外壳 barrel——cook/cook_core 入口 + re-export 全部 smoke 依赖名（公开名 `cyl1nder_hda` 不变，build_hda/reload_hda/hython_smoke 无需改 import）。
-  - 调用点适配（主进程）：`reload_hda.py` MODULES 加 4 子模块（依赖先于被依赖）；`hython_smoke.py` 的 `_schedule_recook` monkeypatch 目标改为 `cyl1nder_sync`。
-- 验证：hython smoke 全绿（SMOKE OK，含 cache-hit/fast-path/rebuild/stream/reset/throttle/stop_all_sync）；web tsc 0 + vitest 101；bridge pytest 本次环境问题（.venv python launcher 损坏）未跑——bridge 代码未改动，非协议变更。
-- 下一步：**3.2 收尾**（wheel-sv / picker-shell DOM 外壳，单闭包 context 化）；**3.3** 视口↔节点图数据流清晰化。
+- 分支：`codex/0.1.00085-refactor-color`。
+- 已完成 **3.1**（分支 `codex/0.1.00084-refactor-hda`）：`hda/src/cyl1nder_hda.py`（881 行）拆 lifecycle(127)/cache(96)/geometry(238)/sync(250) + 外壳 barrel(172)；hython smoke 全绿。
+- 已完成 **3.2**（分支 `codex/0.1.00085-refactor-color`）：`app/color.ts`（1007 行）拆 `color/` 目录——`color-math.ts`(147) + `harmony.ts`(104) + `palette.ts`(52) + `wheel-sv.ts`(199，createWheelSv 依赖注入，setColorRef/pickHarmonyRef 破 setColor↔wheel 循环) + `picker.ts`(712，openColorPicker 外壳) + `app/color.ts` 2 行 barrel；公开 API 不变。验证 tsc 0 + vitest 101 + build 通过 + round15-color 8 passed。
+- 下一步：**3.3** 视口↔节点图数据流清晰化（见 §九）。
 ## 八、2.2 `graph.ts` 分支计划（已完成 2026-08-13）
 - 单独分支：`codex/<版本>-refactor-graph`（从完成 2.1 后的分支切出）。
 - 先做只读边界分析再切，因为 `graph.ts` 是 rete 渲染/连线/拖拽/撤销/参数/选择的耦合体，且对外暴露 `__cylGraph`、`createReteGraph`、`ReteGraphHandlers`。
@@ -128,3 +122,21 @@ nodes2/graph.ts（外壳，只装配 rete + 回调派发，~200 行）
 ```
 - 契约锚点：`GraphModel`、`GraphInteract` 的导出函数签名由主进程先建骨架；子智能体按 model/interact/undo 三个写集实现。
 - 验证：`tsc 0` + `vitest`（undo/network/groups）+ 节点图 e2e（round2/4/5/6/7/8/12/16）。
+
+## 九、3.3 数据流清晰化方案（准备中，2026-08-13）
+### 现状
+`main.ts` 仍是「编辑 → 网络 → 视口」的唯一接线员，四处直连：
+- `graph.onNodePick` → `viewport.pickByNode`
+- `graph.onFlagsChanged` / `onNetworkChanged` / `onSelectionChanged` → `refreshNodeFlags()` + `network.run()` + `refreshSelectionPanels()`
+- `store` 变更 → `flushStoreView()` 一次性刷 `viewport.refresh()` + `refreshNodeFlags()` + 面板/inspector/log
+- `refreshNodeFlags()` 内部再读 `graph.getDisplayNode/getDisplayPortIndex/getNetworkSnapshot` 直连 `viewport.showNodeResult(computeNodeResult(...))`
+
+### 目标
+抽 `core/dataflow.ts`（或 `viewport/bridge.ts`）：一个纯「装配器」，持有 store/graph/network/viewport 的引用，订阅 graph 回调与 store 事件，把「编辑 → 网络 → 视口」编成一条数据流；`main.ts` 只做 `createDataflow({...})` 装配 + 菜单/快捷键等 UI 接线。
+
+### 拆分建议（契约先定，子智能体并行）
+1. `core/dataflow.ts`：`createDataflow(deps)`，deps = `{ store, graph, network, viewport, computeNodeResult, refreshSelectionPanels, markGraphDirty }`；返回 `{ onSelectionChanged, onFlagsChanged, onNetworkChanged, onNodePick, flush }`。
+2. `refreshNodeFlags` 逻辑迁入 dataflow（读 display node/port/snapshot → 驱动 viewport 可见性/焦点/node-result）。
+3. `main.ts` 只保留 `handlers` 的薄转调 + `flushStoreView` 里调用 `dataflow.flush()`。
+- 验证：tsc 0 + vitest 101 + 视口/节点图 e2e（round2/4/5/6/7/8/12/16/17）。
+- 风险：`refreshNodeFlags` 是 viewport 与 graph 的耦合点，先做只读边界分析再切，单闭包 context 化（参考 3.2 wheel-sv 的 setColorRef 破环法）。
