@@ -5,7 +5,7 @@ import { applyLayout, setupDock } from "./app/dock";
 import { renderSpreadsheet, type SpreadsheetFocus } from "./app/spreadsheet";
 import { renderParams } from "./app/param";
 import { store } from "./stores/workspace";
-import { BridgeClient, connectWs } from "./bridge/client";
+import { BridgeClient } from "./bridge/client";
 import { createReteGraph, type ReteGraphHandlers } from "./nodes2/graph";
 import { computeNodeResult, computeOutputs } from "./nodes2/network";
 import { Viewport, type ReferenceItem } from "./viewport/renderer";
@@ -27,6 +27,7 @@ import { createParamUndo } from "./core/param-undo";
 import { createNetworkRunner } from "./core/network";
 import { createGizmoController } from "./core/gizmo";
 import { createKickController } from "./core/kick";
+import { createSessionController } from "./core/session";
 
 /** Log categories: geo data / viewport / ui / bridge(python runtime). */
 let logFilter = "all";
@@ -451,13 +452,29 @@ const kicker = createKickController({
   runNetwork: () => { void network.run(); },
 });
 
-let wsDisconnect: (() => void) | null = null;
-let autoRun = layout.autoRunCheck.checked;
-let replayPending = false;  // first inputs after connect = replay, do NOT auto-run (avoids clobbering outputs/edits)
+const session = createSessionController({
+  getPrefsSyncMaxFps: () => syncMaxFps,
+  putSyncFps: (serial, fps) => client.putSyncFps(serial, fps),
+  getSerial: () => store.serial,
+  setSerial: (serial) => store.setSerial(serial),
+  setStatus: (s) => store.setStatus(s),
+  log: (msg) => store.pushLog(msg),
+  getInputs: () => store.inputs,
+  setInputs: (inputs, rev) => store.setInputs(inputs, rev),
+  inputsEqual,
+  getOutputRev: () => store.outputRev,
+  applyOutputs: (outputs, rev) => store.applyOutputs(outputs, rev),
+  network,
+  startHdaWatch: (serial) => hdaWatchdog.start(serial),
+  kicker,
+  loadSnapshot: (serial) => loadSnapshotIntoStore(serial),
+  getAutoRun: () => layout.autoRunCheck.checked,
+});
 
 layout.autoRunCheck.addEventListener("change", () => {
-  autoRun = layout.autoRunCheck.checked;
-  store.pushLog(`auto-run ${autoRun ? "on" : "off"}`);
+  const v = layout.autoRunCheck.checked;
+  session.setAutoRun(v);
+  store.pushLog(`auto-run ${v ? "on" : "off"}`);
 });
 
 /** Enter gizmo update mode: auto = realtime per drag frame; mouseup = geometry
@@ -821,71 +838,16 @@ function applyLoadedPreference(json: unknown): void {
   autosave.restart();
 }
 
-function connect(serialRaw: string): void {
-  const serial = serialRaw.trim();
-  if (!serial) return;
-  wsDisconnect?.();
-  replayPending = true;
-  store.setSerial(serial);
-  network.bumpEpoch(); // discard in-flight runs from the previous serial
-  // Push the persisted Sync Max FPS on EVERY (re)connect: the bridge keeps its
-  // default 30 until the web tells it otherwise (first connect + reconnect).
-  void client.putSyncFps(serial, prefs.sync_max_fps).catch(() => undefined);
-  hdaWatchdog.start(serial);
-  store.pushLog(`connect ${serial}`);
-  void loadSnapshotIntoStore(serial);
-  store.setStatus("connecting");
-  wsDisconnect = connectWs(
-    serial,
-    (msg) => {
-      if (msg.type === "hello") {
-        replayPending = true;  // a replay follows on every (re)connect - never auto-run on it
-        store.setStatus("ok");
-        store.pushLog(`hello inputRev=${msg.inputRev} outputRev=${msg.outputRev}`);
-        // First hello for this serial in this page session: kick the HDA once so a
-        // freshly spawned bridge forces a recook (HDA offline -> ok). Auto-reconnects
-        // bring more hellos but must not kick again, and the per-serial rate limit
-        // (>=5s) stops reconnect churn from hammering the HDA. Only a real drop
-        // (wsWasUp=false path cleared the marker) re-arms the kick.
-        kicker.onHello(serial);
-      } else if (msg.type === "inputs") {
-        const changed = !inputsEqual(store.inputs, msg.inputs);
-        store.setInputs(msg.inputs, msg.rev);
-        store.pushLog(`inputs rev=${msg.rev} (${msg.inputs.length})${changed ? "" : " [unchanged]"}`);
-        if (replayPending) {
-          replayPending = false;  // replay of current state on connect - not an update
-          store.pushLog("inputs replay - network not run");
-          return;
-        }
-        // gate auto-run on real content change: breaks the Force Cook <-> echo feedback loop
-        if (autoRun && changed) void network.run();
-      } else if (msg.type === "outputs") {
-        // content-dedup + monotonic rev: applyOutputs skips echoes identical to
-        // local optimistic applies; the rev guard below additionally drops echoes
-        // that are NOT newer than the local state, so a fps-coalesced broadcast
-        // carrying an INTERMEDIATE drag frame can never regress the local viewport.
-        if (msg.rev > store.outputRev) {
-          store.applyOutputs(msg.outputs, msg.rev);
-        }
-        store.pushLog(`outputs rev=${msg.rev} (${msg.outputs.length})`);
-      }
-    },
-    (open) => {
-      kicker.onStatus(open, serial);
-      store.setStatus(open ? "ok" : "offline");
-    },
-  );
-}
 
-layout.connectBtn.addEventListener("click", () => connect(layout.serialInput.value));
+layout.connectBtn.addEventListener("click", () => session.connect(layout.serialInput.value));
 layout.serialInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") connect(layout.serialInput.value);
+  if (e.key === "Enter") session.connect(layout.serialInput.value);
 });
 
 const qs = new URLSearchParams(location.search).get("serial");
 if (qs) {
   layout.serialInput.value = qs;
-  connect(qs);
+  session.connect(qs);
 } else {
   client
     .listSerials()
