@@ -1,3 +1,4 @@
+import equal from "fast-deep-equal";
 import type { InputPayload } from "./types";
 
 function payloadEqual(a: InputPayload, b: InputPayload): boolean {
@@ -5,9 +6,9 @@ function payloadEqual(a: InputPayload, b: InputPayload): boolean {
     a.index === b.index &&
     a.pointCount === b.pointCount &&
     a.primCount === b.primCount &&
-    JSON.stringify(a.points) === JSON.stringify(b.points) &&
-    JSON.stringify(a.curves) === JSON.stringify(b.curves) &&
-    JSON.stringify(a.faces ?? []) === JSON.stringify(b.faces ?? [])
+    equal(a.points, b.points) &&
+    equal(a.curves, b.curves) &&
+    equal(a.faces ?? [], b.faces ?? [])
   );
 }
 

@@ -19,6 +19,17 @@ PUT /api/hda/{serial}/sync (body {"fps": int}, 1..60, default 30):
   is the persistent source), returns {"ok":true,"serial","fps"}. Bridge throttles
   notify_stream + WS broadcast to <= fps, and registry disk saves are debounced to 1/s.
 
+Msgpack negotiation (bridge <-> web; HDA stays NDJSON/JSON - see devlog/transport-tech-evaluation.md §B2):
+- REST outputs: PUT /api/hda/{serial}/outputs accepts a msgpack body when
+  Content-Type is application/msgpack (msgpack.unpackb then OutputsPut.model_validate);
+  GET /api/hda/{serial}/outputs returns msgpack bytes when Accept is application/msgpack.
+  All other REST endpoints stay JSON.
+- WS: /ws?proto=msgpack opens a binary msgpack channel; no proto (or proto=json) keeps
+  JSON text frames. Frames are msgpack of the same dict payloads as today (server->client:
+  hello/inputs/outputs/log/pong; client->server: ping/edit - the client may also send a
+  JSON/text {"type":"ping"}). Pack with use_bin_type=False so strings stay str.
+- /stream stays single-line NDJSON JSON and /inputs stays JSON (HDA unchanged).
+
 Snapshot parts (see devlog/snapshot-design.md): io/inputs.json, io/outputs.json,
 scene/meta.json, scene/node-graph.json, scene/node-parm.json, docking-layout.json and
 Preference.json (web preferences: {"schemaVersion":1,"sync_max_fps":30,"update_mode":"auto"}).
@@ -31,7 +42,7 @@ import time
 
 from pydantic import BaseModel, Field
 
-VERSION = "0.1.00097"
+VERSION = "0.1.00098"
 HOST = "127.0.0.1"
 PORT = 8375
 BASE_URL = f"http://{HOST}:{PORT}"

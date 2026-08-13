@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-13），由 `node scripts/gen-index.mjs` 产出。共 **579** 个函数/类。
+> 机器生成（2026-08-13），由 `node scripts/gen-index.mjs` 产出。共 **583** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -87,19 +87,19 @@
 | `cyl1nder_index_query` | 274 | def |  | 1 |
 | `run_stdio` | 297 | def |  | 2 |
 
-## bridge/bridge/protocol.py（124 行）
+## bridge/bridge/protocol.py（135 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_b36` | 54 | def |  | 3 |
-| `generate_serial` | 65 | def |  | 1 |
-| `is_valid_serial` | 76 | def |  | 1 |
-| `AttributeData` | 80 | class |  | 1 |
-| `CurveData` | 86 | class |  | 1 |
-| `InputPayload` | 91 | class |  | 1 |
-| `OutputBuffer` | 102 | class |  | 1 |
-| `InputsPut` | 113 | class |  | 1 |
-| `OutputsPut` | 121 | class |  | 1 |
+| `_b36` | 65 | def |  | 3 |
+| `generate_serial` | 76 | def |  | 1 |
+| `is_valid_serial` | 87 | def |  | 1 |
+| `AttributeData` | 91 | class |  | 1 |
+| `CurveData` | 97 | class |  | 1 |
+| `InputPayload` | 102 | class |  | 1 |
+| `OutputBuffer` | 113 | class |  | 1 |
+| `InputsPut` | 124 | class |  | 1 |
+| `OutputsPut` | 132 | class |  | 1 |
 
 ## bridge/bridge/registry.py（201 行）
 
@@ -121,40 +121,41 @@
 | `_save` | 168 | def |  | 5 |
 | `_load` | 192 | def |  | 2 |
 
-## bridge/bridge/routes.py（389 行）
+## bridge/bridge/routes.py（432 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_maybe_snapshot` | 38 | def |  | 3 |
-| `root` | 61 | def |  | 1 |
-| `_check_serial` | 68 | def |  | 14 |
-| `health` | 74 | def |  | 1 |
-| `list_serials` | 80 | def |  | 1 |
-| `status` | 85 | def |  | 2 |
-| `put_inputs` | 97 | def |  | 1 |
-| `get_outputs` | 115 | def |  | 1 |
-| `put_outputs` | 124 | def |  | 2 |
-| `SyncFpsPut` | 139 | class |  | 1 |
-| `put_sync_fps` | 145 | def |  | 1 |
-| `pending` | 154 | def |  | 1 |
-| `_ndjson` | 175 | def |  | 9 |
-| `stream` | 181 | def |  | 1 |
-| `kick` | 227 | def |  | 1 |
-| `serial_logs` | 249 | def |  | 1 |
-| `get_snapshot` | 259 | def |  | 1 |
-| `get_ui_layout` | 270 | def |  | 1 |
-| `put_ui_layout` | 277 | def |  | 1 |
-| `put_snapshot` | 285 | def |  | 1 |
-| `ui_layouts` | 303 | def |  | 1 |
-| `ui_layout_save` | 309 | def |  | 1 |
-| `ui_layout_load` | 316 | def |  | 1 |
-| `global_logs` | 323 | def |  | 1 |
-| `scenes_list` | 334 | def |  | 1 |
-| `scenes_create` | 340 | def |  | 1 |
-| `scenes_cleanup` | 347 | def |  | 1 |
-| `scene_save` | 353 | def |  | 1 |
-| `scenes_open` | 364 | def |  | 1 |
-| `get_usdz` | 377 | def |  | 1 |
+| `_maybe_snapshot` | 40 | def |  | 3 |
+| `root` | 63 | def |  | 1 |
+| `_check_serial` | 70 | def |  | 14 |
+| `health` | 76 | def |  | 1 |
+| `list_serials` | 82 | def |  | 1 |
+| `status` | 87 | def |  | 2 |
+| `put_inputs` | 99 | def |  | 1 |
+| `get_outputs` | 117 | def |  | 1 |
+| `put_outputs` | 135 | def |  | 2 |
+| `_parse_outputs_body` | 157 | def |  | 2 |
+| `SyncFpsPut` | 182 | class |  | 1 |
+| `put_sync_fps` | 188 | def |  | 1 |
+| `pending` | 197 | def |  | 1 |
+| `_ndjson` | 218 | def |  | 9 |
+| `stream` | 224 | def |  | 1 |
+| `kick` | 270 | def |  | 1 |
+| `serial_logs` | 292 | def |  | 1 |
+| `get_snapshot` | 302 | def |  | 1 |
+| `get_ui_layout` | 313 | def |  | 1 |
+| `put_ui_layout` | 320 | def |  | 1 |
+| `put_snapshot` | 328 | def |  | 1 |
+| `ui_layouts` | 346 | def |  | 1 |
+| `ui_layout_save` | 352 | def |  | 1 |
+| `ui_layout_load` | 359 | def |  | 1 |
+| `global_logs` | 366 | def |  | 1 |
+| `scenes_list` | 377 | def |  | 1 |
+| `scenes_create` | 383 | def |  | 1 |
+| `scenes_cleanup` | 390 | def |  | 1 |
+| `scene_save` | 396 | def |  | 1 |
+| `scenes_open` | 407 | def |  | 1 |
+| `get_usdz` | 420 | def |  | 1 |
 
 ## bridge/bridge/scenes.py（188 行）
 
@@ -249,16 +250,19 @@
 | `serials` | 117 | def |  | 1 |
 | `status` | 121 | def |  | 1 |
 
-## bridge/bridge/ws.py（104 行）
+## bridge/bridge/ws.py（162 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `ConnectionManager` | 14 | class |  | 1 |
-| `__init__` | 15 | def |  | 1 |
-| `connect` | 19 | def |  | 2 |
-| `disconnect` | 24 | def |  | 3 |
-| `broadcast` | 32 | def |  | 1 |
-| `ws_endpoint` | 53 | def |  | 1 |
+| `_pack_msg` | 24 | def |  | 2 |
+| `ConnectionManager` | 33 | class |  | 1 |
+| `__init__` | 34 | def |  | 1 |
+| `connect` | 39 | def |  | 2 |
+| `disconnect` | 45 | def |  | 3 |
+| `send` | 54 | def |  | 6 |
+| `receive` | 61 | def |  | 3 |
+| `broadcast` | 82 | def |  | 1 |
+| `ws_endpoint` | 105 | def |  | 1 |
 
 ## hda/scripts/bridge_control.py（229 行）
 
@@ -525,13 +529,13 @@
 | `createDropdown` | 46 | function | export | 1 |
 | `createStepper` | 130 | function | export | 1 |
 
-## web/src/bridge/client.ts（237 行）
+## web/src/bridge/client.ts（261 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `BridgeClient` | 23 | class | export | 0 |
-| `connectWs` | 201 | function | export | 1 |
-| `connect` | 206 | arrow |  | 1 |
+| `BridgeClient` | 24 | class | export | 0 |
+| `connectWs` | 218 | function | export | 1 |
+| `connect` | 223 | arrow |  | 1 |
 
 ## web/src/color/color-math.ts（147 行）
 
@@ -869,12 +873,12 @@
 | `loadScenes` | 179 | function |  | 4 |
 | `cleanupScenes` | 200 | function |  | 2 |
 
-## web/src/protocol/compare.ts（23 行）
+## web/src/protocol/compare.ts（24 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `payloadEqual` | 3 | function |  | 2 |
-| `inputsEqual` | 15 | function | export | 1 |
+| `payloadEqual` | 4 | function |  | 2 |
+| `inputsEqual` | 16 | function | export | 1 |
 
 ## web/src/protocol/types.ts（115 行）
 

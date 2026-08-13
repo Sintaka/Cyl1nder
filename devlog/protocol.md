@@ -12,6 +12,11 @@
 - inputs: `[{index, name, pointCount, primCount, curves: [{pointIndices, widths?}], points: [[x,y,z],...], attributes: {name: {type, count, values}}}]`
 - outputs: `[{index, rev, curves, points, pointCount, primCount, ...}]`（编辑结果，按输出索引独立 rev）
 
+
+## msgpack 协商（v0.1.00098）
+- **范围**：仅几何热路径——`PUT /api/hda/{serial}/outputs` 与 `GET /api/hda/{serial}/outputs?since=` 支持 `application/msgpack`（web 默认用 msgpack，HDA 继续 JSON）；WS 连接带 `?proto=msgpack` → 桥对该连接发送二进制 msgpack 帧（`msgpack.packb(msg, use_bin_type=False)`），不带则保持 JSON 文本帧。`/inputs`、`/stream`（NDJSON）、snapshot/layouts/scenes/logs 等其余端点全部保持 JSON。
+- **帧内容**：msgpack 编码的是与 JSON 完全相同的 dict 负载（输出缓冲 / 事件消息），无字段变化；types.ts 类型不变。
+- **兼容**：桥对 outputs 端点按 `Content-Type`/`Accept` 自动选格式，JSON 始终可用（HDA 与旧客户端零改动）；web `client.ts` 的 `getOutputs` 按响应 `Content-Type` 解码（msgpack 或 JSON）。
 ## REST
 - `GET  /api/health` -> `{status:"ok", version, serials}`
 - `GET  /api/serials` -> `[serial, ...]`

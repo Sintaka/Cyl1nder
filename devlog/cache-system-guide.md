@@ -1,7 +1,7 @@
 # 缓存系统交接指引（给新会话）
 
 > 目的：开新会话迭代 Cyl1nder 缓存系统时，先读这篇 + 下面 3 篇，即可动手。
-> 状态：P1/P2 已完成（链缓存/位置-only/pump）；v0.1.00095 完成「懒输出（显示驱动 cook）+ 变化分级（none/data/topology）+ HDA cook-on-dirty 输入门控 + 推送/rev 分级」——见 cache-lazy-stamp-round.md。v0.1.00096 修复 display focus 重建清除 bug（round20 回归）；v0.1.00097 分支统一（唯一主线 codex/develop）+ 时间轴逐帧缓存设计（timeline-frame-cache-design.md）+ 开源库审计（oss-reuse-audit.md）。下一轮候选：时间轴帧缓存第一刀（内存 LRU + parmRev + session 命中判定，帧切换无 parm 变化零重算）+ fast-deep-equal 替换 compare.ts → 节点级输出缓存/脏传播 → SoA+Worker+msgpack 合并一轮 → HDA per-buffer 盖章 → IndexedDB 持久化 → WebGL2 GPU 拾取；WebGPU/SharedArrayBuffer/WebTransport 明确推迟。
+> 状态：P1/P2 已完成（链缓存/位置-only/pump）；v0.1.00095 完成「懒输出（显示驱动 cook）+ 变化分级（none/data/topology）+ HDA cook-on-dirty 输入门控 + 推送/rev 分级」——见 cache-lazy-stamp-round.md。v0.1.00098 完成 msgpack 协议化（PUT/GET outputs + WS 二进制，HDA 保持 JSON）+ fast-deep-equal + orjson。**缓存优化告一段落**（链缓存/懒输出/变化分级/推送分级 + msgpack wire 已覆盖主延迟链）。剩余候选（cache-browser-support-eval.md + oss-reuse-audit.md 排序）：节点级输出缓存/脏传播（纯 JS 首选）→ SoA→Float32Array+Worker(Transferable) → HDA per-buffer 内容盖章（W9）→ IndexedDB 帧缓存（等 timeline+手动同步开关，见 timeline-plan.md）→ WebGL2 GPU 拾取（大场景基准后）；WebGPU/SharedArrayBuffer/WebTransport 明确推迟；显示端包（three.js）不动。下一功能周期=时间轴+手动同步开关+IndexedDB 帧缓存（timeline-plan.md）。
 
 ## 1. 现在有什么（读完就知道从哪里接）
 

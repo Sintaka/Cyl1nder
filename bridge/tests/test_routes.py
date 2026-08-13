@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import msgpack
+
 from fastapi.testclient import TestClient
 
 from bridge.main import create_app
@@ -382,3 +384,169 @@ def test_put_outputs_noop_not_logged(tmp_path: Path) -> None:
     logs = st.logs.query(serial=serial)
     assert len(logs) == n1  # identical echo produced no new log entry
     assert not any(e["message"].startswith("outputs pushed") for e in logs[n1:])
+
+# --- msgpack wire format (bridge <-> web; HDA stays JSON) ---
+
+
+def test_put_outputs_msgpack_body_accepted(tmp_path: Path) -> None:
+    """PUT /outputs accepts a msgpack body (Content-Type: application/msgpack)."""
+    c = _client(tmp_path)
+    serial = generate_serial()
+    out = {
+        "outputs": [
+            {
+                "index": 0,
+                "rev": 0,
+                "pointCount": 3,
+                "primCount": 1,
+                "points": [[0, 0, 0], [1, 0, 0], [2, 0, 0]],
+                "curves": [{"pointIndices": [0, 1, 2]}],
+            }
+        ]
+    }
+    r = c.put(
+        f"/api/hda/{serial}/outputs",
+        content=msgpack.packb(out, use_bin_type=False),
+        headers={"Content-Type": "application/msgpack"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True and body["rev"] >= 1
+    # same content is visible through the JSON pull path
+    got = c.get(f"/api/hda/{serial}/outputs", params={"since": 0}).json()
+    assert got["outputs"][0]["points"] == [[0, 0, 0], [1, 0, 0], [2, 0, 0]]
+    # JSON path still works after a msgpack push
+    r2 = c.put(f"/api/hda/{serial}/outputs", json={"outputs": [{"index": 0, "rev": 0, "points": [[9, 9, 9]]}]})
+    assert r2.status_code == 200
+    assert r2.json()["rev"] > body["rev"]
+
+
+def test_get_outputs_msgpack_accept_matches_json(tmp_path: Path) -> None:
+    """GET /outputs honors Accept: application/msgpack with the same payload as JSON."""
+    c = _client(tmp_path)
+    serial = generate_serial()
+    out = {
+        "outputs": [
+            {
+                "index": 0,
+                "rev": 0,
+                "pointCount": 2,
+                "points": [[0, 0, 0], [1, 1, 1]],
+                "curves": [{"pointIndices": [0, 1], "widths": [1.0, 2.0]}],
+            }
+        ]
+    }
+    c.put(f"/api/hda/{serial}/outputs", json=out)
+    r = c.get(f"/api/hda/{serial}/outputs", params={"since": 0}, headers={"Accept": "application/msgpack"})
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("application/msgpack")
+    data = msgpack.unpackb(r.content)
+    assert data["outputs"][0]["points"] == [[0, 0, 0], [1, 1, 1]]
+    assert data["outputs"][0]["curves"] == [{"pointIndices": [0, 1], "widths": [1.0, 2.0]}]
+    # msgpack payload decodes to the same content as the JSON response
+    rj = c.get(f"/api/hda/{serial}/outputs", params={"since": 0})
+    assert rj.headers["content-type"].startswith("application/json")
+    assert rj.json() == data
+
+
+def test_ws_msgpack_binary_broadcast_and_json_default(tmp_path: Path) -> None:
+    """A proto=msgpack WS gets binary msgpack frames; default WS keeps JSON text."""
+    c = _client(tmp_path)
+    serial = generate_serial()
+    with c.websocket_connect(f"/ws?serial={serial}") as ws_json:
+        hello = ws_json.receive_json()
+        assert hello["type"] == "hello"
+        assert hello["serial"] == serial
+        with c.websocket_connect(f"/ws?serial={serial}&proto=msgpack") as ws_mp:
+            hello_mp = msgpack.unpackb(ws_mp.receive_bytes())
+            assert hello_mp["type"] == "hello"
+            assert hello_mp["serial"] == serial
+            # inputs push triggers an immediate broadcast in both formats
+            c.put(
+                f"/api/hda/{serial}/inputs",
+                json={
+                    "inputs": [{"index": 0, "name": "in0", "pointCount": 2, "points": [[0, 0, 0], [1, 0, 0]]}],
+                    "nodePath": "/obj/geo1/cyl1nder1",
+                    "label": "Cyl1nder",
+                },
+            )
+            msg_json = ws_json.receive_json()
+            assert msg_json["type"] == "inputs"
+            msg_mp = msgpack.unpackb(ws_mp.receive_bytes())
+            assert msg_mp["type"] == "inputs"
+            assert msg_mp == msg_json  # identical dict payload, different wire format
+
+
+def test_ws_msgpack_accepts_text_ping_and_replies_pong(tmp_path: Path) -> None:
+    """A proto=msgpack connection still accepts a JSON/text ping and answers in its format."""
+    c = _client(tmp_path)
+    serial = generate_serial()
+    with c.websocket_connect(f"/ws?serial={serial}&proto=msgpack") as ws_mp:
+        hello = msgpack.unpackb(ws_mp.receive_bytes())
+        assert hello["type"] == "hello"
+        ws_mp.send_text(json.dumps({"type": "ping"}))
+        pong = msgpack.unpackb(ws_mp.receive_bytes())
+        assert pong == {"type": "pong"}
+
+
+def test_ws_msgpack_binary_edit_accepted(tmp_path: Path) -> None:
+    """A proto=msgpack connection can push edits as binary msgpack frames."""
+    import time
+
+    c = _client(tmp_path)
+    serial = generate_serial()
+    with c.websocket_connect(f"/ws?serial={serial}&proto=msgpack") as ws_mp:
+        hello = msgpack.unpackb(ws_mp.receive_bytes())
+        assert hello["type"] == "hello"
+        ws_mp.send_bytes(
+            msgpack.packb(
+                {"type": "edit", "outputs": [{"index": 0, "rev": 0, "points": [[0, 0, 0], [1, 1, 1]]}]},
+                use_bin_type=False,
+            )
+        )
+        got: dict | None = None
+        deadline = time.time() + 2
+        while time.time() < deadline:
+            got = c.get(f"/api/hda/{serial}/outputs", params={"since": 0}).json()
+            if got["outputs"]:
+                break
+            time.sleep(0.01)
+        assert got is not None and got["outputs"][0]["points"] == [[0, 0, 0], [1, 1, 1]]
+
+
+def test_snapshot_geometry_orjson_roundtrip(tmp_path: Path, monkeypatch) -> None:
+    """io geometry parts round-trip via orjson with content-compare (no rewrite on echo)."""
+    import orjson
+
+    from bridge.snapshot import read_snapshot, write_snapshot
+
+    monkeypatch.setenv("CYL1NDER_SNAPSHOT_ROOT", str(tmp_path / "snaps"))
+    serial = generate_serial()
+    inputs = [
+        {
+            "index": 0,
+            "name": "in0",
+            "pointCount": 3,
+            "primCount": 1,
+            "points": [[0, 0, 0], [1, 0, 0], [2, 0, 0]],
+            "curves": [{"pointIndices": [0, 1, 2], "widths": None}],
+            "attributes": {
+                "P": {"type": "float", "count": 3, "values": [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 2.0, 0.0, 0.0]}
+            },
+        }
+    ]
+    assert write_snapshot(serial, "", inputs=inputs) is True
+    p = tmp_path / "snaps" / serial / "io" / "inputs.json"
+    assert p.exists()
+    # stored as JSON (orjson text) - still readable by the stdlib parser
+    assert json.loads(p.read_text(encoding="utf-8")) == inputs
+    snap = read_snapshot("", serial)
+    assert snap is not None and snap["inputs"] == inputs
+    # identical echo -> content-compare skips the write
+    assert write_snapshot(serial, "", inputs=inputs) is False
+    # ensure_ascii=False (orjson default): non-ASCII stays unescaped UTF-8
+    cn = [dict(inputs[0], name="输入0")]
+    assert write_snapshot(serial, "", inputs=cn) is True
+    raw = (tmp_path / "snaps" / serial / "io" / "inputs.json").read_text(encoding="utf-8")
+    assert "输入0" in raw
+    assert json.loads(raw) == cn

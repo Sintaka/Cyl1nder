@@ -1,4 +1,5 @@
 import { BRIDGE_URL, InputPayload, LogEntry, OutputBuffer, StatusResponse } from "../protocol/types";
+import { encode, decode } from "@msgpack/msgpack";
 
 export interface HealthResponse {
   status: string;
@@ -70,14 +71,30 @@ export class BridgeClient {
     return json(
       await fetch(`${this.base}/api/hda/${serial}/outputs`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ outputs }),
+        headers: { "Content-Type": "application/msgpack" },
+        body: encode({ outputs }),
       }),
     );
   }
 
   async getOutputs(serial: string, since: number): Promise<{ outputs: OutputBuffer[]; rev: number }> {
-    return json(await fetch(`${this.base}/api/hda/${serial}/outputs?since=${since}`));
+    const res = await fetch(`${this.base}/api/hda/${serial}/outputs?since=${since}`, {
+      headers: { Accept: "application/msgpack" },
+    });
+    if (!res.ok) {
+      let detail = `${res.status} ${res.statusText}`;
+      try {
+        const body = await res.json();
+        if (body && body.detail) detail = String(body.detail);
+      } catch {
+        /* ignore */
+      }
+      throw new Error(detail);
+    }
+    const contentType = res.headers.get("content-type") ?? "";
+    return contentType.includes("msgpack")
+      ? (decode(await res.arrayBuffer()) as { outputs: OutputBuffer[]; rev: number })
+      : ((await res.json()) as { outputs: OutputBuffer[]; rev: number });
   }
 
   /** Global dockview layout (persisted by bridge to a file - cross-browser). */
@@ -197,7 +214,7 @@ export class BridgeClient {
 
 export type WsHandler = (msg: any) => void;
 
-/** Live channel: ws://127.0.0.1:8375/ws?serial=... with automatic reconnect (exponential backoff). */
+/** Live channel: ws://127.0.0.1:8375/ws?serial=...&proto=msgpack with automatic reconnect (exponential backoff). */
 export function connectWs(serial: string, onMessage: WsHandler, onStatus: (open: boolean) => void): () => void {
   let closed = false;
   let retries = 0;
@@ -205,7 +222,8 @@ export function connectWs(serial: string, onMessage: WsHandler, onStatus: (open:
 
   const connect = () => {
     if (closed) return;
-    ws = new WebSocket(`ws://${new URL(BRIDGE_URL).host}/ws?serial=${encodeURIComponent(serial)}`);
+    ws = new WebSocket(`ws://${new URL(BRIDGE_URL).host}/ws?serial=${encodeURIComponent(serial)}&proto=msgpack`);
+    ws.binaryType = "arraybuffer";
     ws.onopen = () => {
       retries = 0;
       onStatus(true);
@@ -222,7 +240,13 @@ export function connectWs(serial: string, onMessage: WsHandler, onStatus: (open:
     };
     ws.onmessage = (ev) => {
       try {
-        onMessage(JSON.parse(ev.data as string));
+        if (typeof ev.data === "string") {
+          // JSON default path (bridge fallback / non-msgpack connections)
+          onMessage(JSON.parse(ev.data));
+        } else {
+          // binary msgpack frame (proto=msgpack)
+          onMessage(decode(new Uint8Array(ev.data)));
+        }
       } catch {
         /* ignore malformed */
       }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { SERIAL_RE, type InputPayload } from "../src/protocol/types";
+import { encode, decode } from "@msgpack/msgpack";
+import { SERIAL_RE, type InputPayload, type OutputBuffer } from "../src/protocol/types";
 import {
   applyTranslateToCurve,
   inputToOutput,
@@ -74,5 +75,46 @@ describe("transform tool math", () => {
     ]);
     expect(buf.curves).toBe(input.curves);
     expect(buf.pointCount).toBe(2);
+  });
+});
+
+describe("msgpack protocol round-trip", () => {
+  const outputs: OutputBuffer[] = [
+    {
+      index: 0,
+      rev: 3,
+      pointCount: 2,
+      primCount: 1,
+      points: [
+        [0, 0, 0],
+        [1, 0, 0],
+      ],
+      curves: [{ pointIndices: [0, 1], widths: null }],
+      faces: [[0, 1, 2]],
+      attributes: { Cd: { type: "float", count: 3, values: [1, 0, 0] } },
+    },
+    {
+      index: 1,
+      rev: 0,
+      pointCount: 1,
+      primCount: 1,
+      points: [[2, 0, 0]],
+      curves: [],
+      attributes: {},
+    },
+  ];
+
+  it("encodes an OutputBuffer list as msgpack bytes and decodes it back", () => {
+    const bytes = encode({ outputs });
+    expect(bytes).toBeInstanceOf(Uint8Array);
+    const decoded = decode(bytes) as { outputs: OutputBuffer[] };
+    expect(decoded.outputs).toEqual(outputs);
+  });
+
+  it("decodes from an ArrayBuffer (getOutputs msgpack response path)", () => {
+    const payload = { outputs, rev: 5 };
+    const bytes = encode(payload);
+    const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+    expect(decode(ab)).toEqual(payload);
   });
 });

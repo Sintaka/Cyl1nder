@@ -12,6 +12,8 @@ dependencies = [
     "uvicorn[standard]>=0.30",
     "websockets>=12",
     "fastmcp>=0.1.0",
+    "msgpack>=1.1",
+    "orjson>=3.10",
     "pydantic>=2.7",
 ]
 

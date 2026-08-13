@@ -4,10 +4,12 @@ from __future__ import annotations
 import asyncio
 import json
 
-from fastapi import APIRouter, HTTPException, Query
+import msgpack
+
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse, Response
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from .protocol import (
     InputsPut,
@@ -112,17 +114,33 @@ async def put_inputs(serial: str, payload: InputsPut) -> dict:
 
 
 @router.get("/api/hda/{serial}/outputs")
-async def get_outputs(serial: str, since: int = Query(0, ge=0)) -> dict:
+async def get_outputs(serial: str, request: Request, since: int = Query(0, ge=0)) -> Response:
+    """Return edited outputs since a rev.
+
+    Defaults to JSON (HDA path unchanged); when the client sends
+    Accept: application/msgpack, the same payload is returned as msgpack bytes
+    (bridge<->web msgpack negotiation, see protocol.py docstring).
+    """
     _check_serial(serial)
     st = get_state()
     ws = st.workspaces.get_or_create(serial)
     outputs = ws.get_outputs_since(since)
-    return {"outputs": [o.model_dump() for o in outputs], "rev": ws.output_rev()}
+    payload = {"outputs": [o.model_dump() for o in outputs], "rev": ws.output_rev()}
+    if "msgpack" in request.headers.get("accept", "").lower():
+        return Response(content=msgpack.packb(payload, use_bin_type=False), media_type="application/msgpack")
+    return Response(content=json.dumps(payload, ensure_ascii=False), media_type="application/json")
 
 
 @router.put("/api/hda/{serial}/outputs")
-async def put_outputs(serial: str, payload: OutputsPut) -> dict:
+async def put_outputs(serial: str, request: Request) -> dict:
+    """Accept edited output buffers.
+
+    Defaults to JSON (unchanged); when the client sends
+    Content-Type: application/msgpack, the body is msgpack-decoded first
+    (bridge<->web msgpack negotiation; HDA keeps pushing JSON).
+    """
     _check_serial(serial)
+    payload = await _parse_outputs_body(request)
     st = get_state()
     ws = st.workspaces.get_or_create(serial)
     rev, accepted = ws.put_outputs(payload.outputs)
@@ -134,6 +152,31 @@ async def put_outputs(serial: str, payload: OutputsPut) -> dict:
         st.notify_stream(serial)
     await _maybe_snapshot(serial)
     return {"ok": True, "serial": serial, "rev": rev}
+
+
+async def _parse_outputs_body(request: Request) -> OutputsPut:
+    """Parse the PUT /outputs body: msgpack for application/msgpack, else JSON.
+
+    The JSON path keeps the previous semantics (400 on a malformed body, 422 on
+    a schema mismatch); msgpack frames are decoded with default raw=False so
+    strings stay str, then validated through the same OutputsPut model.
+    """
+    raw = await request.body()
+    content_type = request.headers.get("content-type", "").lower()
+    if "msgpack" in content_type:
+        try:
+            data = msgpack.unpackb(raw)
+        except Exception as exc:  # noqa: BLE001 - any malformed msgpack frame -> 400
+            raise HTTPException(status_code=400, detail="invalid msgpack body") from exc
+    else:
+        try:
+            data = json.loads(raw)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="invalid JSON body") from exc
+    try:
+        return OutputsPut.model_validate(data)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors()) from exc
 
 
 class SyncFpsPut(BaseModel):

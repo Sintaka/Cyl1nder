@@ -16,7 +16,7 @@ Rules (devlog/snapshot-design.md + scene-snapshot-research.md):
 """
 from __future__ import annotations
 
-import json
+import orjson
 import os
 import time
 from pathlib import Path
@@ -63,7 +63,7 @@ def read_snapshot(hip: str, serial: str) -> dict[str, Any] | None:
         p = _part_path(root, part)
         if p.exists():
             try:
-                out[part] = json.loads(p.read_text(encoding="utf-8"))
+                out[part] = orjson.loads(p.read_text(encoding="utf-8"))
                 continue
             except (OSError, ValueError):
                 pass
@@ -71,7 +71,7 @@ def read_snapshot(hip: str, serial: str) -> dict[str, Any] | None:
         legacy = root / f"{serial}.{part}.json"
         if legacy.exists():
             try:
-                out[part] = json.loads(legacy.read_text(encoding="utf-8"))
+                out[part] = orjson.loads(legacy.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 continue
     return out if out else None
@@ -114,12 +114,12 @@ def write_snapshot(
         target = _part_path(root, part)
         # content compare (R5): skip write when unchanged
         try:
-            if target.exists() and json.loads(target.read_text(encoding="utf-8")) == payload:
+            if target.exists() and orjson.loads(target.read_text(encoding="utf-8")) == payload:
                 continue
         except (OSError, ValueError):
             pass
         tmp = target.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.write_text(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode("utf-8"), encoding="utf-8")
         tmp.replace(target)
         wrote = True
     return wrote
