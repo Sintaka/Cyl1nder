@@ -52,7 +52,7 @@ export function buildLayout(app: HTMLElement): Layout {
         <a class="cyl-brand" href="/overview.html" target="_blank" rel="noopener">Cyl1nder <small>0.1</small></a>
         <div class="cyl-menubar">
           <div class="cyl-menu" data-menu="file">
-            <span class="cyl-menu-label cyl-menu-layout-box compact"><span class="cyl-menu-layout-caret" aria-hidden="true"><span>▲</span><span>▼</span></span><span class="cyl-menu-layout-name">File</span></span>
+            <span class="cyl-menu-label">File</span>
             <div class="cyl-menu-drop" id="cyl-menu-file">
               <button data-act="open">Open Scene…</button>
               <button data-act="save">Save Scene <span class="cyl-menu-kbd">Ctrl+S</span></button>
@@ -60,7 +60,7 @@ export function buildLayout(app: HTMLElement): Layout {
             </div>
           </div>
           <div class="cyl-menu" data-menu="edit">
-            <span class="cyl-menu-label cyl-menu-layout-box compact"><span class="cyl-menu-layout-caret" aria-hidden="true"><span>▲</span><span>▼</span></span><span class="cyl-menu-layout-name">Edit</span></span>
+            <span class="cyl-menu-label">Edit</span>
             <div class="cyl-menu-drop" id="cyl-menu-edit">
               <button data-act="preference">Preference…</button>
             </div>
@@ -168,7 +168,7 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
         <a class="cyl-brand" href="/overview.html" target="_blank" rel="noopener">Cyl1nder <small>0.1</small></a>
         <div class="cyl-menubar">
           <div class="cyl-menu" data-menu="file">
-            <span class="cyl-menu-label cyl-menu-layout-box compact"><span class="cyl-menu-layout-caret" aria-hidden="true"><span>▲</span><span>▼</span></span><span class="cyl-menu-layout-name">File</span></span>
+            <span class="cyl-menu-label">File</span>
             <div class="cyl-menu-drop" id="cyl-menu-file">
               <button data-act="open">Open Scene…</button>
               <button data-act="save">Save Scene <span class="cyl-menu-kbd">Ctrl+S</span></button>
@@ -176,7 +176,7 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
             </div>
           </div>
           <div class="cyl-menu" data-menu="edit">
-            <span class="cyl-menu-label cyl-menu-layout-box compact"><span class="cyl-menu-layout-caret" aria-hidden="true"><span>▲</span><span>▼</span></span><span class="cyl-menu-layout-name">Edit</span></span>
+            <span class="cyl-menu-label">Edit</span>
             <div class="cyl-menu-drop" id="cyl-menu-edit">
               <button data-act="preference">Preference…</button>
             </div>

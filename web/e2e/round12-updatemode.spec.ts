@@ -39,8 +39,8 @@ const ORIGIN_OUT0 = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]];
 const TRANSFORM_GRAPH = {
   schemaVersion: 2,
   nodes: [
-    { id: "in", kind: "input", label: "_input_", baseLabel: "_input_", flags: { display: true, bypass: false, freeze: false, reference: false }, x: 60, y: 80 },
-    { id: "tf", kind: "transform", label: "transform1", baseLabel: "transform", flags: { display: false, bypass: false, freeze: false, reference: false }, params: [
+    { id: "in", kind: "input", label: "_input_", baseLabel: "_input_", flags: { display: false, bypass: false, freeze: false, reference: false }, x: 60, y: 80 },
+    { id: "tf", kind: "transform", label: "transform1", baseLabel: "transform", flags: { display: true, bypass: false, freeze: false, reference: false }, params: [
       { name: "tx", type: "float", value: 0 }, { name: "ty", type: "float", value: 0 }, { name: "tz", type: "float", value: 0 },
       { name: "group", type: "string", value: "" }, { name: "class", type: "string", value: "autoguess" },
     ], x: 400, y: 80 },
@@ -240,6 +240,14 @@ test("On Mouse Up: drag only buffers tx/ty/tz; release commits once (zero networ
   expect(during0.points).toEqual(before0.points);
   expect(await nodeAndLogs(page)).toEqual(beforeState);
 
+  // local drag-preview: the visible geometry group follows the gizmo on the SAME frame
+  // (its position equals the delta from the committed baseline - no rebuild, no lag)
+  const previewPos = await page.evaluate(() => {
+    const v: any = (window as any).__cylViewport;
+    return { x: v.nodeResultGroup.position.x, y: v.nodeResultGroup.position.y, z: v.nodeResultGroup.position.z };
+  });
+  expect(previewPos).toEqual({ x: 2.5, y: 0.5, z: 0.75 });
+
   // release -> exactly one commit lands the FINAL buffered value
   await releaseGizmo(page);
   await poll(
@@ -255,6 +263,13 @@ test("On Mouse Up: drag only buffers tx/ty/tz; release commits once (zero networ
   const out0 = outs.find((x) => x.index === 0)!;
   expect(out0.points).toEqual([[2.5, 0.5, 0.75], [3.5, 0.5, 0.75], [3.5, 1.5, 0.75], [2.5, 1.5, 0.75]]);
   expect(await nodeAndLogs(page)).toMatchObject({ tx: 2.5, ty: 0.5, tz: 0.75 });
+
+  // release cleared the drag preview - rebuilt geometry sits at (0,0,0), no double offset
+  const endPos = await page.evaluate(() => {
+    const v: any = (window as any).__cylViewport;
+    return { x: v.nodeResultGroup.position.x, y: v.nodeResultGroup.position.y, z: v.nodeResultGroup.position.z };
+  });
+  expect(endPos).toEqual({ x: 0, y: 0, z: 0 });
 
   // Esc exits Enter mode
   await page.keyboard.press("Escape");

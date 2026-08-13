@@ -1,5 +1,13 @@
 # Web 子系统改动标注 / Web annotations
 
+## v0.1.00089（2026-08-13）· 视口 gizmo 本地预览 + 选择保持 + 菜单/CSS 修正
+- **Enter gizmo 拖拽本地预览（延迟修复）**：iewport/renderer.ts 新增 updateDragPreview(dx,dy,dz) / endDragPreview() / 私有 eapplyDragPreview()——拖拽期间把当前可见显示组（nodeResultGroup 优先，其次 outputGroup）的 position 直接设为「当前值 - 上次已提交值」的 delta（O(1) 矩阵，不重建、不跑网络），几何体与 gizmo **同帧跟手**；showNodeResult / efresh() 在真实内容变化的 commit 重建时清预览（防双重叠加），内容相同的无操作重建（周期性 layout flush / content-identical 桥回声）则重新贴回预览（防拖拽中几何「跳回」）；endTransformGizmo Esc/切换时清理。
+- **core/gizmo.ts**：记录 dragStart / lastCommitted；onChange 算 delta 后——mouseup 保持「只缓存不写参不跑网络」但新增预览；auto 保持同步 setNodeParams+runNetwork（round17-lag 同步时序不变）并更新 lastCommitted；onEnd 先清预览再最终 commit；onParamsApplied（undo/redo）同步 lastCommitted 防 delta 漂移。撤销语义（dragBefore/dragAfter）不变。
+- **选择保持（Spreadsheet/Parms）**：main.ts efreshSelectionPanels()——sel 为空且已渲染过 → 直接 return 不重渲染（DOM 保持最后选中节点内容，不刷新成「未选择节点/no geometry」）；heldSelectionId 驱动 params onChange 守卫（取消选择后仍可编辑该节点，选中别的节点才切换）；首次无选中仍走 display-flag 回退渲染一次。视口 Enter 模式本就保持 last transform，现已对齐。
+- **File/Edit 菜单去箭头**：layout.ts 两个模板 File/Edit 标签从 cyl-menu-layout-box compact（▲▼ caret + 名称块）回退为纯文字 .cyl-menu-label；Layout 菜单箭头框保留。
+- **Auto Update 下拉白底修复**：ase.css .cyl-menu-layout-box 加 ackground: transparent; font: inherit; color: inherit（createDropdown 触发按钮不再显示 UA 白色背景，悬停仍 #2a2d33）；widgets.css 删无用 .compact 规则。
+- **e2e**：round12 新增「拖拽中 nodeResultGroup.position == delta、释放后回 0」断言（fixture display 切到 transform）；round2 新增「取消选择后 Spreadsheet 仍显示 in0、选别的节点才切换」。全量 e2e 74 passed / 1 skipped；tsc 0；vitest 101。
+
 ## v0.1.0-cyl1nder.1
 - 地基：Vite 7 + TypeScript（strict），无 UI 框架；@antv/x6 节点图；three r180（WebGLRenderer 默认，`RENDER_MODE` 预留 WebGPU）。
 - 布局：左节点图 / 中视口 / 右 inspector / 底日志。

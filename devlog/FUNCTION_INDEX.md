@@ -586,11 +586,11 @@
 | `flush` | 128 | function |  | 2 |
 | `wireSelection` | 134 | function |  | 2 |
 
-## web/src/core/gizmo.ts（154 行）
+## web/src/core/gizmo.ts（177 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `createGizmoController` | 47 | function | export | 1 |
+| `createGizmoController` | 52 | function | export | 1 |
 
 ## web/src/core/kick.ts（45 行）
 
@@ -638,7 +638,7 @@
 |---|---|---|---|---|
 | `bindShortcuts` | 15 | function | export | 1 |
 
-## web/src/main.ts（794 行）
+## web/src/main.ts（815 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -654,14 +654,14 @@
 | `saveSceneAs` | 298 | function |  | 3 |
 | `openSceneFromDir` | 352 | function |  | 2 |
 | `applyLayoutSettings` | 539 | function |  | 4 |
-| `refreshSelectionPanels` | 546 | function |  | 1 |
-| `inputStatsText` | 608 | function |  | 2 |
-| `outputStatsText` | 617 | function |  | 2 |
-| `renderInspector` | 626 | function |  | 2 |
-| `flushStoreView` | 649 | function |  | 2 |
-| `loadSnapshotIntoStore` | 676 | function |  | 3 |
-| `applyLoadedPreference` | 713 | function |  | 3 |
-| `markGraphDirty` | 787 | function |  | 2 |
+| `refreshSelectionPanels` | 554 | function |  | 1 |
+| `inputStatsText` | 629 | function |  | 2 |
+| `outputStatsText` | 638 | function |  | 2 |
+| `renderInspector` | 647 | function |  | 2 |
+| `flushStoreView` | 670 | function |  | 2 |
+| `loadSnapshotIntoStore` | 697 | function |  | 3 |
+| `applyLoadedPreference` | 734 | function |  | 3 |
+| `markGraphDirty` | 808 | function |  | 2 |
 
 ## web/src/nodes2/graph-interact.ts（954 行）
 
@@ -922,16 +922,16 @@
 | `clearSelection` | 89 | function |  | 2 |
 | `commitEdit` | 96 | function |  | 2 |
 
-## web/src/viewport/renderer.ts（499 行）
+## web/src/viewport/renderer.ts（558 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `Viewport` | 28 | class | export | 1 |
-| `showModeMenu` | 103 | arrow |  | 1 |
-| `hideModeMenu` | 115 | arrow |  | 2 |
-| `applyMode` | 116 | arrow |  | 1 |
-| `openModeMenu` | 131 | arrow |  | 1 |
-| `closeModeMenu` | 132 | arrow |  | 3 |
+| `showModeMenu` | 109 | arrow |  | 1 |
+| `hideModeMenu` | 121 | arrow |  | 2 |
+| `applyMode` | 122 | arrow |  | 1 |
+| `openModeMenu` | 137 | arrow |  | 1 |
+| `closeModeMenu` | 138 | arrow |  | 3 |
 
 ## web/src/viewport/scene.ts（46 行）
 

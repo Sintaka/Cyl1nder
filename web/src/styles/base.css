@@ -66,6 +66,13 @@ body { font-family: var(--cyl-font-ui); }
   border: 1px solid #2a2d33;
   border-radius: 5px;
   overflow: hidden;
+  /* v0.1.00089: the same box is reused for the bottom-bar dropdown trigger
+     (<button class="cyl-menu-layout-box"> from createDropdown); without an
+     explicit background the button UA style shows a white backdrop. Inherit
+     theme font/color too so the trigger matches the menubar box. */
+  background: transparent;
+  font: inherit;
+  color: inherit;
 }
 .cyl-menu-layout-box:hover { background: #2a2d33; }
 .cyl-menu-layout-caret {

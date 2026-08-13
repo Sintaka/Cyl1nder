@@ -75,6 +75,31 @@ async function restoreCanonicalGraph(page: import("@playwright/test").Page): Pro
     .toBe(7);
 }
 
+/** Find a blank point on the graph canvas (not over a node/button/port) to deselect. */
+async function blankGraphSpot(page: import("@playwright/test").Page): Promise<{ x: number; y: number } | null> {
+  return page.evaluate(() => {
+    const g: any = (window as any).__cylGraph;
+    const el = document.querySelector(".cyl-graph");
+    if (!el || !g) return null;
+    const r = el.getBoundingClientRect();
+    const t = g.area.area.transform;
+    const nodes: { x: number; y: number }[] = [];
+    for (const [, view] of g.area.nodeViews) {
+      if (view.position) nodes.push({ x: r.left + t.x + view.position.x * t.k, y: r.top + t.y + view.position.y * t.k });
+    }
+    for (let y = r.top + 24; y < r.bottom - 24; y += 32) {
+      for (let x = r.left + 24; x < r.right - 24; x += 32) {
+        const hit = document.elementFromPoint(x, y);
+        if (!hit || !hit.closest(".cyl-graph")) continue;
+        if (hit && (hit.closest(".cyl-rp-node") || hit.closest(".cyl-rp-port") || hit.closest("button"))) continue;
+        if (nodes.some((n) => Math.hypot(n.x - x, n.y - y) < 70)) continue;
+        return { x, y };
+      }
+    }
+    return null;
+  });
+}
+
 async function bridgeOutputs(): Promise<{ index: number; points: number[][] }[]> {
   const res = await fetch(`http://127.0.0.1:8375/api/hda/${serial}/outputs`);
   const j = (await res.json()) as { outputs: { index: number; points: number[][] }[] };
@@ -107,6 +132,32 @@ test("spreadsheet: renamed columns + lower-saturation stripes follow selected nu
   expect(odd).toBe("rgb(17, 23, 32)");
   const even = await page.locator(".cyl-sp-table tbody tr:nth-child(even) td").first().evaluate((el) => getComputedStyle(el).backgroundColor);
   expect(even).toBe("rgb(31, 40, 52)");
+});
+
+test("spreadsheet: deselect keeps last node content; selecting another node refreshes", async ({ page }) => {
+  await openGraph(page);
+  await restoreCanonicalGraph(page);
+  await page.locator(".dv-tab", { hasText: "Spreadsheet" }).first().click({ timeout: 15000 });
+
+  // select a null node -> spreadsheet shows its in0 source port
+  await page.locator(".cyl-rp-title", { hasText: "null1" }).first().click({ timeout: 15000 });
+  await expect(page.locator(".cyl-sp-section .cyl-sp-head").first()).toContainText("in0", { timeout: 15000 });
+  await expect(page.locator(".cyl-sp-section")).toHaveCount(1);
+
+  // click blank canvas -> deselect; held in0 content must NOT clear to "no geometry"
+  const blank = await blankGraphSpot(page);
+  expect(blank).not.toBeNull();
+  await page.mouse.click(blank!.x, blank!.y);
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__cylGraph.getSelectedNode()), { timeout: 15000 })
+    .toBeNull();
+  await expect(page.locator(".cyl-sp-section .cyl-sp-head").first()).toContainText("in0", { timeout: 15000 });
+  await expect(page.locator(".cyl-sp-section")).toHaveCount(1);
+  await expect(page.locator(".cyl-sp-empty")).toHaveCount(0);
+
+  // select a different node -> panels refresh to the new target (all 4 inputs)
+  await page.locator(".cyl-rp-title", { hasText: "_input_" }).first().click({ timeout: 15000 });
+  await expect(page.locator(".cyl-sp-section")).toHaveCount(4, { timeout: 15000 });
 });
 
 test("viewport: F-frame keeps camera angle; Alt+RMB diagonal equals axis sensitivity", async ({ page }) => {

@@ -3,7 +3,7 @@ import { TransformControls } from "three/addons/controls/TransformControls.js";
 import { createRenderer, type RendererLike } from "./backend";
 import { HoudiniControls } from "./controls";
 import { buildCurves, buildInputs, buildOutputs, buildNodeResult } from "./geometry";
-import { store } from "../stores/workspace";
+import { outputsEqual, store } from "../stores/workspace";
 import type { CurveData, OutputBuffer } from "../protocol/types";
 import { MODE_LABELS, applyDisplayModeToGroup, type DisplayMode } from "./modes";
 import { buildViewportScene } from "./scene";
@@ -43,6 +43,12 @@ export class Viewport {
   private ambient: THREE.AmbientLight;
   private lastInputRev = -1;
   private lastOutputRev = -1;
+  /** Armed drag-preview offset (set by updateDragPreview, cleared by endDragPreview). */
+  private dragPreview: { dx: number; dy: number; dz: number } | null = null;
+  /** Last buffer shown by showNodeResult - lets no-op rebuilds keep the drag preview. */
+  private lastNodeResult: OutputBuffer | null = null;
+  /** Last output buffers shown by refresh() - lets no-op output rebuilds keep the preview. */
+  private lastShownOutputs: OutputBuffer[] = [];
   private animId = 0;
   /** True while the pointer hovers the viewport canvas (Enter-key gating in main.ts). */
   private hovered = false;
@@ -240,9 +246,19 @@ export class Viewport {
       this.applyDisplayMode();
     }
     if (store.outputRev !== this.lastOutputRev) {
+      // A rebuild with IDENTICAL content (e.g. a content-identical bridge echo) while a
+      // drag is armed keeps the preview so the geometry does not snap back; a real
+      // (content-changing) commit rebuild clears it - the committed geometry takes over.
+      const keepPreview =
+        !!this.dragPreview &&
+        this.lastShownOutputs.length === store.outputs.length &&
+        store.outputs.every((o, i) => outputsEqual(o, this.lastShownOutputs[i]));
       this.outputGroup.clear();
       this.outputGroup.add(buildOutputs(store.outputs));
+      this.lastShownOutputs = store.outputs.map((o) => ({ ...o }));
       this.lastOutputRev = store.outputRev;
+      if (keepPreview) this.reapplyDragPreview();
+      else this.endDragPreview();
       store.pushLogSilent(`[viewport] outputs rebuilt rev=${store.outputRev} buffers=${store.outputs.length}`);
       this.applyDisplayMode();
     }
@@ -277,10 +293,49 @@ export class Viewport {
     store.pushLogSilent(`[viewport] display focus ${kind} index=${index}`);
   }
 
+  /** Local drag-preview offset: while an Enter-gizmo drag is in flight, nudge the
+   *  currently visible geometry group (nodeResult first, then output) by a plain
+   *  O(1) position set so it follows the gizmo on the SAME frame - no rebuild.
+   *  The real (committed) rebuild later clears it and takes over. */
+  updateDragPreview(dx: number, dy: number, dz: number): void {
+    this.dragPreview = { dx, dy, dz };
+    const target = this.nodeResultGroup.visible
+      ? this.nodeResultGroup
+      : this.outputGroup.visible
+        ? this.outputGroup
+        : null;
+    target?.position.set(dx, dy, dz);
+  }
+
+  /** Re-apply the armed preview offset to the currently visible geometry group
+   *  after a no-op rebuild, so the geometry keeps following the gizmo. */
+  private reapplyDragPreview(): void {
+    if (!this.dragPreview) return;
+    const { dx, dy, dz } = this.dragPreview;
+    const target = this.nodeResultGroup.visible
+      ? this.nodeResultGroup
+      : this.outputGroup.visible
+        ? this.outputGroup
+        : null;
+    target?.position.set(dx, dy, dz);
+  }
+
+  /** Clear any in-flight drag-preview offset (idempotent; harmless with none). */
+  endDragPreview(): void {
+    this.dragPreview = null;
+    this.nodeResultGroup.position.set(0, 0, 0);
+    this.outputGroup.position.set(0, 0, 0);
+  }
+
   /** Show the displayed node's REAL chain output (transformed geometry) in the
    *  viewport; null hides it. Rebuilds the group on every call so param edits /
    *  topology changes move the geometry live. */
   showNodeResult(buffer: OutputBuffer | null): void {
+    // Same rule as refresh(): a content-identical rebuild (display-focus refresh /
+    // content-identical echo) during an armed drag keeps the preview; a real commit
+    // rebuild clears it so the rebuilt geometry never double-stacks with the offset.
+    const keepPreview =
+      !!this.dragPreview && !!buffer && !!this.lastNodeResult && outputsEqual(buffer, this.lastNodeResult);
     this.nodeResultGroup.clear();
     if (buffer) {
       const g = buildNodeResult(buffer);
@@ -289,6 +344,9 @@ export class Viewport {
     } else {
       this.nodeResultGroup.visible = false;
     }
+    this.lastNodeResult = buffer ? { ...buffer } : null;
+    if (keepPreview) this.reapplyDragPreview();
+    else this.endDragPreview();
     this.applyDisplayMode();
   }
 
@@ -407,6 +465,7 @@ export class Viewport {
    *  With keepActive the MODE stays on (button lit, isEnterActive() true) and only the
    *  gizmo is dropped - used when the selection has no edit target (null/input/output). */
   endTransformGizmo(opts?: { keepActive?: boolean }): void {
+    this.endDragPreview(); // Esc exit / mode switch: clear any in-flight drag preview
     this.gizmo.endTransformGizmo(opts);
   }
 

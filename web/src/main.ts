@@ -542,9 +542,23 @@ function applyLayoutSettings(json: unknown): void {
 
 /** Spreadsheet + Params follow the SELECTED node (multi-select -> first), not the
  *  display flag. null -> its in0 source port (header "in0"); _input_ -> all inputs;
- *  _output_ -> outputs; no selection -> fall back to the display-flag behaviour. */
+ *  _output_ -> outputs; no selection -> fall back to the display-flag behaviour.
+ *  Deselection HOLDS the last rendered node: once a node has been rendered,
+ *  clearing the selection keeps the spreadsheet + params content instead of
+ *  clearing to "no geometry"; the panels refresh only when a DIFFERENT node is
+ *  selected. heldSelectionId drives the params onChange guard so post-deselect
+ *  edits still commit to the held node (viewport Enter mode already holds the
+ *  last transform the same way). */
+let heldSelectionId: string | null = null;
+let selectionPanelRendered = false;
 function refreshSelectionPanels(): void {
   const sel = graph.getSelectedNode();
+  if (sel) {
+    heldSelectionId = sel.id;
+  } else if (selectionPanelRendered) {
+    // deselected: keep the last selected node's content (no re-render, no clear)
+    return;
+  }
   let payloads: Array<InputPayload | OutputBuffer> = store.inputs;
   let source: "inputs" | "outputs" = "inputs";
   let focus: SpreadsheetFocus = { kind: null, index: null, label: null };
@@ -566,7 +580,7 @@ function refreshSelectionPanels(): void {
       source = "inputs";
     }
   } else {
-    // fallback: display flag (previous behaviour)
+    // first-time fallback (only before any node has been rendered): display flag
     const disp = graph.getDisplayNode();
     const kind = disp?.kind ?? null;
     const index = kind === "null" ? graph.getDisplayPortIndex() : kind === "input" ? 0 : null;
@@ -575,25 +589,32 @@ function refreshSelectionPanels(): void {
     payloads = store.inputs;
     source = "inputs";
   }
+  selectionPanelRendered = true;
   renderSpreadsheet(spreadsheetEl, payloads, source, focus);
   const selId = sel?.id ?? null;
+  const renderedLabel = sel?.label ?? null;
+  let renderedParams = sel?.params ?? null;
   renderParams(
     paramEl,
     sel ? { label: sel.label, kind: sel.kind, params: sel.params } : null,
     selId
       ? (params) => {
-          // commit only while the same node is still selected (selection may change mid-edit)
+          // commit only while the ACTIVE target is still the rendered node: the
+          // current selection, or the held node when nothing is selected (deselect
+          // keeps the panel). Selection may change mid-edit.
           const cur = graph.getSelectedNode();
-          if (!cur || cur.id !== selId) return;
-          const prevParams = cur.params ?? [];
+          const activeId = cur?.id ?? heldSelectionId;
+          if (!activeId || activeId !== selId) return;
+          const prevParams = cur?.params ?? renderedParams ?? [];
           // session undo: the first edit on this node captures the PRE-edit params
           // as `before`; later edits update `after`; 600ms debounce merges them into
           // a single { type: "params" } undo entry (selection switch flushes early)
-          paramUndo.startOrMerge(cur.id, prevParams, params);
-          graph.setNodeParams(cur.id, params);
+          paramUndo.startOrMerge(selId, prevParams, params);
+          graph.setNodeParams(selId, params);
+          renderedParams = params;
           const prevValue = new Map(prevParams.map((q) => [q.name, q.value]));
           const changed = params.find((q) => prevValue.get(q.name) !== q.value);
-          store.pushLog(`[param] ${cur.label ?? cur.id} ${changed ? `${changed.name} = ${changed.value}` : "params updated"}`);
+          store.pushLog(`[param] ${renderedLabel ?? selId} ${changed ? `${changed.name} = ${changed.value}` : "params updated"}`);
           // pivot edits move the Enter reference marker live (the gizmo stays on tx/ty/tz)
           if (viewport.isEnterActive()) {
             const v = readParamFloats(params);

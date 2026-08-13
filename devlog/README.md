@@ -66,6 +66,7 @@
 | 流式推送 dirty + 内存缓存方案讨论 | [streaming-push-dirty.md](streaming-push-dirty.md) |
 | Houdini Python Runtime 接口设计 + transform 流式 panel 原型 | [python-runtime-design.md](python-runtime-design.md) |
 | three.js gizmo 拖拽延迟调研（TS/three.js/WASM 澄清 + 改进方向） | [viewport-gizmo-latency.md](viewport-gizmo-latency.md) |
+| bgeo.sc 二进制几何缓存调研（对比 JSON + 升级分级建议） | [bgeo-cache-research.md](bgeo-cache-research.md) |
 | 视口中断系统重设计 + 本地新鲜度 + kick 限流 | [viewport-interrupt-redesign.md](viewport-interrupt-redesign.md) |
 | 时间轴系统设计（30fps / HDA 锚定门控 / 双向同步） | [timeline-design.md](timeline-design.md) |
 | no geometry 诊断与 HDA 热重载恢复 | [no-geometry-diagnosis.md](no-geometry-diagnosis.md) |
@@ -101,6 +102,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00089：视口 Enter gizmo 拖拽本地预览（几何同帧跟手，不重建/不依赖桥）+ 取消选择保持 Spreadsheet/Parms 最后节点 + File/Edit 菜单去箭头 + Auto Update 下拉白底修复；bgeo.sc 缓存调研落库 + dev 设计偏好（对齐 Houdini + 复用第三方库）；3 路并行（Heisenberg=viewport / Godel=selection / Goodall=menus+css）+主进程合并；tsc 0, vitest 101, pytest 53, e2e 74 passed/1 skipped；详见 devlog/bgeo-cache-research.md 与 annotations-web.md
 - v0.1.00088：重整复盘落库（refactor-retrospective.md）；刷新机器生成索引（FUNCTION_INDEX/MODULE_GRAPH/API_INDEX）；更新根 README 版本与架构；清理根目录临时 snapshot 数据与 bridge 日志。
 - v0.1.00087：阶段3.3 完成——抽 core/dataflow.ts（createDataflow 收拢「编辑→网络→视口」数据流，late-bound getter 破鸡生蛋）；main.ts 892→793；tsc 0 + vitest 101 + build 通过 + 视口/节点图 e2e 26 passed。
 - v0.1.00086：阶段3.2 完成——color.ts 全拆 color/（picker/wheel-sv/harmony/palette/color-math + barrel，wheel-sv 用 createWheelSv 依赖注入破 setColor↔wheel 循环）；tsc 0 + vitest 101 + build 通过 + round15-color 8 passed。

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-13T08:21:43.112Z",
+  "generatedAt": "2026-08-13T09:20:40.595Z",
   "totalFunctions": 542,
   "files": [
     {
@@ -2718,11 +2718,11 @@
     },
     {
       "file": "web/src/core/gizmo.ts",
-      "lineCount": 154,
+      "lineCount": 177,
       "functions": [
         {
           "name": "createGizmoController",
-          "line": 47,
+          "line": 52,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -2850,7 +2850,7 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 794,
+      "lineCount": 815,
       "functions": [
         {
           "name": "matchLogFilter",
@@ -2938,56 +2938,56 @@
         },
         {
           "name": "refreshSelectionPanels",
-          "line": 546,
+          "line": 554,
           "kind": "function",
           "exported": false,
           "calls": 1
         },
         {
           "name": "inputStatsText",
-          "line": 608,
+          "line": 629,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "outputStatsText",
-          "line": 617,
+          "line": 638,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderInspector",
-          "line": 626,
+          "line": 647,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "flushStoreView",
-          "line": 649,
+          "line": 670,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "loadSnapshotIntoStore",
-          "line": 676,
+          "line": 697,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "applyLoadedPreference",
-          "line": 713,
+          "line": 734,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "markGraphDirty",
-          "line": 787,
+          "line": 808,
           "kind": "function",
           "exported": false,
           "calls": 2
@@ -4198,7 +4198,7 @@
     },
     {
       "file": "web/src/viewport/renderer.ts",
-      "lineCount": 499,
+      "lineCount": 558,
       "functions": [
         {
           "name": "Viewport",
@@ -4209,35 +4209,35 @@
         },
         {
           "name": "showModeMenu",
-          "line": 103,
+          "line": 109,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "hideModeMenu",
-          "line": 115,
+          "line": 121,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "applyMode",
-          "line": 116,
+          "line": 122,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "openModeMenu",
-          "line": 131,
+          "line": 137,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "closeModeMenu",
-          "line": 132,
+          "line": 138,
           "kind": "arrow",
           "exported": false,
           "calls": 3

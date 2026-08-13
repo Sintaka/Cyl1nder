@@ -11,6 +11,7 @@
 - **版本号（2026-08-10 起，参考 Anime Hair Studio）**：`x.xxx.xxxxx`（主版本.次版本.每日构建5位），如 `0.1.00001`；**每次 commit 时 dailybuild++**；主/次版本升级时 dailybuild 清零。写入 `bridge/bridge/protocol.py` 的 `VERSION`、`web/src/app/app-config.ts` 的 `APP_VERSION`、devlog「最近版本」。用 `node scripts/bump-version.mjs [build|minor|major]` 递增（默认 build）。
 - **Codex 子智能体**：适当时候可以直接使用子智能体（并行调研 / 独立小改动）。
 - **许可证**：本项目采用 **Cyl1nder Source-Available Non-Commercial License**（见根 LICENSE）：源码可用、**禁止商用**、个人学习/非商业不限、允许修改（宽松，衍生作品同约束并保留声明署名）、**最终使用者负全责、与作者无关**。引入第三方代码时确保许可兼容；Animehairstudio / Zeno(MPL-2.0) 代码只借鉴不复制。
+- **设计对齐 Houdini 原生行为 + 尽量复用第三方库（2026-08-13 起）**：交互/术语/语义对齐 Houdini（gizmo 拖拽几何体即时跟手、display 排他、参数表、缓存思想对齐 bgeo/File Cache）；优先使用成熟第三方库（three.js / rete.js / msgpack / zstd / Snappy 等）而不是自研半成品；自研仅限协议胶水与轻量交互。
 
 ﻿## 并行修改规范 / Parallel modification standards（2026-08-11 起）
 **规则（铁律）：用户要求"codex 子智能体并行完成"时，主进程必须按此流程执行，子智能体必须遵守。**
@@ -65,6 +66,7 @@
 - **例外**：纯调研/只读任务、临时调试、一行级 hotfix 可主进程直接做；除此之外一律派子智能体。
 
 ## UI 规范（2026-08-13 起）
+- **File/Edit 等顶层菜单标签保持纯文字**（.cyl-menu-label，不加 ▲▼ caret / 名称块）；只有「需要显示当前选中值」的选择控件（底部 Update Mode / 首选项 Update Mode·UI Font / 调色板 harmony 等）才用 Layout 箭头框（createDropdown）。
 - **下拉菜单统一 Layout 风格**：任何下拉选择（底部栏 Update Mode / 首选项 Update Mode·UI Font / 调色板 harmony 等）一律用 `web/src/app/widgets.ts` 的 `createDropdown`（圆角矩形触发盒 = 左侧 ▲▼ caret + 当前值名称块；弹出面板 = `.cyl-menu-drop`）。**不再用原生 `<select>`**。
 - **带箭头的数值输入统一 Sync Max FPS 步进风格**：用 `createStepper`（圆角矩形容器 + 数字输入 + 右侧 ▲▼ 步进列），保留 `inputId` 让 label `for` 指向内部 input；**不再用带原生 spinner 的裸 `input[type=number]`**（颜色通道 / 参数表这类已有滑块或中键 scrub 的除外）。
 - 所有按钮 / 输入 / 面板统一圆角矩形（4-6px）、深色（#1b1e24 / #0f1012），焦点描边 `#2b6cb0`。
