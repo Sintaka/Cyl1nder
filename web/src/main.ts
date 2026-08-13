@@ -438,6 +438,7 @@ const network = createNetworkRunner({
   getSerial: () => store.serial,
   getInputs: () => store.inputs,
   getNetworkSnapshot: () => graph.getNetworkSnapshot(),
+  getGraphVersion: () => graph.getGraphVersion(),
   computeOutputs: (inputs, snap) => computeOutputs(inputs, snap),
   getOutputRev: () => store.outputRev,
   upsertOutputs: (outputs, rev) => store.upsertOutputs(outputs, rev),
@@ -511,6 +512,20 @@ const viewport = await Viewport.create(layout.viewportContainer, (out: OutputBuf
     .catch((e) => store.pushLog(`edit failed: ${String(e)}`));
 });
 (window as unknown as Record<string, unknown>).__cylViewport = viewport;
+// Pre-render pump: every animation frame, first drain any network re-run requested
+// by a gizmo drag (latest-wins, at most one runNetwork per frame), then flush the
+// store -> viewport refresh. Running BEFORE renderer.render() makes the geometry
+// and the gizmo land on the same frame.
+viewport.setPreRenderFlush(() => {
+  if (networkDirty) {
+    networkDirty = false;
+    void network.run();
+  }
+  if (pendingFlush) {
+    pendingFlush = false;
+    flushStoreView();
+  }
+});
 (window as unknown as Record<string, unknown>).__cylGraph = graph; // debug hook (MCP debug access)
 (window as unknown as Record<string, unknown>).__cylStore = store; // debug hook (full logs for tests)
 const gizmo = createGizmoController({
@@ -521,7 +536,7 @@ const gizmo = createGizmoController({
     setNodeParams: (id, params) => graph.setNodeParams(id, params),
     pushUndo: (entry) => graph.pushUndo(entry),
   },
-  runNetwork: () => { void network.run(); },
+  scheduleNetwork,
   log: (msg) => store.pushLog(msg),
   getUpdateMode: () => updateMode,
 });
@@ -698,6 +713,12 @@ function updateGraphAddress(): void {
  *  bursts, pushLog spam, echo dedup). Initial render still happens on the next
  *  frame; tests poll so timing is fine. */
 let pendingFlush = false;
+/** Network re-run requested by a gizmo drag frame: latest-wins, executed at most
+ *  once per animation frame by the viewport pre-render pump (setPreRenderFlush). */
+let networkDirty = false;
+function scheduleNetwork(): void {
+  networkDirty = true;
+}
 function flushStoreView(): void {
   updateGraphAddress();
   graph.setStats("input", inputStatsText());
@@ -716,12 +737,9 @@ function flushStoreView(): void {
       : "";
 }
 store.subscribe(() => {
-  if (pendingFlush) return;
+  // Only flag the flush - the viewport pre-render pump drains it (network + store
+  // view) at the start of the next animation frame, BEFORE the geometry renders.
   pendingFlush = true;
-  requestAnimationFrame(() => {
-    pendingFlush = false;
-    flushStoreView();
-  });
 });
 
 /** Viewport display path: fall back to the unified path system (disk snapshot)

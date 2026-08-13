@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-13T10:28:32.697Z",
-  "totalFunctions": 559,
+  "generatedAt": "2026-08-13T12:12:15.065Z",
+  "totalFunctions": 561,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -2677,39 +2677,46 @@
     },
     {
       "file": "web/src/core/dataflow.ts",
-      "lineCount": 144,
+      "lineCount": 201,
       "functions": [
         {
+          "name": "displayNodeOutputIndex",
+          "line": 38,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
           "name": "createDataflow",
-          "line": 29,
+          "line": 49,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "getDisplayNodeInfo",
-          "line": 31,
+          "line": 51,
           "kind": "function",
           "exported": false,
-          "calls": 2
+          "calls": 3
         },
         {
           "name": "refreshNodeFlags",
-          "line": 47,
+          "line": 71,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "flush",
-          "line": 128,
+          "line": 156,
           "kind": "function",
           "exported": false,
-          "calls": 2
+          "calls": 5
         },
         {
           "name": "wireSelection",
-          "line": 134,
+          "line": 191,
           "kind": "function",
           "exported": false,
           "calls": 2
@@ -2718,7 +2725,7 @@
     },
     {
       "file": "web/src/core/gizmo.ts",
-      "lineCount": 160,
+      "lineCount": 161,
       "functions": [
         {
           "name": "createGizmoController",
@@ -2771,11 +2778,11 @@
     },
     {
       "file": "web/src/core/network.ts",
-      "lineCount": 53,
+      "lineCount": 62,
       "functions": [
         {
           "name": "createNetworkRunner",
-          "line": 18,
+          "line": 21,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -2850,7 +2857,7 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 847,
+      "lineCount": 865,
       "functions": [
         {
           "name": "matchLogFilter",
@@ -2931,70 +2938,77 @@
         },
         {
           "name": "applyLayoutSettings",
-          "line": 550,
+          "line": 565,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "refreshSelectionPanels",
-          "line": 565,
+          "line": 580,
           "kind": "function",
           "exported": false,
           "calls": 1
         },
         {
           "name": "inputStatsText",
-          "line": 640,
+          "line": 655,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "outputStatsText",
-          "line": 649,
+          "line": 664,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderInspector",
-          "line": 658,
+          "line": 673,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "updateGraphAddress",
-          "line": 679,
+          "line": 694,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
+          "name": "scheduleNetwork",
+          "line": 719,
+          "kind": "function",
+          "exported": false,
+          "calls": 1
+        },
+        {
           "name": "flushStoreView",
-          "line": 701,
+          "line": 722,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "loadSnapshotIntoStore",
-          "line": 729,
+          "line": 747,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "applyLoadedPreference",
-          "line": 766,
+          "line": 784,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "markGraphDirty",
-          "line": 840,
+          "line": 858,
           "kind": "function",
           "exported": false,
           "calls": 2
@@ -3366,123 +3380,123 @@
     },
     {
       "file": "web/src/nodes2/graph-model.ts",
-      "lineCount": 377,
+      "lineCount": 380,
       "functions": [
         {
           "name": "notifySelection",
-          "line": 85,
+          "line": 88,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "onSelectionChange",
-          "line": 89,
+          "line": 92,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "nodeByKind",
-          "line": 94,
+          "line": 97,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "resolveInputSourcePort",
-          "line": 105,
+          "line": 108,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "nodeFromTarget",
-          "line": 129,
+          "line": 132,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "renderNode",
-          "line": 145,
+          "line": 148,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "portIndexFromTarget",
-          "line": 160,
+          "line": 163,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "CylNode",
-          "line": 168,
+          "line": 171,
           "kind": "class",
           "exported": true,
           "calls": 5
         },
         {
           "name": "makeInputNode",
-          "line": 197,
+          "line": 200,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "makeOutputNode",
-          "line": 202,
+          "line": 205,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "makeNullNode",
-          "line": 209,
+          "line": 212,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "makeDotNode",
-          "line": 220,
+          "line": 223,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "claimDotLabel",
-          "line": 231,
+          "line": 234,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "makeTransformNode",
-          "line": 240,
+          "line": 243,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "serializeGraph",
-          "line": 260,
+          "line": 263,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "restoreGraph",
-          "line": 294,
+          "line": 297,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "getNetworkSnapshot",
-          "line": 362,
+          "line": 365,
           "kind": "function",
           "exported": true,
           "calls": 2
@@ -3546,7 +3560,7 @@
     },
     {
       "file": "web/src/nodes2/graph.ts",
-      "lineCount": 336,
+      "lineCount": 346,
       "functions": [
         {
           "name": "buildGraph",
@@ -3557,7 +3571,7 @@
         },
         {
           "name": "createReteGraph",
-          "line": 147,
+          "line": 156,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -4317,7 +4331,7 @@
     },
     {
       "file": "web/src/viewport/renderer.ts",
-      "lineCount": 543,
+      "lineCount": 562,
       "functions": [
         {
           "name": "Viewport",
@@ -4328,35 +4342,35 @@
         },
         {
           "name": "showModeMenu",
-          "line": 110,
+          "line": 113,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "hideModeMenu",
-          "line": 122,
+          "line": 125,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "applyMode",
-          "line": 123,
+          "line": 126,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "openModeMenu",
-          "line": 138,
+          "line": 141,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "closeModeMenu",
-          "line": 139,
+          "line": 142,
           "kind": "arrow",
           "exported": false,
           "calls": 3

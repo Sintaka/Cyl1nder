@@ -63,6 +63,12 @@ async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
   // No self-connections allowed: veto any connectioncreate whose source ===
   // target (covers drag-created / restored / inserted / healed connections in
   // one place - addConnection() returns false when the signal chain stops).
+  // Topology version (viewport realtime P1): bumped on ANY connection/node
+  // add/remove so the network runner can tell whether store.outputs still match
+  // the LIVE graph. flush() only reuses the already-computed output buffer for a
+  // displayed null/transform when outputs were cooked for the CURRENT topology
+  // (otherwise it falls back to computeNodeResult - always correct, no extra cook).
+  let graphVersion = 0;
   (editor as unknown as { addPipe(mw: (ctx: { type: string; data?: { source?: string; target?: string } }) => unknown): void }).addPipe((ctx) => {
     if (ctx.type === "connectioncreate") {
       const data = ctx.data;
@@ -71,6 +77,9 @@ async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
         log(`blocked self-connection on ${s} (source === target)`);
         return undefined;
       }
+    }
+    if (ctx.type === "connectioncreate" || ctx.type === "connectionremove" || ctx.type === "nodecreate" || ctx.type === "noderemove") {
+      graphVersion += 1;
     }
     return ctx;
   });
@@ -140,7 +149,7 @@ async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
     true,
   );
 
-  return { editor, area, engine, input, output, react, selectable, connection };
+  return { editor, area, engine, input, output, react, selectable, connection, getGraphVersion: () => graphVersion };
 }
 
 /** Create the graph; returns a handle with UI helpers. */
@@ -324,6 +333,7 @@ export async function createReteGraph(
     },
     serializeGraph: () => serializeGraph(g.editor, g.area),
     restoreGraph: (data) => restoreGraph(g.editor, g.area, data),
+    getGraphVersion: () => g.getGraphVersion(),
     getNetworkSnapshot: () => getNetworkSnapshot(g.editor),
     setNodeParams: (nodeId, params) => {
       const n = g.editor.getNode(nodeId) as CylNode | undefined;

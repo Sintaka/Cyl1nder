@@ -4,6 +4,9 @@ export interface NetworkDeps {
   getSerial(): string | null;
   getInputs(): InputPayload[];
   getNetworkSnapshot(): any;
+  /** Topology version of the graph when this run() computes (freshness gate for
+   *  the viewport display-buffer reuse). */
+  getGraphVersion(): number;
   computeOutputs(inputs: InputPayload[], snap: any): OutputBuffer[];
   getOutputRev(): number;
   upsertOutputs(outputs: OutputBuffer[], rev: number): void;
@@ -18,14 +21,18 @@ export interface NetworkDeps {
 export function createNetworkRunner(deps: NetworkDeps): {
   run(): Promise<void>;
   bumpEpoch(): void;
+  /** True when the last run() cooked outputs for the CURRENT graph topology. */
+  isFresh(): boolean;
 } {
   let epoch = 0;
+  let lastCookGraphVersion = -1;
 
   const run = async (): Promise<void> => {
     const serial = deps.getSerial();
     if (!serial || deps.getInputs().length === 0) return;
     const cur = ++epoch;
     const snap = deps.getNetworkSnapshot();
+    lastCookGraphVersion = deps.getGraphVersion();
     const outputs = deps.computeOutputs(deps.getInputs(), snap);
     // a) local optimistic apply: predicted rev so the viewport rebuilds immediately
     const predictedRev = deps.getOutputRev() + 1;
@@ -49,5 +56,7 @@ export function createNetworkRunner(deps: NetworkDeps): {
     epoch++;
   };
 
-  return { run, bumpEpoch };
+  const isFresh = (): boolean => lastCookGraphVersion === deps.getGraphVersion();
+
+  return { run, bumpEpoch, isFresh };
 }

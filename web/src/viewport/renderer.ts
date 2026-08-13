@@ -51,6 +51,9 @@ export class Viewport {
   /** Last output buffers shown by refresh() - lets position-only updates skip rebuilds. */
   private lastShownOutputs: OutputBuffer[] = [];
   private animId = 0;
+  /** Pre-render flush hook (set by main.ts): runs network + store-view flush BEFORE
+   *  this frame's render, so geometry and gizmo land on the same frame. */
+  private preRenderFlush: (() => void) | null = null;
   /** True while the pointer hovers the viewport canvas (Enter-key gating in main.ts). */
   private hovered = false;
   private toolbar: HTMLDivElement;
@@ -238,6 +241,11 @@ export class Viewport {
     return new Viewport(container, onEdit, renderer);
   }
 
+  /** Install the pre-render flush callback (main.ts pump: network + store view). */
+  setPreRenderFlush(fn: (() => void) | null): void {
+    this.preRenderFlush = fn;
+  }
+
   refresh(): void {
     if (store.inputRev !== this.lastInputRev) {
       this.inputGroup.clear();
@@ -247,36 +255,46 @@ export class Viewport {
       this.applyDisplayMode();
     }
     if (store.outputRev !== this.lastOutputRev) {
-      // Position-only fast path: when every buffer keeps the SAME topology as the
-      // last shown one (e.g. an Enter-gizmo translate), rewrite each outputN
-      // sub-group's positions in place - no clear, no mesh rebuild, so the geometry
-      // follows the parms on the same frame. Any topology change / length mismatch
-      // falls back to a full rebuild.
-      let updated = false;
-      if (
-        this.lastShownOutputs.length === store.outputs.length &&
-        store.outputs.every((o, i) => sameTopology(o, this.lastShownOutputs[i]))
-      ) {
-        let ok = true;
-        for (const buf of store.outputs) {
-          const sub = this.outputGroup.children.find(
-            (c) => c.name === `output${buf.index}` && c instanceof THREE.Group,
-          ) as THREE.Group | undefined;
-          if (!sub || !updateGroupPositions(sub, buf)) {
-            ok = false;
-            break;
+      // Hidden outputGroup (display is a null/transform node -> the node-result
+      // group carries the shown geometry): skip all per-frame geometry work. We
+      // intentionally do NOT consume lastOutputRev/lastShownOutputs while hidden,
+      // so when the display flips back to output, the next visible refresh()
+      // rebuilds/updates this pending rev (dataflow.flush runs refreshNodeFlags
+      // before refresh, so the visibility is current on the same frame).
+      if (!this.outputGroup.visible) {
+        // 隐藏：跳过几何工作；故意不更新 lastOutputRev/lastShownOutputs，这样以后显示时 refresh() 会重建
+      } else {
+        // Position-only fast path: when every buffer keeps the SAME topology as the
+        // last shown one (e.g. an Enter-gizmo translate), rewrite each outputN
+        // sub-group's positions in place - no clear, no mesh rebuild, so the geometry
+        // follows the parms on the same frame. Any topology change / length mismatch
+        // falls back to a full rebuild.
+        let updated = false;
+        if (
+          this.lastShownOutputs.length === store.outputs.length &&
+          store.outputs.every((o, i) => sameTopology(o, this.lastShownOutputs[i]))
+        ) {
+          let ok = true;
+          for (const buf of store.outputs) {
+            const sub = this.outputGroup.children.find(
+              (c) => c.name === `output${buf.index}` && c instanceof THREE.Group,
+            ) as THREE.Group | undefined;
+            if (!sub || !updateGroupPositions(sub, buf)) {
+              ok = false;
+              break;
+            }
           }
+          updated = ok;
         }
-        updated = ok;
+        if (!updated) {
+          this.outputGroup.clear();
+          this.outputGroup.add(buildOutputs(store.outputs));
+        }
+        this.lastShownOutputs = store.outputs.map((o) => ({ ...o }));
+        this.lastOutputRev = store.outputRev;
+        store.pushLogSilent(`[viewport] outputs rebuilt rev=${store.outputRev} buffers=${store.outputs.length}`);
+        this.applyDisplayMode();
       }
-      if (!updated) {
-        this.outputGroup.clear();
-        this.outputGroup.add(buildOutputs(store.outputs));
-      }
-      this.lastShownOutputs = store.outputs.map((o) => ({ ...o }));
-      this.lastOutputRev = store.outputRev;
-      store.pushLogSilent(`[viewport] outputs rebuilt rev=${store.outputRev} buffers=${store.outputs.length}`);
-      this.applyDisplayMode();
     }
   }
 
@@ -526,6 +544,7 @@ export class Viewport {
 
   private animate = (): void => {
     this.animId = requestAnimationFrame(this.animate);
+    this.preRenderFlush?.();
     this.controls.update();
     // headlight = simple camera light
     this.headLight.position.copy(this.camera.position);

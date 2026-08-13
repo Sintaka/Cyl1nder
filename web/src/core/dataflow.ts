@@ -1,18 +1,19 @@
-﻿/**
+/**
  * Edit -> network -> viewport dataflow (3.3): owns the graph callbacks and the
  * display-focus refresh (refreshNodeFlags) so main.ts only assembles + wires
  * menus/shortcuts. graph/network/viewport/gizmo are late-bound getters because
  * the graph needs `handlers` at construction time (chicken-and-egg).
  */
 import { store } from "../stores/workspace";
-import { computeNodeResult } from "../nodes2/network";
+import { computeNodeResult, type NetworkSnapshot } from "../nodes2/network";
 import type { ReteGraph, ReteGraphHandlers } from "../nodes2/graph";
 import type { ReferenceItem, Viewport } from "../viewport/renderer";
 import type { ParamLike } from "./params";
+import type { OutputBuffer } from "../protocol/types";
 
 export interface DataflowDeps {
   getGraph(): ReteGraph;
-  getNetwork(): { run(): Promise<void> };
+  getNetwork(): { run(): Promise<void>; isFresh?(): boolean };
   getViewport(): Viewport;
   getGizmo(): { onParamsApplied(nodeId: string, params: ParamLike[]): void; bindToSelection(): void };
   flushParamUndo(): void;
@@ -21,9 +22,28 @@ export interface DataflowDeps {
 
 export interface Dataflow {
   handlers: ReteGraphHandlers;
-  refreshNodeFlags(): void;
+  refreshNodeFlags(displayBuffer?: OutputBuffer | null): void;
   flush(): void;
   wireSelection(): void;
+}
+
+/**
+ * If `displayNodeId`'s out0 connects DIRECTLY into an _output_ node's input
+ * socket (out0..out3), return that output index; otherwise null. Lets flush()
+ * reuse the already-computed store.outputs[i] buffer for a displayed
+ * null/transform (its result is byte-identical to the output buffer) instead of
+ * re-tracing + re-cloning the same chain every frame (viewport realtime P1).
+ * Callers only use this for null/transform display nodes.
+ */
+export function displayNodeOutputIndex(snap: NetworkSnapshot, displayNodeId: string): number | null {
+  for (const conn of snap.connections) {
+    if (conn.source !== displayNodeId || conn.sourceOutput !== "out0") continue;
+    const target = snap.nodes.find((n) => n.id === conn.target);
+    if (!target || target.kind !== "output") continue;
+    const m = /^out([0-3])$/.exec(conn.targetInput);
+    if (m) return Number(m[1]);
+  }
+  return null;
 }
 
 export function createDataflow(deps: DataflowDeps): Dataflow {
@@ -43,8 +63,12 @@ export function createDataflow(deps: DataflowDeps): Dataflow {
     return n ? { id: n.id, kind: n.kind, params: n.params ?? [] } : null;
   }
 
-  /** Node flags -> viewport: display visibility + reference reference overlays. */
-  function refreshNodeFlags(): void {
+  /** Node flags -> viewport: display visibility + reference reference overlays.
+   *  flush() passes a PRE-computed `displayBuffer` (reusing store.outputs[i] when
+   *  the displayed null/transform is the last node feeding an output port) so the
+   *  per-flush chain is traced/cloned exactly once; direct callers (flag change /
+   *  network change) omit it and fall back to computing the node result here. */
+  function refreshNodeFlags(displayBuffer?: OutputBuffer | null): void {
     // Viewport follows the node-view display flag of WHATEVER node is displayed,
     // at PORT level (not just node kind):
     //   _input_  -> show ONLY the first source input (in0)
@@ -69,7 +93,11 @@ export function createDataflow(deps: DataflowDeps): Dataflow {
       const dispNode = getDisplayNodeInfo();
       if (idx !== null && dispNode) {
         const snap = deps.getGraph().getNetworkSnapshot();
-        deps.getViewport().showNodeResult(computeNodeResult(snap, store.inputs, dispNode.id));
+        // Precomputed by flush() -> reuse without re-tracing; undefined (direct
+        // callers) -> compute here as before.
+        const result =
+          displayBuffer !== undefined ? displayBuffer : computeNodeResult(snap, store.inputs, dispNode.id);
+        deps.getViewport().showNodeResult(result);
       } else {
         deps.getViewport().showNodeResult(null);
       }
@@ -126,8 +154,37 @@ export function createDataflow(deps: DataflowDeps): Dataflow {
   };
 
   function flush(): void {
+    // P1 dedup: resolve the displayed null/transform buffer ONCE per flush. When
+    // the display's out0 feeds an _output_ port directly, the node result is
+    // byte-identical to the already-computed store.outputs[i] -> reuse it (zero
+    // extra trace/clone). Otherwise compute the node result here (still once) and
+    // hand it down so refreshNodeFlags never re-traces the same chain.
+    const dispNode = getDisplayNodeInfo();
+    let displayBuffer: OutputBuffer | null | undefined;
+    if (
+      dispNode &&
+      (dispNode.kind === "null" || dispNode.kind === "transform") &&
+      deps.getGraph().getDisplayPortIndex() !== null
+    ) {
+      const snap = deps.getGraph().getNetworkSnapshot();
+      const outIdx = displayNodeOutputIndex(snap, dispNode.id);
+      // Reuse the cooked output buffer ONLY when it was computed for the CURRENT
+      // topology (network.isFresh). After a topology change without a cook (e.g.
+      // restoreGraph / drag-connect), outputs are stale -> fall back to computing
+      // the node result here (always correct). The Enter-drag hot path always cooks
+      // first (pre-render pump), so reuse still avoids the duplicate trace there.
+      const net = deps.getNetwork();
+      const fresh = !net.isFresh || net.isFresh();
+      const matched = outIdx !== null && fresh ? store.outputs.find((o) => o.index === outIdx) : undefined;
+      displayBuffer = matched ?? computeNodeResult(snap, store.inputs, dispNode.id);
+    }
+    // refreshNodeFlags FIRST so the renderer knows the final input/outputGroup
+    // visibility before refresh() rebuilds (or safely skips) them; the two are
+    // independent (refresh rebuilds groups, refreshNodeFlags sets visibility +
+    // node result), and Agent A's renderer.refresh() needs the final visibility
+    // to skip hidden outputGroup updates.
+    refreshNodeFlags(displayBuffer);
     deps.getViewport().refresh();
-    refreshNodeFlags();
     deps.refreshSelectionPanels();
   }
 

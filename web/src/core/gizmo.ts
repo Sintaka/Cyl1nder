@@ -36,7 +36,7 @@ export interface GizmoGraph {
 export interface GizmoDeps {
   viewport: GizmoViewport;
   graph: GizmoGraph;
-  runNetwork(): void;
+  scheduleNetwork(): void;
   log(msg: string): void;
   getUpdateMode(): GizmoUpdateMode;
 }
@@ -59,7 +59,8 @@ export function createGizmoController(deps: GizmoDeps): {
   let dragAfter: ParamLike[] | null = null;
   let lastTransformId: string | null = null;
 
-  /** setNodeParams + runNetwork for a gizmo translate value (both update modes). */
+  /** setNodeParams + scheduleNetwork for a gizmo translate value (network runs once
+   *  per frame via the viewport pre-render pump; both update modes). */
   const applyTransformDrag = (id: string, x: number, y: number, z: number): void => {
     const node = deps.graph.getNetworkSnapshot().nodes.find((n) => n.id === id);
     if (!node) return; // node deleted mid-edit
@@ -68,7 +69,7 @@ export function createGizmoController(deps: GizmoDeps): {
     );
     deps.graph.setNodeParams(id, next);
     if (dragNodeId === id) dragAfter = cloneParams(next);
-    void deps.runNetwork();
+    deps.scheduleNetwork();
   };
 
   /** Attach the translate gizmo to a transform node (bound at its tx/ty/tz). */

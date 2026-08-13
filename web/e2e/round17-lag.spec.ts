@@ -146,17 +146,19 @@ test("local viewport refreshes without waiting for bridge fps", async ({ page })
     await enterTransformEdit(page);
     await dragGizmoTo(page, [3, -2, 0.5]);
 
-    // The local store already has the new tx SYNCHRONOUSLY - no bridge echo at
-    // all (let alone the 1 fps one). This is the core regression proof.
-    const local = await page.evaluate(() => {
-      const store: any = (window as any).__cylStore;
-      const out0 = store.outputs.find((o: any) => o.index === 0);
-      return out0 ? out0.points[0] : null;
-    });
-    expect(local).not.toBeNull();
-    expect(Math.abs(local![0] - 3)).toBeLessThan(1e-9);
-    expect(Math.abs(local![1] + 2)).toBeLessThan(1e-9);
-    expect(Math.abs(local![2] - 0.5)).toBeLessThan(1e-9);
+    // The local store reflects the drag on the NEXT animation frame (the pre-render
+    // pump runs network + store view before render) - no bridge echo at all (let
+    // alone the 1 fps one). This is the core regression proof.
+    await expect
+      .poll(
+        () => page.evaluate(() => {
+          const store: any = (window as any).__cylStore;
+          const out0 = store.outputs.find((o: any) => o.index === 0);
+          return out0 ? out0.points[0] : null;
+        }),
+        { timeout: 3000 },
+      )
+      .toEqual([3, -2, 0.5]);
 
     // The viewport node-result geometry follows within a frame or two (rAF).
     await expect.poll(() => nodeResultFirstPoint(page), { timeout: 3000 }).toEqual([3, -2, 0.5]);
@@ -174,6 +176,53 @@ test("local viewport refreshes without waiting for bridge fps", async ({ page })
   } finally {
     await setSyncFps(30);
   }
+});
+
+test("geometry and gizmo land on the same frame (flush runs before render)", async ({ page }) => {
+  await openGraph(page);
+  await restoreTransformGraph(page);
+  await enterTransformEdit(page);
+
+  // The display node is the transform, so the node-result group must already be
+  // built before we wrap render (otherwise the first recorded render could be a
+  // stale pre-dispatch frame).
+  await expect.poll(() => nodeResultFirstPoint(page), { timeout: 5000 }).not.toBeNull();
+
+  // Wrap renderer.render to snapshot the node-result first point ACTUALLY drawn
+  // each frame, then dispatch ONE objectChange synchronously in the same evaluate
+  // so renders[0] is guaranteed to come from the next animation frame.
+  await page.evaluate(([x, y, z]) => {
+    const v: any = (window as any).__cylViewport;
+    const renders: (number[] | null)[] = [];
+    const orig = v.renderer.render.bind(v.renderer);
+    v.renderer.render = (s: any, c: any) => {
+      const root = v.nodeResultGroup.getObjectByName("cyl-node-result");
+      let pt: number[] | null = null;
+      if (root) {
+        const line = root.children.find((cc: any) => cc.isLine);
+        if (line && line.geometry && line.geometry.attributes.position) {
+          const arr = line.geometry.attributes.position.array;
+          pt = [arr[0], arr[1], arr[2]];
+        }
+      }
+      renders.push(pt);
+      return orig(s, c);
+    };
+    (window as any).__cylRenders = renders;
+    const obj = v.scene.getObjectByName("cyl-enter-gizmo");
+    if (!obj) throw new Error("enter gizmo object missing");
+    obj.position.set(x, y, z);
+    v.transform.dispatchEvent({ type: "objectChange" });
+  }, [3, -2, 0.5]);
+
+  // Wait exactly one animation frame: the viewport pump runs flush (network +
+  // store view -> refresh) BEFORE renderer.render() inside that same frame, so the
+  // very first render after the dispatch already draws the new geometry.
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+
+  const renders = await page.evaluate(() => (window as any).__cylRenders as (number[] | null)[]);
+  expect(renders.length).toBeGreaterThan(0);
+  expect(renders[0]).toEqual([3, -2, 0.5]);
 });
 
 test("stale runs are discarded (no backlog)", async ({ page }) => {
@@ -203,16 +252,18 @@ test("stale runs are discarded (no backlog)", async ({ page }) => {
     }
   });
 
-  // Local state reflects the LAST dispatched value immediately.
-  const local = await page.evaluate(() => {
-    const store: any = (window as any).__cylStore;
-    const out0 = store.outputs.find((o: any) => o.index === 0);
-    return out0 ? out0.points[0] : null;
-  });
-  expect(local).not.toBeNull();
-  expect(Math.abs(local![0] - 3)).toBeLessThan(1e-9); // 0.1 * 30 (gizmo rounds to 4dp)
-  expect(Math.abs(local![1])).toBeLessThan(1e-9);
-  expect(Math.abs(local![2])).toBeLessThan(1e-9);
+  // Local state reflects the LAST dispatched value on the next frame (latest-wins
+  // pump: only the final frame of the burst lands in the store).
+  await expect
+    .poll(
+      () => page.evaluate(() => {
+        const store: any = (window as any).__cylStore;
+        const out0 = store.outputs.find((o: any) => o.index === 0);
+        return out0 ? out0.points[0] : null;
+      }),
+      { timeout: 3000 },
+    )
+    .toEqual([3, 0, 0]); // 0.1 * 30 (gizmo rounds to 4dp)
 
   // Let every in-flight push resolve, then verify stale frames were discarded.
   await page.waitForTimeout(800);

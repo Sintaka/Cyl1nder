@@ -1,5 +1,15 @@
 # Web 子系统改动标注 / Web annotations
 
+## v0.1.00091（2026-08-13）· 视口实时性 P1：帧序 + 拖拽合并 + 去双重计算
+- **pre-render pump（帧序）**：iewport/renderer.ts 新增 setPreRenderFlush(fn)，nimate() 在 enderer.render() **之前**调 hook；main.ts 的 store.subscribe 改为只置 pendingFlush，由 pump 每帧先 drain 
+etworkDirty→runNetwork 再 drain pendingFlush→flushStoreView → **几何与 gizmo 同帧上屏**（消除恒定 1 帧间隙）。e2e 新增「单次 objectChange 后首个 render 即画到新几何」断言（包装 renderer.render）。
+- **拖拽合并（latest-wins）**：core/gizmo.ts GizmoDeps.runNetwork → scheduleNetwork，pplyTransformDrag 每事件不再直接 runNetwork；pump 每帧至多一次 
+etwork.run()（取最新 parms），丢过期中间帧。非拖拽调用方（参数面板/kicker/dataflow）保持直接 runNetwork。
+- **去双重计算**：core/dataflow.ts 新增纯函数 displayNodeOutputIndex(snap, displayNodeId)；lush() 每帧只解析一次显示节点 buffer（display 直连 output.out_i 时复用 store.outputs[i]，否则 computeNodeResult 一次），efreshNodeFlags(displayBuffer?) 消费预计算；lush() 顺序改为**先 refreshNodeFlags 后 refresh**（renderer 先知道最终可见性）。
+- **输出新鲜度门控（主进程合并修复）**：graph.ts 管道对 connection/node 增删 bump getGraphVersion；core/network.ts 记录 lastCookGraphVersion + isFresh()；lush() 只在 outputs 与当前拓扑同版本时复用，否则回退 computeNodeResult——修复 restoreGraph/拖线建连未 cook 时复用过期 outputs 导致的 round7 回归（拓扑变化后 store.outputs 是旧的，这是「cook 即显示数据」缺口，P2 用链缓存补全）。
+- **隐藏 outputGroup 跳过**：enderer.refresh() 在 outputGroup 隐藏时不更新几何也不消费 rev（display=transform 时省每帧浪费；切回 output 时同帧重建）。
+- **测试**：round17 同步 store 断言改帧内 poll + 新增帧序测试；新增 dataflow.test.ts（displayNodeOutputIndex 直连/中转/无连接 + flush 复用/回退/顺序）。全量 tsc 0, vitest 109, pytest 53, e2e 80 passed/1 skipped。
+
 ## v0.1.00090（2026-08-13）· 视口理念纠正 + nodeview 重连/dot/Esc/地址栏
 ### 视口（理念纠正，撤销 v0.1.00089 的矩阵预览 hack）
 - **理念**：操作时本地执行、不重建全部网格、不强依赖桥；桥推送与网格重建只在数据真正更新时触发。跟手 = 更新节点 parms → 触发视口刷新 → 几何体移动；gizmo 与几何体分离。

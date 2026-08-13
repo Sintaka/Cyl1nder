@@ -87,3 +87,35 @@ TypeScript 与延迟无关（类型在编译期消失，浏览器跑的是被 JI
   3. **auto**：每次拖拽帧更新 parms（本地）→ runNetwork 本地乐观计算 → store emit → 视口刷新，**拓扑不变时只做位置-only 更新**（原地写 BufferGeometry position + needsUpdate，必要时重算法线，不 clear+rebuild、不分配新几何）——这才是「不重建所有网格 + 不强依赖桥」的实现；桥推送是 fire-and-forget，只是数据更新触发。
   4. §3 #1 的「本地预览」重释为「**位置-only 更新（由 parms 触发）**」，不再是脱离 parms 的手动矩阵平移；§3 #2 节流/合并 runNetwork 仍列为后续可选优化（当前 auto 保持同步乐观，保证 round17 回归）。
   5. Esc：只在视口悬停时退出 Enter 模式；nodeview 内 Esc 用于取消进行中的连线/重连/插入操作（见 nodeview 交互轮）。
+
+---
+
+## 6. 实时性链路分析 + P1 落地（v0.1.00091）
+
+> 角色：主进程（分析 + 实测 + 合并）。实测用 Playwright 包装 `renderer.render`/`performance.now()` 在真实 dev server + bridge 上采集。
+
+### 6.1 实测链路（小场景 4 点）
+| 步骤 | 耗时 |
+|---|---|
+| pointermove → TransformControls 改 gizmo 矩阵（O(1)，scene graph 立即可见） | ~0ms |
+| objectChange → onChange → setNodeParams + runNetwork（同步计算 + store 乐观 upsert） | ~1.4ms（store 同步就绪） |
+| 下一帧 rAF：几何 BufferGeometry 属性更新到位 | ~8ms |
+| **渲染像素上屏**：P1 前 render 先于 flush → 几何稳定比 gizmo 慢 1 帧（~16ms） | 帧序问题 |
+
+结论：**数据路径几乎零延迟，延迟在渲染管线**——① render 在 flush 之前（恒定 1 帧几何-gizmo 间隙）；② 拖拽期每 pointermove 同步全量计算（无合并，含大量过期帧）；③ `refreshNodeFlags` 每帧再 `computeNodeResult` 克隆一遍（与 `computeOutputs` 双重计算）；④ `applyTranslateGrouped` 每帧 `points.map([...p])` 全量克隆（无 Web 侧计算缓存）。
+
+### 6.2 理念定位（与 Houdini 对齐）
+- Houdini 视口：原生 C++，显示几何常驻 GPU buffer，交互只做增量（matrix/dirty 位置），cook 在后台线程，无 JS GC、无 rAF 批处理；gizmo 与几何是同一对象 transform 的两个视图。
+- Cyl1nder：gizmo 同步因为它只改一个 Object3D 矩阵（绕过数据管线）；几何要走「parms → runNetwork → store → flush → 几何更新」的 JS 数据管线。**three.js 不是瓶颈**（BufferGeometry 属性原地写 + needsUpdate 本就为每帧设计），是流程设计问题。
+
+### 6.3 P1 已落地（v0.1.00091）
+1. **帧序：flush 先于 render**——`Viewport.setPreRenderFlush(fn)`，`animate()` 在 `renderer.render()` 前调 hook；main.ts 的 `store.subscribe` 只置 `pendingFlush`，由 pre-render pump 每帧 drain（几何与 gizmo 同帧上屏，恒定 1 帧间隙消除）。e2e 新增「单次 objectChange 后首个 render 即画到新几何」断言（包装 renderer.render 验证）。
+2. **拖拽期合并计算（latest-wins）**——`core/gizmo.ts` 的 `applyTransformDrag` 由每事件 `runNetwork` 改为 `scheduleNetwork()`（置 `networkDirty`）；pre-render pump 每帧至多一次 `network.run()`（取最新 parms，乐观 upsert + fire-and-forget push），丢掉过期中间帧。round17 同步断言改为帧内 poll。
+3. **去双重计算**——`core/dataflow.ts`：`flush()` 每帧只解析一次显示节点 buffer（`displayNodeOutputIndex` 命中「display 直连 output.out_i」时复用 `store.outputs[i]`，否则 `computeNodeResult` 一次），`refreshNodeFlags(displayBuffer?)` 消费预计算；`flush()` 顺序改为先 `refreshNodeFlags` 后 `refresh`（renderer 先知道最终可见性，才能安全跳过隐藏 outputGroup）。
+4. **输出新鲜度门控**——新增图拓扑版本号（graph.ts 管道对 connection/node 增删 bump `getGraphVersion`）；`createNetworkRunner` 记录 `lastCookGraphVersion` 并暴露 `isFresh()`；`flush()` **只在 outputs 与当前拓扑同版本时复用**，否则回退 `computeNodeResult`（restoreGraph/拖线建连等未 cook 的拓扑变化不会拿到过期数据——修复了 P1 复用导致 round7 回归的问题）。
+5. **隐藏 outputGroup 跳过**——`renderer.refresh()` 在 outputGroup 隐藏时跳过几何工作且不消费 rev（display=transform 时省掉每帧浪费；切回 output 时同帧重建）。
+6. 验证：tsc 0, vitest 109, pytest 53, e2e 80 passed/1 skipped。
+
+### 6.4 P2 预告（下一轮）
+- 免克隆平移 + 链状态缓存：按 output/显示节点缓存 `{ base, points, sig, lastParams }`，`sig` 不变且仅 tx/ty/tz 变化 → 对缓存 points 就地加 delta（全点 O(P) 零分配；组子集用缓存命中集只改命中点，命中集在节点输入上求、以输入 sig 作失效键）；`sig` 变 → 全量重 trace。`applyTranslateGrouped` 保留给全量重 trace，新增就地 delta 模式。
+- 拓扑变化 → cook 语义补全（拖线建连/Tab 建节点也应刷新 outputs，对齐「cook 即显示数据」；P1 用新鲜度门控兜底，P2 链缓存后可直接补 cook）。

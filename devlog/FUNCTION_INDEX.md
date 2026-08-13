@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-13），由 `node scripts/gen-index.mjs` 产出。共 **559** 个函数/类。
+> 机器生成（2026-08-13），由 `node scripts/gen-index.mjs` 产出。共 **561** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -576,17 +576,18 @@
 |---|---|---|---|---|
 | `createWheelSv` | 51 | function | export | 1 |
 
-## web/src/core/dataflow.ts（144 行）
+## web/src/core/dataflow.ts（201 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `createDataflow` | 29 | function | export | 1 |
-| `getDisplayNodeInfo` | 31 | function |  | 2 |
-| `refreshNodeFlags` | 47 | function |  | 5 |
-| `flush` | 128 | function |  | 2 |
-| `wireSelection` | 134 | function |  | 2 |
+| `displayNodeOutputIndex` | 38 | function | export | 2 |
+| `createDataflow` | 49 | function | export | 1 |
+| `getDisplayNodeInfo` | 51 | function |  | 3 |
+| `refreshNodeFlags` | 71 | function |  | 5 |
+| `flush` | 156 | function |  | 5 |
+| `wireSelection` | 191 | function |  | 2 |
 
-## web/src/core/gizmo.ts（160 行）
+## web/src/core/gizmo.ts（161 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -606,11 +607,11 @@
 | `createHdaWatchdog` | 31 | function | export | 1 |
 | `check` | 42 | arrow |  | 1 |
 
-## web/src/core/network.ts（53 行）
+## web/src/core/network.ts（62 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `createNetworkRunner` | 18 | function | export | 1 |
+| `createNetworkRunner` | 21 | function | export | 1 |
 
 ## web/src/core/param-undo.ts（33 行）
 
@@ -638,7 +639,7 @@
 |---|---|---|---|---|
 | `bindShortcuts` | 15 | function | export | 1 |
 
-## web/src/main.ts（847 行）
+## web/src/main.ts（865 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -653,16 +654,17 @@
 | `readJsonFromDir` | 295 | function |  | 5 |
 | `saveSceneAs` | 309 | function |  | 3 |
 | `openSceneFromDir` | 363 | function |  | 2 |
-| `applyLayoutSettings` | 550 | function |  | 4 |
-| `refreshSelectionPanels` | 565 | function |  | 1 |
-| `inputStatsText` | 640 | function |  | 2 |
-| `outputStatsText` | 649 | function |  | 2 |
-| `renderInspector` | 658 | function |  | 2 |
-| `updateGraphAddress` | 679 | function |  | 3 |
-| `flushStoreView` | 701 | function |  | 2 |
-| `loadSnapshotIntoStore` | 729 | function |  | 3 |
-| `applyLoadedPreference` | 766 | function |  | 3 |
-| `markGraphDirty` | 840 | function |  | 2 |
+| `applyLayoutSettings` | 565 | function |  | 4 |
+| `refreshSelectionPanels` | 580 | function |  | 1 |
+| `inputStatsText` | 655 | function |  | 2 |
+| `outputStatsText` | 664 | function |  | 2 |
+| `renderInspector` | 673 | function |  | 2 |
+| `updateGraphAddress` | 694 | function |  | 3 |
+| `scheduleNetwork` | 719 | function |  | 1 |
+| `flushStoreView` | 722 | function |  | 2 |
+| `loadSnapshotIntoStore` | 747 | function |  | 3 |
+| `applyLoadedPreference` | 784 | function |  | 3 |
+| `markGraphDirty` | 858 | function |  | 2 |
 
 ## web/src/nodes2/graph-interact.ts（1369 行）
 
@@ -720,27 +722,27 @@
 | `applyReconnect` | 1168 | arrow |  | 2 |
 | `insertDotAt` | 1250 | arrow |  | 1 |
 
-## web/src/nodes2/graph-model.ts（377 行）
+## web/src/nodes2/graph-model.ts（380 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `notifySelection` | 85 | function | export | 2 |
-| `onSelectionChange` | 89 | function | export | 1 |
-| `nodeByKind` | 94 | function | export | 1 |
-| `resolveInputSourcePort` | 105 | function | export | 2 |
-| `nodeFromTarget` | 129 | function | export | 1 |
-| `renderNode` | 145 | function | export | 1 |
-| `portIndexFromTarget` | 160 | function | export | 1 |
-| `CylNode` | 168 | class | export | 5 |
-| `makeInputNode` | 197 | function | export | 2 |
-| `makeOutputNode` | 202 | function | export | 2 |
-| `makeNullNode` | 209 | function | export | 2 |
-| `makeDotNode` | 220 | function | export | 2 |
-| `claimDotLabel` | 231 | function | export | 2 |
-| `makeTransformNode` | 240 | function | export | 2 |
-| `serializeGraph` | 260 | function | export | 2 |
-| `restoreGraph` | 294 | function | export | 2 |
-| `getNetworkSnapshot` | 362 | function | export | 2 |
+| `notifySelection` | 88 | function | export | 2 |
+| `onSelectionChange` | 92 | function | export | 1 |
+| `nodeByKind` | 97 | function | export | 1 |
+| `resolveInputSourcePort` | 108 | function | export | 2 |
+| `nodeFromTarget` | 132 | function | export | 1 |
+| `renderNode` | 148 | function | export | 1 |
+| `portIndexFromTarget` | 163 | function | export | 1 |
+| `CylNode` | 171 | class | export | 5 |
+| `makeInputNode` | 200 | function | export | 2 |
+| `makeOutputNode` | 205 | function | export | 2 |
+| `makeNullNode` | 212 | function | export | 2 |
+| `makeDotNode` | 223 | function | export | 2 |
+| `claimDotLabel` | 234 | function | export | 2 |
+| `makeTransformNode` | 243 | function | export | 2 |
+| `serializeGraph` | 263 | function | export | 2 |
+| `restoreGraph` | 297 | function | export | 2 |
+| `getNetworkSnapshot` | 365 | function | export | 2 |
 
 ## web/src/nodes2/graph-undo.ts（202 行）
 
@@ -754,12 +756,12 @@
 | `lbl` | 52 | arrow |  | 5 |
 | `createGraphUndoManager` | 169 | function | export | 1 |
 
-## web/src/nodes2/graph.ts（336 行）
+## web/src/nodes2/graph.ts（346 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `buildGraph` | 61 | function |  | 2 |
-| `createReteGraph` | 147 | function | export | 1 |
+| `createReteGraph` | 156 | function | export | 1 |
 
 ## web/src/nodes2/groups.ts（32 行）
 
@@ -939,16 +941,16 @@
 | `clearSelection` | 89 | function |  | 2 |
 | `commitEdit` | 96 | function |  | 2 |
 
-## web/src/viewport/renderer.ts（543 行）
+## web/src/viewport/renderer.ts（562 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `Viewport` | 31 | class | export | 1 |
-| `showModeMenu` | 110 | arrow |  | 1 |
-| `hideModeMenu` | 122 | arrow |  | 2 |
-| `applyMode` | 123 | arrow |  | 1 |
-| `openModeMenu` | 138 | arrow |  | 1 |
-| `closeModeMenu` | 139 | arrow |  | 3 |
+| `showModeMenu` | 113 | arrow |  | 1 |
+| `hideModeMenu` | 125 | arrow |  | 2 |
+| `applyMode` | 126 | arrow |  | 1 |
+| `openModeMenu` | 141 | arrow |  | 1 |
+| `closeModeMenu` | 142 | arrow |  | 3 |
 
 ## web/src/viewport/scene.ts（46 行）
 

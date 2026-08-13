@@ -64,6 +64,9 @@ export interface ReteGraph {
   frameSelection(): void;
   serializeGraph(): unknown;
   restoreGraph(data: unknown): Promise<void>;
+  /** Bumped on every connection/node add/remove; lets the network runner detect
+   *  whether store.outputs were cooked for the CURRENT graph topology. */
+  getGraphVersion(): number;
   getNetworkSnapshot(): NetworkSnapshot;
   setNodeParams(nodeId: string, params: ParamSpec[]): boolean;
   undo(): void;
