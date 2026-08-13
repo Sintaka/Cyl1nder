@@ -26,6 +26,7 @@ import { cloneParams, paramsEqual, readParamFloats, type ParamLike } from "./cor
 import { createParamUndo } from "./core/param-undo";
 import { createNetworkRunner } from "./core/network";
 import { createGizmoController } from "./core/gizmo";
+import { createKickController } from "./core/kick";
 
 /** Log categories: geo data / viewport / ui / bridge(python runtime). */
 let logFilter = "all";
@@ -443,20 +444,16 @@ const network = createNetworkRunner({
   pushOutputs: (serial, outputs) => client.pushOutputs(serial, outputs),
   log: (msg) => store.pushLog(msg),
 });
+const kicker = createKickController({
+  kick: (serial) => client.kick(serial),
+  log: (msg) => store.pushLog(msg),
+  hasInputs: () => store.inputs.length > 0,
+  runNetwork: () => { void network.run(); },
+});
 
 let wsDisconnect: (() => void) | null = null;
 let autoRun = layout.autoRunCheck.checked;
 let replayPending = false;  // first inputs after connect = replay, do NOT auto-run (avoids clobbering outputs/edits)
-/** Serials already kicked in THIS page session: only the first connect to a serial
- *  gets a one-shot HDA kick (freshly spawned bridge -> force recook -> offline->ok);
- *  auto-reconnects deliver more hellos but must never kick again, and a per-serial
- *  rate limit (>=5s between kicks) stops WS reconnect churn from hammering the HDA.
- *  The marker is cleared ONLY on a real drop after the WS was up (wsWasUp=false
- *  path, e.g. bridge restart) so the next hello re-kicks the HDA. */
-const kickedSerials = new Set<string>();
-const KICK_MIN_INTERVAL_MS = 5000; // at least 5s between HDA kicks per serial
-const lastKickAt = new Map<string, number>();
-let wsWasUp = false; // true once a WS has been up this session (drop-reconnect re-kick)
 
 layout.autoRunCheck.addEventListener("change", () => {
   autoRun = layout.autoRunCheck.checked;
@@ -756,19 +753,6 @@ store.subscribe(() => {
   });
 });
 
-/** One-shot HDA kick on the session's first connect to a serial: the bridge sets a
- *  transient force flag + touches lastSeen, so the HDA recooks on its next /pending
- *  poll (offline -> ok). When we already hold inputs, push them back too to drive the
- *  recook path immediately; with empty inputs the kick alone triggers the HDA recook. */
-async function kickHdaOnce(serial: string): Promise<void> {
-  // best-effort kick: silent when the endpoint is unavailable (old bridge) so it
-  // does not add log noise that pushes the connect "hello" out of the panel.
-  const res = await client.kick(serial);
-  if (!res.ok) return;
-  store.pushLog("[bridge] kick HDA (first connect)");
-  if (store.inputs.length > 0) void network.run();
-}
-
 /** Viewport display path: fall back to the unified path system (disk snapshot)
  *  when the live workspace has no geometry yet (Houdini not cooking / bridge restarted). */
 async function loadSnapshotIntoStore(serial: string): Promise<void> {
@@ -863,11 +847,7 @@ function connect(serialRaw: string): void {
         // bring more hellos but must not kick again, and the per-serial rate limit
         // (>=5s) stops reconnect churn from hammering the HDA. Only a real drop
         // (wsWasUp=false path cleared the marker) re-arms the kick.
-        if (!kickedSerials.has(serial) && (lastKickAt.get(serial) ?? 0) + KICK_MIN_INTERVAL_MS <= Date.now()) {
-          kickedSerials.add(serial);
-          lastKickAt.set(serial, Date.now());
-          void kickHdaOnce(serial);
-        }
+        kicker.onHello(serial);
       } else if (msg.type === "inputs") {
         const changed = !inputsEqual(store.inputs, msg.inputs);
         store.setInputs(msg.inputs, msg.rev);
@@ -891,14 +871,7 @@ function connect(serialRaw: string): void {
       }
     },
     (open) => {
-      if (open) {
-        wsWasUp = true;
-      } else if (wsWasUp) {
-        // WS dropped after being up (e.g. bridge restarted): let the next hello
-        // re-kick the HDA so it recooks and re-pushes without a page reload.
-        wsWasUp = false;
-        kickedSerials.delete(serial);
-      }
+      kicker.onStatus(open, serial);
       store.setStatus(open ? "ok" : "offline");
     },
   );
