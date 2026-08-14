@@ -47,7 +47,7 @@ import time
 
 from pydantic import BaseModel, Field
 
-VERSION = "0.1.00105"
+VERSION = "0.1.00106"
 HOST = "127.0.0.1"
 PORT = 8375
 BASE_URL = f"http://{HOST}:{PORT}"
@@ -133,6 +133,18 @@ class InputsPut(BaseModel):
     hip: str = ""
     nodePath: str = ""
     label: str = ""
+
+
+class ChannelRef(BaseModel):
+    """吊牌 HDA 通道注册条目（关联注册大全，见 devlog/tag-hda-plan.md P1）。"""
+    kind: str                       # "tag" | "hda" | "param"
+    serial: str | None = None       # kind=tag/hda: C1- serial；kind=param: 归属吊牌 serial
+    nodePath: str | None = None     # kind=tag/hda: 节点绝对路径；kind=param: 归属吊牌节点路径
+    absolutePath: str | None = None # kind=param: 参数绝对路径（/obj/geo1/transform1/tx）
+    hip: str = ""
+    label: str = ""
+    registeredAt: float = 0.0       # 服务端权威：首次注册写 now，重复注册保留
+    lastSeen: float = 0.0           # 注册/心跳/探测成功时刷新 now
 
 
 class OutputsPut(BaseModel):

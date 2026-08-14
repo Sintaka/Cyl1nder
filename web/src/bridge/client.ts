@@ -1,4 +1,4 @@
-import { BRIDGE_URL, InputPayload, LogEntry, OutputBuffer, StatusResponse } from "../protocol/types";
+import { BRIDGE_URL, ChannelRef, InputPayload, LogEntry, OutputBuffer, StatusResponse } from "../protocol/types";
 import { encode, decode } from "@msgpack/msgpack";
 
 export interface HealthResponse {
@@ -275,6 +275,53 @@ export class BridgeClient {
     if (serial) q.set("serial", serial);
     if (level) q.set("level", level);
     return json<{ logs: LogEntry[] }>(await fetch(`${this.base}/api/logs?${q}`)).then((r) => r.logs);
+  }
+
+  /** channelId URL 编码：去前导 `/`、保留段间 `/`（param 通道 id = absolutePath，tag/hda 通道 id = serial）。 */
+  private _channelUrl(id: string): string {
+    return encodeURI(id.replace(/^\//, ""));
+  }
+
+  /** GET /api/channels — 关联注册大全列表。 */
+  async listChannels(): Promise<{ channels: ChannelRef[] }> {
+    return json(await fetch(`${this.base}/api/channels`));
+  }
+
+  /** PUT /api/channels/{id} — 注册/幂等覆盖一个通道引用。 */
+  async putChannel(channelId: string, ref: ChannelRef): Promise<{ ok: boolean; channelId: string }> {
+    return json(
+      await fetch(`${this.base}/api/channels/${this._channelUrl(channelId)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(ref),
+      }),
+    );
+  }
+
+  /** POST /api/hda/{serial}/channels/heartbeat — 吊牌 cook 节流心跳摘要。 */
+  async heartbeatChannels(
+    serial: string,
+    summary: { nodePath: string; upstreamNodePath: string; fingerprint: string },
+  ): Promise<{ ok: boolean; serial: string; lastSeen: number }> {
+    return json(
+      await fetch(`${this.base}/api/hda/${serial}/channels/heartbeat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(summary),
+      }),
+    );
+  }
+
+  /** GET /api/channels/{id}/probe — 经 houdini 代理做存活/匹配探测。 */
+  async probeChannel(channelId: string): Promise<{
+    ok: boolean;
+    alive: boolean;
+    matched: boolean;
+    nodePath: string;
+    serial: string;
+    reason?: string | null;
+  }> {
+    return json(await fetch(`${this.base}/api/channels/${this._channelUrl(channelId)}/probe`));
   }
 }
 

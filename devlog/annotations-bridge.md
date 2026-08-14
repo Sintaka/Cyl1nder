@@ -94,3 +94,9 @@
 ## v0.1.00065（2026-08-13）——控制台降噪 + /stream 缺省 hold 60
 - **uvicorn access_log 关闭**：`__main__.py` 改 `uvicorn.run(..., access_log=False)`——web Auto Update 推流无上限，gizmo 快速拖动时逐请求 access log 会刷爆 cmd 控制台；数据面的 notify/broadcast 已按 sync max fps 合帧，这里关掉的只是 HTTP 请求行日志（启动/错误日志仍保留）。
 - **`STREAM_HOLD_DEFAULT 20→60`**：`/stream` 缺省 hold 也 60s（HDA 本就显式传 60），静默心跳统一 1 次/分；`protocol.py` docstring 同步。
+## v0.1.00106（2026-08-15）——通道注册（吊牌 HDA P1）
+- **新 `channels.py` ChannelRegistry**：照 SerialRegistry（Lock + 1s debounce + tmp+replace + 容错 load），落盘 `bridge/data/channels.json`；key = param→absolutePath、tag/hda→serial；register 幂等 upsert（保 registeredAt、刷 lastSeen）。
+- **新 `channel_routes.py`** 4 端点：`PUT/GET /api/channels[/{channelId:path}]`（param 通道 URL 去前导"/"、段间保留，`:path` 捕获后服务端回加；id 与 ref 键不一致 400）、`POST /api/hda/{serial}/channels/heartbeat`（touch 该 serial 全通道）、`GET /api/channels/{channelId}/probe`（`_resolve_port` + `asyncio.to_thread(houdini_mcp.rpc, "nodes.get_node_info", timeout=4)` → alive/matched；**type 字段兼容实机字典形态 {name,label,category}**，合并期修正）。main.py 挂载（主进程粘合）。
+- `state.py` +`self.channels`；`protocol.py` +`ChannelRef`（VERSION 未动）。`set_houdini_mcp` 对未注册 serial 不建条目 → 吊牌探测经 discover_first 兜底、不污染 HDA 场景列表（实机确认）。
+- 测试 +20（registry 单测 + 裸 FastAPI 路由测试 + 本地 mcp stub + `_node_type_name` 变体）；pytest **130 全绿**。
+- 实机：桥重启上线 0.1.00105，/api/channels 注册/探测/runtime 改参实测通过。

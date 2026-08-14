@@ -160,11 +160,16 @@
   - tools/transform
 - `nodes2/undo.ts`
 - `overview.ts`
+  - bridge/client
   - protocol/types
+  - stores/channels
 - `protocol/compare.ts`
   - fast-deep-equal
   - protocol/types
 - `protocol/types.ts`
+- `stores/channels.ts`
+  - bridge/client
+  - protocol/types
 - `stores/workspace.ts`
   - protocol/types
 - `tools/transform.ts`

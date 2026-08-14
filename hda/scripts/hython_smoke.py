@@ -7,6 +7,7 @@ input push cache (no re-push on unchanged inputs, re-push on input change).
 """
 from __future__ import annotations
 
+import http.server
 import json
 import os
 import sys
@@ -23,6 +24,7 @@ import hou  # noqa: E402
 
 import cyl1nder_hda  # noqa: E402 - shared module with the HDA python SOPs
 import cyl1nder_sync  # noqa: E402 - owns _schedule_recook (monkeypatched by this smoke)
+import cyl1nder_tag  # noqa: E402 - hang-tag cook module (pure logic + HDA E2E)
 
 BRIDGE = "http://127.0.0.1:8375"
 HDA = os.path.join(ROOT, "otls", "Cyl1nder_1.0.hda")
@@ -624,6 +626,167 @@ def _test_sync_enabled_gate() -> None:
         cyl1nder_hda._READY.pop(serial, None)
 
 
+def _test_tag_hda() -> None:
+    """Hang-tag HDA E2E: register tag + param channels + heartbeat against a
+    process-local http.server stub (random port) - never touches the real 8375
+    bridge, never pollutes its state."""
+    TAG_HDA = os.path.join(ROOT, "otls", "Cyl1nderTag_1.0.hda")
+    if TAG_HDA not in hou.hda.loadedFiles():
+        hou.hda.installFile(TAG_HDA)
+
+    requests: list[dict] = []
+
+    class _Handler(http.server.BaseHTTPRequestHandler):
+        def _record(self) -> None:
+            length = int(self.headers.get("Content-Length") or 0)
+            body = self.rfile.read(length).decode("utf-8") if length else ""
+            requests.append({"method": self.command, "path": self.path, "body": body})
+
+        def _reply(self) -> None:
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"ok": true}')
+
+        def do_PUT(self) -> None:
+            self._record()
+            self._reply()
+
+        def do_POST(self) -> None:
+            self._record()
+            self._reply()
+
+        def do_GET(self) -> None:
+            self._reply()
+
+        def log_message(self, *args) -> None:  # silence stderr
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), _Handler)
+    port = server.server_address[1]
+    th = threading.Thread(target=server.serve_forever, daemon=True)
+    th.start()
+
+    try:
+        geo = hou.node("/obj").createNode("geo", "cyl1nder_tag_smoke")
+        box = geo.createNode("box", "box1")
+        xform = geo.createNode("xform", "transform1")
+        xform.setInput(0, box, 0)  # xform requires a source (min 1 input)
+        tag = geo.createNode("Cyl1nderTag", "cyl1ndertag")
+        tag.setInput(0, xform, 0)
+        tag.parm("entries").set("tx;ty")
+        tag.parm("bridge_url").set(f"http://127.0.0.1:{port}")
+
+        cyl1nder_tag._LAST_HEARTBEAT = 0.0  # fresh module state
+        tag.cook()
+        serial = tag.parm("cyl1nder_serial").eval()
+        assert serial.startswith("C1-"), f"bad tag serial: {serial!r}"
+        print("tag serial:", serial)
+
+        put_requests = [r for r in requests if r["method"] == "PUT"]
+        bodies = {r["path"]: json.loads(r["body"]) for r in put_requests}
+
+        tag_path = f"/api/channels/{serial}"
+        assert tag_path in bodies, f"tag channel not registered: {sorted(bodies)}"
+        assert bodies[tag_path]["kind"] == "tag", bodies[tag_path]
+
+        for name in ("tx", "ty"):
+            expect = f"/api/channels/obj/cyl1nder_tag_smoke/transform1/{name}"
+            assert expect in bodies, f"param channel {name} not registered: {sorted(bodies)}"
+            assert bodies[expect]["kind"] == "param", bodies[expect]
+        print("tag + param channels registered OK")
+
+        # second cook: fingerprint unchanged -> throttled heartbeat path (no re-register).
+        # Force-cook the INNER python SOP directly: cooking the subnet is a no-op
+        # while it is clean, so the python SOP would not re-run otherwise.
+        cyl1nder_tag._LAST_HEARTBEAT = 0.0
+        tag.node("cyl1nder_tag_py").cook(force=True)
+        post_paths = [r["path"] for r in requests if r["method"] == "POST"]
+        assert f"/api/hda/{serial}/channels/heartbeat" in post_paths, \
+            f"heartbeat not sent: {post_paths}"
+        print("tag heartbeat sent on unchanged cook OK")
+
+        # shape readback: in-session defaultShape OR persisted nodeshape userData
+        shape = ""
+        try:
+            shape = tag.type().defaultShape() or ""
+        except Exception:  # noqa: BLE001
+            shape = ""
+        if not shape:
+            shape = tag.userData("nodeshape") or ""
+        assert shape == "slash", f"tag shape={shape!r}"
+        print("tag shape 'slash' OK")
+
+        print("hang-tag HDA E2E OK")
+    finally:
+        server.shutdown()
+        th.join(timeout=2)
+
+
+def _test_tag_resolve() -> None:
+    """_resolve: absolute passthrough, relative join, `..` normalization."""
+    r = cyl1nder_tag._resolve
+    assert r("/obj/a/b/tx", "/obj/x/y") == "/obj/a/b/tx", "absolute must pass through"
+    assert r("tx", "/obj/geo1/transform1") == "/obj/geo1/transform1/tx"
+    assert r("../ty", "/obj/geo1/transform1") == "/obj/geo1/ty"
+    assert r("./tz", "/obj/geo1/transform1") == "/obj/geo1/transform1/tz"
+    assert r("a/../tx", "/obj/geo1/transform1") == "/obj/geo1/transform1/tx"
+    print("_resolve relative/absolute/../ normalization OK")
+
+
+def _test_tag_fingerprint() -> None:
+    """fingerprint: stable for same (entries, upstream), changes on either."""
+    f = cyl1nder_tag._fingerprint
+    a = f(["tx", "ty"], "/obj/geo1/transform1")
+    assert a == f(["tx", "ty"], "/obj/geo1/transform1"), "fingerprint must be stable"
+    assert a == f(["ty", "tx"], "/obj/geo1/transform1"), "fingerprint must be order-independent"
+    assert a != f(["tx"], "/obj/geo1/transform1"), "entry change must change fingerprint"
+    assert a != f(["tx", "ty"], "/obj/geo1/transform2"), "upstream change must change fingerprint"
+    print("fingerprint stable + changes on entry/upstream OK")
+
+
+def _test_tag_heartbeat_throttle() -> None:
+    """heartbeat: >= TAG_HEARTBEAT_INTERVAL throttle (patch _LAST_HEARTBEAT)."""
+    class _Client:
+        def __init__(self) -> None:
+            self.node_path = "/obj/tag"
+            self.calls: list[dict] = []
+
+        def heartbeat_channels(self, payload: dict) -> bool:
+            self.calls.append(payload)
+            return True
+
+    client = _Client()
+    orig = cyl1nder_tag._LAST_HEARTBEAT
+    try:
+        cyl1nder_tag._LAST_HEARTBEAT = 0.0
+        cyl1nder_tag.heartbeat(client, "C1-x", "/obj/geo1/transform1", "fp1")
+        assert len(client.calls) == 1, "first heartbeat must fire"
+        cyl1nder_tag.heartbeat(client, "C1-x", "/obj/geo1/transform1", "fp1")
+        assert len(client.calls) == 1, "second heartbeat within window must be throttled"
+        assert client.calls[0]["upstreamNodePath"] == "/obj/geo1/transform1"
+        assert client.calls[0]["fingerprint"] == "fp1"
+        assert client.calls[0]["nodePath"] == "/obj/tag"
+        cyl1nder_tag._LAST_HEARTBEAT = 0.0  # simulate window passing
+        cyl1nder_tag.heartbeat(client, "C1-x", "/obj/geo1/transform1", "fp1")
+        assert len(client.calls) == 2, "heartbeat after window must fire"
+    finally:
+        cyl1nder_tag._LAST_HEARTBEAT = orig
+    print("heartbeat >=5s throttle OK")
+
+
+def _test_tag_entries() -> None:
+    """_parse_entries: lines, `;` separators, blank lines, `#` comments."""
+    p = cyl1nder_tag._parse_entries
+    assert p("") == []
+    assert p("tx\nty") == ["tx", "ty"]
+    assert p("tx;ty;tz") == ["tx", "ty", "tz"]
+    assert p("# comment\ntx\n\n   \nty") == ["tx", "ty"], "blank + comment lines ignored"
+    assert p("tx ; #inline ; ty") == ["tx", "ty"], "inline comment ignored"
+    assert p("  tx  ") == ["tx"], "whitespace trimmed"
+    print("entries parse (lines / ; / comments / blanks) OK")
+
+
 def main() -> int:
     if HDA not in hou.hda.loadedFiles():
         hou.hda.installFile(HDA)
@@ -809,6 +972,12 @@ def main() -> int:
     _test_stop_all_sync()
     _test_push_inputs_frame()
     _test_sync_enabled_gate()
+
+    _test_tag_hda()
+    _test_tag_resolve()
+    _test_tag_fingerprint()
+    _test_tag_heartbeat_throttle()
+    _test_tag_entries()
 
     print("SMOKE OK")
     return 0

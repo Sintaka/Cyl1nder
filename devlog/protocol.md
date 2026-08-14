@@ -57,6 +57,15 @@
 - `POST /api/hda/{serial}/houdini/python`，body `{"code": str, "return_expression"?: str}` -> `{ok, result}`（`code.execute_python` 代理）
 - **v0.1.00103 起：所有与 Houdini 的周期性交互速率均由 per-serial Sync Max FPS 派生**（get 轮询 `max(66ms,1000/fps)`、set 节流 `max(33ms,1000/fps)`）；**实测通道上限 ≈19Hz 合计**（get ~52ms / set ~78ms 单次，共用 hdefereval 主线程封送队列，超出会积压雪崩——见 timeline-sync-lag-analysis.md）——66ms/33ms 地板即为此设。一次性 cmd/python 调用不受 fps 节流（用户显式动作），但 `_resolve_port` 失败有 2s 短缓存防扫端口风暴。
 
+## 通道注册端点（吊牌 HDA Cyl1nderTag，v0.1.00106 起）
+- **channelRef**（协议三处同步）：`{kind: "tag"|"hda"|"param", serial?, nodePath?, absolutePath?, hip, label, registeredAt, lastSeen}`。注册表 key：kind=tag/hda → `serial`；kind=param → `absolutePath`。`registeredAt` 首次注册时服务端写、重复注册保留；`lastSeen` 注册/心跳/探测成功时刷新。
+- **channelId（URL 段）**：param 通道 = `absolutePath` 去前导 `/`（如 `obj/geo1/transform1/tx`），tag/hda 通道 = serial。客户端编码：`quote(id.lstrip("/"), safe="/")`（Python）/ `encodeURI(id.replace(/^\//,""))`（JS）；FastAPI 用 `{channelId:path}` 捕获，服务端对 param 通道回补前导 `/`。
+- `PUT  /api/channels/{channelId:path}`，body = channelRef：幂等 upsert；id 与 ref 键不一致 → 400；-> `{ok, channelId, ref}`
+- `GET  /api/channels` -> `{channels: [channelRef...]}`（按 registeredAt 升序）
+- `POST /api/hda/{serial}/channels/heartbeat`，body `{serial, nodePath, upstreamNodePath, fingerprint}`：对该 serial 的所有通道 touch lastSeen；-> `{ok, serial, lastSeen}`（未注册也容忍）
+- `GET  /api/channels/{channelId:path}/probe`：无此通道 → 404；经 fxhoudinimcp 代理 `nodes.get_node_info`（timeout 4s）确认节点存活与类型仍是 `Cyl1nderTag`；-> `{ok, alive, matched, nodePath, serial, reason}`（探测失败 ok 仍 true、alive=false）
+- **吊牌行为**：cook 时解析 `entries`（多行，相对路径以第 0 输入上游节点为基准）→ 首次/指纹变化注册（1 条 kind=tag + 每参数 1 条 kind=param）；否则心跳（节流 ≥5s）。改参一律走既有 `POST /api/hda/{serial}/houdini/cmd`（`parameters.set_parameter`），吊牌不参与。
+
 ## 快照恢复端点（v0.1.00102 起）
 - `POST /api/hda/{serial}/snapshot/restore` -> `{ok, serial, restored, inputRev, outputRev}`：从磁盘快照回填**空** workspace（绝不覆盖运行态），恢复后 WS 广播 inputs/outputs；桥启动时 lifespan 自动对全部 registry serial 执行等价回填（`snapshot.restore_all_workspaces`），关闭时 `flush_all_workspaces` 强制落盘。
 - 快照读取为**双根合并**：hip 目录旁 `Cyl1nder/<serial>/` 优先、`bridge/data/snapshots/<serial>/` 补缺（registry.hip 暂时为空时写入回退根，双根合并保证都能读到）。

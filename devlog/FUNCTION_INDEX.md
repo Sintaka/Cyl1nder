@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-14），由 `node scripts/gen-index.mjs` 产出。共 **674** 个函数/类。
+> 机器生成（2026-08-14），由 `node scripts/gen-index.mjs` 产出。共 **730** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -13,6 +13,36 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `main` | 7 | def |  | 2 |
+
+## bridge/bridge/channel_routes.py（133 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `_check_serial` | 29 | def |  | 2 |
+| `_key_of` | 34 | def |  | 3 |
+| `_path_key` | 40 | def |  | 2 |
+| `_probe_key` | 47 | def |  | 2 |
+| `put_channel` | 53 | def |  | 1 |
+| `list_channels` | 62 | def |  | 1 |
+| `HeartbeatBody` | 66 | class |  | 1 |
+| `heartbeat` | 74 | def |  | 1 |
+| `probe` | 85 | def |  | 1 |
+| `_node_type_name` | 120 | def |  | 2 |
+
+## bridge/bridge/channels.py（106 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `ChannelRegistry` | 18 | class |  | 0 |
+| `__init__` | 19 | def |  | 1 |
+| `_key_of` | 30 | def |  | 3 |
+| `register` | 35 | def |  | 1 |
+| `get` | 51 | def |  | 9 |
+| `list` | 56 | def |  | 2 |
+| `touch` | 62 | def |  | 1 |
+| `save_now` | 73 | def |  | 1 |
+| `_save` | 77 | def |  | 4 |
+| `_load` | 95 | def |  | 2 |
 
 ## bridge/bridge/compute/__init__.py（49 行）
 
@@ -105,12 +135,12 @@
 | `query` | 48 | def |  | 2 |
 | `errors` | 58 | def |  | 1 |
 
-## bridge/bridge/main.py（53 行）
+## bridge/bridge/main.py（55 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `lifespan` | 20 | def |  | 1 |
-| `create_app` | 34 | def |  | 2 |
+| `lifespan` | 21 | def |  | 1 |
+| `create_app` | 35 | def |  | 2 |
 
 ## bridge/bridge/mcp_server.py（303 行）
 
@@ -138,7 +168,7 @@
 | `cyl1nder_index_query` | 274 | def |  | 1 |
 | `run_stdio` | 297 | def |  | 2 |
 
-## bridge/bridge/protocol.py（146 行）
+## bridge/bridge/protocol.py（158 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -150,8 +180,9 @@
 | `InputPayload` | 107 | class |  | 1 |
 | `OutputBuffer` | 118 | class |  | 1 |
 | `InputsPut` | 129 | class |  | 1 |
-| `OutputsPut` | 138 | class |  | 1 |
-| `SyncEnabledPut` | 143 | class |  | 1 |
+| `ChannelRef` | 138 | class |  | 1 |
+| `OutputsPut` | 150 | class |  | 1 |
+| `SyncEnabledPut` | 155 | class |  | 1 |
 
 ## bridge/bridge/registry.py（218 行）
 
@@ -245,29 +276,29 @@
 | `flush_workspace` | 260 | def |  | 2 |
 | `flush_all_workspaces` | 285 | def |  | 1 |
 
-## bridge/bridge/state.py（246 行）
+## bridge/bridge/state.py（248 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `BridgeState` | 27 | class |  | 2 |
-| `__init__` | 28 | def |  | 1 |
-| `set_sync_fps` | 57 | def |  | 1 |
-| `get_sync_fps` | 68 | def |  | 3 |
-| `set_sync_enabled` | 72 | def |  | 1 |
-| `get_sync_enabled` | 77 | def |  | 1 |
-| `set_kick` | 83 | def |  | 1 |
-| `take_kick` | 88 | def |  | 1 |
-| `try_arm_kick` | 93 | def |  | 1 |
-| `subscribe` | 110 | def |  | 1 |
-| `unsubscribe` | 119 | def |  | 2 |
-| `notify_stream` | 128 | def |  | 1 |
-| `_wake_stream` | 157 | def |  | 1 |
-| `stage_broadcast` | 168 | def |  | 1 |
-| `_arm_broadcast_flush` | 200 | def |  | 1 |
-| `_flush_broadcast` | 207 | def |  | 3 |
-| `default_data_dir` | 227 | def |  | 2 |
-| `get_state` | 234 | def |  | 1 |
-| `reset_state` | 241 | def |  | 1 |
+| `BridgeState` | 28 | class |  | 2 |
+| `__init__` | 29 | def |  | 1 |
+| `set_sync_fps` | 59 | def |  | 1 |
+| `get_sync_fps` | 70 | def |  | 3 |
+| `set_sync_enabled` | 74 | def |  | 1 |
+| `get_sync_enabled` | 79 | def |  | 1 |
+| `set_kick` | 85 | def |  | 1 |
+| `take_kick` | 90 | def |  | 1 |
+| `try_arm_kick` | 95 | def |  | 1 |
+| `subscribe` | 112 | def |  | 1 |
+| `unsubscribe` | 121 | def |  | 2 |
+| `notify_stream` | 130 | def |  | 1 |
+| `_wake_stream` | 159 | def |  | 1 |
+| `stage_broadcast` | 170 | def |  | 1 |
+| `_arm_broadcast_flush` | 202 | def |  | 1 |
+| `_flush_broadcast` | 209 | def |  | 3 |
+| `default_data_dir` | 229 | def |  | 2 |
+| `get_state` | 236 | def |  | 1 |
+| `reset_state` | 243 | def |  | 1 |
 
 ## bridge/bridge/ui_layout.py（75 行）
 
@@ -353,46 +384,62 @@
 | `probe` | 205 | def |  | 1 |
 | `log_result` | 214 | def |  | 2 |
 
-## hda/scripts/build_hda.py（200 行）
+## hda/scripts/build_hda.py（303 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_parm_group` | 57 | def |  | 3 |
-| `build` | 116 | def |  | 2 |
+| `_parm_group` | 63 | def |  | 3 |
+| `_tag_parm_group` | 122 | def |  | 3 |
+| `build_tag` | 153 | def |  | 2 |
+| `build` | 218 | def |  | 2 |
 
-## hda/scripts/hython_smoke.py（818 行）
+## hda/scripts/hython_smoke.py（987 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_req` | 31 | def |  | 8 |
-| `_make_curve_input` | 40 | def |  | 2 |
-| `_wait_ready_rev` | 58 | def |  | 4 |
-| `_FakeClock` | 74 | class |  | 3 |
-| `__init__` | 77 | def |  | 8 |
-| `now` | 80 | def |  | 1 |
-| `step` | 83 | def |  | 13 |
-| `_test_stream_loop` | 88 | def |  | 2 |
-| `_FakeClient` | 107 | class |  | 5 |
-| `probe_once` | 116 | def |  | 5 |
-| `stream_once` | 119 | def |  | 4 |
-| `pull_outputs` | 125 | def |  | 4 |
-| `_Gate` | 129 | class |  | 2 |
-| `__call__` | 136 | def |  | 2 |
-| `wait_len` | 144 | def |  | 8 |
-| `_feed` | 160 | def |  | 10 |
-| `_seed_caches` | 166 | def |  | 3 |
-| `_assert_caches_cleared` | 175 | def |  | 3 |
-| `_test_kick_force_recook` | 314 | def |  | 2 |
-| `_test_stop_all_sync` | 372 | def |  | 3 |
-| `_test_push_inputs_frame` | 444 | def |  | 2 |
-| `_FakeNode` | 454 | class |  | 1 |
-| `inputs` | 455 | def |  | 1 |
-| `push_inputs` | 462 | def |  | 1 |
-| `_FakeRoot` | 465 | class |  | 1 |
-| `path` | 466 | def |  | 3 |
-| `_test_sync_enabled_gate` | 517 | def |  | 2 |
-| `main` | 627 | def |  | 2 |
-| `_stats` | 718 | def |  | 5 |
+| `_req` | 33 | def |  | 8 |
+| `_make_curve_input` | 42 | def |  | 2 |
+| `_wait_ready_rev` | 60 | def |  | 4 |
+| `_FakeClock` | 76 | class |  | 3 |
+| `__init__` | 79 | def |  | 9 |
+| `now` | 82 | def |  | 1 |
+| `step` | 85 | def |  | 13 |
+| `_test_stream_loop` | 90 | def |  | 2 |
+| `_FakeClient` | 109 | class |  | 5 |
+| `probe_once` | 118 | def |  | 5 |
+| `stream_once` | 121 | def |  | 4 |
+| `pull_outputs` | 127 | def |  | 4 |
+| `_Gate` | 131 | class |  | 2 |
+| `__call__` | 138 | def |  | 2 |
+| `wait_len` | 146 | def |  | 8 |
+| `_feed` | 162 | def |  | 10 |
+| `_seed_caches` | 168 | def |  | 3 |
+| `_assert_caches_cleared` | 177 | def |  | 3 |
+| `_test_kick_force_recook` | 316 | def |  | 2 |
+| `_test_stop_all_sync` | 374 | def |  | 3 |
+| `_test_push_inputs_frame` | 446 | def |  | 2 |
+| `_FakeNode` | 456 | class |  | 1 |
+| `inputs` | 457 | def |  | 1 |
+| `push_inputs` | 464 | def |  | 1 |
+| `_FakeRoot` | 467 | class |  | 1 |
+| `path` | 468 | def |  | 4 |
+| `_test_sync_enabled_gate` | 519 | def |  | 2 |
+| `_test_tag_hda` | 629 | def |  | 2 |
+| `_Handler` | 639 | class |  | 1 |
+| `_record` | 640 | def |  | 3 |
+| `_reply` | 645 | def |  | 4 |
+| `do_PUT` | 651 | def |  | 1 |
+| `do_POST` | 655 | def |  | 1 |
+| `do_GET` | 659 | def |  | 1 |
+| `log_message` | 662 | def |  | 1 |
+| `_test_tag_resolve` | 726 | def |  | 2 |
+| `_test_tag_fingerprint` | 737 | def |  | 2 |
+| `_test_tag_heartbeat_throttle` | 748 | def |  | 2 |
+| `_Client` | 750 | class |  | 1 |
+| `heartbeat_channels` | 755 | def |  | 1 |
+| `_test_tag_entries` | 778 | def |  | 2 |
+| `main` | 790 | def |  | 2 |
+| `_stats` | 881 | def |  | 5 |
 
 ## hda/scripts/reload_hda.py（121 行）
 
@@ -406,21 +453,23 @@
 | `_reload_definition` | 96 | def |  | 2 |
 | `reload_cyl1nder` | 103 | def |  | 3 |
 
-## hda/src/cyl1nder_bridge.py（165 行）
+## hda/src/cyl1nder_bridge.py（209 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_b36` | 17 | def |  | 3 |
-| `generate_serial` | 28 | def |  | 1 |
-| `BridgeClient` | 35 | class |  | 0 |
-| `__init__` | 36 | def |  | 1 |
-| `push_inputs` | 52 | def |  | 1 |
-| `_pump` | 59 | def |  | 1 |
-| `report_houdini_mcp` | 88 | def |  | 1 |
-| `pending_outputs` | 108 | def |  | 1 |
-| `probe_once` | 129 | def |  | 1 |
-| `stream_once` | 139 | def |  | 1 |
-| `pull_outputs` | 156 | def |  | 1 |
+| `_b36` | 18 | def |  | 3 |
+| `generate_serial` | 29 | def |  | 1 |
+| `BridgeClient` | 36 | class |  | 0 |
+| `__init__` | 37 | def |  | 1 |
+| `push_inputs` | 53 | def |  | 1 |
+| `_pump` | 60 | def |  | 1 |
+| `report_houdini_mcp` | 89 | def |  | 1 |
+| `put_channel` | 109 | def |  | 1 |
+| `heartbeat_channels` | 132 | def |  | 1 |
+| `pending_outputs` | 152 | def |  | 1 |
+| `probe_once` | 173 | def |  | 1 |
+| `stream_once` | 183 | def |  | 1 |
+| `pull_outputs` | 200 | def |  | 1 |
 
 ## hda/src/cyl1nder_cache.py（97 行）
 
@@ -504,6 +553,18 @@
 | `stop_sync` | 180 | def |  | 5 |
 | `stop_all_sync` | 203 | def |  | 1 |
 | `ensure_sync` | 216 | def |  | 4 |
+
+## hda/src/cyl1nder_tag.py（157 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `_set_status` | 30 | def |  | 4 |
+| `_parse_entries` | 39 | def |  | 2 |
+| `_resolve` | 54 | def |  | 2 |
+| `_fingerprint` | 67 | def |  | 2 |
+| `register_channels` | 73 | def |  | 2 |
+| `heartbeat` | 109 | def |  | 2 |
+| `cook` | 126 | def |  | 3 |
 
 ## web/src/app/address-bar.ts（308 行）
 
@@ -640,13 +701,13 @@
 | `createDropdown` | 46 | function | export | 1 |
 | `createStepper` | 130 | function | export | 1 |
 
-## web/src/bridge/client.ts（327 行）
+## web/src/bridge/client.ts（374 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `BridgeClient` | 24 | class | export | 0 |
-| `connectWs` | 284 | function | export | 1 |
-| `connect` | 289 | arrow |  | 1 |
+| `connectWs` | 331 | function | export | 1 |
+| `connect` | 336 | arrow |  | 1 |
 
 ## web/src/color/color-math.ts（147 行）
 
@@ -977,27 +1038,35 @@
 |---|---|---|---|---|
 | `createUndoManager` | 76 | function | export | 2 |
 
-## web/src/overview.ts（271 行）
+## web/src/overview.ts（423 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `HttpError` | 35 | class |  | 3 |
-| `$` | 46 | function |  | 0 |
-| `epochMs` | 68 | function |  | 5 |
-| `relTime` | 72 | function |  | 5 |
-| `clockTime` | 84 | function |  | 2 |
-| `setBanner` | 90 | function |  | 4 |
-| `openSerial` | 95 | function |  | 3 |
-| `activeState` | 100 | function |  | 2 |
-| `activeRowHtml` | 116 | function |  | 1 |
-| `historyRowHtml` | 133 | function |  | 1 |
-| `renderActive` | 142 | function |  | 2 |
-| `renderHistory` | 148 | function |  | 2 |
-| `renderUnavailable` | 154 | function |  | 2 |
-| `fetchScenes` | 163 | function |  | 2 |
-| `failMessage` | 170 | function |  | 3 |
-| `loadScenes` | 179 | function |  | 4 |
-| `cleanupScenes` | 200 | function |  | 2 |
+| `HttpError` | 37 | class |  | 3 |
+| `$` | 48 | function |  | 0 |
+| `epochMs` | 70 | function |  | 6 |
+| `relTime` | 74 | function |  | 8 |
+| `clockTime` | 86 | function |  | 2 |
+| `setBanner` | 92 | function |  | 4 |
+| `openSerial` | 97 | function |  | 3 |
+| `activeState` | 102 | function |  | 2 |
+| `activeRowHtml` | 118 | function |  | 1 |
+| `historyRowHtml` | 135 | function |  | 1 |
+| `renderActive` | 144 | function |  | 2 |
+| `renderHistory` | 150 | function |  | 2 |
+| `renderUnavailable` | 156 | function |  | 2 |
+| `fetchScenes` | 165 | function |  | 2 |
+| `failMessage` | 172 | function |  | 3 |
+| `loadScenes` | 181 | function |  | 4 |
+| `cleanupScenes` | 202 | function |  | 2 |
+| `channelLabel` | 278 | function |  | 2 |
+| `channelState` | 288 | function |  | 2 |
+| `channelRowHtml` | 296 | function |  | 1 |
+| `renderChannels` | 337 | function |  | 3 |
+| `findChannelRow` | 343 | function |  | 2 |
+| `setChannelRowState` | 351 | function |  | 2 |
+| `probeChannel` | 358 | function |  | 3 |
+| `loadChannels` | 390 | function |  | 3 |
 
 ## web/src/protocol/compare.ts（24 行）
 
@@ -1006,10 +1075,17 @@
 | `payloadEqual` | 4 | function |  | 2 |
 | `inputsEqual` | 16 | function | export | 1 |
 
-## web/src/protocol/types.ts（146 行）
+## web/src/protocol/types.ts（161 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
+
+## web/src/stores/channels.ts（62 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `ChannelsStore` | 10 | class | export | 1 |
+| `channelIdOf` | 57 | function | export | 3 |
 
 ## web/src/stores/workspace.ts（152 行）
 

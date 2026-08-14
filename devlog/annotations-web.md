@@ -627,3 +627,8 @@ efreshSelectionPanels()——sel 为空且已渲染过 → 直接 return 不重�
 - **浮窗位置兜底**：新增 `color.ts` 导出 `fitInViewport`；`openColorPicker` 有 position 时 clamp；`retarget` 检测越界则回 `next.position`（或 CSS 默认右上）；标题栏拖拽 `onMove` 改 `fitInViewport` 防拖出屏；preference 拖拽同样 clamp。
 - e2e round15：P7 拖拽方向改为向左下（避开右上默认触发 clamp）；**8 passed**。
 - 验证：tsc 0；vitest 82；e2e round15 8 passed。
+## v0.1.00106（2026-08-15）——关联注册大全面板（吊牌 HDA P1）
+- `protocol/types.ts` +`ChannelKind`/`ChannelRef` 镜像；`bridge/client.ts` +`_channelUrl`（`encodeURI` 去前导"/"，段间保留）+`listChannels/putChannel/heartbeatChannels/probeChannel`。
+- 新 `stores/channels.ts`：`ChannelsStore`（无框架 pub-sub，照 WorkspaceStore）+`channelIdOf`（param→absolutePath、其余 serial）+单例；refresh 吞错保留原状。
+- `overview.ts` 新增「关联注册大全」区块（**动态 DOM 挂 `.ov-main`，不改 overview.html**）：行 = label / kind 徽标 / id / 状态灯（lastSeen>150s 离线）/ 探测按钮（!alive→离线、alive&&!matched→失联、否则在线）；`overview.css` +`.ov-channels-head/.ov-row.channels/.ov-kind.*/.ov-seen.lost`（不碰 base/nodeview/viewport/dock/spreadsheet.css）。
+- 测试 +8（channelIdOf 三分支/upsert 同 key 替换/退订等）；tsc 0、vitest **194**。

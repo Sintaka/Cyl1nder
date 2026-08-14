@@ -9,6 +9,7 @@ import json
 import random
 import threading
 import time
+import urllib.parse
 import urllib.request
 
 BRIDGE_URL_DEFAULT = "http://127.0.0.1:8375"
@@ -104,6 +105,49 @@ class BridgeClient:
                 self.last_error = ""
         except Exception as exc:  # noqa: BLE001
             self.last_error = str(exc)
+
+    def put_channel(self, channel_id: str, ref: dict) -> bool:
+        """Register one channel via PUT {base}/api/channels/{quoted_id} (body=ref).
+
+        channel_id is the raw id (the tag serial, or an absolute param path); it
+        is normalized here: leading "/" stripped, then url-quoted with "/" kept.
+        Never raises - bridge down must never break the cook.
+        """
+        try:
+            quoted = urllib.parse.quote(str(channel_id).lstrip("/"), safe="/")
+            body = json.dumps(ref).encode("utf-8")
+            req = urllib.request.Request(
+                f"{self.bridge_url}/api/channels/{quoted}",
+                data=body,
+                headers={"Content-Type": "application/json"},
+                method="PUT",
+            )
+            with urllib.request.urlopen(req, timeout=2):
+                self.last_error = ""
+            return True
+        except Exception as exc:  # noqa: BLE001
+            self.last_error = str(exc)
+            return False
+
+    def heartbeat_channels(self, payload: dict) -> bool:
+        """POST {base}/api/hda/{self.serial}/channels/heartbeat (body=payload).
+
+        Never raises - bridge down must never break the cook.
+        """
+        try:
+            body = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                f"{self.bridge_url}/api/hda/{self.serial}/channels/heartbeat",
+                data=body,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=2):
+                self.last_error = ""
+            return True
+        except Exception as exc:  # noqa: BLE001
+            self.last_error = str(exc)
+            return False
 
     def pending_outputs(self, since: int) -> tuple[bool, int, bool, bool]:
         """Lightweight dirty check: (pending, rev, reset, force).

@@ -7,6 +7,7 @@ import threading
 import time
 from pathlib import Path
 
+from .channels import ChannelRegistry
 from .logs import LogRing
 from .protocol import (
     SYNC_FPS_DEFAULT,
@@ -28,6 +29,7 @@ class BridgeState:
     def __init__(self, data_dir: Path) -> None:
         self.data_dir = data_dir
         self.registry = SerialRegistry(data_dir / "registry.json")
+        self.channels = ChannelRegistry(data_dir / "channels.json")
         self.workspaces = WorkspaceStore()
         self.logs = LogRing()
         self.ui_layout = UiLayoutStore(data_dir / "ui-layout.json")

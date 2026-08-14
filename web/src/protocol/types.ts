@@ -73,6 +73,21 @@ export interface RegistryRecord {
   lastSeen: number;
 }
 
+// 关联注册（吊牌 HDA 通道）：bridge/bridge/channels.py channelRef 的 TS 镜像。
+// param 通道 id = absolutePath，tag/hda 通道 id = serial。
+export type ChannelKind = "tag" | "hda" | "param";
+
+export interface ChannelRef {
+  kind: ChannelKind;
+  serial?: string | null;
+  nodePath?: string | null;
+  absolutePath?: string | null;
+  hip: string;
+  label: string;
+  registeredAt: number;
+  lastSeen: number;
+}
+
 export interface StatusResponse {
   serial: string;
   registry: RegistryRecord | null;

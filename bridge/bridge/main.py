@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import compute  # noqa: F401  (registers executors)
+from .channel_routes import router as channel_routes_router
 from .houdini_routes import router as houdini_routes_router
 from .protocol import VERSION
 from .routes import router as rest_router
@@ -44,6 +45,7 @@ def create_app() -> FastAPI:
     app.include_router(rest_router)
     app.include_router(snapshot_routes_router)
     app.include_router(houdini_routes_router)
+    app.include_router(channel_routes_router)
     app.include_router(ws_router)
     get_state().logs.info("main", f"bridge up (v{VERSION})")
     return app

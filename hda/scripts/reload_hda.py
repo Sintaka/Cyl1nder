@@ -28,7 +28,7 @@ HFS = os.environ.get("HFS", r"C:\Program Files\Side Effects Software\Houdini 22.
 # cyl1nder_houdini_mcp has NO long-lived threads: its discovery runs on a
 # short-lived daemon thread (urllib only, no hou), so reload needs no extra
 # thread-stop step for it (unlike cyl1nder_sync's /stream loops).
-MODULES = ("cyl1nder_serializer", "cyl1nder_bridge", "cyl1nder_lifecycle", "cyl1nder_cache", "cyl1nder_houdini_mcp", "cyl1nder_geometry", "cyl1nder_sync", "cyl1nder_hda")
+MODULES = ("cyl1nder_serializer", "cyl1nder_bridge", "cyl1nder_lifecycle", "cyl1nder_cache", "cyl1nder_houdini_mcp", "cyl1nder_geometry", "cyl1nder_sync", "cyl1nder_hda", "cyl1nder_tag")
 
 
 def _stop_sync_threads() -> None:

@@ -1,4 +1,4 @@
-﻿/* Cyl1nder Overview 总管页面 — 与主应用同主题：背景 #141518 / 面板 #1b1e24 / 绿 #7ce3a8 / 蓝 #2e4f7d */
+/* Cyl1nder Overview 总管页面 — 与主应用同主题：背景 #141518 / 面板 #1b1e24 / 绿 #7ce3a8 / 蓝 #2e4f7d */
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
 body {
@@ -135,6 +135,25 @@ body {
   font-size: 12px;
 }
 .ov-open:hover { background: #3a6ea5; }
+
+/* ---- channels (关联注册大全) ---- */
+.ov-channels-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.ov-channels-head .ov-section-heading { margin: 0; flex: 1; }
+.ov-row.channels { grid-template-columns: minmax(150px, 1.3fr) 60px minmax(160px, 1.1fr) 110px 70px; }
+.ov-kind {
+  display: inline-block;
+  font: 10px/1.3 var(--cyl-font-ui);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid #33363c;
+  border-radius: 3px;
+  padding: 2px 6px;
+  color: #8f959e;
+}
+.ov-kind.tag { color: #7ce3a8; border-color: rgba(124, 227, 168, 0.4); }
+.ov-kind.hda { color: #9fd8ff; border-color: rgba(159, 216, 255, 0.4); }
+.ov-kind.param { color: #fbbf24; border-color: rgba(251, 191, 36, 0.4); }
+.ov-seen.lost .ov-state { color: #fbbf24; }
 
 /* ---- new scene ---- */
 .ov-new { display: flex; gap: 8px; flex-wrap: wrap; }

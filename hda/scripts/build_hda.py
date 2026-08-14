@@ -19,6 +19,12 @@ OUT = os.environ.get(
 INPUT_COUNT = 4
 PY_CODE = "import cyl1nder_hda\ncyl1nder_hda.cook(role={role})\n"
 
+TAG_OUT = os.environ.get(
+    "CYL1NDER_TAG_HDA_OUT",
+    os.path.join(ROOT, "otls", "Cyl1nderTag_1.0.hda"),
+)
+TAG_PY_CODE = "import cyl1nder_tag\ncyl1nder_tag.cook()\n"
+
 FORCE_COOK_CALLBACK = (
     "node = hou.pwd()\n"
     "for n in node.children():\n"
@@ -67,7 +73,7 @@ def _parm_group() -> hou.ParmTemplateGroup:
 
     serial = StringParmTemplate("cyl1nder_serial", "Serial", 1, default_value=("",))
     try:
-        serial.setTag("sidefx::hidden", "1")
+        serial.setTags({"sidefx::hidden": "1"})  # 复数 setTags（单数 setTag 在 H22 静默无效）
     except Exception:  # noqa: BLE001
         pass
     group.append(serial)
@@ -111,6 +117,102 @@ def _parm_group() -> hou.ParmTemplateGroup:
 
     group.append(StringParmTemplate("status", "Status", 1, default_value=("",)))
     return group
+
+
+def _tag_parm_group() -> hou.ParmTemplateGroup:
+    from hou import ParmTemplateGroup, StringParmTemplate
+
+    group = ParmTemplateGroup()
+
+    serial = StringParmTemplate("cyl1nder_serial", "Serial", 1, default_value=("",))
+    try:
+        serial.setTags({"sidefx::hidden": "1"})
+    except Exception:  # noqa: BLE001
+        pass
+    group.append(serial)
+
+    bridge = StringParmTemplate(
+        "bridge_url", "Bridge URL", 1, default_value=("http://127.0.0.1:8375",)
+    )
+    try:
+        bridge.setTags({"sidefx::hidden": "1"})
+    except Exception:  # noqa: BLE001
+        pass
+    group.append(bridge)
+
+    entries = StringParmTemplate("entries", "Entries", 1, default_value=("",))
+    try:
+        entries.setTags({"editor": "1"})  # multiline string editor
+    except Exception:  # noqa: BLE001
+        pass
+    group.append(entries)
+
+    return group
+
+
+def build_tag(output_path: str = TAG_OUT) -> hou.Node:
+    hou.hipFile.clear(suppress_save_prompt=True)
+    geo = hou.node("/obj").createNode("geo", "__cyl1nder_tag_build")
+    sub = geo.createNode("subnet", "cyl1ndertag")
+
+    # Single python SOP wired straight to the subnet's input 0 (indirect input),
+    # so node.input(0) resolves to the external upstream node. No output null:
+    # the tag is a pure side-attachment (1 in / 0 out, no geometry passthrough).
+    py = sub.createNode("python", "cyl1nder_tag_py")
+    py.parm("python").set(TAG_PY_CODE)
+    py.parm("maintainstate").set(0)
+    py.setInput(0, sub.indirectInputs()[0], 0)
+
+    sub.setParmTemplateGroup(_tag_parm_group())
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    hda_node = sub.createDigitalAsset(
+        name="Cyl1nderTag",
+        hda_file_name=output_path,
+        description="Cyl1nder Tag - hang-tag side attachment (1 in / 0 out)",
+        min_num_inputs=1,
+        max_num_inputs=1,
+        compress_contents=True,
+    )
+    d = hda_node.type().definition()
+    d.setVersion("1.0")
+    d.setComment(
+        "Cyl1nder Tag HDA. Internal python SOP imports cyl1nder_tag via PYTHONPATH "
+        "(hda/package/cyl1nder.json)."
+    )
+
+    # Node shape "slash" (Z-menu #22). setDefaultShape is the in-session type
+    # default; the node-level userData is what actually persists into the .hda
+    # (captured by updateFromNode below).
+    try:
+        hda_node.type().setDefaultShape("slash")
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        hda_node.setUserData("nodeshape", "slash")
+    except Exception:  # noqa: BLE001
+        pass
+
+    want = {"cyl1nder_serial", "bridge_url", "entries"}
+    existing = {t.name() for t in d.parmTemplateGroup().entries()}
+    if not want.issubset(existing):
+        d.setParmTemplateGroup(_tag_parm_group())
+
+    # Capture the node-level shape (nodeshape userData) into the definition.
+    try:
+        d.updateFromNode(hda_node)
+    except Exception:  # noqa: BLE001
+        pass
+
+    opts = hou.HDAOptions()
+    opts.setLockContents(False)
+    d.setOptions(opts)
+    d.save(output_path, create_backup=False)
+
+    print("HDA written:", output_path)
+    print("type:", hda_node.type().name(), "| inputs:", d.minNumInputs(), "to", d.maxNumInputs())
+    print("defaultShape:", hda_node.type().defaultShape())
+    return hda_node
 
 
 def build(output_path: str = OUT) -> hou.Node:
@@ -198,3 +300,4 @@ def build(output_path: str = OUT) -> hou.Node:
 
 if __name__ == "__main__":
     build()
+    build_tag()

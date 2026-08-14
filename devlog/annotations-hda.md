@@ -133,3 +133,10 @@
   - `sync_fps` 参数（默认 30，clamp 1..60）重新启用为**接收端速率上限**：`_stream_loop` 对 outputs/kick/reset 的「拉取 + recook 调度」≤ fps（latest-wins：窗口内事件只推进 last_seen，到点后下一次事件拉最新；`scheduled` 门控保留）。
   - `/stream` 事件 `fps` 字段可覆盖运行时上限（bridge 转发 web 的 Sync Max FPS）；无 web 时用 HDA 本地参数兜底。
   - 验证：hython 冒烟全绿（背靠背突发 5 连发 → 1 拉取/1 recook、窗口后拉最新 since=24、fps=10 事件更新运行时上限并节流、既有 stream/kick/cache/fast-path 不回归）。
+## v0.1.00106（2026-08-15）——吊牌 HDA Cyl1nderTag P1
+- **新资产 Cyl1nderTag**（`hda/otls/Cyl1nderTag_1.0.hda`）：纯侧挂 Subnet（**1 输入/0 输出**，无 output null），内层单个 python SOP `import cyl1nder_tag\ncyl1nder_tag.cook()`（maintainstate=0）；隐藏 parm `cyl1nder_serial`/`bridge_url`（复数 `setTags`），多行 parm `entries`（parm tag `editor:"1"`——H22 无 `stringParmType.Multiline`）。**外形 = `slash`（形状菜单第 22 号，实机 30 项序实测）**：`setDefaultShape` 仅会话内生效，跨进程持久化靠 `setUserData("nodeshape")` + `d.updateFromNode(hda_node)`（build 两者都做）。
+- **新模块 `hda/src/cyl1nder_tag.py`**：纯 stdlib+hou、零线程；cook 解析 entries（行/`;`/`#` 注释）→ `_resolve`（绝对直通；相对以第 0 输入上游为基准 posix normpath）→ 指纹 sha1[:16]（entries+upstream）→ 首次/变化 `register_channels`（1 tag + N param channelRef，registeredAt/lastSeen=0 服务端写），否则 ≥5s 节流心跳；无上游/无条目写 subnet userData 状态。param ref 的 `nodePath` = 吊牌自身路径（探测语义，合并期修正）。
+- **`cyl1nder_bridge.py`** +`put_channel`/`heartbeat_channels`（同步 urllib、timeout=2、吞异常记 last_error；channelId = lstrip("/") + quote(safe="/")）。
+- **`build_hda.py`** +`build_tag()`/`_tag_parm_group()`；顺手修既有 `_parm_group` 的 `setTag`→`setTags`（H22 复数才是真 API，原 serial 隐藏实为无效——既有问题顺手修）。
+- `reload_hda.py` MODULES +`cyl1nder_tag`；`hython_smoke.py` +吊牌 E2E（进程内 stub 随机端口，不碰真桥）+4 纯逻辑测试。
+- 验证：hython 冒烟全绿；实机 8100（beginTest-1.hip）热重载模块后搭 demo（null→xform→吊牌）：注册 tag+tx+ty 三通道、cook 心跳刷新 lastSeen、探测 alive+matched、runtime 改参 tx=3.5 落地。实机教训：改 hda/src 后必须先 `reload_cyl1nder()`，否则 HDA SOP 仍持旧模块（AttributeError put_channel）。
