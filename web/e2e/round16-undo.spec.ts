@@ -1,5 +1,6 @@
-﻿import { expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { BridgeClient } from "../src/bridge/client";
+import { toggleSyncEnabled } from "./fixtures";
 
 /**
  * Round 16 (viewport undo write-set): gizmo drags of transform params are ONE
@@ -143,6 +144,7 @@ async function releaseGizmo(page: import("@playwright/test").Page): Promise<void
 
 test("Auto Update: multi-frame gizmo drag = ONE undo entry; Ctrl+Z reverts the whole drag", async ({ page }) => {
   await openGraph(page);
+  await toggleSyncEnabled(page, true); // v0.1.00101 起推桥需 sync ON
   await restoreTransformGraph(page);
   await expect(page.locator(".cyl-bottom-bar .cyl-dd .cyl-menu-layout-name")).toHaveText("Auto Update");
   await enterTransformEdit(page);

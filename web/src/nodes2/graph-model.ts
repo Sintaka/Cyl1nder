@@ -69,6 +69,13 @@ export interface ReteGraph {
   getGraphVersion(): number;
   getNetworkSnapshot(): NetworkSnapshot;
   setNodeParams(nodeId: string, params: ParamSpec[]): boolean;
+  /** Toggle the bypass visual flag on the currently-selected connection; returns
+   *  false when no (live) connection is selected. Pure visual + persisted. */
+  toggleSelectedConnectionBypass(): boolean;
+  setConnectionBypass(id: string, on: boolean): void;
+  /** Start the flowing-dash runtime animation on the display node's upstream chain
+   *  for min(ms, 2000) ms (no-op when ms < 120). */
+  markRuntimeActivity(ms: number): void;
   undo(): void;
   redo(): void;
   pushUndo(action: UndoAction): void;
@@ -260,6 +267,44 @@ export function makeTransformNode(): CylNode {
   return n;
 }
 
+/** rete connection augmented with the wire-bypass visual flag. B-key toggles it
+ *  on the selected connection; it is persisted (serializeGraph) but NEVER read by
+ *  the compute path (getNetworkSnapshot / network.ts ignore it). */
+interface BypassConnection {
+  bypass?: boolean;
+}
+
+export function getConnectionBypass(conn: unknown): boolean {
+  return (conn as BypassConnection).bypass === true;
+}
+
+export function setConnectionBypassFlag(conn: unknown, on: boolean): void {
+  const c = conn as BypassConnection;
+  if (on) c.bypass = true;
+  else delete c.bypass;
+}
+
+/** Apply (or remove) the bypass visual class on a connection's rendered path.
+ *  Right after addConnection the view may not be rendered yet, so retry once on
+ *  the next animation frame before giving up. */
+export function applyConnectionBypassVisual(
+  area: AreaPlugin<Schemes, AreaExtra>,
+  id: string,
+  on: boolean,
+): void {
+  const apply = (): boolean => {
+    const path = area.connectionViews.get(id)?.element.querySelector("path");
+    if (!path) return false;
+    path.classList.toggle("cyl-wire-bypass", on);
+    return true;
+  };
+  if (!apply()) {
+    requestAnimationFrame(() => {
+      apply();
+    });
+  }
+}
+
 export function serializeGraph(
   editor: NodeEditor<Schemes>,
   area: AreaPlugin<Schemes, AreaExtra>,
@@ -285,12 +330,23 @@ export function serializeGraph(
   const connections = editor
     .getConnections()
     .filter((c) => nodeIds.has(c.source) && nodeIds.has(c.target))
-    .map((c) => ({
-      source: c.source,
-      sourceOutput: c.sourceOutput,
-      target: c.target,
-      targetInput: c.targetInput,
-    }));
+    .map((c) => {
+      const entry: {
+        source: string;
+        sourceOutput: string;
+        target: string;
+        targetInput: string;
+        bypass?: boolean;
+      } = {
+        source: c.source,
+        sourceOutput: c.sourceOutput,
+        target: c.target,
+        targetInput: c.targetInput,
+      };
+      // only emit the flag when true, so older snapshots stay byte-compatible
+      if (getConnectionBypass(c)) entry.bypass = true;
+      return entry;
+    });
   return { schemaVersion: 2, viewport: { ...area.area.transform }, nodes, connections };
 }
 
@@ -310,7 +366,7 @@ export async function restoreGraph(
       x: number;
       y: number;
     }[];
-    connections?: { source: string; sourceOutput: string; target: string; targetInput: string }[];
+    connections?: { source: string; sourceOutput: string; target: string; targetInput: string; bypass?: boolean }[];
     viewport?: { k: number; x: number; y: number };
   };
   if (!d?.nodes) return;
@@ -350,9 +406,13 @@ export async function restoreGraph(
       log(`restore skipped self-connection on ${src.label}`);
       continue;
     }
-    await editor.addConnection(
-      new ClassicPreset.Connection(src, c.sourceOutput, tgt, c.targetInput) as unknown as Schemes["Connection"],
-    );
+    const conn = new ClassicPreset.Connection(src, c.sourceOutput, tgt, c.targetInput) as unknown as Schemes["Connection"];
+    await editor.addConnection(conn);
+    if (c.bypass) {
+      // persist + re-style the bypass flag on the rebuilt connection
+      setConnectionBypassFlag(conn, true);
+      applyConnectionBypassVisual(area, conn.id, true);
+    }
   }
   if (d.viewport && d.viewport.k) {
     await area.area.zoom(d.viewport.k);

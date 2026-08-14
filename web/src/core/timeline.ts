@@ -4,12 +4,13 @@ export interface TimelineDeps {
   getInputs(): InputPayload[];
   getInputRev(): number;
   setInputs(inputs: InputPayload[], rev: number): void;
-  setFrame(f: number): void; // mirror 到 store（main.ts 传 store.setFrame）
+  setFrame(f: number): void; // mirror 到 store（main.ts 传 store.setFrame；store 不 emit）
   scheduleNetwork(): void;
   log(msg: string): void;
   /**
    * 本地帧改动（setFrame/step）后的回调，用于 web→Houdini 提交。
-   * main.ts 合并时注入 → 调 client.putTimeline(serial, frame)；受 linkEnabled && !dragging 门控。
+   * main.ts 合并时注入 → 调 client.putTimeline(serial, frame)。
+   * 门控：linkEnabled && syncFps 节流（拖动态不再抑制；频率受节流上限约束）。
    * 可选：缺省（本地模式）时无副作用，行为与旧版完全一致。
    */
   onFrameCommit?: (f: number) => void;
@@ -20,14 +21,16 @@ export interface TimelineController {
   readonly min: number;
   readonly max: number;
   readonly fps: number;
+  readonly syncFps: number; // web→Houdini 提交节流上限（clamp 1..60，默认 30）
   readonly linkEnabled: boolean; // Houdini 链接（双向同步）开关；默认 false = 本地模式
   hasFrame(f: number): boolean;
   captureFrame(frame: number, inputs: InputPayload[]): void;
   setFrame(f: number): void;
   step(delta: number): void; // ±1 或 ±10，钳制到 [min,max]
   setFps(fps: number): void; // 数值校验（>0 且有限），变更后 emit
+  setSyncFps(fps: number): void; // clamp 1..60；提交节流 = 1000/fps ms
   setLinkEnabled(b: boolean): void;
-  setDragging(b: boolean): void; // 拖动抑制标记：抑制 onFrameCommit 与 applyRemote
+  setDragging(b: boolean): void; // 拖动标记：仅抑制 applyRemote 回显（不抑制提交）
   applyRemote(frame: number, fps: number): void; // H→C：应用 Houdini 上报的帧/fps
   reset(): void;
   subscribe(fn: () => void): () => void;
@@ -42,8 +45,12 @@ export function createTimelineController(deps: TimelineDeps): TimelineController
   let min = 1;
   let max = 100;
   let fps = 30;
+  let syncFps = 30;
   let linkEnabled = false;
   let dragging = false;
+  // 模块内提交时间戳：以 performance.now() 为时钟，按 syncFps 节流 web→Houdini 提交。
+  // -Infinity 保证首次提交必发。
+  let lastCommit = -Infinity;
   const frameInputs = new Map<number, InputPayload[]>();
   const listeners = new Set<() => void>();
 
@@ -51,7 +58,7 @@ export function createTimelineController(deps: TimelineDeps): TimelineController
     for (const fn of listeners) fn();
   };
 
-  /** 本地改帧：收集快照回放 / 清空几何，并（链接时且非拖动态）提交帧到 Houdini。 */
+  /** 本地改帧：收集快照回放 / 清空几何，并按 syncFps 节流提交帧到 Houdini。 */
   const setFrame = (f: number): void => {
     frame = f;
     min = Math.min(min, f);
@@ -66,8 +73,15 @@ export function createTimelineController(deps: TimelineDeps): TimelineController
     }
     deps.scheduleNetwork();
     emit();
-    // web→Houdini：仅链接且非拖动态提交（拖动期间抑制，避免每 tick 都打 Houdini）。
-    if (linkEnabled && !dragging) deps.onFrameCommit?.(f);
+    // web→Houdini：链接时按 syncFps 节流提交（拖动态不再抑制——拖动期间也提交，
+    // 但连发（含播放 step 连发）被节流到 syncFps 上限，避免每 tick 都打 Houdini）。
+    if (linkEnabled) {
+      const now = performance.now();
+      if (now - lastCommit >= 1000 / syncFps) {
+        lastCommit = now;
+        deps.onFrameCommit?.(f);
+      }
+    }
   };
 
   return {
@@ -82,6 +96,9 @@ export function createTimelineController(deps: TimelineDeps): TimelineController
     },
     get fps() {
       return fps;
+    },
+    get syncFps() {
+      return syncFps;
     },
     get linkEnabled() {
       return linkEnabled;
@@ -111,6 +128,12 @@ export function createTimelineController(deps: TimelineDeps): TimelineController
       emit();
     },
 
+    setSyncFps(v: number): void {
+      if (!Number.isFinite(v)) return;
+      syncFps = Math.min(60, Math.max(1, v));
+      // 不 emit：syncFps 无响应式 UI 消费者，仅供节流计算与测试读取。
+    },
+
     setLinkEnabled(b: boolean): void {
       if (b === linkEnabled) return;
       linkEnabled = b;
@@ -120,11 +143,14 @@ export function createTimelineController(deps: TimelineDeps): TimelineController
     setDragging(b: boolean): void {
       if (b === dragging) return;
       dragging = b;
+      // 仅影响 applyRemote 回显抑制；不再抑制 onFrameCommit（提交改由 syncFps 节流）。
     },
 
     applyRemote(f: number, v: number): void {
       // H→C 仅当「非拖动态」且「已链接」时生效；否则忽略 Houdini 上报，保持本地。
       if (dragging || !linkEnabled) return;
+      // 非法帧（NaN/±Infinity）忽略，避免污染本地帧号。
+      if (!Number.isFinite(f)) return;
       // 静默更新 fps（不重复 emit，最终统一 emit 一次）。
       if (Number.isFinite(v) && v > 0) fps = v;
       frame = f;

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { InputPayload } from "../src/protocol/types";
 import { createTimelineController, type TimelineDeps } from "../src/core/timeline";
 
@@ -25,6 +25,10 @@ function makeDeps(inputRev = 5): TimelineDeps {
 }
 
 describe("TimelineController", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("has default range and fps", () => {
     const c = createTimelineController(makeDeps());
     expect(c.frame).toBe(1);
@@ -177,19 +181,97 @@ describe("TimelineController", () => {
     expect(deps.setFrame).not.toHaveBeenCalled();
   });
 
-  it("onFrameCommit fires on setFrame/step only when linked and not dragging", () => {
+  it("onFrameCommit fires only when linked, throttled to syncFps, not suppressed by dragging", () => {
     const deps = makeDeps();
     const c = createTimelineController(deps);
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+
     c.setFrame(5); // not linked -> no commit
     expect(deps.onFrameCommit).not.toHaveBeenCalled();
+
     c.setLinkEnabled(true);
-    c.setFrame(6);
-    expect(deps.onFrameCommit).toHaveBeenCalledWith(6);
+    c.setFrame(6); // first commit always fires (lastCommit = -Infinity)
+    expect(deps.onFrameCommit).toHaveBeenCalledTimes(1);
+    expect(deps.onFrameCommit).toHaveBeenLastCalledWith(6);
+
+    c.setFrame(7); // within throttle window (0 < 1000/30 ≈ 33.33ms) -> no commit
+    expect(deps.onFrameCommit).toHaveBeenCalledTimes(1);
+
     c.setDragging(true);
-    c.setFrame(7); // dragging -> no commit
+    c.setFrame(8); // dragging no longer suppresses, but still inside window -> throttled
     expect(deps.onFrameCommit).toHaveBeenCalledTimes(1);
     c.setDragging(false);
-    c.step(1); // 7 -> 8
-    expect(deps.onFrameCommit).toHaveBeenCalledWith(8);
+
+    now = 40; // advance past the 30fps throttle window
+    c.setFrame(9);
+    expect(deps.onFrameCommit).toHaveBeenCalledTimes(2);
+    expect(deps.onFrameCommit).toHaveBeenLastCalledWith(9);
+
+    now = 80;
+    c.step(1); // 9 -> 10; step path also commits when past window
+    expect(deps.onFrameCommit).toHaveBeenCalledTimes(3);
+    expect(deps.onFrameCommit).toHaveBeenLastCalledWith(10);
+
+    // dragging does NOT suppress commit: past window during drag still commits.
+    now = 120;
+    c.setDragging(true);
+    c.step(1); // 10 -> 11
+    expect(deps.onFrameCommit).toHaveBeenCalledTimes(4);
+    expect(deps.onFrameCommit).toHaveBeenLastCalledWith(11);
+    c.setDragging(false);
+  });
+
+  it("setSyncFps clamps to [1,60] and ignores non-finite", () => {
+    const c = createTimelineController(makeDeps());
+    expect(c.syncFps).toBe(30);
+    c.setSyncFps(60);
+    expect(c.syncFps).toBe(60);
+    c.setSyncFps(1000);
+    expect(c.syncFps).toBe(60);
+    c.setSyncFps(0);
+    expect(c.syncFps).toBe(1);
+    c.setSyncFps(-5);
+    expect(c.syncFps).toBe(1);
+    c.setSyncFps(NaN); // ignored -> stays 1
+    expect(c.syncFps).toBe(1);
+    c.setSyncFps(Infinity); // ignored -> stays 1
+    expect(c.syncFps).toBe(1);
+  });
+
+  it("setSyncFps adjusts the commit throttle window", () => {
+    const deps = makeDeps();
+    const c = createTimelineController(deps);
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+
+    c.setLinkEnabled(true);
+    c.setSyncFps(60); // throttle = ~16.67ms
+    c.setFrame(1);
+    expect(deps.onFrameCommit).toHaveBeenCalledTimes(1);
+
+    now = 10; // < 16.67ms -> throttled
+    c.setFrame(2);
+    expect(deps.onFrameCommit).toHaveBeenCalledTimes(1);
+
+    now = 20; // >= 16.67ms -> commit
+    c.setFrame(3);
+    expect(deps.onFrameCommit).toHaveBeenCalledTimes(2);
+  });
+
+  it("applyRemote ignores non-finite frame", () => {
+    const deps = makeDeps();
+    const c = createTimelineController(deps);
+    c.setLinkEnabled(true);
+    c.applyRemote(NaN, 24);
+    expect(c.frame).toBe(1);
+    expect(deps.setFrame).not.toHaveBeenCalled();
+    c.applyRemote(Infinity, 24);
+    expect(c.frame).toBe(1);
+    expect(deps.setFrame).not.toHaveBeenCalled();
+    // a finite frame still applies
+    c.applyRemote(12, 24);
+    expect(c.frame).toBe(12);
+    expect(deps.setFrame).toHaveBeenCalledWith(12);
   });
 });

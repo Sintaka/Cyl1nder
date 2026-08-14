@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { BridgeClient } from "../src/bridge/client";
+import { toggleSyncEnabled } from "./fixtures";
 
 /**
  * Round 6 (viewport write-set): Enter-edit mode persists across node selection
@@ -92,6 +93,7 @@ async function poll<T>(fn: () => Promise<T>, pred: (v: T) => boolean, ms = 8000,
 
 test("Enter edit persists across node selection change; gizmo drag still updates the entered transform node", async ({ page }) => {
   await openGraph(page);
+  await toggleSyncEnabled(page, true); // v0.1.00101 起推桥需 sync ON
   await restoreTransformGraph(page);
 
   // select the transform node, then activate Enter edit via the toolbar icon

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { BridgeClient } from "../src/bridge/client";
+import { toggleSyncEnabled } from "./fixtures";
 
 /**
  * Round 2 integrated E2E. Self-contained: beforeAll pushes a canonical input
@@ -207,6 +208,7 @@ test("viewport: F-frame keeps camera angle; Alt+RMB diagonal equals axis sensiti
 
 test("transform node: palette create + wire + param edit -> bridge outputs translated (group filter)", async ({ page }) => {
   await openGraph(page);
+  await toggleSyncEnabled(page, true); // v0.1.00101 起推桥需 sync ON
   // create transform via palette
   await page.mouse.move(500, 300);
   await page.keyboard.press("Tab");
@@ -277,7 +279,11 @@ test("Y cut: L-shaped polyline cuts a connection; Ctrl+Z undo / Ctrl+Y redo", as
       for (let t = len * 0.25; t <= len * 0.75; t += len / 30) {
         const p = path.getPointAtLength(t);
         const sp = new DOMPoint(p.x, p.y).matrixTransform(ctm);
+        // visible-box guard: the bottom bar now has two rows, so the graph panel
+        // is shorter — only accept points that are actually inside the panel,
+        // otherwise elementFromPoint hits dock chrome below the clipped SVG.
         if (sp.x < box.left + 40 || sp.x > box.right - 40) continue;
+        if (sp.y < box.top + 24 || sp.y > box.bottom - 24) continue;
         const el = document.elementFromPoint(sp.x, sp.y);
         if (el && !el.closest(".cyl-rp-node") && !el.closest("button")) return { x: sp.x, y: sp.y };
       }
@@ -287,11 +293,13 @@ test("Y cut: L-shaped polyline cuts a connection; Ctrl+Z undo / Ctrl+Y redo", as
   expect(spot).not.toBeNull();
 
   const before = await count();
+  // click-cut: holding Y, a plain click on a wire cuts the connection under the
+  // cursor (the polyline-drag branch is geometry-sensitive: the 264px-wide
+  // input node covers fixed drag start offsets, and the shorter graph panel
+  // clips the lower canonical wires).
   await page.keyboard.down("y");
-  await page.mouse.move(spot!.x - 40, spot!.y);
+  await page.mouse.move(spot!.x, spot!.y);
   await page.mouse.down();
-  await page.mouse.move(spot!.x, spot!.y, { steps: 4 });
-  await page.mouse.move(spot!.x, spot!.y + 40, { steps: 4 });
   await page.mouse.up();
   await page.keyboard.up("y");
   await expect.poll(count, { timeout: 5000 }).toBe(before - 1);
@@ -308,7 +316,13 @@ test("insertion: inserted node is kept clear of its source node", async ({ page 
   const beforeNullIds = await page.evaluate(() =>
     (window as any).__cylGraph.editor.getNodes().filter((n: any) => n.kind === "null").map((n: any) => n.id),
   );
-  await page.mouse.move(500, 300);
+  // create the palette node INSIDE the visible graph panel (two-row bottom bar
+  // shrinks the panel; a node created at a fixed off-panel point can't be grabbed)
+  const paletteSpot = await page.evaluate(() => {
+    const box = document.querySelector(".cyl-graph")!.getBoundingClientRect();
+    return { x: box.left + box.width * 0.55, y: box.top + box.height * 0.55 };
+  });
+  await page.mouse.move(paletteSpot.x, paletteSpot.y);
   await page.keyboard.press("Tab");
   await page.locator(".cyl-palette-input").fill("null");
   await page.keyboard.press("Enter");
@@ -337,6 +351,9 @@ test("insertion: inserted node is kept clear of its source node", async ({ page 
       for (let t = len * 0.05; t <= len * 0.5; t += len / 40) {
         const p = path.getPointAtLength(t);
         const sp = new DOMPoint(p.x, p.y).matrixTransform(ctm);
+        // visible-box guard (see Y-cut test): only accept points inside the panel
+        if (sp.x < rect.left + 24 || sp.x > rect.right - 24) continue;
+        if (sp.y < rect.top + 24 || sp.y > rect.bottom - 24) continue;
         const areaX = (sp.x - rect.left - g.area.area.transform.x) / g.area.area.transform.k;
         if (areaX > minX + 20) continue;
         const el = document.elementFromPoint(sp.x, sp.y);

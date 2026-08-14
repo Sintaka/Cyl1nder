@@ -1,5 +1,13 @@
 # Web 子系统改动标注 / Web annotations
 
+## v0.1.00103（2026-08-14）· 优化轮：时间轴两行/地址栏/线段 bypass+运行时流动/顺滑化
+- **app/layout.ts + styles/base.css**：底部栏纵向两行（行1=时间轴满宽；行2=Sync Max FPS+Sync 开关+Update Mode 靠右 `margin-left:auto`）；两个模板同步；ID 全部保留。
+- **app/address-bar.ts（新）+ tests/address-bar.test.ts（新，16 例）**：explorer 式地址栏（分段按钮点击跳转/复制；点击空白处或双击变输入框；Enter 跳转/Esc 取消/blur 回分段；Tab 补全 preventDefault+stopPropagation，多候选循环；纯内联样式零 CSS）；main.ts 粘合（navigate=serial 校验跳转/当前图 frame，getCompletions=listSerials 前缀过滤，updateGraphAddress 改 setAddress + 变更才刷新）。
+- **nodes2/graph.ts + graph-interact.ts + graph-model.ts + core/shortcuts.ts + styles/nodeview.css**：线段选中（点击/Esc 取消，`cyl-wire-selected`）→ **B 键 bypass**（`cyl-wire-bypass` 虚线 + brightness(0.65) saturate(0.5)，shortcuts 先 `tryWireBypass?.()` 再回落 toggleDebug）；serializeGraph 连接条目 `bypass?: boolean`（仅 true 输出，restore 兼容缺省 + rAF 补视觉）；**运行时流动**（core/network.ts `onRunTiming(ms)` → `graph.markRuntimeActivity(ms)`：<120ms 跳过、≤2s 动画、display 链线段 `cyl-wire-runtime` + `cyl-flow` keyframes、按 id 防 timer 堆积）。
+- **core/timeline.ts + core/session.ts + stores/workspace.ts + tests/timeline.test.ts（17 例）**：`setSyncFps` clamp 1..60 + 提交节流 `1000/fps`（拖动态不再抑制提交，只抑制 applyRemote 回显）；`applyRemote` 校验有限帧；session 处理 WS `{type:"timeline"}` → `applyTimeline`；**store.setFrame 不再 emit**（frame 镜像无响应式消费者，消除 4Hz 全店刷新）；main.ts 粘合（setSyncFps(prefs)+变更联动、applyTimeline 点亮链接、兜底轮询 1s、onRunTiming→markRuntimeActivity、tryWireBypass→toggleSelectedConnectionBypass）。
+- **e2e 修复（主进程合并期）**：round21/round22 gotoApp 带 `?serial=`（index.html 无 serial 重定向 Overview，旧骨架从未适配）；round2 Y-cut 改「按住 Y 单击剪切」分支 + 目标点加可见面板 y 边界、insertion 改面板内建点 + 可见边界（两行底部栏使面板变矮 ~32px，旧测试对面板几何过度敏感；Y-cut 基线即已失败，本轮一并修复）；10 个推桥类 spec 加 `toggleSyncEnabled(page, true)` 适配 sync 默认 OFF（round2 transform/round10/12/16/17/19/4/5/6/7-viewport）；round10 另需 addInitScript 种 `sync_enabled` + `lastSceneSerial`（否则首连发生在加载时、且磁盘 Preference.json 会覆盖种子）；**playwright.config 加 `workers:1` + `fullyParallel:false`**（spec 共享 live bridge 的 per-serial 状态，并行交叉干扰）。
+- 验证：tsc 0 / vitest 186 / e2e 86 passed + 1 skipped。
+
 ## v0.1.00102（2026-08-14）· 时间轴双向同步（fxhoudinimcp 通道）
 - **protocol/types.ts**：`TimelineMsg/TimelineState/HoudiniHealth/HoudiniStatus`。
 - **bridge/client.ts**：`getTimeline/putTimeline/getHoudini/putHoudiniMcp/houdiniCmd/houdiniPython`。

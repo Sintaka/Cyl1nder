@@ -7,6 +7,15 @@ Endpoints:
 - POST   /api/hda/{serial}/houdini/cmd      command proxy (allow-listed namespaces)
 - POST   /api/hda/{serial}/houdini/python   code.execute_python proxy
 
+Timeline sync is rate-limited to the per-serial sync max fps in both directions:
+- Houdini -> web is a resident per-serial asyncio poller: GET /timeline marks a
+  consumer and ensures the poller runs; the poller ticks at _get_interval and pushes
+  frame/fps changes over WS. When no GET has happened for _TL_IDLE seconds (no
+  consumer) the poller stops and clears its registration.
+- web -> Houdini (PUT /timeline) is latest-wins throttled at _get_set_interval:
+  frames inside the window only update the pending value and a single call_later
+  flush sends the newest pending frame at the window edge.
+
 Mounted into the app by main.py at merge time (this file must not edit main.py).
 Blocking Houdini calls go through asyncio.to_thread and only ever target module-
 level houdini_mcp.* functions (no lambda closures capturing bridge state).
@@ -32,14 +41,46 @@ router = APIRouter()
 # _TL[serial] = {"frame", "fps", "source" ("hou"|"web"), "ts", "mcpAt"}
 _LOCK = threading.Lock()
 _TL: dict[str, dict] = {}
-# monotonic ts of the last set_frame per serial (>=0.1s throttle)
+# monotonic ts of the last set_frame initiation per serial (web->Houdini throttle)
 _LAST_SET: dict[str, float] = {}
 # monotonic ts of the last registry mcpPort writeback per serial (30s throttle)
 _LAST_WRITEBACK: dict[str, float] = {}
+# monotonic ts of the last GET /timeline per serial (poller consumer heartbeat)
+_LAST_CONSUME: dict[str, float] = {}
+# resident poller tasks per serial (created by ensure_poller, cleared on idle/exit)
+_POLLERS: dict[str, asyncio.Task] = {}
+# in-flight get_frame task per serial (poller single-flight)
+_IN_FLIGHT: dict[str, asyncio.Task] = {}
+# consecutive get_frame failure count per serial (poller backoff)
+_FAIL_STREAK: dict[str, int] = {}
+# monotonic ts until which the poller rests after a failure streak
+_FAIL_REST: dict[str, float] = {}
+# monotonic ts of the last failed port resolution (2s short cache)
+_PORT_FAIL_CACHE: dict[str, float] = {}
+# latest pending frame per serial (PUT /timeline latest-wins)
+_PENDING_SET: dict[str, float] = {}
+# set_frame in-flight flag per serial (PUT /timeline single-flight)
+_SET_FLIGHT: dict[str, bool] = {}
+# call_later flush handles per serial (PUT /timeline latest-wins flush)
+_SET_TIMERS: dict[str, asyncio.TimerHandle] = {}
 
-_WRITEBACK_INTERVAL = 30.0   # seconds between registry mcpPort disk writes
-_SET_MIN_INTERVAL = 0.1      # seconds between set_frame calls per serial
-_TIMELINE_REFRESH = 0.25     # seconds between get_frame refreshes in GET /timeline
+_WRITEBACK_INTERVAL = 30.0     # seconds between registry mcpPort disk writes
+_TL_IDLE = 10.0                # seconds without a GET before the poller stops
+_POLL_FAIL_MAX = 3             # consecutive get_frame failures before resting
+_POLL_FAIL_REST = 2.0          # seconds to rest after a failure streak
+_PORT_FAIL_CACHE_TTL = 2.0     # seconds to skip full discovery after a failed resolve
+_GET_MIN_INTERVAL = 0.066      # 66ms floor -> ~15Hz max get poll regardless of fps
+_SET_MIN_INTERVAL = 0.033      # 33ms floor for set_frame regardless of fps
+
+
+def _get_interval(serial: str) -> float:
+    """Get-poll interval in seconds: max(66ms, 1000/fps). fps=30 -> 66ms, fps=1 -> 1s."""
+    return max(_GET_MIN_INTERVAL, 1.0 / get_state().get_sync_fps(serial))
+
+
+def _get_set_interval(serial: str) -> float:
+    """Set throttle interval in seconds: max(33ms, 1000/fps)."""
+    return max(_SET_MIN_INTERVAL, 1.0 / get_state().get_sync_fps(serial))
 
 
 def _check_serial(serial: str) -> None:
@@ -54,20 +95,31 @@ def _tl_default() -> dict:
 def _resolve_port(serial: str) -> int:
     """Resolve the Houdini MCP port for a serial: registry.mcpPort, else discover
     by hip file, else first reachable port. A discovered port is written back to
-    the registry (throttled to 30s so discovery never hammers the disk)."""
+    the registry (throttled to 30s so discovery never hammers the disk). A failed
+    discovery is short-cached for _PORT_FAIL_CACHE_TTL seconds so repeated requests
+    while Houdini is down don't rescan all 16 ports."""
     st = get_state()
+    now = time.monotonic()
     rec = st.registry.get(serial)
+    with _LOCK:
+        fail_at = _PORT_FAIL_CACHE.get(serial, 0.0)
+        if fail_at and now - fail_at < _PORT_FAIL_CACHE_TTL:
+            return rec.mcpPort if rec else 0
     port = rec.mcpPort if rec else 0
     if port:
+        with _LOCK:
+            _PORT_FAIL_CACHE.pop(serial, None)
         return port
     hip = rec.hip if rec else ""
     port = houdini_mcp.discover_by_hip(hip) or 0
     if not port:
         port = houdini_mcp.discover_first() or 0
     if not port:
+        with _LOCK:
+            _PORT_FAIL_CACHE[serial] = now
         return 0
-    now = time.monotonic()
     with _LOCK:
+        _PORT_FAIL_CACHE.pop(serial, None)
         throttled = now - _LAST_WRITEBACK.get(serial, 0.0) < _WRITEBACK_INTERVAL
         if not throttled:
             _LAST_WRITEBACK[serial] = now
@@ -76,37 +128,146 @@ def _resolve_port(serial: str) -> int:
     return port
 
 
+# --- resident poller (Houdini -> web timeline push) -------------------------
+
+
+def _poller_done(serial: str, task: asyncio.Task) -> None:
+    with _LOCK:
+        if _POLLERS.get(serial) is task:
+            _POLLERS.pop(serial, None)
+
+
+def _inflight_done(serial: str, task: asyncio.Task) -> None:
+    with _LOCK:
+        if _IN_FLIGHT.get(serial) is task:
+            _IN_FLIGHT.pop(serial, None)
+
+
+def ensure_poller(serial: str) -> None:
+    """Idempotently start the per-serial resident timeline poller (event-loop task)."""
+    with _LOCK:
+        task = _POLLERS.get(serial)
+        if task is not None and not task.done():
+            return
+        _POLLERS.pop(serial, None)
+    loop = asyncio.get_running_loop()
+    task = loop.create_task(_poller_loop(serial))
+    with _LOCK:
+        _POLLERS[serial] = task
+    task.add_done_callback(lambda t, s=serial: _poller_done(s, t))
+
+
+async def _poller_loop(serial: str) -> None:
+    """Tick every _get_interval: single-flight get_frame; idle-stop after _TL_IDLE."""
+    while True:
+        interval = _get_interval(serial)
+        try:
+            now = time.monotonic()
+            with _LOCK:
+                last_consume = _LAST_CONSUME.get(serial, 0.0)
+            if now - last_consume > _TL_IDLE:
+                return  # idle-stop; the done callback clears _POLLERS
+            with _LOCK:
+                rest_until = _FAIL_REST.get(serial, 0.0)
+            if now < rest_until:
+                await asyncio.sleep(interval)
+                continue
+            port = await asyncio.to_thread(_resolve_port, serial)
+            if not port:
+                await asyncio.sleep(interval)  # no Houdini yet: retry next tick
+                continue
+            with _LOCK:
+                inflight = _IN_FLIGHT.get(serial)
+            if inflight is not None and not inflight.done():
+                await asyncio.sleep(interval)  # previous round still running: skip
+                continue
+            task = asyncio.create_task(_get_frame_once(serial, port))
+            with _LOCK:
+                _IN_FLIGHT[serial] = task
+            task.add_done_callback(lambda t, s=serial: _inflight_done(s, t))
+        except Exception as exc:  # noqa: BLE001 - a tick error must not kill the poller
+            get_state().logs.error("houdini", f"poller tick failed: {exc}", serial)
+        await asyncio.sleep(interval)
+
+
+async def _get_frame_once(serial: str, port: int) -> None:
+    try:
+        data = await asyncio.to_thread(houdini_mcp.get_frame, port)
+    except Exception as exc:
+        with _LOCK:
+            streak = _FAIL_STREAK.get(serial, 0) + 1
+            _FAIL_STREAK[serial] = streak
+            if streak >= _POLL_FAIL_MAX:
+                _FAIL_STREAK[serial] = 0
+                _FAIL_REST[serial] = time.monotonic() + _POLL_FAIL_REST
+        get_state().logs.error("houdini", f"get_frame failed: {exc}", serial)
+        return
+    with _LOCK:
+        _FAIL_STREAK[serial] = 0
+        _FAIL_REST.pop(serial, None)
+    try:
+        await _apply_frame(serial, data)
+    except Exception as exc:  # noqa: BLE001 - broadcast errors must not kill the poller
+        get_state().logs.error("houdini", f"apply frame failed: {exc}", serial)
+
+
+async def _apply_frame(serial: str, data: dict) -> None:
+    """Merge a get_frame result into _TL and broadcast only when frame/fps changed."""
+    frame = data.get("frame")
+    fps = data.get("fps")
+    now = time.time()
+    changed = False
+    with _LOCK:
+        tl = _TL.get(serial)
+        if tl is None:
+            tl = _tl_default()
+            _TL[serial] = tl
+        if isinstance(frame, (int, float)) and math.isfinite(frame):
+            if abs(float(frame) - tl["frame"]) > 0.001:
+                tl["frame"] = float(frame)
+                changed = True
+        if isinstance(fps, (int, float)) and math.isfinite(fps):
+            if abs(float(fps) - tl["fps"]) > 0.001:
+                tl["fps"] = float(fps)
+                changed = True
+        tl["mcpAt"] = now
+        if changed:
+            tl["source"] = "hou"
+            tl["ts"] = now
+            out_frame = tl["frame"]
+            out_fps = tl["fps"]
+            out_ts = tl["ts"]
+    if changed:
+        await manager.broadcast(
+            serial,
+            {"type": "timeline", "frame": out_frame, "fps": out_fps, "source": "hou", "ts": out_ts},
+        )
+
+
 @router.get("/api/hda/{serial}/timeline")
 async def get_timeline(serial: str) -> dict:
     _check_serial(serial)
-    # port resolution scans up to 16 ports -> run off the event loop
     port = await asyncio.to_thread(_resolve_port, serial)
     now = time.time()
     with _LOCK:
-        tl = _TL.get(serial)
-        mcp_at = tl["mcpAt"] if tl else 0.0
-    if port and (now - mcp_at > _TIMELINE_REFRESH):
+        had_poller = serial in _POLLERS
+        _LAST_CONSUME[serial] = time.monotonic()
+    ensure_poller(serial)
+    with _LOCK:
+        tl = dict(_TL.get(serial, _tl_default()))
+    interval = _get_interval(serial)
+    # first-screen fast path: no resident poller yet and the cache is stale -> one
+    # inline refresh so the very first response already carries real data (cache
+    # refresh is otherwise owned by the poller, not by GET).
+    if (not had_poller) and port and (now - tl["ts"] > 2 * interval):
         try:
             data = await asyncio.to_thread(houdini_mcp.get_frame, port)
         except Exception as exc:  # failure only logs; cache keeps its last value
             get_state().logs.error("houdini", f"get_frame failed: {exc}", serial)
         else:
-            with _LOCK:
-                tl = _TL.get(serial)
-                if tl is None:
-                    tl = _tl_default()
-                    _TL[serial] = tl
-                frame = data.get("frame")
-                fps = data.get("fps")
-                if isinstance(frame, (int, float)) and math.isfinite(frame):
-                    tl["frame"] = float(frame)
-                if isinstance(fps, (int, float)) and math.isfinite(fps):
-                    tl["fps"] = float(fps)
-                tl["source"] = "hou"
-                tl["ts"] = now
-                tl["mcpAt"] = now
-    with _LOCK:
-        tl = dict(_TL.get(serial, _tl_default()))
+            await _apply_frame(serial, data)
+        with _LOCK:
+            tl = dict(_TL.get(serial, _tl_default()))
     return {
         "serial": serial,
         "frame": tl["frame"],
@@ -130,27 +291,86 @@ async def put_timeline(serial: str, payload: TimelinePut) -> dict:
     port = await asyncio.to_thread(_resolve_port, serial)
     if not port:
         return {"ok": False, "error": "houdini mcp not reachable", "mcp_port": 0}
+    interval = _get_set_interval(serial)
+    now = time.monotonic()
     with _LOCK:
-        throttled = time.monotonic() - _LAST_SET.get(serial, 0.0) < _SET_MIN_INTERVAL
-        if not throttled:
-            _LAST_SET[serial] = time.monotonic()
-    if throttled:
+        _PENDING_SET[serial] = frame
+        last = _LAST_SET.get(serial, 0.0)
+        in_flight = _SET_FLIGHT.get(serial, False)
+    if in_flight:
+        # a set is running; the sender re-arms a flush for this pending on completion
         return {"ok": True, "frame": float(frame), "mcp_port": port, "throttled": True}
-    try:
-        await asyncio.to_thread(houdini_mcp.set_frame, port, frame)
-    except Exception as exc:
-        get_state().logs.error("houdini", f"set_frame failed: {exc}", serial)
-        return {"ok": False, "error": str(exc), "mcp_port": port}
-    ts = time.time()
-    with _LOCK:
-        tl = _TL.get(serial)
-        if tl is None:
-            tl = _tl_default()
-            _TL[serial] = tl
-        tl["frame"] = float(frame)
-        tl["source"] = "web"
-        tl["ts"] = ts
+    if now - last < interval:
+        _arm_set_flush(serial, port, interval - (now - last))
+        return {"ok": True, "frame": float(frame), "mcp_port": port, "throttled": True}
+    err = await _send_pending(serial, port)
+    if err is not None:
+        return {"ok": False, "error": err, "mcp_port": port}
     return {"ok": True, "frame": float(frame), "mcp_port": port}
+
+
+def _arm_set_flush(serial: str, port: int, delay: float) -> None:
+    """Arm a single call_later flush of the latest pending frame (latest-wins)."""
+    loop = asyncio.get_running_loop()
+    with _LOCK:
+        existing = _SET_TIMERS.get(serial)
+        if existing is not None and not existing.cancelled():
+            return  # flush already armed; latest pending is picked up at fire time
+        handle = loop.call_later(delay, lambda: loop.create_task(_flush_pending(serial, port)))
+        _SET_TIMERS[serial] = handle
+
+
+async def _flush_pending(serial: str, port: int) -> None:
+    with _LOCK:
+        _SET_TIMERS.pop(serial, None)
+        in_flight = _SET_FLIGHT.get(serial, False)
+        pending = _PENDING_SET.get(serial)
+    if in_flight or pending is None:
+        return
+    await _send_pending(serial, port)
+
+
+async def _send_pending(serial: str, port: int) -> str | None:
+    """Send the latest pending frame to Houdini (single-flight). Returns an error
+    message on failure, else None. Re-arms a flush if newer frames arrived mid-send."""
+    with _LOCK:
+        pending = _PENDING_SET.pop(serial, None)
+        if pending is None:
+            return None
+        _SET_FLIGHT[serial] = True
+        _LAST_SET[serial] = time.monotonic()
+    err: str | None = None
+    try:
+        await asyncio.to_thread(houdini_mcp.set_frame, port, pending)
+    except Exception as exc:
+        err = str(exc)
+        get_state().logs.error("houdini", f"set_frame failed: {exc}", serial)
+    else:
+        ts = time.time()
+        with _LOCK:
+            tl = _TL.get(serial)
+            if tl is None:
+                tl = _tl_default()
+                _TL[serial] = tl
+            tl["frame"] = float(pending)
+            tl["source"] = "web"
+            tl["ts"] = ts
+            out_frame = tl["frame"]
+            out_fps = tl["fps"]
+        try:
+            await manager.broadcast(
+                serial,
+                {"type": "timeline", "frame": out_frame, "fps": out_fps, "source": "web", "ts": ts},
+            )
+        except Exception as exc:  # noqa: BLE001 - broadcast is best-effort
+            get_state().logs.error("houdini", f"broadcast failed: {exc}", serial)
+    finally:
+        with _LOCK:
+            _SET_FLIGHT[serial] = False
+            more_pending = serial in _PENDING_SET
+    if more_pending:
+        _arm_set_flush(serial, port, _get_set_interval(serial))
+    return err
 
 
 class HouTimelinePut(BaseModel):

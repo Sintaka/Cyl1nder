@@ -1,5 +1,6 @@
-﻿import { expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { BridgeClient } from "../src/bridge/client";
+import { toggleSyncEnabled } from "./fixtures";
 
 /**
  * Round 10: HDA kick on first connect.
@@ -47,6 +48,21 @@ test("first connect kicks; reconnects within 5s do NOT re-kick, after 5s they do
   let wsConnections = 0;
   page.on("websocket", () => { wsConnections += 1; });
 
+  // v0.1.00101 起 sync 默认 OFF（OFF 不 kick）——本 spec 验证「首连即 kick」，
+  // 必须在页面脚本运行前把 sync_enabled 种进 localStorage（首连发生在加载时）。
+  // 同时种 lastSceneSerial：否则快照加载会把磁盘 Preference.json 的
+  // sync_enabled=false 应用回来，把种子覆盖掉（applyLoadedPreference 只在
+  // lastSceneSerial 与当前 serial 不同时才应用磁盘偏好）。
+  await page.addInitScript((serial) => {
+    try {
+      const key = "cyl1nder.prefs";
+      const cur = JSON.parse(localStorage.getItem(key) || "{}");
+      localStorage.setItem(key, JSON.stringify({ ...cur, sync_enabled: true }));
+      localStorage.setItem("cyl1nder.lastSceneSerial", serial);
+    } catch {
+      /* fresh context -> leave as-is */
+    }
+  }, serial);
   await page.goto(`http://127.0.0.1:8376/?serial=${serial}`);
 
   // dockview lazily mounts inactive tab content: activate the Log tab to surface

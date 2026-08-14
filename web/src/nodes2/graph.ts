@@ -23,6 +23,8 @@ import type { UndoAction } from "./undo";
 import {
   CylNode,
   DEFAULT_FLAGS,
+  applyConnectionBypassVisual,
+  getConnectionBypass,
   makeInputNode,
   makeOutputNode,
   nodeByKind,
@@ -34,10 +36,12 @@ import {
   serializeGraph,
   restoreGraph,
   getNetworkSnapshot,
+  setConnectionBypassFlag,
   log,
 } from "./graph-model";
 import type { AreaExtra, NodeKind, ParamSpec, ReteGraphHandlers, ReteGraph, Schemes } from "./graph-model";
 import {
+  attachConnectionSelect,
   attachCutMode,
   attachDotGrid,
   attachFlagMenu,
@@ -47,6 +51,8 @@ import {
   attachRectSelect,
   attachShakeDisconnect,
   attachTabSearch,
+  clearConnectionSelection,
+  getSelectedConnectionId,
   initTooltip,
   setNodeStateHandler,
   setRenameHandler,
@@ -57,6 +63,29 @@ import { createGraphUndoManager } from "./graph-undo";
 export type { NodeKind, NodeFlags, ParamSpec, SelectedNodeInfo, ReteGraphHandlers, ReteGraph } from "./graph-model";
 export { DEFAULT_FLAGS, CylNode, makeNullNode, makeTransformNode } from "./graph-model";
 export { setNodeStateHandler, fireNodeState, setRenameHandler, fireRename, initTooltip, showTooltip, hideTooltip } from "./graph-interact";
+
+/** Connection ids on the display node's upstream in0 chain (input -> ... -> display),
+ *  following null/transform/dot passthrough edges. Used by the runtime-flow
+ *  animation so only the wires that actually cooked light up. */
+function displayChainConnectionIds(editor: NodeEditor<Schemes>): string[] {
+  const disp = editor.getNodes().find((n) => (n as CylNode).flags.display) as CylNode | undefined;
+  if (!disp) return [];
+  const ids: string[] = [];
+  const visited = new Set<string>();
+  let cur: CylNode | undefined = disp;
+  while (cur && !visited.has(cur.id)) {
+    const node = cur; // narrowed CylNode (stable across the closure below)
+    visited.add(node.id);
+    if (node.kind === "input") break; // reached the source; no further upstream
+    const conn = editor.getConnections().find(
+      (c) => c.target === node.id && c.targetInput === "in0",
+    ) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
+    if (!conn) break;
+    ids.push(conn.id);
+    cur = editor.getNode(conn.source) as CylNode | undefined;
+  }
+  return ids;
+}
 
 async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
   const editor = new NodeEditor<Schemes>();
@@ -192,6 +221,7 @@ export async function createReteGraph(
   attachReconnect(g.editor, g.area, container, handlers, undoManager);
   attachRectSelect(g.editor, g.area, container, g.selectable);
   attachShakeDisconnect(g.editor, g.area, container, handlers, undoManager);
+  attachConnectionSelect(g.area, container);
 
   // Ctrl/Cmd+Z = undo, Ctrl+Shift+Z / Ctrl+Y = redo (skip while typing).
   window.addEventListener("keydown", (e) => {
@@ -299,6 +329,46 @@ export async function createReteGraph(
   // must trigger a deferred cook via the pipe's after events.
   g.cookState.ready = true;
 
+  // --- connection bypass (B key) + runtime-flow animation (network timing) ---
+  // Bypass is a pure visual + persisted marker (serializeGraph); it never affects
+  // compute semantics. Runtime timers are keyed by connection id so a repeat
+  // trigger clears the previous timer instead of stacking.
+  const runtimeTimers = new Map<string, number>();
+  const setConnectionBypass = (id: string, on: boolean): void => {
+    const conn = g.editor.getConnection(id);
+    if (!conn) return;
+    setConnectionBypassFlag(conn, on);
+    applyConnectionBypassVisual(g.area, id, on);
+    log(`wire ${id} bypass=${on}`);
+  };
+  const toggleSelectedConnectionBypass = (): boolean => {
+    const id = getSelectedConnectionId();
+    if (!id) return false;
+    const conn = g.editor.getConnection(id);
+    if (!conn) {
+      clearConnectionSelection(g.area); // stale selected id (wire removed)
+      return false;
+    }
+    setConnectionBypass(id, !getConnectionBypass(conn));
+    return true;
+  };
+  const markRuntimeActivity = (ms: number): void => {
+    if (ms < 120) return; // skip fast cooks to avoid flashing
+    const duration = Math.min(ms, 2000);
+    for (const id of displayChainConnectionIds(g.editor)) {
+      const path = g.area.connectionViews.get(id)?.element.querySelector("path");
+      if (!path) continue;
+      const old = runtimeTimers.get(id);
+      if (old !== undefined) window.clearTimeout(old);
+      path.classList.add("cyl-wire-runtime");
+      const timer = window.setTimeout(() => {
+        runtimeTimers.delete(id);
+        path.classList.remove("cyl-wire-runtime");
+      }, duration);
+      runtimeTimers.set(id, timer);
+    }
+  };
+
   return {
     editor: g.editor,
     area: g.area,
@@ -365,5 +435,8 @@ export async function createReteGraph(
       notifyNodeChanged();
       return true;
     },
+    toggleSelectedConnectionBypass,
+    setConnectionBypass,
+    markRuntimeActivity,
   };
 }

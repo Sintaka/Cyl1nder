@@ -203,14 +203,29 @@ body { font-family: var(--cyl-font-ui); }
 /* ---- bottom bar (non-docking update-mode strip below the dock) ---- */
 .cyl-bottom-bar {
   display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 8px;
-  height: 28px;
-  padding: 0 10px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 10px;
   flex: 0 0 auto;
   background: #1c1e22;
   border-top: 1px solid #2a2d33;
+}
+.cyl-bottom-row1 {
+  display: flex;
+}
+.cyl-bottom-row1 .cyl-timeline {
+  flex: 1;
+}
+.cyl-bottom-row2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* Update Mode dropdown sits at the far right of row 2. #cyl-update-mode is the
+   transient placeholder; createDropdown replaceWith swaps in a .cyl-dd root. */
+.cyl-bottom-row2 #cyl-update-mode,
+.cyl-bottom-row2 .cyl-dd {
+  margin-left: auto;
 }
 .cyl-bottom-label { color: #7a7f87; font-size: 11px; }
 .cyl-update-mode {
@@ -573,7 +588,6 @@ body { font-family: var(--cyl-font-ui); }
   align-items: center;
   gap: 4px;
   padding: 2px 6px;
-  margin-left: auto;           /* push to the right end of the bottom bar */
   background: #1b1e24;
   border: 1px solid #33363c;
   border-radius: 5px;

@@ -32,6 +32,7 @@ import { createKickController } from "./core/kick";
 import { createSessionController } from "./core/session";
 import { createTimelineController } from "./core/timeline";
 import { createTimelineUI } from "./app/timeline-ui";
+import { createAddressBar } from "./app/address-bar";
 
 /** Log categories: geo data / viewport / ui / bridge(python runtime). */
 let logFilter = "all";
@@ -111,6 +112,38 @@ const graphAddr = document.createElement("div");
 graphAddr.className = "cyl-graph-addr";
 graphShell.appendChild(graphAddr);
 graphShell.appendChild(layout.graphContainer);
+
+// explorer.exe 式地址栏：分段按钮（点击跳转/复制）+ 点击空白处变输入框 + Tab 补全。
+// 输入态 Tab 由地址栏独占（graph-interact 的 Tab 处理器有 activeElement input 守卫）。
+let sessionCtl: ReturnType<typeof createSessionController> | null = null; // late-bound（session 声明在后）
+let lastAddress = "";
+const addressBar = createAddressBar(graphAddr, {
+  getAddress: () => (store.serial ? `/${store.serial}/` : "/"),
+  navigate: (addr) => {
+    const segs = addr.split("/").filter(Boolean);
+    if (segs.length !== 1) return false;
+    if (!/^C1-[0-9a-z]{8,}-[0-9a-z]{4}$/.test(segs[0])) return false;
+    if (segs[0] === store.serial) {
+      graph.frameSelection(); // 当前地址：跳到本图
+      return true;
+    }
+    if (sessionCtl) {
+      layout.serialInput.value = segs[0];
+      sessionCtl.connect(segs[0]); // 跳转到另一个 serial（页面级导航）
+      return true;
+    }
+    return false;
+  },
+  getCompletions: async (prefix) => {
+    try {
+      const serials = await client.listSerials();
+      return serials.filter((s) => s.startsWith(prefix));
+    } catch {
+      return [];
+    }
+  },
+  log: (m) => store.pushLog(m),
+});
 (window as unknown as Record<string, unknown>).__cylDv = null; // debug hook (MCP debug access)
 const dv = setupDock(layout.dockContainer, {
   graph: graphShell,
@@ -469,6 +502,8 @@ const network = createNetworkRunner({
   setOutputRev: (rev) => store.setOutputRev(rev),
   pushOutputs: (serial, outputs) => client.pushOutputs(serial, outputs),
   shouldPush: () => syncEnabled,
+  // 运行时流动虚线：网络计算耗时 ≥120ms 时点亮显示链线段的流动动画（graph 内 120ms 阈值）。
+  onRunTiming: (ms) => graph.markRuntimeActivity(ms),
   log: (msg) => store.pushLog(msg),
 });
 const kicker = createKickController({
@@ -486,18 +521,19 @@ const timeline = createTimelineController({
   setFrame: (f) => store.setFrame(f),
   scheduleNetwork,
   log: (msg) => store.pushLog(msg),
-  // C→H: 本地帧改动（linkEnabled && !dragging 门控在 controller 内）→ 经 bridge 代理
-  // fxhoudinimcp animation.set_frame 写回 Houdini playhead。
+  // C→H: 本地帧改动（linkEnabled 门控 + 1000/syncFps 节流在 controller 内，拖动期同样
+  // 节流提交）→ 经 bridge 代理 fxhoudinimcp animation.set_frame 写回 Houdini playhead。
   onFrameCommit: (f) => {
     const serial = store.serial;
     if (!serial) return;
     void client.putTimeline(serial, f).catch(() => undefined);
   },
 });
+timeline.setSyncFps(prefs.sync_max_fps); // syncMaxFps let 变量声明在后（TDZ），此处用 prefs
 createTimelineUI(layout.timelineEl, { timeline });
 
-// H→C: 250ms 轮询 bridge 的 /timeline（bridge 内 0.25s 缓存 get_frame，只读成本低）。
-// 轮询同时是链接探测器：mcpPort>0 即点亮时间轴锚定灯；applyRemote 在拖动/未链接时自动忽略。
+// H→C 兜底轮询（1s）：bridge 常驻轮询器已通过 WS {type:"timeline"} 实时推送（session
+// applyTimeline），本循环只做链接探测（mcpPort>0 点亮锚定灯）与 WS 断线兜底。
 setInterval(() => {
   const serial = store.serial;
   if (!serial || document.visibilityState !== "visible") return;
@@ -510,7 +546,7 @@ setInterval(() => {
       }
     })
     .catch(() => undefined);
-}, 250);
+}, 1000);
 
 const session = createSessionController({
   getPrefsSyncMaxFps: () => syncMaxFps,
@@ -532,7 +568,13 @@ const session = createSessionController({
   kicker,
   loadSnapshot: (serial) => loadSnapshotIntoStore(serial),
   getAutoRun: () => layout.autoRunCheck.checked,
+  // WS {type:"timeline"}（bridge 轮询器推送）：即时应用 Houdini 帧并点亮链接。
+  applyTimeline: (frame, fps) => {
+    timeline.setLinkEnabled(true);
+    timeline.applyRemote(frame, fps);
+  },
 });
+sessionCtl = session;
 
 layout.autoRunCheck.addEventListener("change", () => {
   const v = layout.autoRunCheck.checked;
@@ -560,6 +602,7 @@ layout.syncFpsInput.addEventListener("change", () => {
   prefs = { ...prefs, sync_max_fps: syncMaxFps };
   savePreferences(prefs);
   applyPreferences(prefs, layout);
+  timeline.setSyncFps(syncMaxFps); // 时间轴 C→H 提交节流跟随 Sync Max FPS
   store.pushLog(`sync max fps: ${syncMaxFps}`);
   if (store.serial) void client.putSyncFps(store.serial, syncMaxFps).catch(() => undefined);
 });
@@ -774,8 +817,11 @@ function renderInspector(): void {
  *  "/" and the panel keeps its "Node Graph" title. Idempotent - safe to run on
  *  every store flush and once right after setupDock. */
 function updateGraphAddress(): void {
-  const address = store.serial ? `/${store.serial}/` : "";
-  graphAddr.textContent = address || "/";
+  const address = store.serial ? `/${store.serial}/` : "/";
+  if (address !== lastAddress) {
+    lastAddress = address;
+    addressBar.setAddress(address);
+  }
   const title = store.serial ? `/${store.serial}/` : "Node Graph";
   // dockview panel title via type assertion (no dockview type dependency): prefer
   // api.getPanel("graph"), fall back to scanning api.panels for the graph panel.
@@ -926,6 +972,8 @@ bindShortcuts({
   frameViewport: () => viewport.frame(),
   toggleDebug: () => viewport.toggleDebugBoxes(),
   toggleEnter: () => gizmo.toggle(),
+  // B 键优先级：有选中线段 → 切换 bypass（返回 true 吃掉按键）；否则保持 debug 盒行为。
+  tryWireBypass: () => graph.toggleSelectedConnectionBypass(),
   quickSave: () => {
     if (!store.serial) return;
     void client.putSnapshot(store.serial, {

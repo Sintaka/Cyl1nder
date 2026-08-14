@@ -90,19 +90,23 @@ export function buildLayout(app: HTMLElement): Layout {
       </header>
       <div id="cyl-dock" class="cyl-dock"></div>
       <div class="cyl-bottom-bar">
-        <div id="cyl-update-mode"></div>
-        <div id="cyl-timeline" class="cyl-timeline"></div>
-        <label class="cyl-bottom-label" for="cyl-sync-fps" title="kick bridge / HDA 接收上限（1..60，默认 30）">Sync Max FPS</label>
-        <div class="cyl-fps-stepper">
-          <input type="number" id="cyl-sync-fps" min="1" max="60" value="30" class="cyl-sync-fps" />
-          <div class="cyl-fps-step-col">
-            <button type="button" class="cyl-fps-step" data-step="1" aria-label="increase max FPS" title="+1">▲</button>
-            <button type="button" class="cyl-fps-step" data-step="-1" aria-label="decrease max FPS" title="-1">▼</button>
-          </div>
+        <div class="cyl-bottom-row1">
+          <div id="cyl-timeline" class="cyl-timeline"></div>
         </div>
-        <label class="cyl-sync-toggle" title="双向同步：OFF=本地模式（零 /stream、零 push、无回显）；ON=engaged 双向">
-          <input type="checkbox" id="cyl-sync-enabled" /> Sync
-        </label>
+        <div class="cyl-bottom-row2">
+          <label class="cyl-bottom-label" for="cyl-sync-fps" title="kick bridge / HDA 接收上限（1..60，默认 30）">Sync Max FPS</label>
+          <div class="cyl-fps-stepper">
+            <input type="number" id="cyl-sync-fps" min="1" max="60" value="30" class="cyl-sync-fps" />
+            <div class="cyl-fps-step-col">
+              <button type="button" class="cyl-fps-step" data-step="1" aria-label="increase max FPS" title="+1">▲</button>
+              <button type="button" class="cyl-fps-step" data-step="-1" aria-label="decrease max FPS" title="-1">▼</button>
+            </div>
+          </div>
+          <label class="cyl-sync-toggle" title="双向同步：OFF=本地模式（零 /stream、零 push、无回显）；ON=engaged 双向">
+            <input type="checkbox" id="cyl-sync-enabled" /> Sync
+          </label>
+          <div id="cyl-update-mode"></div>
+        </div>
       </div>
     </div>`;
   const $ = <T extends HTMLElement>(sel: string): T => app.querySelector(sel) as T;
@@ -231,19 +235,23 @@ export function buildLayoutLegacy(app: HTMLElement): Layout {
       <div class="cyl-splitter splitter-h" data-splitter="log"></div>
       <footer id="cyl-log" class="cyl-log"></footer>
       <div class="cyl-bottom-bar">
-        <div id="cyl-update-mode"></div>
-        <div id="cyl-timeline" class="cyl-timeline"></div>
-        <label class="cyl-bottom-label" for="cyl-sync-fps" title="kick bridge / HDA 接收上限（1..60，默认 30）">Sync Max FPS</label>
-        <div class="cyl-fps-stepper">
-          <input type="number" id="cyl-sync-fps" min="1" max="60" value="30" class="cyl-sync-fps" />
-          <div class="cyl-fps-step-col">
-            <button type="button" class="cyl-fps-step" data-step="1" aria-label="increase max FPS" title="+1">▲</button>
-            <button type="button" class="cyl-fps-step" data-step="-1" aria-label="decrease max FPS" title="-1">▼</button>
-          </div>
+        <div class="cyl-bottom-row1">
+          <div id="cyl-timeline" class="cyl-timeline"></div>
         </div>
-        <label class="cyl-sync-toggle" title="双向同步：OFF=本地模式（零 /stream、零 push、无回显）；ON=engaged 双向">
-          <input type="checkbox" id="cyl-sync-enabled" /> Sync
-        </label>
+        <div class="cyl-bottom-row2">
+          <label class="cyl-bottom-label" for="cyl-sync-fps" title="kick bridge / HDA 接收上限（1..60，默认 30）">Sync Max FPS</label>
+          <div class="cyl-fps-stepper">
+            <input type="number" id="cyl-sync-fps" min="1" max="60" value="30" class="cyl-sync-fps" />
+            <div class="cyl-fps-step-col">
+              <button type="button" class="cyl-fps-step" data-step="1" aria-label="increase max FPS" title="+1">▲</button>
+              <button type="button" class="cyl-fps-step" data-step="-1" aria-label="decrease max FPS" title="-1">▼</button>
+            </div>
+          </div>
+          <label class="cyl-sync-toggle" title="双向同步：OFF=本地模式（零 /stream、零 push、无回显）；ON=engaged 双向">
+            <input type="checkbox" id="cyl-sync-enabled" /> Sync
+          </label>
+          <div id="cyl-update-mode"></div>
+        </div>
       </div>
     </div>`;
   const $ = <T extends HTMLElement>(sel: string): T => app.querySelector(sel) as T;

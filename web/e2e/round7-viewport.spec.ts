@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { BridgeClient } from "../src/bridge/client";
+import { toggleSyncEnabled } from "./fixtures";
 
 /**
  * Round 7 (viewport write-set): the viewport truly reads node GEO.
@@ -273,6 +274,7 @@ test("display null downstream of transform shows translated geometry; upstream s
 
 test("param undo: params panel tx edit -> Ctrl+Z restores value + bridge outputs, Ctrl+Y re-applies", async ({ page }) => {
   await openGraph(page);
+  await toggleSyncEnabled(page, true); // v0.1.00101 起推桥需 sync ON
   await restoreGraph(page, TF_ZERO_DISPLAY_GRAPH, 2);
 
   // select transform + open Params; tx starts at 0

@@ -2,6 +2,7 @@
 
 > 机器生成（2026-08-14），由 `node scripts/gen-graph.mjs` 产出。
 
+- `app/address-bar.ts`
 - `app/app-config.ts`
   - three/webgpu
 - `app/color.ts`
@@ -77,6 +78,7 @@
 - `core/timeline.ts`
   - protocol/types
 - `main.ts`
+  - app/address-bar
   - app/app-config
   - app/dock
   - app/layout

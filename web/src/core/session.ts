@@ -21,6 +21,11 @@ export interface SessionDeps {
   kicker: { onHello(serial: string): void; onStatus(open: boolean, serial: string): void };
   loadSnapshot(serial: string): Promise<void>;
   getAutoRun(): boolean;
+  /**
+   * H→C 时间轴推送应用（WS {type:"timeline"} 分支）。main.ts 合并时注入
+   * timeline.applyRemote；可选 dep：缺省（本地模式）为 no-op。
+   */
+  applyTimeline?(frame: number, fps: number): void;
 }
 
 /** Session controller: connect + WS message handling + auto-run / replay state.
@@ -74,6 +79,10 @@ export function createSessionController(deps: SessionDeps): {
             deps.applyOutputs(msg.outputs, msg.rev);
           }
           deps.log(`outputs rev=${msg.rev} (${msg.outputs.length})${deps.isSyncEnabled() ? "" : " [sync OFF ignored]"}`);
+        } else if (msg.type === "timeline") {
+          // H→C 时间轴推送（bridge 广播 Houdini playhead）：应用远端帧/fps。
+          // 非法帧/拖动/未链接由 applyTimeline 的注入方（timeline.applyRemote）内部忽略。
+          deps.applyTimeline?.(msg.frame as number, msg.fps as number);
         }
       },
       (open) => {

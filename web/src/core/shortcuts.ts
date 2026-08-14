@@ -7,6 +7,9 @@ export interface ShortcutsDeps {
   saveAs(): void;
   isGraphHovered(): boolean;
   isEnterHovered(): boolean;
+  /** Toggle bypass on the currently-selected connection (returns true when it
+   *  consumed the key). B falls back to toggleDebug when this is absent/returns false. */
+  tryWireBypass?(): boolean;
 }
 
 const isEditable = (el: Element | null): boolean =>
@@ -21,10 +24,15 @@ export function bindShortcuts(deps: ShortcutsDeps): void {
     if (deps.isGraphHovered()) deps.frameGraph();
     else deps.frameViewport();
   });
-  // B = toggle debug reference boxes.
+  // B = toggle bypass on the selected connection (wire), else debug reference boxes.
   window.addEventListener("keydown", (e) => {
     if (e.key.toLowerCase() !== "b" || e.repeat) return;
+    if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return; // bare B only
     if (isEditable(document.activeElement)) return;
+    if (deps.tryWireBypass?.()) {
+      e.preventDefault();
+      return;
+    }
     deps.toggleDebug();
   });
   // Enter = viewport edit activation (same as the toolbar icon).

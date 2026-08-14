@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { BridgeClient } from "../src/bridge/client";
+import { toggleSyncEnabled } from "./fixtures";
 
 /**
  * Round 12 (update-mode write-set): non-docking bottom bar + 15ch "Auto Update /
@@ -230,6 +231,7 @@ test("bottom bar: non-docking strip + 15ch update-mode dropdown, default Auto Up
 
 test("On Mouse Up: drag only buffers tx/ty/tz; release commits once (zero network during drag)", async ({ page }) => {
   await openGraph(page);
+  await toggleSyncEnabled(page, true); // v0.1.00101 起推桥需 sync ON
   await restoreTransformGraph(page);
   await baselineOrigin(page); // deterministic tx=0 baseline
   await chooseBottomOption(page, "On Mouse Up");
@@ -289,6 +291,7 @@ test("On Mouse Up: drag only buffers tx/ty/tz; release commits once (zero networ
 
 test("Auto Update: gizmo drag pushes bridge outputs every frame (pre-round-12 behaviour)", async ({ page }) => {
   await openGraph(page);
+  await toggleSyncEnabled(page, true); // v0.1.00101 起推桥需 sync ON
   await restoreTransformGraph(page);
   await baselineOrigin(page);
   await enterTransformEdit(page);

@@ -80,6 +80,8 @@
 | fxhoudinimcp 对接工具索引（速查卡/高频命令/桥暴露面/端口发现三法） | [fxhoudinimcp-tools-index.md](fxhoudinimcp-tools-index.md) |
 | fxhoudinimcp 对接设计与落地（架构/时间轴双向/Python runtime/实机验证） | [houdini-mcp-integration.md](houdini-mcp-integration.md) |
 | 快照系统修复（重启丢数据根因三重 + 启动恢复 + 双根合并） | [snapshot-fix-00102.md](snapshot-fix-00102.md) |
+| 时间轴同步卡顿实测分析（fxhoudinimcp 判责 + 修复设计 + 通道上限） | [timeline-sync-lag-analysis.md](timeline-sync-lag-analysis.md) |
+| 挂耳 HDA + 项目绑定 + 轨迹页 架构设计提案（待拍板） | [ear-hda-project-design.md](ear-hda-project-design.md) |
 | no geometry 诊断与 HDA 热重载恢复 | [no-geometry-diagnosis.md](no-geometry-diagnosis.md) |
 
 ## 关键词 → 专题文件（快速跳读）
@@ -113,6 +115,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00103：**优化轮（6 项 + 卡顿分析 + 架构提案）**——① 底部栏两行（时间轴独立行；Sync Max FPS/Sync/Update Mode 第二行，Update Mode 右下角）② 时间轴与所有 Houdini 周期性交互遵循 Sync Max FPS（bridge 轮询/设帧速率派生 `max(66/33ms,1000/fps)`，cmd/python 一次性调用除外）③ 卡顿实测分析：**fxhoudinimcp 无责**（get_frame ~52ms 是 dispatcher 固有封送；通道合计上限 ~19Hz），根因 = 我们自己的 4Hz 轮询+全店刷新+拖拽全抑制 → 改为 bridge 常驻轮询+WS 帧变化推送（~85-130ms 延迟）+ store.setFrame 不 emit + 拖拽节流提交 ④ 地址栏 explorer 化（分段按钮跳转/空白处变输入/直接编辑+Tab 补全，输入态 Tab 独占）⑤ 线段 bypass（选中按 B→虚线+亮度饱和度暗淡，随图快照持久化）⑥ 线段运行时流动虚线（≥120ms 才启，≤2s，防闪烁）；文档：timeline-sync-lag-analysis.md + ear-hda-project-design.md（挂耳 HDA+项目序列号+轨迹页提案，6 个待拍板点）；5 子智能体并行+主进程粘合；pytest 110, tsc 0, vitest 186, WS 推送/双向实测通过。
 - v0.1.00102：**快照系统修复（重启丢数据）+ fxhoudinimcp 对接（时间轴双向同步）**——快照根因三重修复（WS edit 通道从不落盘 → edit accept 后 maybe_snapshot；桥启动 lifespan 从磁盘回填空 workspace + `POST /snapshot/restore` + shutdown flush；read_snapshot 双根合并读 hip 根/回退根）；fxhoudinimcp 对接（bridge `houdini_mcp.py` HTTP RPC 客户端 + `houdini_routes.py` 代理端点 GET/PUT `/houdini`、`POST /houdini/cmd|python`、GET/PUT `/timeline` 0.25s 缓存 get_frame + 0.1s 节流 set_frame；registry `mcpPort`；HDA `cyl1nder_houdini_mcp.py` 纯 stdlib 端口发现（8100..8115 `mcp.health.pid==os.getpid()` 唯一判据）+ cook 钩子发现即上报；web timeline 双向（onFrameCommit/applyRemote/dragging 抑制/锚定灯 ●）；死锁红线：HDA 主线程禁同步 mcp.execute）；docs 大全/索引/对接设计三件套；4 子智能体并行 + 主进程粘合；实机验证：C→H 21→30→21、H→C 跟随、python 代理 `hou.frame()*2=42`、热重载×2 无崩溃、桥重启自动恢复 inputs=4/outputs=4。pytest 106, tsc 0, vitest 167, hython SMOKE OK。
 - v0.1.00101：**Phase B 手动双向同步开关（右下角，默认 OFF）**——web `syncEnabled` 单一事实源（prefs 持久化）+ 底部栏 Sync 开关 + network.shouldPush / session 忽略回显 / kick / viewport-edit 全 gate；bridge per-serial `sync_enabled`（默认 False，`PUT /sync-enabled`；OFF 不广播回显/不 notify_stream；`/pending`、`/stream` 事件携带，`/status` 返回 sync 块）；HDA 自适应循环（OFF ~1.5s `/pending` 探测零 /stream，ON 跑 /stream，事件 false 切回）；4 路并行（Singer=bridge / Confucius=hda / Franklin=web-core / Wegener=web-ui）+ 主进程合并（applyLoadedPreference 补推 gate）；e2e fixtures.toggleSyncEnabled + round22 骨架。pytest 61, tsc 0, vitest 160, hython SMOKE OK。timeline-plan.md Phase B 标记完成。
 - v0.1.00100：**本地时间轴 Phase A（本地优先，纯本地 scrub）**——H→C inputs 捎带可选 frame（HDA `hou.frame()` 采样、(sig,frame) 推送门；bridge 透传；WS 广播）；web `core/timeline.ts` 逐帧快照 + 底部栏时间轴 UI（锚定灯○/scrub/帧号/◀▶ Shift±10/播放/30fps）+ store.frame 切片 + session captureFrame 分流 + round21 E2E 骨架；4 路并行（Sagan=bridge / Darwin=hda / Helmholtz=web-core / Zeno=web-ui）+ 主进程合并（session 类型收紧、legacy 模板补容器）；AGENTS.md 增「代码修改默认派并行子智能体」铁律 8；timeline-plan.md Phase A 标记完成。pytest 59, tsc 0, vitest 158, hython SMOKE OK。

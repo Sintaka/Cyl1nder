@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { BridgeClient } from "../src/bridge/client";
+import { toggleSyncEnabled } from "./fixtures";
 
 /**
  * Round 5 (viewport write-set): pivot translate + disconnect display refresh.
@@ -233,6 +234,7 @@ async function yCutAt(page: import("@playwright/test").Page, p: { x: number; y: 
 
 test("pivot translate: gizmo at tx/ty/tz, marker at pivot; drag moves tx/ty/tz only", async ({ page }) => {
   await openGraph(page);
+  await toggleSyncEnabled(page, true); // v0.1.00101 起推桥需 sync ON
   await restoreGraph(page, PIVOT_GRAPH, 2);
 
   // select the transform node, then activate with the Enter KEY

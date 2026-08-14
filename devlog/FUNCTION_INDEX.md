@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-14），由 `node scripts/gen-index.mjs` 产出。共 **651** 个函数/类。
+> 机器生成（2026-08-14），由 `node scripts/gen-index.mjs` 产出。共 **674** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -60,25 +60,36 @@
 | `execute_python` | 173 | def |  | 1 |
 | `is_command_allowed` | 180 | def |  | 1 |
 
-## bridge/bridge/houdini_routes.py（262 行）
+## bridge/bridge/houdini_routes.py（482 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_check_serial` | 45 | def |  | 8 |
-| `_tl_default` | 50 | def |  | 5 |
-| `_resolve_port` | 54 | def |  | 1 |
-| `get_timeline` | 80 | def |  | 1 |
-| `TimelinePut` | 120 | class |  | 1 |
-| `put_timeline` | 125 | def |  | 1 |
-| `HouTimelinePut` | 156 | class |  | 1 |
-| `put_hou_timeline` | 162 | def |  | 1 |
-| `get_houdini` | 189 | def |  | 1 |
-| `HoudiniPut` | 199 | class |  | 1 |
-| `put_houdini` | 204 | def |  | 1 |
-| `CmdBody` | 220 | class |  | 1 |
-| `houdini_cmd` | 226 | def |  | 1 |
-| `PythonBody` | 241 | class |  | 1 |
-| `houdini_python` | 247 | def |  | 1 |
+| `_get_interval` | 76 | def |  | 3 |
+| `_get_set_interval` | 81 | def |  | 3 |
+| `_check_serial` | 86 | def |  | 8 |
+| `_tl_default` | 91 | def |  | 6 |
+| `_resolve_port` | 95 | def |  | 1 |
+| `_poller_done` | 134 | def |  | 2 |
+| `_inflight_done` | 140 | def |  | 2 |
+| `ensure_poller` | 146 | def |  | 2 |
+| `_poller_loop` | 160 | def |  | 2 |
+| `_get_frame_once` | 193 | def |  | 2 |
+| `_apply_frame` | 214 | def |  | 3 |
+| `get_timeline` | 248 | def |  | 1 |
+| `TimelinePut` | 281 | class |  | 1 |
+| `put_timeline` | 286 | def |  | 1 |
+| `_arm_set_flush` | 312 | def |  | 3 |
+| `_flush_pending` | 323 | def |  | 2 |
+| `_send_pending` | 333 | def |  | 3 |
+| `HouTimelinePut` | 376 | class |  | 1 |
+| `put_hou_timeline` | 382 | def |  | 1 |
+| `get_houdini` | 409 | def |  | 1 |
+| `HoudiniPut` | 419 | class |  | 1 |
+| `put_houdini` | 424 | def |  | 1 |
+| `CmdBody` | 440 | class |  | 1 |
+| `houdini_cmd` | 446 | def |  | 1 |
+| `PythonBody` | 461 | class |  | 1 |
+| `houdini_python` | 467 | def |  | 1 |
 
 ## bridge/bridge/logs.py（60 行）
 
@@ -494,6 +505,14 @@
 | `stop_all_sync` | 203 | def |  | 1 |
 | `ensure_sync` | 216 | def |  | 4 |
 
+## web/src/app/address-bar.ts（308 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `splitAddress` | 30 | function | export | 3 |
+| `completeSegment` | 46 | function | export | 2 |
+| `createAddressBar` | 89 | function | export | 1 |
+
 ## web/src/app/app-config.ts（7 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
@@ -531,13 +550,13 @@
 | `onLayoutChange` | 486 | arrow |  | 0 |
 | `applyLayout` | 530 | function | export | 1 |
 
-## web/src/app/layout.ts（287 行）
+## web/src/app/layout.ts（295 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `wireFpsStepper` | 31 | function |  | 3 |
 | `buildLayout` | 50 | function | export | 1 |
-| `buildLayoutLegacy` | 172 | function | export | 1 |
+| `buildLayoutLegacy` | 176 | function | export | 1 |
 
 ## web/src/app/layouts.ts（11 行）
 
@@ -704,11 +723,11 @@
 | `createHdaWatchdog` | 31 | function | export | 1 |
 | `check` | 42 | arrow |  | 1 |
 
-## web/src/core/network.ts（105 行）
+## web/src/core/network.ts（113 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `createNetworkRunner` | 37 | function | export | 1 |
+| `createNetworkRunner` | 41 | function | export | 1 |
 
 ## web/src/core/param-undo.ts（33 行）
 
@@ -724,50 +743,50 @@
 | `cloneParams` | 19 | function | export | 1 |
 | `paramsEqual` | 24 | function | export | 1 |
 
-## web/src/core/session.ts（91 行）
+## web/src/core/session.ts（100 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `createSessionController` | 28 | function | export | 1 |
+| `createSessionController` | 33 | function | export | 1 |
 
-## web/src/core/shortcuts.ts（51 行）
-
-| 函数 | 行号 | 类型 | 导出 | calls |
-|---|---|---|---|---|
-| `bindShortcuts` | 15 | function | export | 1 |
-
-## web/src/core/timeline.ts（158 行）
+## web/src/core/shortcuts.ts（59 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `createTimelineController` | 40 | function | export | 1 |
+| `bindShortcuts` | 18 | function | export | 1 |
 
-## web/src/main.ts（954 行）
+## web/src/core/timeline.ts（184 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `matchLogFilter` | 54 | arrow |  | 0 |
-| `renderLog` | 55 | arrow |  | 3 |
-| `toggle` | 137 | arrow |  | 8 |
-| `updateLayoutMenuLabel` | 169 | function |  | 5 |
-| `getDockJson` | 172 | arrow |  | 6 |
-| `saveCurrentLayout` | 176 | arrow |  | 2 |
-| `refreshLayoutPresets` | 185 | arrow |  | 1 |
-| `writeJsonToDir` | 291 | function |  | 7 |
-| `readJsonFromDir` | 302 | function |  | 5 |
-| `saveSceneAs` | 316 | function |  | 3 |
-| `openSceneFromDir` | 370 | function |  | 2 |
-| `applyLayoutSettings` | 647 | function |  | 4 |
-| `refreshSelectionPanels` | 662 | function |  | 1 |
-| `inputStatsText` | 737 | function |  | 2 |
-| `outputStatsText` | 746 | function |  | 2 |
-| `renderInspector` | 755 | function |  | 2 |
-| `updateGraphAddress` | 776 | function |  | 3 |
-| `scheduleNetwork` | 801 | function |  | 1 |
-| `flushStoreView` | 804 | function |  | 2 |
-| `loadSnapshotIntoStore` | 829 | function |  | 3 |
-| `applyLoadedPreference` | 866 | function |  | 3 |
-| `markGraphDirty` | 947 | function |  | 2 |
+| `createTimelineController` | 43 | function | export | 1 |
+
+## web/src/main.ts（1002 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `matchLogFilter` | 55 | arrow |  | 0 |
+| `renderLog` | 56 | arrow |  | 3 |
+| `toggle` | 170 | arrow |  | 8 |
+| `updateLayoutMenuLabel` | 202 | function |  | 5 |
+| `getDockJson` | 205 | arrow |  | 6 |
+| `saveCurrentLayout` | 209 | arrow |  | 2 |
+| `refreshLayoutPresets` | 218 | arrow |  | 1 |
+| `writeJsonToDir` | 324 | function |  | 7 |
+| `readJsonFromDir` | 335 | function |  | 5 |
+| `saveSceneAs` | 349 | function |  | 3 |
+| `openSceneFromDir` | 403 | function |  | 2 |
+| `applyLayoutSettings` | 690 | function |  | 4 |
+| `refreshSelectionPanels` | 705 | function |  | 1 |
+| `inputStatsText` | 780 | function |  | 2 |
+| `outputStatsText` | 789 | function |  | 2 |
+| `renderInspector` | 798 | function |  | 2 |
+| `updateGraphAddress` | 819 | function |  | 3 |
+| `scheduleNetwork` | 847 | function |  | 1 |
+| `flushStoreView` | 850 | function |  | 2 |
+| `loadSnapshotIntoStore` | 875 | function |  | 3 |
+| `applyLoadedPreference` | 912 | function |  | 3 |
+| `markGraphDirty` | 995 | function |  | 2 |
 
 ## web/src/nodes2/chain-cache.ts（354 行）
 
@@ -786,12 +805,12 @@
 | `computeOutputsCached` | 299 | function | export | 1 |
 | `computeNodeResultCached` | 343 | function | export | 1 |
 
-## web/src/nodes2/graph-interact.ts（1369 行）
+## web/src/nodes2/graph-interact.ts（1425 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `isReconnectBusy` | 59 | function | export | 4 |
-| `registerInteractionCanceller` | 66 | function | export | 4 |
+| `registerInteractionCanceller` | 66 | function | export | 5 |
 | `cancelGraphInteractions` | 71 | function | export | 1 |
 | `attachTabSearch` | 75 | function | export | 1 |
 | `render` | 91 | arrow |  | 3 |
@@ -832,37 +851,45 @@
 | `attachShakeDisconnect` | 874 | function | export | 1 |
 | `reset` | 885 | arrow |  | 0 |
 | `shakeNode` | 891 | arrow |  | 1 |
-| `hitTestPort` | 1011 | function |  | 4 |
-| `attachReconnect` | 1047 | function | export | 1 |
-| `toLocal` | 1076 | arrow |  | 2 |
-| `setPortHighlight` | 1097 | arrow |  | 2 |
-| `markGrabbedPath` | 1111 | arrow |  | 2 |
-| `clearReconnect` | 1149 | arrow |  | 11 |
-| `labelOf` | 1165 | arrow |  | 8 |
-| `applyReconnect` | 1168 | arrow |  | 2 |
-| `insertDotAt` | 1250 | arrow |  | 1 |
+| `getSelectedConnectionId` | 1005 | function | export | 1 |
+| `connectionPathEl` | 1009 | function |  | 4 |
+| `selectConnection` | 1013 | function |  | 2 |
+| `clearConnectionSelection` | 1020 | function | export | 3 |
+| `attachConnectionSelect` | 1029 | function | export | 1 |
+| `hitTestPort` | 1062 | function |  | 4 |
+| `attachReconnect` | 1098 | function | export | 1 |
+| `toLocal` | 1127 | arrow |  | 2 |
+| `setPortHighlight` | 1148 | arrow |  | 2 |
+| `markGrabbedPath` | 1162 | arrow |  | 2 |
+| `clearReconnect` | 1200 | arrow |  | 11 |
+| `labelOf` | 1216 | arrow |  | 8 |
+| `applyReconnect` | 1219 | arrow |  | 2 |
+| `insertDotAt` | 1301 | arrow |  | 1 |
 
-## web/src/nodes2/graph-model.ts（380 行）
+## web/src/nodes2/graph-model.ts（440 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `notifySelection` | 88 | function | export | 2 |
-| `onSelectionChange` | 92 | function | export | 1 |
-| `nodeByKind` | 97 | function | export | 1 |
-| `resolveInputSourcePort` | 108 | function | export | 2 |
-| `nodeFromTarget` | 132 | function | export | 1 |
-| `renderNode` | 148 | function | export | 1 |
-| `portIndexFromTarget` | 163 | function | export | 1 |
-| `CylNode` | 171 | class | export | 5 |
-| `makeInputNode` | 200 | function | export | 2 |
-| `makeOutputNode` | 205 | function | export | 2 |
-| `makeNullNode` | 212 | function | export | 2 |
-| `makeDotNode` | 223 | function | export | 2 |
-| `claimDotLabel` | 234 | function | export | 2 |
-| `makeTransformNode` | 243 | function | export | 2 |
-| `serializeGraph` | 263 | function | export | 2 |
-| `restoreGraph` | 297 | function | export | 2 |
-| `getNetworkSnapshot` | 365 | function | export | 2 |
+| `notifySelection` | 95 | function | export | 2 |
+| `onSelectionChange` | 99 | function | export | 1 |
+| `nodeByKind` | 104 | function | export | 1 |
+| `resolveInputSourcePort` | 115 | function | export | 2 |
+| `nodeFromTarget` | 139 | function | export | 1 |
+| `renderNode` | 155 | function | export | 1 |
+| `portIndexFromTarget` | 170 | function | export | 1 |
+| `CylNode` | 178 | class | export | 5 |
+| `makeInputNode` | 207 | function | export | 2 |
+| `makeOutputNode` | 212 | function | export | 2 |
+| `makeNullNode` | 219 | function | export | 2 |
+| `makeDotNode` | 230 | function | export | 2 |
+| `claimDotLabel` | 241 | function | export | 2 |
+| `makeTransformNode` | 250 | function | export | 2 |
+| `getConnectionBypass` | 277 | function | export | 2 |
+| `setConnectionBypassFlag` | 281 | function | export | 2 |
+| `applyConnectionBypassVisual` | 290 | function | export | 2 |
+| `serializeGraph` | 308 | function | export | 2 |
+| `restoreGraph` | 353 | function | export | 2 |
+| `getNetworkSnapshot` | 425 | function | export | 2 |
 
 ## web/src/nodes2/graph-undo.ts（202 行）
 
@@ -876,12 +903,13 @@
 | `lbl` | 52 | arrow |  | 5 |
 | `createGraphUndoManager` | 169 | function | export | 1 |
 
-## web/src/nodes2/graph.ts（369 行）
+## web/src/nodes2/graph.ts（442 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `buildGraph` | 61 | function |  | 2 |
-| `createReteGraph` | 174 | function | export | 1 |
+| `displayChainConnectionIds` | 70 | function |  | 2 |
+| `buildGraph` | 90 | function |  | 2 |
+| `createReteGraph` | 203 | function | export | 1 |
 
 ## web/src/nodes2/groups.ts（32 行）
 
@@ -983,7 +1011,7 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/stores/workspace.ts（150 行）
+## web/src/stores/workspace.ts（152 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|

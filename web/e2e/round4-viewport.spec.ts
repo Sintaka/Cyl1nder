@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { BridgeClient } from "../src/bridge/client";
+import { toggleSyncEnabled } from "./fixtures";
 
 /**
  * Round 4 (viewport write-set): left icon toolbar + Enter node-edit activation.
@@ -121,6 +122,7 @@ test("viewport toolbar: Enter icon renders on the left edge and toggles enter-ed
 
 test("Enter edit: gizmo drag updates tx/ty/tz and pushes translated bridge outputs", async ({ page }) => {
   await openGraph(page);
+  await toggleSyncEnabled(page, true); // v0.1.00101 起推桥需 sync ON
   await restoreTransformGraph(page);
 
   // select the transform node, then activate with the Enter KEY

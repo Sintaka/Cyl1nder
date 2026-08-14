@@ -994,6 +994,57 @@ export function attachShakeDisconnect(
   window.addEventListener("pointercancel", reset);
 }
 // ---------------------------------------------------------------------------
+// Connection selection: a plain click (no drag, no modifiers) on a wire selects
+// it with a bright highlight. B-key toggles bypass on the selected wire (see
+// graph.toggleSelectedConnectionBypass). Clicking blank/node/port or Esc clears
+// the selection. Selection is independent of node selection (never touches
+// `node.selected`).
+// ---------------------------------------------------------------------------
+let selectedConnId: string | null = null;
+
+export function getSelectedConnectionId(): string | null {
+  return selectedConnId;
+}
+
+function connectionPathEl(area: AreaPlugin<Schemes, AreaExtra>, id: string): Element | null {
+  return area.connectionViews.get(id)?.element.querySelector("path") ?? null;
+}
+
+function selectConnection(area: AreaPlugin<Schemes, AreaExtra>, id: string): void {
+  if (selectedConnId === id) return;
+  if (selectedConnId) connectionPathEl(area, selectedConnId)?.classList.remove("cyl-wire-selected");
+  selectedConnId = id;
+  connectionPathEl(area, id)?.classList.add("cyl-wire-selected");
+}
+
+export function clearConnectionSelection(area: AreaPlugin<Schemes, AreaExtra>): void {
+  if (!selectedConnId) return;
+  connectionPathEl(area, selectedConnId)?.classList.remove("cyl-wire-selected");
+  selectedConnId = null;
+}
+
+/** Wire-selection plumbing: a pointerdown on anything that is NOT a connection
+ *  (node body / port / blank) clears the selection. The actual select happens in
+ *  attachReconnect's plain-click up; Esc clears via the interaction canceller. */
+export function attachConnectionSelect(
+  area: AreaPlugin<Schemes, AreaExtra>,
+  container: HTMLElement,
+): void {
+  container.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (e.button !== 0) return;
+      if (e.altKey || e.metaKey || e.ctrlKey) return;
+      const target = e.target as Element;
+      if (target.closest?.('[data-testid="connection"]')) return; // connection click -> handled by reconnect select
+      clearConnectionSelection(area);
+    },
+    true,
+  );
+  registerInteractionCanceller(() => clearConnectionSelection(area));
+}
+
+// ---------------------------------------------------------------------------
 // Connection reconnect: grab an existing connection (pointerdown + drag >6px),
 // preview a re-route through the mouse with flowing dashed curves, then confirm
 // on release-over-a-port (while holding) or on a follow-up click (after release).
@@ -1353,7 +1404,12 @@ export function attachReconnect(
       // released over blank: stay grabbed, the preview keeps following the mouse
       return;
     }
-    // plain click on a connection (never dragged past the threshold)
+    // plain click on a connection (never dragged past the threshold): with no
+    // modifier keys this SELECTS the wire (B-key bypass target); anything else
+    // just releases the grab.
+    if (!e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && trackedConnId) {
+      selectConnection(area, trackedConnId);
+    }
     clearReconnect();
   };
   window.addEventListener("pointerup", up);

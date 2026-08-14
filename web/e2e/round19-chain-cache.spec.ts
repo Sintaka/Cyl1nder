@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { BridgeClient } from "../src/bridge/client";
+import { toggleSyncEnabled } from "./fixtures";
 
 /**
  * Round 19 (chain-state cache + clone-free translate, P2): Enter-drag a transform
@@ -161,6 +162,7 @@ async function nodeResultPoints(page: import("@playwright/test").Page): Promise<
 
 test("grouped (0-1) Enter drag: viewport first two points follow, rest stay; bridge outputs correct after release; zero clone", async ({ page }) => {
   await openGraph(page);
+  await toggleSyncEnabled(page, true); // v0.1.00101 起推桥需 sync ON
   await restoreGroupTransformGraph(page);
   await baselineOrigin(page); // deterministic tx=0 baseline
 

@@ -29,6 +29,10 @@ export interface NetworkDeps {
   shouldPush(): boolean;
   pushOutputs(serial: string, outputs: OutputBuffer[]): Promise<{ rev: number }>;
   log(msg: string): void;
+  /** Called with the wall-clock compute duration of run() (ms). The graph layer
+   *  uses it to start the flowing-dash runtime animation on the display chain
+   *  when the cook is slow enough to be visible (>=120ms). */
+  onRunTiming?(ms: number): void;
 }
 
 /** v1 network runner: trace the graph into 4 output buffers. Local optimistic
@@ -46,6 +50,7 @@ export function createNetworkRunner(deps: NetworkDeps): {
   let lastOutputs: OutputBuffer[] = [];
 
   const run = async (): Promise<void> => {
+    const started = performance.now();
     const serial = deps.getSerial();
     if (!serial || deps.getInputs().length === 0) return;
     const cur = ++epoch;
@@ -59,6 +64,9 @@ export function createNetworkRunner(deps: NetworkDeps): {
       activeOutputs: deps.getActiveChains().outputs,
       activeNodeId: deps.getActiveChains().node,
     });
+    // Report the pure compute duration BEFORE the cheap local apply / push, so a
+    // slow trace (>=120ms) can trigger the graph's runtime-flow animation.
+    deps.onRunTiming?.(performance.now() - started);
     const outputs = res.outputs;
     const changes = res.changes ?? [];
     // Defensive: a shorter-than-outputs changes array treats the missing tail as

@@ -235,14 +235,29 @@ def test_is_command_allowed() -> None:
 # --- route tests ------------------------------------------------------------
 
 
-def _client(tmp_path: Path) -> TestClient:
-    reset_state(tmp_path / "data")
+def _clear_hr_state() -> None:
+    """Reset every module-level dict in houdini_routes (also drops stale poller
+    tasks/timers left over from a previous test's event loop)."""
     import bridge.houdini_routes as hr
 
     with hr._LOCK:
         hr._TL.clear()
         hr._LAST_SET.clear()
         hr._LAST_WRITEBACK.clear()
+        hr._LAST_CONSUME.clear()
+        hr._POLLERS.clear()
+        hr._IN_FLIGHT.clear()
+        hr._FAIL_STREAK.clear()
+        hr._FAIL_REST.clear()
+        hr._PORT_FAIL_CACHE.clear()
+        hr._PENDING_SET.clear()
+        hr._SET_FLIGHT.clear()
+        hr._SET_TIMERS.clear()
+
+
+def _client(tmp_path: Path) -> TestClient:
+    reset_state(tmp_path / "data")
+    _clear_hr_state()
     app = FastAPI()
     app.include_router(houdini_router)
     return TestClient(app)
@@ -465,3 +480,153 @@ def test_invalid_serial_400(tmp_path: Path) -> None:
     assert c.put("/api/hda/zzz/houdini", json={"mcp_port": 8100}).status_code == 400
     assert c.post("/api/hda/zzz/houdini/cmd", json={"command": "animation.get_frame"}).status_code == 400
     assert c.post("/api/hda/zzz/houdini/python", json={"code": "x"}).status_code == 400
+
+
+# --- timeline poller / rate-limit tests -------------------------------------
+
+
+def test_timeline_rate_derivation(tmp_path: Path) -> None:
+    """_get_interval / _get_set_interval both clamp to sync fps with 66ms/33ms floors."""
+    import bridge.houdini_routes as hr
+
+    reset_state(tmp_path / "data")
+    serial = generate_serial()
+    st = get_state()
+
+    st.set_sync_fps(serial, 30)
+    assert hr._get_interval(serial) == 0.066  # max(66ms, 33.3ms) -> 15Hz cap
+    assert abs(hr._get_set_interval(serial) - 1.0 / 30) < 1e-9  # 33.3ms
+
+    st.set_sync_fps(serial, 1)
+    assert hr._get_interval(serial) == 1.0
+    assert hr._get_set_interval(serial) == 1.0
+
+    st.set_sync_fps(serial, 60)
+    assert hr._get_interval(serial) == 0.066  # still floored at 66ms
+    assert hr._get_set_interval(serial) == 0.033  # floored at 33ms
+
+
+def test_poller_updates_timeline_on_frame_change(
+    tmp_path: Path, stub: _HoudiniMcpStub, monkeypatch
+) -> None:
+    """The resident poller picks up a frame change from Houdini and updates _TL."""
+    import asyncio
+    import time
+
+    import bridge.houdini_routes as hr
+    from httpx import ASGITransport, AsyncClient
+
+    monkeypatch.setattr(hr, "_get_interval", lambda serial: 0.05)
+    monkeypatch.setattr(hr, "_TL_IDLE", 10.0)  # keep the poller alive for this test
+
+    reset_state(tmp_path / "data")
+    _clear_hr_state()
+    app = FastAPI()
+    app.include_router(houdini_router)
+    transport = ASGITransport(app=app)
+
+    serial = generate_serial()
+    get_state().registry.register(serial, hip=stub.hip_file)
+    get_state().registry.set_houdini_mcp(serial, stub.port)
+
+    async def scenario() -> None:
+        async with AsyncClient(transport=transport, base_url="http://test") as c:
+            body = (await c.get(f"/api/hda/{serial}/timeline")).json()
+            assert body["frame"] == 12.0
+            assert serial in hr._POLLERS  # resident poller registered by GET
+
+            stub.frame = 99.0  # change Houdini's frame; poller should pick it up
+            deadline = time.monotonic() + 2.0
+            while True:
+                with hr._LOCK:
+                    frame = hr._TL.get(serial, {}).get("frame", 0.0)
+                if abs(frame - 99.0) < 1e-6:
+                    break
+                if time.monotonic() > deadline:
+                    break
+                await asyncio.sleep(0.02)
+            assert abs(hr._TL[serial]["frame"] - 99.0) < 1e-6
+
+    asyncio.run(scenario())
+
+
+def test_poller_idle_stops_and_clears_registration(
+    tmp_path: Path, stub: _HoudiniMcpStub, monkeypatch
+) -> None:
+    """When no GET happens for the idle window the poller exits and clears _POLLERS."""
+    import asyncio
+    import time
+
+    import bridge.houdini_routes as hr
+    from httpx import ASGITransport, AsyncClient
+
+    monkeypatch.setattr(hr, "_get_interval", lambda serial: 0.05)
+    monkeypatch.setattr(hr, "_TL_IDLE", 0.2)  # short idle window
+
+    reset_state(tmp_path / "data")
+    _clear_hr_state()
+    app = FastAPI()
+    app.include_router(houdini_router)
+    transport = ASGITransport(app=app)
+
+    serial = generate_serial()
+    get_state().registry.register(serial, hip=stub.hip_file)
+    get_state().registry.set_houdini_mcp(serial, stub.port)
+
+    async def scenario() -> None:
+        async with AsyncClient(transport=transport, base_url="http://test") as c:
+            await c.get(f"/api/hda/{serial}/timeline")
+            assert serial in hr._POLLERS  # resident after GET
+            # stop consuming: after the idle window the poller must stop and clear itself
+            deadline = time.monotonic() + 2.0
+            while serial in hr._POLLERS and time.monotonic() < deadline:
+                await asyncio.sleep(0.02)
+            assert serial not in hr._POLLERS  # idle-stop cleared registration
+
+    asyncio.run(scenario())
+
+
+def test_put_timeline_latest_wins_throttle(
+    tmp_path: Path, stub: _HoudiniMcpStub, monkeypatch
+) -> None:
+    """PUT frames inside the window coalesce (latest-wins) and flush at the edge."""
+    import asyncio
+    import time
+
+    import bridge.houdini_routes as hr
+    from httpx import ASGITransport, AsyncClient
+
+    monkeypatch.setattr(hr, "_get_set_interval", lambda serial: 0.1)
+
+    reset_state(tmp_path / "data")
+    _clear_hr_state()
+    app = FastAPI()
+    app.include_router(houdini_router)
+    transport = ASGITransport(app=app)
+
+    serial = generate_serial()
+    get_state().registry.register(serial, hip=stub.hip_file)
+    get_state().registry.set_houdini_mcp(serial, stub.port)
+
+    async def scenario() -> None:
+        async with AsyncClient(transport=transport, base_url="http://test") as c:
+            r1 = (await c.put(f"/api/hda/{serial}/timeline", json={"frame": 1.0})).json()
+            assert r1["ok"] is True and "throttled" not in r1
+            assert stub.frame == 1.0
+
+            r2 = (await c.put(f"/api/hda/{serial}/timeline", json={"frame": 2.0})).json()
+            assert r2["throttled"] is True  # inside the window
+            r3 = (await c.put(f"/api/hda/{serial}/timeline", json={"frame": 3.0})).json()
+            assert r3["throttled"] is True  # latest-wins: 3 replaces 2
+            assert stub.frame == 1.0  # 2 and 3 not sent yet
+
+            # past the window edge the flush sends the latest pending frame (3)
+            deadline = time.monotonic() + 2.0
+            while stub.frame != 3.0 and time.monotonic() < deadline:
+                await asyncio.sleep(0.02)
+            assert stub.frame == 3.0
+            with hr._LOCK:
+                assert hr._TL[serial]["frame"] == 3.0
+                assert hr._TL[serial]["source"] == "web"
+
+    asyncio.run(scenario())

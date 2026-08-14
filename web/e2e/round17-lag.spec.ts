@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { BridgeClient } from "../src/bridge/client";
+import { toggleSyncEnabled } from "./fixtures";
 
 /**
  * Round 17 (local-freshness write-set): Enter-gizmo drags apply OPTIMISTICALLY on
@@ -138,6 +139,7 @@ async function nodeResultFirstPoint(page: import("@playwright/test").Page): Prom
 
 test("local viewport refreshes without waiting for bridge fps", async ({ page }) => {
   await openGraph(page);
+  await toggleSyncEnabled(page, true); // v0.1.00101 起推桥/回显需 sync ON
   await restoreTransformGraph(page);
   // Cap the bridge forward/broadcast path at 1 fps: any update that waited for
   // the WS echo would take up to 1s; the local optimistic apply must not.

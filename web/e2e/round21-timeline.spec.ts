@@ -19,7 +19,9 @@ const FAKE_INPUT = {
 };
 
 async function gotoApp(page: import("@playwright/test").Page): Promise<void> {
-  await page.goto("http://127.0.0.1:8376/");
+  // index.html 在无 ?serial= 时重定向 Overview；用未注册的合法 serial 进入主应用，
+  // 桥 touch auto-register 空 workspace → store 从 0 inputs 开始（测试假设空 store）。
+  await page.goto("http://127.0.0.1:8376/?serial=C1-e2etest9999-zzzz");
 }
 
 test("bottom bar timeline renders; captureFrame + setFrame updates store inputs; step advances frame", async ({ page }) => {

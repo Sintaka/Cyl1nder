@@ -1,5 +1,10 @@
 # 桥子系统改动标注 / Bridge annotations
 
+## v0.1.00103（2026-08-14）· 时间轴常驻轮询 + WS 推送 + Sync Max FPS 速率派生
+- **houdini_routes.py**：`ensure_poller` 幂等常驻轮询器（interval=`max(66ms,1000/sync_fps)`、single-flight、3 连败暂歇 2s、10s 无 GET idle-stop、帧/fps 变化>0.001 才 WS 广播）；GET /timeline 兼作喂食（首屏缓存陈旧时内联刷新秒出）；PUT /timeline `max(33ms,1000/sync_fps)` 节流 + latest-wins pending + call_later 边界补发 + single-flight，成功后广播 source="web"；`_resolve_port` 失败 2s 短缓存（防 Houdini 未起时扫 16 端口风暴）。
+- **tests/test_houdini_mcp.py**：+4 例（轮询器/idle-stop/节流/latest-wins），39 例。pytest 110 passed。
+- 实测（scripts/bench_mcp_latency.py / verify_ws_timeline.py）：get_frame ~52ms、set_frame ~78ms、health ~8ms；H→C WS 推送只在变化时广播、跟随变化节奏；通道合计上限 ~19Hz（hdefereval 队列约束）。详见 devlog/timeline-sync-lag-analysis.md。
+
 ## v0.1.00102（2026-08-14）· 快照修复 + fxhoudinimcp 代理
 - **snapshot.py**：`maybe_snapshot` 自 routes.py 迁入（REST put 与 WS edit 共用）；`read_snapshot` 双根合并（hip 根优先、DEFAULT_ROOT 补缺，两处兼容 v1 legacy）；`restore_workspace/restore_all_workspaces`（仅回填空 workspace、坏条目跳过+error 日志）；`flush_workspace/flush_all_workspaces`。
 - **snapshot_routes.py（新）**：`POST /api/hda/{serial}/snapshot/restore`（to_thread 恢复 + 成功后 WS 广播 inputs/outputs）。

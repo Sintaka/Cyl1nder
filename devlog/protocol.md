@@ -44,17 +44,18 @@
 - **Preference.json**（快照部件，随场景保存）：`{"schemaVersion":1, "sync_max_fps":30, "update_mode":"auto", "sync_enabled":false}`（sync_enabled v0.1.00101 起）；`update_mode` 为 enum（`"auto" | "mouseup"`）。
 - **心跳语义（LiveLink 原则：数据帧即心跳）**：高传输时事件本身即 liveness，**零额外心跳**；静默期 stream hold=60s → 心跳约 **1 次/分**。web 端离线判定为**慢时钟**：lastSeen 超 **150s**（2.5×60）判 Houdini 离线。
 ## WebSocket `/ws?serial=<serial>`
-- 服务端 → 客户端：`{type:"hello", serial, rev}` / `{type:"inputs", inputs, frame?}`（frame 可选，v0.1.00100 起）/ `{type:"outputs", outputs}` / `{type:"log", ...}` / `{type:"timeline", frame, fps, source:"hou"|"web", ts}`（**v0.1.00102 起**：HDA 经 `PUT /hou-timeline` 上报帧时广播；web 主路径为 250ms 轮询 GET /timeline，广播供后续消费者）
+- 服务端 → 客户端：`{type:"hello", serial, rev}` / `{type:"inputs", inputs, frame?}`（frame 可选，v0.1.00100 起）/ `{type:"outputs", outputs}` / `{type:"log", ...}` / `{type:"timeline", frame, fps, source:"hou"|"web", ts}`（**v0.1.00103 起为主通道**：bridge 常驻轮询器帧变化即推送，web session 直接 applyRemote；`PUT /hou-timeline` 上报仍是兼容来源）
 - 客户端 → 服务端：`{type:"ping"}` / `{type:"edit", outputs:[...]}`（edit accept 后 v0.1.00102 起触发 maybe_snapshot 落盘）
 
 ## fxhoudinimcp 对接端点（v0.1.00102 起，bridge 代理 Houdini MCP）
 - `GET  /api/hda/{serial}/houdini` -> `{serial, mcpPort, alive, health|null}`（health = mcp.health 直连结果）
 - `PUT  /api/hda/{serial}/houdini`，body `{"mcp_port": int}`（HDA 上报本实例端口，1..65535；probe 后回 `{ok, mcpPort, alive, matched}`）
-- `GET  /api/hda/{serial}/timeline` -> `{serial, frame, fps, source, ts, mcpPort}`（bridge 内 0.25s 缓存 `animation.get_frame`；mcpPort 解析链：registry.mcpPort → hip 匹配 → 首个存活）
-- `PUT  /api/hda/{serial}/timeline`，body `{"frame": number}` -> `{ok, frame, mcp_port}`（C→H：`animation.set_frame`，0.1s/串行节流，throttled 时 `throttled:true`）
+- `GET  /api/hda/{serial}/timeline` -> `{serial, frame, fps, source, ts, mcpPort}`（**v0.1.00103 起**：兼作轮询器喂食——bridge 常驻轮询器按 `max(66ms, 1000/sync_fps)` 主动拉 `animation.get_frame`，帧/fps 变化（>0.001）才 WS 广播；10s 无 GET 自动停（idle-stop）；首屏 GET 在缓存陈旧时内联刷新一次秒出）
+- `PUT  /api/hda/{serial}/timeline`，body `{"frame": number}` -> `{ok, frame, mcp_port, throttled?}`（C→H：`animation.set_frame`；节流 `max(33ms, 1000/sync_fps)` + **latest-wins**（窗口内只发最新 pending 帧）+ single-flight；成功后广播 source="web"）
 - `PUT  /api/hda/{serial}/hou-timeline`，body `{"frame": number, "fps"?: number}`（HDA 上报帧 → 更新缓存 + WS 广播 `{type:"timeline"}`）
 - `POST /api/hda/{serial}/houdini/cmd`，body `{"command": str, "params"?: dict}` -> `{ok, command, result}`（命名空间前缀白名单，不过 403；白名单见 `houdini_mcp.ALLOWED_COMMAND_PREFIXES`）
 - `POST /api/hda/{serial}/houdini/python`，body `{"code": str, "return_expression"?: str}` -> `{ok, result}`（`code.execute_python` 代理）
+- **v0.1.00103 起：所有与 Houdini 的周期性交互速率均由 per-serial Sync Max FPS 派生**（get 轮询 `max(66ms,1000/fps)`、set 节流 `max(33ms,1000/fps)`）；**实测通道上限 ≈19Hz 合计**（get ~52ms / set ~78ms 单次，共用 hdefereval 主线程封送队列，超出会积压雪崩——见 timeline-sync-lag-analysis.md）——66ms/33ms 地板即为此设。一次性 cmd/python 调用不受 fps 节流（用户显式动作），但 `_resolve_port` 失败有 2s 短缓存防扫端口风暴。
 
 ## 快照恢复端点（v0.1.00102 起）
 - `POST /api/hda/{serial}/snapshot/restore` -> `{ok, serial, restored, inputRev, outputRev}`：从磁盘快照回填**空** workspace（绝不覆盖运行态），恢复后 WS 广播 inputs/outputs；桥启动时 lifespan 自动对全部 registry serial 执行等价回填（`snapshot.restore_all_workspaces`），关闭时 `flush_all_workspaces` 强制落盘。

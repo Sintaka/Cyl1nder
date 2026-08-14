@@ -70,8 +70,10 @@ export class WorkspaceStore {
   }
 
   setFrame(f: number): void {
+    // frame 是「镜像」而非响应式状态：时间轴 UI 直接读 controller（timeline.frame），
+    // store.frame 无任何读取/订阅依赖（store.subscribe 的全店 flush 消费者只置 pendingFlush，
+    // 不读 frame）。因此不 emit()，避免 H→C 远端帧每次推进都触发一次全店刷新。
     this.frame = f;
-    this.emit();
   }
 
   setInputs(inputs: InputPayload[], rev: number): void {
