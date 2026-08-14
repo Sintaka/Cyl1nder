@@ -3,14 +3,14 @@
 Cyl1nder = Houdini ⇄ 本地桥 ⇄ WebGL 前端 的中间站。目标不是 DCC。
 
 ## 当前焦点（v0.1.00104，新会话先看这里）
-- **主计划**：`devlog/ear-hda-plan.md`（挂耳 HDA + 项目绑定 + 轨迹页，P1~P4 分阶段 + 写集 + 验收）。
-- **架构提案**：`devlog/ear-hda-project-design.md`（用户原始需求 + 6 个 ⚖️ 待拍板决策点——**P1 启动前必须先与用户确认**）。
+- **主计划**：`devlog/tag-hda-plan.md`（吊牌 HDA + 项目绑定 + 轨迹页，P1~P4 分阶段 + 写集 + 验收）。
+- **架构提案**：`devlog/tag-hda-project-design.md`（用户原始需求 + 6 个 ⚖️ 待拍板决策点——**P1 启动前必须先与用户确认**）。
 - **就近上下文**：`devlog/timeline-sync-lag-analysis.md`（卡顿判责 + 通道上限 ~19Hz）、`devlog/houdini-mcp-integration.md` + `fxhoudinimcp-tools-index.md`（runtime 改参与时间轴通道现状）、`devlog/snapshot-fix-00102.md`（快照恢复机制）。
 - 已有能力底线：geo 全流程 IO（HDA 4 入 4 出）、fxhoudinimcp 代理（cmd/python/timeline）、快照持久化与重启恢复、时间轴双向同步（Sync Max FPS 制约）。
 
 ## 先读（按顺序）
 1. devlog/README.md — 索引（含归档标注）+ 关键理念 + 最近版本
-2. devlog/ear-hda-plan.md — **下一阶段主计划（当前执行对象）**
+2. devlog/tag-hda-plan.md — **下一阶段主计划（当前执行对象）**
 3. devlog/protocol.md — 通信协议（先看再动 bridge/web/hda 任何一端）
 4. devlog/development-standards.md — 分支/版本/并行子智能体/编码卫生/调试规范
 

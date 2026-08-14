@@ -44,4 +44,4 @@
 
 ## 4 边界与后续
 - 15Hz 上限是 hdefereval 队列约束（52ms 封送周期），与 sync_fps=60 的设定不冲突（60 是上限，实际轮询被 66ms 地板钳制——文档化于 protocol.md）。
-- Houdini 主线程繁忙时（cook/播放/渲染）封送延迟会上升（观察到 10s 级），轮询器 single-flight + 退避已防雪崩；若产品需要忙时也低延迟，只能走"绕开 dispatcher 的进程内回调上报"（HDA cook 主线程直接推 frame 到 bridge）——那是 HDA 侧捎带通道（Phase A 已有 inputs.frame 捎带），可与 MCP 轮询互补（见 ear-hda-project-design.md 的时间轴小节）。
+- Houdini 主线程繁忙时（cook/播放/渲染）封送延迟会上升（观察到 10s 级），轮询器 single-flight + 退避已防雪崩；若产品需要忙时也低延迟，只能走"绕开 dispatcher 的进程内回调上报"（HDA cook 主线程直接推 frame 到 bridge）——那是 HDA 侧捎带通道（Phase A 已有 inputs.frame 捎带），可与 MCP 轮询互补（见 tag-hda-project-design.md 的时间轴小节）。
