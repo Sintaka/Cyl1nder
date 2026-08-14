@@ -156,6 +156,60 @@ export class BridgeClient {
     );
   }
 
+  /** GET /api/hda/{serial}/timeline — current timeline state (frame/fps/source/ts/mcpPort). */
+  async getTimeline(serial: string): Promise<{ serial: string; frame: number; fps: number; source: "hou" | "web"; ts: number; mcpPort: number }> {
+    return json(await fetch(`${this.base}/api/hda/${serial}/timeline`));
+  }
+
+  /** PUT /api/hda/{serial}/timeline — web 设帧；bridge 经 fxhoudinimcp 代理到 Houdini。 */
+  async putTimeline(serial: string, frame: number): Promise<{ ok: boolean; frame?: number; mcp_port?: number; error?: string; throttled?: boolean }> {
+    return json(
+      await fetch(`${this.base}/api/hda/${serial}/timeline`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ frame }),
+      }),
+    );
+  }
+
+  /** GET /api/hda/{serial}/houdini — Houdini 活性 + fxhoudinimcp 端口 + health。 */
+  async getHoudini(serial: string): Promise<{ serial: string; mcpPort: number; alive: boolean; health: unknown | null }> {
+    return json(await fetch(`${this.base}/api/hda/${serial}/houdini`));
+  }
+
+  /** PUT /api/hda/{serial}/houdini — 登记该 serial 的 fxhoudinimcp 端口。 */
+  async putHoudiniMcp(serial: string, mcpPort: number): Promise<unknown> {
+    return json(
+      await fetch(`${this.base}/api/hda/${serial}/houdini`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mcp_port: mcpPort }),
+      }),
+    );
+  }
+
+  /** POST /api/hda/{serial}/houdini/cmd — 任意 fxhoudinimcp 命令代理。 */
+  async houdiniCmd(serial: string, command: string, params?: Record<string, unknown>): Promise<unknown> {
+    return json(
+      await fetch(`${this.base}/api/hda/${serial}/houdini/cmd`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params ? { command, params } : { command }),
+      }),
+    );
+  }
+
+  /** POST /api/hda/{serial}/houdini/python — 在 Houdini 内执行 Python（fxhoudinimcp 代理）。 */
+  async houdiniPython(serial: string, code: string, returnExpression?: string): Promise<unknown> {
+    return json(
+      await fetch(`${this.base}/api/hda/${serial}/houdini/python`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(returnExpression ? { code, return_expression: returnExpression } : { code }),
+      }),
+    );
+  }
+
   /** Scene library: active (live) scenes + save history. */
   async listScenes(): Promise<{
     active: Array<{ serial: string; label: string; nodePath: string; lastSeen: string; inputRev: number; outputRev: number }>;

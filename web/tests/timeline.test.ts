@@ -20,6 +20,7 @@ function makeDeps(inputRev = 5): TimelineDeps {
     setFrame: vi.fn(),
     scheduleNetwork: vi.fn(),
     log: vi.fn(),
+    onFrameCommit: vi.fn(),
   };
 }
 
@@ -102,5 +103,93 @@ describe("TimelineController", () => {
     expect(fn).toHaveBeenCalledTimes(1);
     c.setFrame(3);
     expect(fn).toHaveBeenCalledTimes(2);
+  });
+
+  it("setFps validates (>0 finite) and emits on change", () => {
+    const c = createTimelineController(makeDeps());
+    const fn = vi.fn();
+    c.subscribe(fn);
+    c.setFps(60);
+    expect(c.fps).toBe(60);
+    expect(fn).toHaveBeenCalledTimes(1);
+    c.setFps(0);
+    c.setFps(-5);
+    c.setFps(NaN);
+    expect(c.fps).toBe(60);
+    expect(fn).toHaveBeenCalledTimes(1);
+    c.setFps(60); // no change -> no emit
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("linkEnabled defaults false and setter emits", () => {
+    const c = createTimelineController(makeDeps());
+    expect(c.linkEnabled).toBe(false);
+    const fn = vi.fn();
+    c.subscribe(fn);
+    c.setLinkEnabled(true);
+    expect(c.linkEnabled).toBe(true);
+    expect(fn).toHaveBeenCalledTimes(1);
+    c.setLinkEnabled(true); // no change -> no emit
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("applyRemote is a no-op when not linked", () => {
+    const deps = makeDeps();
+    const c = createTimelineController(deps);
+    c.applyRemote(50, 24);
+    expect(c.frame).toBe(1);
+    expect(deps.setFrame).not.toHaveBeenCalled();
+  });
+
+  it("applyRemote applies frame/fps and replays snapshot when linked", () => {
+    const deps = makeDeps(4);
+    const c = createTimelineController(deps);
+    const snap = [inp(1)];
+    c.captureFrame(7, snap);
+    c.setLinkEnabled(true);
+    c.applyRemote(7, 24);
+    expect(c.frame).toBe(7);
+    expect(c.fps).toBe(24);
+    expect(deps.setFrame).toHaveBeenCalledWith(7);
+    expect(deps.setInputs).toHaveBeenCalledWith(snap, 5);
+    expect(deps.scheduleNetwork).toHaveBeenCalledTimes(1);
+  });
+
+  it("applyRemote miss does not clear inputs and does not commit", () => {
+    const deps = makeDeps(3);
+    const c = createTimelineController(deps);
+    c.setLinkEnabled(true);
+    c.applyRemote(9, 30);
+    expect(c.frame).toBe(9);
+    expect(deps.setFrame).toHaveBeenCalledWith(9);
+    expect(deps.setInputs).not.toHaveBeenCalled();
+    expect(deps.scheduleNetwork).not.toHaveBeenCalled();
+    expect(deps.onFrameCommit).not.toHaveBeenCalled();
+  });
+
+  it("applyRemote is suppressed while dragging", () => {
+    const deps = makeDeps();
+    const c = createTimelineController(deps);
+    c.setLinkEnabled(true);
+    c.setDragging(true);
+    c.applyRemote(20, 24);
+    expect(c.frame).toBe(1);
+    expect(deps.setFrame).not.toHaveBeenCalled();
+  });
+
+  it("onFrameCommit fires on setFrame/step only when linked and not dragging", () => {
+    const deps = makeDeps();
+    const c = createTimelineController(deps);
+    c.setFrame(5); // not linked -> no commit
+    expect(deps.onFrameCommit).not.toHaveBeenCalled();
+    c.setLinkEnabled(true);
+    c.setFrame(6);
+    expect(deps.onFrameCommit).toHaveBeenCalledWith(6);
+    c.setDragging(true);
+    c.setFrame(7); // dragging -> no commit
+    expect(deps.onFrameCommit).toHaveBeenCalledTimes(1);
+    c.setDragging(false);
+    c.step(1); // 7 -> 8
+    expect(deps.onFrameCommit).toHaveBeenCalledWith(8);
   });
 });

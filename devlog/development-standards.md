@@ -39,6 +39,12 @@
   - `code.execute_python` 的代码**不支持顶层 return**（exec 语义）；想返回值就写文件或打印，从外部读。
   - `hou.severityType` 枚举**没有 `Info`**，只有 `Message/Warning/Error/Fatal`。
   - HTTP 直连（免 MCP 客户端）格式：`POST http://127.0.0.1:8100/api`，`Content-Type: application/x-www-form-urlencoded`，body `json=["namespace.function",[args],{kwargs}]`；可用 `mcp.health` / `mcp.list_commands` 探活，用官方包 `from fxhoudinimcp.bridge import HoudiniBridge` 最省事。
+- **fxhoudinimcp 对接铁律（v0.1.00102 起，详见 devlog/fxhoudinimcp-compendium.md / houdini-mcp-integration.md）**：
+  - **端口识别**：HDA 启动时获取「本 Houdini 实例」的 MCP 端口 = 扫 8100..8115 发 `mcp.health`，**`pid == os.getpid()` 是唯一可靠判据**（实测安装版 health 不带 hip_file；多实例时首个存活端口可能错实例——8100 是我们的测试实例，8101 是另一个 Houdini，绝不凭「第一个活口」猜）。Cyl1nder 已实现：`hda/src/cyl1nder_houdini_mcp.py`（纯 stdlib，发现跑短命 daemon 线程）+ 上报 bridge registry.mcpPort。
+  - **死锁红线（实机复现）**：HDA cook 主线程**禁止**同步 POST `mcp.execute`（dispatcher 必须回主线程执行，主线程却阻塞在 HTTP 上 → 直到超时）。`mcp.health` 探针例外（不经 dispatcher）。`mcp.execute` 的正规调用方只有 bridge（to_thread）。
+  - 时间轴双向同步走 bridge 代理：`GET/PUT /api/hda/{serial}/timeline`（0.25s 缓存 get_frame / 0.1s 节流 set_frame）；命令白名单 `houdini_mcp.ALLOWED_COMMAND_PREFIXES`。
+  - 安装版 fxhoudinimcp 端口被占不自动 8101+（那是 dev 版行为）、绑 0.0.0.0 无鉴权——只走 127.0.0.1，防火墙责任在使用者。
+- **reload HDA 崩溃注意（v0.1.00102 补）**：热重载前必须 `stop_all_sync`（已内置于 reload_hda.py）；**新 HDA 模块不得自带长生命周期线程**（发现线程为短命 daemon + 纯 urllib，reload 无需额外停线）；HDA 定义层（definition=True）比运行时层（reload_cyl1nder()）风险高，非必要不重建定义。本轮实机热重载 2 次（8100 实例）均无崩溃。
 - **禁止用会弹 Windows 消息框/错误框的方式调试**（如 `cmd /c start` 引号错误会弹 "Windows cannot find ..."）。调试信息一律写文件/日志（如 `bridge_control.log`、`spawn_out.txt`）或经 fxhoudinimcp 读回，不要用窗口。启动外部进程统一 `subprocess.CREATE_NEW_CONSOLE`（可见但非弹窗）。
 - **从 Houdini 拉外部 Python 必须剥离 PYTHONHOME/PYTHONPATH**：Houdini 把 `PYTHONHOME` 指向自己的 3.11 stdlib，子进程（如 bridge venv 3.12）继承后启动即崩（SRE module mismatch）。spawn 时 `env={k:v for k,v in os.environ.items() if not k.upper().startswith("PYTHON")}`。详见 annotations-hda v0.1.00010。
 - **Houdini 可能随时重启，Codex 不会收到任何消息**：fxhoudinimcp（8100）连不上时按序排查——① 先尝试重连（重试当前 MCP 调用 / 新会话）；② 仍连不上 → 查找是否有 `Houdini.exe` 进程（`tasklist | findstr Houdini` 或 `Get-Process houdini*`）：有进程 = Houdini 在跑，只是 MCP 服务未起/端口变化（看 8100~8115 或让用户确认），无进程 = Houdini 没开，需提示用户启动。不要一上来就假设是 MCP 配置坏了。

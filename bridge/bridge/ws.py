@@ -14,6 +14,7 @@ import msgpack
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from .protocol import OutputBuffer, is_valid_serial
+from .snapshot import maybe_snapshot
 from .state import get_state
 
 router = APIRouter()
@@ -154,6 +155,10 @@ async def ws_endpoint(websocket: WebSocket) -> None:
                         if st.get_sync_enabled(serial):
                             st.stage_broadcast(serial, accepted, rev)
                             st.notify_stream(serial)
+                        # the WS edit branch is the web's primary edit channel - it MUST
+                        # snapshot too, otherwise io/outputs.json stays empty and a bridge
+                        # restart loses every edit
+                        await maybe_snapshot(serial)
     except WebSocketDisconnect:
         st.logs.info("ws", "client disconnected", serial)
         await manager.disconnect(serial, websocket)

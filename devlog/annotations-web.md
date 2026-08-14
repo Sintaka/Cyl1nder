@@ -1,5 +1,13 @@
 # Web 子系统改动标注 / Web annotations
 
+## v0.1.00102（2026-08-14）· 时间轴双向同步（fxhoudinimcp 通道）
+- **protocol/types.ts**：`TimelineMsg/TimelineState/HoudiniHealth/HoudiniStatus`。
+- **bridge/client.ts**：`getTimeline/putTimeline/getHoudini/putHoudiniMcp/houdiniCmd/houdiniPython`。
+- **core/timeline.ts**：`onFrameCommit?`（setFrame/step 提交，`linkEnabled && !dragging` 门控）、可变 fps + `setFps`、`setLinkEnabled/setDragging`、`applyRemote`（拖动态忽略、未命中不清空几何、不触发提交防回环）；默认 linkEnabled=false 与旧版行为一致。
+- **app/timeline-ui.ts**：锚定灯 ●（inline 蓝 #7fb0ff）/○、fps 跟随、scrub pointerdown/up 拖动态抑制 + 松手补一帧提交、帧号 commit 直接 setFrame（触发提交）。
+- **main.ts**（主管粘合）：`onFrameCommit → client.putTimeline`；250ms 轮询 `GET /timeline`（可见性门控）→ `setLinkEnabled(mcpPort>0)` + `applyRemote`。
+- **tests/timeline.test.ts**：+7 例（共 14）。tsc 0, vitest 167。
+
 ## v0.1.00101（2026-08-14）· Phase B 手动双向同步开关（web gate + 底部栏）
 - **protocol/types.ts**：`PreferenceJson.sync_enabled`；`StreamEvent` 四成员带 `sync_enabled`。
 - **bridge/client.ts**：`putSyncEnabled(serial, enabled)` → `PUT /sync-enabled`。

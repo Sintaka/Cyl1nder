@@ -1,5 +1,15 @@
 # 桥子系统改动标注 / Bridge annotations
 
+## v0.1.00102（2026-08-14）· 快照修复 + fxhoudinimcp 代理
+- **snapshot.py**：`maybe_snapshot` 自 routes.py 迁入（REST put 与 WS edit 共用）；`read_snapshot` 双根合并（hip 根优先、DEFAULT_ROOT 补缺，两处兼容 v1 legacy）；`restore_workspace/restore_all_workspaces`（仅回填空 workspace、坏条目跳过+error 日志）；`flush_workspace/flush_all_workspaces`。
+- **snapshot_routes.py（新）**：`POST /api/hda/{serial}/snapshot/restore`（to_thread 恢复 + 成功后 WS 广播 inputs/outputs）。
+- **ws.py**：edit 分支 accept 后 `await maybe_snapshot(serial)`（修复 io/outputs.json 长期空 → 重启丢编辑）。
+- **main.py**：lifespan（启动 restore_all_workspaces / 关闭 flush_all_workspaces）+ 挂载 snapshot/houdini 两个新路由。
+- **houdini_mcp.py（新）**：纯 stdlib HTTP RPC 客户端（rpc/health/discover_first/discover_by_hip/normalize_hip/set_frame/get_frame/execute_python/is_command_allowed + ALLOWED_COMMAND_PREFIXES）。
+- **houdini_routes.py（新）**：GET/PUT `/houdini`、POST `/houdini/cmd`（白名单 403）、POST `/houdini/python`、GET/PUT `/timeline`（0.25s 缓存 get_frame / 0.1s 节流 set_frame，端口解析 registry.mcpPort→hip→first 并 30s 节流写回）、PUT `/hou-timeline`（缓存 + WS 广播 timeline）；所有阻塞调用 to_thread。
+- **registry.py**：`RegistryRecord.mcpPort`（可变、to_dict/from_dict 兼容旧记录）+ `SerialRegistry.set_houdini_mcp`（force 落盘）。
+- **测试**：test_snapshot_restore.py 7 例 + test_houdini_mcp.py 35 例；test_registry 时间分辨率 flake 修复（循环内 sleep(0.02)）。pytest 106 passed。
+
 ## v0.1.00101（2026-08-14）· Phase B 手动双向同步开关（bridge gate）
 - **protocol.py**：新增 `SyncEnabledPut`（`enabled` 默认 True）；docstring 补 `PUT /sync-enabled` + `sync_enabled` 语义。
 - **state.py**：per-serial `sync_enabled`（默认 False）+ `set_sync_enabled`/`get_sync_enabled`。

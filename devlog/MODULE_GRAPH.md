@@ -1,6 +1,6 @@
 # 模块依赖图 / MODULE GRAPH (web/src)
 
-> 机器生成（2026-08-13），由 `node scripts/gen-graph.mjs` 产出。
+> 机器生成（2026-08-14），由 `node scripts/gen-graph.mjs` 产出。
 
 - `app/app-config.ts`
   - three/webgpu
@@ -30,9 +30,12 @@
 - `app/scrub.ts`
 - `app/spreadsheet.ts`
   - protocol/types
+- `app/timeline-ui.ts`
+  - core/timeline
 - `app/widgets.ts`
   - styles/widgets.css
 - `bridge/client.ts`
+  - @msgpack/msgpack
   - protocol/types
 - `color/color-math.ts`
 - `color/harmony.ts`
@@ -50,9 +53,11 @@
   - color/color-math
   - color/harmony
 - `core/dataflow.ts`
+  - core/network
   - core/params
   - nodes2/graph
   - nodes2/network
+  - protocol/types
   - stores/workspace
   - viewport/renderer
 - `core/gizmo.ts`
@@ -60,6 +65,7 @@
 - `core/kick.ts`
 - `core/lifecycle.ts`
 - `core/network.ts`
+  - nodes2/chain-cache
   - protocol/types
 - `core/param-undo.ts`
   - core/params
@@ -68,6 +74,8 @@
   - bridge/client
   - protocol/types
 - `core/shortcuts.ts`
+- `core/timeline.ts`
+  - protocol/types
 - `main.ts`
   - app/app-config
   - app/dock
@@ -76,6 +84,7 @@
   - app/param
   - app/preference
   - app/spreadsheet
+  - app/timeline-ui
   - bridge/client
   - core/dataflow
   - core/gizmo
@@ -86,6 +95,7 @@
   - core/params
   - core/session
   - core/shortcuts
+  - core/timeline
   - nodes2/graph
   - nodes2/network
   - protocol/compare
@@ -93,6 +103,11 @@
   - stores/workspace
   - styles.css
   - viewport/renderer
+- `nodes2/chain-cache.ts`
+  - nodes2/groups
+  - nodes2/network
+  - protocol/types
+  - tools/transform
 - `nodes2/graph-interact.ts`
   - fuse.js
   - nodes2/NodeView
@@ -114,6 +129,7 @@
   - nodes2/graph-model
   - nodes2/undo
   - rete
+  - rete-area-plugin
 - `nodes2/graph.ts`
   - nodes2/NodeView
   - nodes2/graph-interact
@@ -136,6 +152,7 @@
 - `nodes2/groups/parser.ts`
   - protocol/types
 - `nodes2/network.ts`
+  - nodes2/chain-cache
   - nodes2/groups
   - protocol/types
   - tools/transform
@@ -143,6 +160,7 @@
 - `overview.ts`
   - protocol/types
 - `protocol/compare.ts`
+  - fast-deep-equal
   - protocol/types
 - `protocol/types.ts`
 - `stores/workspace.ts`

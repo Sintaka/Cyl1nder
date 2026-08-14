@@ -13,9 +13,18 @@ reload_hda.py and hython_smoke.py) and re-exports the submodule names they use.
 """
 from __future__ import annotations
 
+import os
+import time
+
 import hou
 
 from cyl1nder_bridge import BridgeClient, generate_serial
+from cyl1nder_houdini_mcp import (
+    is_reported,
+    known_port,
+    mark_reported,
+    start_discovery,
+)
 from cyl1nder_serializer import serialize_input
 
 from cyl1nder_cache import (
@@ -37,6 +46,59 @@ from cyl1nder_sync import (
 )
 
 ROLE_PUSH = 0
+
+# fxhoudinimcp discovery/report throttle (module-level; cook main thread only).
+_MCP_HOOK_INTERVAL = 10.0    # discovery/report gate: at most once per 10s
+_MCP_REPORT_INTERVAL = 60.0  # re-report a known port at most once per 60s
+_MCP_LAST_HOOK = 0.0
+_MCP_LAST_REPORT = 0.0
+_MCP_HOOK_LOG_ONCE = False
+
+
+def _on_mcp_discovery_found(client, port: int) -> None:
+    """Discovery-thread callback: report the port straight to the bridge (pure
+    stdlib, thread-safe), marking it reported only when the PUT succeeded."""
+    try:
+        client.report_houdini_mcp(port)
+        if not client.last_error:
+            mark_reported()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _maybe_report_houdini_mcp(client) -> None:
+    """Discover + report this Houdini instance's fxhoudinimcp port to the bridge.
+
+    Cook-main-thread only: hou.hipFile.name() is evaluated here (safe), and the
+    pid is passed INTO the short-lived daemon discovery thread, which does only
+    urllib HTTP (never hou). Throttled to once per 10s; a discovered port is
+    reported straight from the discovery thread (on_found), then re-reported
+    at most once per 60s. Any failure prints once and never affects the cook.
+    """
+    global _MCP_LAST_HOOK, _MCP_LAST_REPORT, _MCP_HOOK_LOG_ONCE
+    try:
+        now = time.time()
+        if now - _MCP_LAST_HOOK < _MCP_HOOK_INTERVAL:
+            return
+        _MCP_LAST_HOOK = now
+
+        port = known_port()
+        if port == 0:
+            start_discovery(
+                os.getpid(),
+                hou.hipFile.name(),
+                on_found=lambda p: _on_mcp_discovery_found(client, p),
+            )
+            return
+        if not is_reported() or now - _MCP_LAST_REPORT > _MCP_REPORT_INTERVAL:
+            client.report_houdini_mcp(port)
+            if not client.last_error:
+                mark_reported()
+                _MCP_LAST_REPORT = now
+    except Exception:  # noqa: BLE001 - must never affect the cook
+        if not _MCP_HOOK_LOG_ONCE:
+            _MCP_HOOK_LOG_ONCE = True
+            print("[cyl1nder] houdini mcp discovery/report hook failed (non-fatal)")
 
 
 def _push_inputs_if_changed(node, root, serial, bridge_url, client) -> bool:
@@ -95,6 +157,7 @@ def cook_core() -> None:
     client = BridgeClient(serial, bridge_url=bridge_url, node_path=root.path(), label="Cyl1nder")
     _ensure_bridge(root)
     _ensure_frontend(root)
+    _maybe_report_houdini_mcp(client)
 
     if auto_push:
         _push_inputs_if_changed(node, root, serial, bridge_url, client)
@@ -131,6 +194,7 @@ def cook(role: int) -> None:
     client = BridgeClient(serial, bridge_url=bridge_url, node_path=root.path(), label="Cyl1nder")
     _ensure_bridge(root)
     _ensure_frontend(root)
+    _maybe_report_houdini_mcp(client)
 
     if role == ROLE_PUSH and auto_push:
         _push_inputs_if_changed(node, root, serial, bridge_url, client)

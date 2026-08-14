@@ -1,5 +1,12 @@
 # HDA 子系统改动标注 / HDA annotations
 
+## v0.1.00102（2026-08-14）· fxhoudinimcp 端口发现 + 上报
+- **cyl1nder_houdini_mcp.py（新）**：纯 stdlib（零 `import hou`，后台线程安全/重载安全）——`probe/discover_port`（扫 8100..8115，`mcp.health.pid == os.getpid()` 唯一判据 + hip 二次比对）、`get_frame/set_frame`（带主线程死锁警示注释）、`start_discovery`（短命 daemon 线程 + `on_found` 回调当场上报）。
+- **cyl1nder_bridge.py**：`report_houdini_mcp(port)` → `PUT /api/hda/{serial}/houdini`（直接、不起线程、失败只记 last_error）。
+- **cyl1nder_hda.py**：cook 主线程钩子 `_maybe_report_houdini_mcp`（10s 节流；hou 调用仅 cook 线程；发现成功经 `on_found` 上报 + `mark_reported`，60s 重报）。
+- **scripts/reload_hda.py**：MODULES 加 `cyl1nder_houdini_mcp`（无长生命周期线程，无需额外停线程步骤）。
+- 实机：热重载 ×2 无崩溃；`known_port()=8100, is_reported()=True`；SMOKE OK。
+
 ## v0.1.00101（2026-08-14）· Phase B 手动双向同步开关（HDA 自适应循环）
 - **cyl1nder_bridge.py**：新增 `probe_once()`（GET `/pending`，返回 dict 含 `sync_enabled`，异常 None）。
 - **cyl1nder_sync.py**：`_stream_loop` 自适应——OFF 时 ~1.5s `/pending` 探测 gate（**零 /stream 请求**、兼心跳），ON 才跑 `/stream`；进入 stream 模式才 warm ready buffer；事件 `sync_enabled=false` 立即切回探测且不 recook；`ensure_sync` state 初始 `sync_enabled=False`。

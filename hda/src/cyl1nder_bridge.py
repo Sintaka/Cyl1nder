@@ -85,6 +85,26 @@ class BridgeClient:
         except Exception as exc:  # noqa: BLE001 - bridge down must never break the cook
             self.last_error = str(exc)
 
+    def report_houdini_mcp(self, port: int) -> None:
+        """Report this Houdini instance's fxhoudinimcp port to the bridge.
+
+        Direct (no thread) PUT {bridge_url}/api/hda/{serial}/houdini with
+        {"mcp_port": int}. Success clears last_error; failure records it.
+        Never raises - the bridge being down must never break the cook.
+        """
+        try:
+            body = json.dumps({"mcp_port": int(port)}).encode("utf-8")
+            req = urllib.request.Request(
+                f"{self.bridge_url}/api/hda/{self.serial}/houdini",
+                data=body,
+                headers={"Content-Type": "application/json"},
+                method="PUT",
+            )
+            with urllib.request.urlopen(req, timeout=2):
+                self.last_error = ""
+        except Exception as exc:  # noqa: BLE001
+            self.last_error = str(exc)
+
     def pending_outputs(self, since: int) -> tuple[bool, int, bool, bool]:
         """Lightweight dirty check: (pending, rev, reset, force).
 

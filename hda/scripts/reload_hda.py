@@ -25,7 +25,10 @@ SRC = os.path.join(HDA_ROOT, "src")
 HDA_FILE = os.path.join(HDA_ROOT, "otls", "Cyl1nder_1.0.hda")
 BUILD_SCRIPT = os.path.join(HDA_ROOT, "scripts", "build_hda.py")
 HFS = os.environ.get("HFS", r"C:\Program Files\Side Effects Software\Houdini 22.0.368")
-MODULES = ("cyl1nder_serializer", "cyl1nder_bridge", "cyl1nder_lifecycle", "cyl1nder_cache", "cyl1nder_geometry", "cyl1nder_sync", "cyl1nder_hda")
+# cyl1nder_houdini_mcp has NO long-lived threads: its discovery runs on a
+# short-lived daemon thread (urllib only, no hou), so reload needs no extra
+# thread-stop step for it (unlike cyl1nder_sync's /stream loops).
+MODULES = ("cyl1nder_serializer", "cyl1nder_bridge", "cyl1nder_lifecycle", "cyl1nder_cache", "cyl1nder_houdini_mcp", "cyl1nder_geometry", "cyl1nder_sync", "cyl1nder_hda")
 
 
 def _stop_sync_threads() -> None:

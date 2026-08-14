@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-13），由 `node scripts/gen-index.mjs` 产出。共 **583** 个函数/类。
+> 机器生成（2026-08-14），由 `node scripts/gen-index.mjs` 产出。共 **651** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -41,6 +41,45 @@
 | `PassthroughExecutor` | 8 | class |  | 1 |
 | `run` | 11 | def |  | 1 |
 
+## bridge/bridge/houdini_mcp.py（185 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `HoudiniMcpError` | 56 | class |  | 5 |
+| `_request_id` | 60 | def |  | 2 |
+| `_decode_bytes` | 68 | def |  | 2 |
+| `_post` | 81 | def |  | 3 |
+| `rpc` | 104 | def |  | 4 |
+| `health` | 116 | def |  | 3 |
+| `discover_first` | 124 | def |  | 2 |
+| `normalize_hip` | 132 | def |  | 3 |
+| `discover_by_hip` | 141 | def |  | 1 |
+| `_unwrap` | 157 | def |  | 4 |
+| `set_frame` | 165 | def |  | 1 |
+| `get_frame` | 169 | def |  | 1 |
+| `execute_python` | 173 | def |  | 1 |
+| `is_command_allowed` | 180 | def |  | 1 |
+
+## bridge/bridge/houdini_routes.py（262 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `_check_serial` | 45 | def |  | 8 |
+| `_tl_default` | 50 | def |  | 5 |
+| `_resolve_port` | 54 | def |  | 1 |
+| `get_timeline` | 80 | def |  | 1 |
+| `TimelinePut` | 120 | class |  | 1 |
+| `put_timeline` | 125 | def |  | 1 |
+| `HouTimelinePut` | 156 | class |  | 1 |
+| `put_hou_timeline` | 162 | def |  | 1 |
+| `get_houdini` | 189 | def |  | 1 |
+| `HoudiniPut` | 199 | class |  | 1 |
+| `put_houdini` | 204 | def |  | 1 |
+| `CmdBody` | 220 | class |  | 1 |
+| `houdini_cmd` | 226 | def |  | 1 |
+| `PythonBody` | 241 | class |  | 1 |
+| `houdini_python` | 247 | def |  | 1 |
+
 ## bridge/bridge/logs.py（60 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
@@ -55,11 +94,12 @@
 | `query` | 48 | def |  | 2 |
 | `errors` | 58 | def |  | 1 |
 
-## bridge/bridge/main.py（31 行）
+## bridge/bridge/main.py（53 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `create_app` | 14 | def |  | 2 |
+| `lifespan` | 20 | def |  | 1 |
+| `create_app` | 34 | def |  | 2 |
 
 ## bridge/bridge/mcp_server.py（303 行）
 
@@ -87,75 +127,77 @@
 | `cyl1nder_index_query` | 274 | def |  | 1 |
 | `run_stdio` | 297 | def |  | 2 |
 
-## bridge/bridge/protocol.py（135 行）
+## bridge/bridge/protocol.py（146 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_b36` | 65 | def |  | 3 |
-| `generate_serial` | 76 | def |  | 1 |
-| `is_valid_serial` | 87 | def |  | 1 |
-| `AttributeData` | 91 | class |  | 1 |
-| `CurveData` | 97 | class |  | 1 |
-| `InputPayload` | 102 | class |  | 1 |
-| `OutputBuffer` | 113 | class |  | 1 |
-| `InputsPut` | 124 | class |  | 1 |
-| `OutputsPut` | 132 | class |  | 1 |
+| `_b36` | 70 | def |  | 3 |
+| `generate_serial` | 81 | def |  | 1 |
+| `is_valid_serial` | 92 | def |  | 1 |
+| `AttributeData` | 96 | class |  | 1 |
+| `CurveData` | 102 | class |  | 1 |
+| `InputPayload` | 107 | class |  | 1 |
+| `OutputBuffer` | 118 | class |  | 1 |
+| `InputsPut` | 129 | class |  | 1 |
+| `OutputsPut` | 138 | class |  | 1 |
+| `SyncEnabledPut` | 143 | class |  | 1 |
 
-## bridge/bridge/registry.py（201 行）
+## bridge/bridge/registry.py（218 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `RegistryError` | 29 | class |  | 2 |
 | `RegistryRecord` | 33 | class |  | 3 |
 | `__init__` | 36 | def |  | 2 |
-| `to_dict` | 55 | def |  | 2 |
-| `from_dict` | 67 | def |  | 2 |
-| `SerialRegistry` | 79 | class |  | 0 |
-| `register` | 90 | def |  | 3 |
-| `get` | 117 | def |  | 11 |
-| `touch` | 121 | def |  | 3 |
-| `mark_activity` | 137 | def |  | 3 |
-| `remove` | 151 | def |  | 3 |
-| `list` | 160 | def |  | 1 |
-| `serials` | 164 | def |  | 1 |
-| `_save` | 168 | def |  | 5 |
-| `_load` | 192 | def |  | 2 |
+| `to_dict` | 57 | def |  | 2 |
+| `from_dict` | 70 | def |  | 2 |
+| `SerialRegistry` | 83 | class |  | 0 |
+| `register` | 94 | def |  | 4 |
+| `get` | 121 | def |  | 13 |
+| `touch` | 125 | def |  | 3 |
+| `mark_activity` | 141 | def |  | 3 |
+| `set_houdini_mcp` | 155 | def |  | 1 |
+| `remove` | 168 | def |  | 3 |
+| `list` | 177 | def |  | 1 |
+| `serials` | 181 | def |  | 1 |
+| `_save` | 185 | def |  | 6 |
+| `_load` | 209 | def |  | 2 |
 
-## bridge/bridge/routes.py（432 行）
+## bridge/bridge/routes.py（420 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_maybe_snapshot` | 40 | def |  | 3 |
-| `root` | 63 | def |  | 1 |
-| `_check_serial` | 70 | def |  | 14 |
-| `health` | 76 | def |  | 1 |
-| `list_serials` | 82 | def |  | 1 |
-| `status` | 87 | def |  | 2 |
-| `put_inputs` | 99 | def |  | 1 |
-| `get_outputs` | 117 | def |  | 1 |
-| `put_outputs` | 135 | def |  | 2 |
-| `_parse_outputs_body` | 157 | def |  | 2 |
-| `SyncFpsPut` | 182 | class |  | 1 |
-| `put_sync_fps` | 188 | def |  | 1 |
-| `pending` | 197 | def |  | 1 |
-| `_ndjson` | 218 | def |  | 9 |
-| `stream` | 224 | def |  | 1 |
-| `kick` | 270 | def |  | 1 |
-| `serial_logs` | 292 | def |  | 1 |
-| `get_snapshot` | 302 | def |  | 1 |
-| `get_ui_layout` | 313 | def |  | 1 |
-| `put_ui_layout` | 320 | def |  | 1 |
-| `put_snapshot` | 328 | def |  | 1 |
-| `ui_layouts` | 346 | def |  | 1 |
-| `ui_layout_save` | 352 | def |  | 1 |
-| `ui_layout_load` | 359 | def |  | 1 |
-| `global_logs` | 366 | def |  | 1 |
-| `scenes_list` | 377 | def |  | 1 |
-| `scenes_create` | 383 | def |  | 1 |
-| `scenes_cleanup` | 390 | def |  | 1 |
-| `scene_save` | 396 | def |  | 1 |
-| `scenes_open` | 407 | def |  | 1 |
-| `get_usdz` | 420 | def |  | 1 |
+| `root` | 38 | def |  | 1 |
+| `_check_serial` | 45 | def |  | 15 |
+| `health` | 51 | def |  | 1 |
+| `list_serials` | 57 | def |  | 1 |
+| `status` | 62 | def |  | 2 |
+| `put_inputs` | 75 | def |  | 1 |
+| `get_outputs` | 93 | def |  | 1 |
+| `put_outputs` | 111 | def |  | 2 |
+| `_parse_outputs_body` | 134 | def |  | 2 |
+| `SyncFpsPut` | 159 | class |  | 1 |
+| `put_sync_fps` | 165 | def |  | 1 |
+| `put_sync_enabled` | 174 | def |  | 1 |
+| `pending` | 183 | def |  | 1 |
+| `_ndjson` | 205 | def |  | 9 |
+| `stream` | 211 | def |  | 1 |
+| `kick` | 258 | def |  | 1 |
+| `serial_logs` | 280 | def |  | 1 |
+| `get_snapshot` | 290 | def |  | 1 |
+| `get_ui_layout` | 301 | def |  | 1 |
+| `put_ui_layout` | 308 | def |  | 1 |
+| `put_snapshot` | 316 | def |  | 1 |
+| `ui_layouts` | 334 | def |  | 1 |
+| `ui_layout_save` | 340 | def |  | 1 |
+| `ui_layout_load` | 347 | def |  | 1 |
+| `global_logs` | 354 | def |  | 1 |
+| `scenes_list` | 365 | def |  | 1 |
+| `scenes_create` | 371 | def |  | 1 |
+| `scenes_cleanup` | 378 | def |  | 1 |
+| `scene_save` | 384 | def |  | 1 |
+| `scenes_open` | 395 | def |  | 1 |
+| `get_usdz` | 408 | def |  | 1 |
 
 ## bridge/bridge/scenes.py（188 行）
 
@@ -170,37 +212,51 @@
 | `save_scene` | 129 | def |  | 1 |
 | `open_scene` | 160 | def |  | 1 |
 
-## bridge/bridge/snapshot.py（140 行）
+## bridge/bridge/snapshot_routes.py（50 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `snapshot_root` | 39 | def |  | 3 |
-| `_part_path` | 51 | def |  | 3 |
-| `read_snapshot` | 56 | def |  | 1 |
-| `write_snapshot` | 80 | def |  | 1 |
-| `build_meta` | 128 | def |  | 1 |
+| `restore` | 23 | def |  | 1 |
 
-## bridge/bridge/state.py（235 行）
+## bridge/bridge/snapshot.py（292 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `snapshot_root` | 46 | def |  | 3 |
+| `_part_path` | 58 | def |  | 3 |
+| `_read_root` | 63 | def |  | 3 |
+| `read_snapshot` | 86 | def |  | 2 |
+| `write_snapshot` | 103 | def |  | 2 |
+| `build_meta` | 151 | def |  | 3 |
+| `maybe_snapshot` | 165 | def |  | 1 |
+| `restore_workspace` | 194 | def |  | 2 |
+| `restore_all_workspaces` | 245 | def |  | 1 |
+| `flush_workspace` | 260 | def |  | 2 |
+| `flush_all_workspaces` | 285 | def |  | 1 |
+
+## bridge/bridge/state.py（246 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `BridgeState` | 27 | class |  | 2 |
 | `__init__` | 28 | def |  | 1 |
-| `set_sync_fps` | 55 | def |  | 1 |
-| `get_sync_fps` | 66 | def |  | 3 |
-| `set_kick` | 72 | def |  | 1 |
-| `take_kick` | 77 | def |  | 1 |
-| `try_arm_kick` | 82 | def |  | 1 |
-| `subscribe` | 99 | def |  | 1 |
-| `unsubscribe` | 108 | def |  | 2 |
-| `notify_stream` | 117 | def |  | 1 |
-| `_wake_stream` | 146 | def |  | 1 |
-| `stage_broadcast` | 157 | def |  | 1 |
-| `_arm_broadcast_flush` | 189 | def |  | 1 |
-| `_flush_broadcast` | 196 | def |  | 3 |
-| `default_data_dir` | 216 | def |  | 2 |
-| `get_state` | 223 | def |  | 1 |
-| `reset_state` | 230 | def |  | 1 |
+| `set_sync_fps` | 57 | def |  | 1 |
+| `get_sync_fps` | 68 | def |  | 3 |
+| `set_sync_enabled` | 72 | def |  | 1 |
+| `get_sync_enabled` | 77 | def |  | 1 |
+| `set_kick` | 83 | def |  | 1 |
+| `take_kick` | 88 | def |  | 1 |
+| `try_arm_kick` | 93 | def |  | 1 |
+| `subscribe` | 110 | def |  | 1 |
+| `unsubscribe` | 119 | def |  | 2 |
+| `notify_stream` | 128 | def |  | 1 |
+| `_wake_stream` | 157 | def |  | 1 |
+| `stage_broadcast` | 168 | def |  | 1 |
+| `_arm_broadcast_flush` | 200 | def |  | 1 |
+| `_flush_broadcast` | 207 | def |  | 3 |
+| `default_data_dir` | 227 | def |  | 2 |
+| `get_state` | 234 | def |  | 1 |
+| `reset_state` | 241 | def |  | 1 |
 
 ## bridge/bridge/ui_layout.py（75 行）
 
@@ -231,38 +287,38 @@
 | `build_usdz_bytes` | 118 | def |  | 2 |
 | `write_usdz` | 128 | def |  | 1 |
 
-## bridge/bridge/workspace.py（124 行）
+## bridge/bridge/workspace.py（126 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `Workspace` | 10 | class |  | 1 |
 | `__init__` | 11 | def |  | 2 |
-| `set_inputs` | 19 | def |  | 1 |
-| `put_outputs` | 24 | def |  | 1 |
-| `get_outputs_since` | 46 | def |  | 1 |
-| `output_rev` | 53 | def |  | 1 |
-| `all_outputs` | 57 | def |  | 1 |
-| `to_summary` | 61 | def |  | 2 |
-| `_same_content` | 90 | def |  | 2 |
-| `WorkspaceStore` | 100 | class |  | 0 |
-| `get_or_create` | 105 | def |  | 2 |
-| `get` | 113 | def |  | 4 |
-| `serials` | 117 | def |  | 1 |
-| `status` | 121 | def |  | 1 |
+| `set_inputs` | 20 | def |  | 1 |
+| `put_outputs` | 26 | def |  | 1 |
+| `get_outputs_since` | 48 | def |  | 1 |
+| `output_rev` | 55 | def |  | 1 |
+| `all_outputs` | 59 | def |  | 1 |
+| `to_summary` | 63 | def |  | 2 |
+| `_same_content` | 92 | def |  | 2 |
+| `WorkspaceStore` | 102 | class |  | 0 |
+| `get_or_create` | 107 | def |  | 2 |
+| `get` | 115 | def |  | 4 |
+| `serials` | 119 | def |  | 1 |
+| `status` | 123 | def |  | 1 |
 
-## bridge/bridge/ws.py（162 行）
+## bridge/bridge/ws.py（168 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_pack_msg` | 24 | def |  | 2 |
-| `ConnectionManager` | 33 | class |  | 1 |
-| `__init__` | 34 | def |  | 1 |
-| `connect` | 39 | def |  | 2 |
-| `disconnect` | 45 | def |  | 3 |
-| `send` | 54 | def |  | 6 |
-| `receive` | 61 | def |  | 3 |
-| `broadcast` | 82 | def |  | 1 |
-| `ws_endpoint` | 105 | def |  | 1 |
+| `_pack_msg` | 25 | def |  | 2 |
+| `ConnectionManager` | 34 | class |  | 1 |
+| `__init__` | 35 | def |  | 1 |
+| `connect` | 40 | def |  | 2 |
+| `disconnect` | 46 | def |  | 3 |
+| `send` | 55 | def |  | 6 |
+| `receive` | 62 | def |  | 3 |
+| `broadcast` | 83 | def |  | 1 |
+| `ws_endpoint` | 106 | def |  | 1 |
 
 ## hda/scripts/bridge_control.py（229 行）
 
@@ -293,45 +349,53 @@
 | `_parm_group` | 57 | def |  | 3 |
 | `build` | 116 | def |  | 2 |
 
-## hda/scripts/hython_smoke.py（605 行）
+## hda/scripts/hython_smoke.py（818 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_req` | 30 | def |  | 7 |
-| `_make_curve_input` | 39 | def |  | 2 |
-| `_wait_ready_rev` | 57 | def |  | 4 |
-| `_FakeClock` | 73 | class |  | 2 |
-| `__init__` | 76 | def |  | 5 |
-| `now` | 79 | def |  | 1 |
-| `step` | 82 | def |  | 9 |
-| `_test_stream_loop` | 87 | def |  | 2 |
-| `_FakeClient` | 105 | class |  | 3 |
-| `stream_once` | 114 | def |  | 3 |
-| `pull_outputs` | 120 | def |  | 3 |
-| `_Gate` | 124 | class |  | 1 |
-| `__call__` | 131 | def |  | 1 |
-| `wait_len` | 139 | def |  | 3 |
-| `_feed` | 155 | def |  | 10 |
-| `_seed_caches` | 161 | def |  | 3 |
-| `_assert_caches_cleared` | 170 | def |  | 3 |
-| `_test_kick_force_recook` | 309 | def |  | 2 |
-| `_test_stop_all_sync` | 361 | def |  | 3 |
-| `main` | 429 | def |  | 2 |
-| `_stats` | 507 | def |  | 5 |
+| `_req` | 31 | def |  | 8 |
+| `_make_curve_input` | 40 | def |  | 2 |
+| `_wait_ready_rev` | 58 | def |  | 4 |
+| `_FakeClock` | 74 | class |  | 3 |
+| `__init__` | 77 | def |  | 8 |
+| `now` | 80 | def |  | 1 |
+| `step` | 83 | def |  | 13 |
+| `_test_stream_loop` | 88 | def |  | 2 |
+| `_FakeClient` | 107 | class |  | 5 |
+| `probe_once` | 116 | def |  | 5 |
+| `stream_once` | 119 | def |  | 4 |
+| `pull_outputs` | 125 | def |  | 4 |
+| `_Gate` | 129 | class |  | 2 |
+| `__call__` | 136 | def |  | 2 |
+| `wait_len` | 144 | def |  | 8 |
+| `_feed` | 160 | def |  | 10 |
+| `_seed_caches` | 166 | def |  | 3 |
+| `_assert_caches_cleared` | 175 | def |  | 3 |
+| `_test_kick_force_recook` | 314 | def |  | 2 |
+| `_test_stop_all_sync` | 372 | def |  | 3 |
+| `_test_push_inputs_frame` | 444 | def |  | 2 |
+| `_FakeNode` | 454 | class |  | 1 |
+| `inputs` | 455 | def |  | 1 |
+| `push_inputs` | 462 | def |  | 1 |
+| `_FakeRoot` | 465 | class |  | 1 |
+| `path` | 466 | def |  | 3 |
+| `_test_sync_enabled_gate` | 517 | def |  | 2 |
+| `main` | 627 | def |  | 2 |
+| `_stats` | 718 | def |  | 5 |
 
-## hda/scripts/reload_hda.py（118 行）
+## hda/scripts/reload_hda.py（121 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_stop_sync_threads` | 31 | def |  | 3 |
-| `_reload_modules` | 52 | def |  | 2 |
-| `_instances` | 68 | def |  | 2 |
-| `_force_recook_all` | 73 | def |  | 3 |
-| `_rebuild_hda` | 87 | def |  | 2 |
-| `_reload_definition` | 93 | def |  | 2 |
-| `reload_cyl1nder` | 100 | def |  | 3 |
+| `_stop_sync_threads` | 34 | def |  | 3 |
+| `_reload_modules` | 55 | def |  | 2 |
+| `_instances` | 71 | def |  | 2 |
+| `_force_recook_all` | 76 | def |  | 3 |
+| `_rebuild_hda` | 90 | def |  | 2 |
+| `_reload_definition` | 96 | def |  | 2 |
+| `reload_cyl1nder` | 103 | def |  | 3 |
 
-## hda/src/cyl1nder_bridge.py（134 行）
+## hda/src/cyl1nder_bridge.py（165 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -341,9 +405,11 @@
 | `__init__` | 36 | def |  | 1 |
 | `push_inputs` | 52 | def |  | 1 |
 | `_pump` | 59 | def |  | 1 |
-| `pending_outputs` | 87 | def |  | 1 |
-| `stream_once` | 108 | def |  | 1 |
-| `pull_outputs` | 125 | def |  | 1 |
+| `report_houdini_mcp` | 88 | def |  | 1 |
+| `pending_outputs` | 108 | def |  | 1 |
+| `probe_once` | 129 | def |  | 1 |
+| `stream_once` | 139 | def |  | 1 |
+| `pull_outputs` | 156 | def |  | 1 |
 
 ## hda/src/cyl1nder_cache.py（97 行）
 
@@ -369,13 +435,33 @@
 | `_same_geo` | 195 | def |  | 1 |
 | `_input_signature` | 206 | def |  | 1 |
 
-## hda/src/cyl1nder_hda.py（166 行）
+## hda/src/cyl1nder_hda.py（233 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_push_inputs_if_changed` | 42 | def |  | 3 |
-| `cook_core` | 79 | def |  | 3 |
-| `cook` | 119 | def |  | 3 |
+| `_on_mcp_discovery_found` | 58 | def |  | 2 |
+| `_maybe_report_houdini_mcp` | 69 | def |  | 3 |
+| `_push_inputs_if_changed` | 104 | def |  | 3 |
+| `cook_core` | 144 | def |  | 3 |
+| `cook` | 185 | def |  | 3 |
+
+## hda/src/cyl1nder_houdini_mcp.py（272 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `_rid` | 43 | def |  | 3 |
+| `_norm_hip` | 51 | def |  | 3 |
+| `_post_rpc` | 56 | def |  | 4 |
+| `probe` | 69 | def |  | 2 |
+| `discover_port` | 87 | def |  | 2 |
+| `get_frame` | 120 | def |  | 1 |
+| `set_frame` | 153 | def |  | 1 |
+| `_discover_worker` | 182 | def |  | 1 |
+| `start_discovery` | 206 | def |  | 2 |
+| `known_port` | 241 | def |  | 1 |
+| `mark_reported` | 250 | def |  | 1 |
+| `is_reported` | 258 | def |  | 1 |
+| `reset_report` | 266 | def |  | 1 |
 
 ## hda/src/cyl1nder_lifecycle.py（128 行）
 
@@ -397,16 +483,16 @@
 | `_norm_value` | 12 | def |  | 2 |
 | `serialize_input` | 20 | def |  | 1 |
 
-## hda/src/cyl1nder_sync.py（251 行）
+## hda/src/cyl1nder_sync.py（273 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_stream_loop` | 22 | def |  | 1 |
-| `_schedule_recook` | 112 | def |  | 4 |
-| `_force_cook_node` | 131 | def |  | 1 |
-| `stop_sync` | 159 | def |  | 5 |
-| `stop_all_sync` | 182 | def |  | 1 |
-| `ensure_sync` | 195 | def |  | 4 |
+| `_stream_loop` | 23 | def |  | 1 |
+| `_schedule_recook` | 133 | def |  | 4 |
+| `_force_cook_node` | 152 | def |  | 1 |
+| `stop_sync` | 180 | def |  | 5 |
+| `stop_all_sync` | 203 | def |  | 1 |
+| `ensure_sync` | 216 | def |  | 4 |
 
 ## web/src/app/app-config.ts（7 行）
 
@@ -445,13 +531,13 @@
 | `onLayoutChange` | 486 | arrow |  | 0 |
 | `applyLayout` | 530 | function | export | 1 |
 
-## web/src/app/layout.ts（273 行）
+## web/src/app/layout.ts（287 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `wireFpsStepper` | 29 | function |  | 3 |
-| `buildLayout` | 48 | function | export | 1 |
-| `buildLayoutLegacy` | 164 | function | export | 1 |
+| `wireFpsStepper` | 31 | function |  | 3 |
+| `buildLayout` | 50 | function | export | 1 |
+| `buildLayoutLegacy` | 172 | function | export | 1 |
 
 ## web/src/app/layouts.ts（11 行）
 
@@ -479,19 +565,19 @@
 | `renderParams` | 146 | function | export | 1 |
 | `commit` | 187 | arrow |  | 1 |
 
-## web/src/app/preference.ts（338 行）
+## web/src/app/preference.ts（343 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `clampSyncFps` | 45 | function | export | 4 |
-| `parseUpdateMode` | 51 | function |  | 4 |
-| `parseAutosaveInterval` | 56 | function |  | 3 |
-| `parseViewportBg` | 63 | function |  | 4 |
-| `parseUiFont` | 67 | function |  | 4 |
-| `loadPreferences` | 73 | function | export | 1 |
-| `savePreferences` | 98 | function | export | 1 |
-| `applyPreferences` | 105 | function | export | 1 |
-| `openPreferenceDialog` | 128 | function | export | 1 |
+| `clampSyncFps` | 47 | function | export | 4 |
+| `parseUpdateMode` | 53 | function |  | 4 |
+| `parseAutosaveInterval` | 58 | function |  | 3 |
+| `parseViewportBg` | 65 | function |  | 4 |
+| `parseUiFont` | 69 | function |  | 4 |
+| `loadPreferences` | 75 | function | export | 1 |
+| `savePreferences` | 101 | function | export | 1 |
+| `applyPreferences` | 108 | function | export | 1 |
+| `openPreferenceDialog` | 131 | function | export | 1 |
 
 ## web/src/app/scrub.ts（270 行）
 
@@ -521,6 +607,12 @@
 | `addVerts` | 114 | arrow |  | 2 |
 | `renderSpreadsheet` | 158 | function | export | 1 |
 
+## web/src/app/timeline-ui.ts（134 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `createTimelineUI` | 9 | function | export | 1 |
+
 ## web/src/app/widgets.ts（210 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
@@ -529,13 +621,13 @@
 | `createDropdown` | 46 | function | export | 1 |
 | `createStepper` | 130 | function | export | 1 |
 
-## web/src/bridge/client.ts（261 行）
+## web/src/bridge/client.ts（327 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `BridgeClient` | 24 | class | export | 0 |
-| `connectWs` | 218 | function | export | 1 |
-| `connect` | 223 | arrow |  | 1 |
+| `connectWs` | 284 | function | export | 1 |
+| `connect` | 289 | arrow |  | 1 |
 
 ## web/src/color/color-math.ts（147 行）
 
@@ -598,11 +690,11 @@
 |---|---|---|---|---|
 | `createGizmoController` | 51 | function | export | 1 |
 
-## web/src/core/kick.ts（45 行）
+## web/src/core/kick.ts（46 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `createKickController` | 11 | function | export | 1 |
+| `createKickController` | 12 | function | export | 1 |
 
 ## web/src/core/lifecycle.ts（58 行）
 
@@ -612,11 +704,11 @@
 | `createHdaWatchdog` | 31 | function | export | 1 |
 | `check` | 42 | arrow |  | 1 |
 
-## web/src/core/network.ts（100 行）
+## web/src/core/network.ts（105 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `createNetworkRunner` | 36 | function | export | 1 |
+| `createNetworkRunner` | 37 | function | export | 1 |
 
 ## web/src/core/param-undo.ts（33 行）
 
@@ -632,11 +724,11 @@
 | `cloneParams` | 19 | function | export | 1 |
 | `paramsEqual` | 24 | function | export | 1 |
 
-## web/src/core/session.ts（86 行）
+## web/src/core/session.ts（91 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `createSessionController` | 25 | function | export | 1 |
+| `createSessionController` | 28 | function | export | 1 |
 
 ## web/src/core/shortcuts.ts（51 行）
 
@@ -644,32 +736,38 @@
 |---|---|---|---|---|
 | `bindShortcuts` | 15 | function | export | 1 |
 
-## web/src/main.ts（884 行）
+## web/src/core/timeline.ts（158 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `matchLogFilter` | 52 | arrow |  | 0 |
-| `renderLog` | 53 | arrow |  | 3 |
-| `toggle` | 131 | arrow |  | 8 |
-| `updateLayoutMenuLabel` | 163 | function |  | 5 |
-| `getDockJson` | 166 | arrow |  | 6 |
-| `saveCurrentLayout` | 170 | arrow |  | 2 |
-| `refreshLayoutPresets` | 179 | arrow |  | 1 |
-| `writeJsonToDir` | 285 | function |  | 7 |
-| `readJsonFromDir` | 296 | function |  | 5 |
-| `saveSceneAs` | 310 | function |  | 3 |
-| `openSceneFromDir` | 364 | function |  | 2 |
-| `applyLayoutSettings` | 584 | function |  | 4 |
-| `refreshSelectionPanels` | 599 | function |  | 1 |
-| `inputStatsText` | 674 | function |  | 2 |
-| `outputStatsText` | 683 | function |  | 2 |
-| `renderInspector` | 692 | function |  | 2 |
-| `updateGraphAddress` | 713 | function |  | 3 |
-| `scheduleNetwork` | 738 | function |  | 1 |
-| `flushStoreView` | 741 | function |  | 2 |
-| `loadSnapshotIntoStore` | 766 | function |  | 3 |
-| `applyLoadedPreference` | 803 | function |  | 3 |
-| `markGraphDirty` | 877 | function |  | 2 |
+| `createTimelineController` | 40 | function | export | 1 |
+
+## web/src/main.ts（954 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `matchLogFilter` | 54 | arrow |  | 0 |
+| `renderLog` | 55 | arrow |  | 3 |
+| `toggle` | 137 | arrow |  | 8 |
+| `updateLayoutMenuLabel` | 169 | function |  | 5 |
+| `getDockJson` | 172 | arrow |  | 6 |
+| `saveCurrentLayout` | 176 | arrow |  | 2 |
+| `refreshLayoutPresets` | 185 | arrow |  | 1 |
+| `writeJsonToDir` | 291 | function |  | 7 |
+| `readJsonFromDir` | 302 | function |  | 5 |
+| `saveSceneAs` | 316 | function |  | 3 |
+| `openSceneFromDir` | 370 | function |  | 2 |
+| `applyLayoutSettings` | 647 | function |  | 4 |
+| `refreshSelectionPanels` | 662 | function |  | 1 |
+| `inputStatsText` | 737 | function |  | 2 |
+| `outputStatsText` | 746 | function |  | 2 |
+| `renderInspector` | 755 | function |  | 2 |
+| `updateGraphAddress` | 776 | function |  | 3 |
+| `scheduleNetwork` | 801 | function |  | 1 |
+| `flushStoreView` | 804 | function |  | 2 |
+| `loadSnapshotIntoStore` | 829 | function |  | 3 |
+| `applyLoadedPreference` | 866 | function |  | 3 |
+| `markGraphDirty` | 947 | function |  | 2 |
 
 ## web/src/nodes2/chain-cache.ts（354 行）
 
@@ -880,12 +978,12 @@
 | `payloadEqual` | 4 | function |  | 2 |
 | `inputsEqual` | 16 | function | export | 1 |
 
-## web/src/protocol/types.ts（115 行）
+## web/src/protocol/types.ts（146 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/stores/workspace.ts（143 行）
+## web/src/stores/workspace.ts（150 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|

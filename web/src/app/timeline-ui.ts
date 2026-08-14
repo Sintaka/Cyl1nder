@@ -13,7 +13,7 @@ export function createTimelineUI(container: HTMLElement, deps: TimelineUiDeps): 
   let lastTs: number | null = null;
 
   container.innerHTML = `
-    <span class="tl-anchor" title="本地模式（v1 恒为本地）">○</span>
+    <span class="tl-anchor" title="本地模式（未链接 Houdini）">○</span>
     <button type="button" class="tl-btn" data-act="prev" aria-label="上一帧" title="上一帧（Shift 快退 10 帧）">◀</button>
     <button type="button" class="tl-btn" data-act="play" aria-label="播放" title="播放 / 停止">⏵</button>
     <button type="button" class="tl-btn" data-act="next" aria-label="下一帧" title="下一帧（Shift 快进 10 帧）">▶</button>
@@ -21,8 +21,10 @@ export function createTimelineUI(container: HTMLElement, deps: TimelineUiDeps): 
     <input type="number" class="tl-frame" step="1" value="1" aria-label="当前帧" />
     <span class="tl-fps">30fps</span>`;
 
+  const anchor = container.querySelector<HTMLSpanElement>(".tl-anchor")!;
   const scrub = container.querySelector<HTMLInputElement>(".tl-scrub")!;
   const frameInput = container.querySelector<HTMLInputElement>(".tl-frame")!;
+  const fpsEl = container.querySelector<HTMLSpanElement>(".tl-fps")!;
   const playBtn = container.querySelector<HTMLButtonElement>('button[data-act="play"]')!;
   const prevBtn = container.querySelector<HTMLButtonElement>('button[data-act="prev"]')!;
   const nextBtn = container.querySelector<HTMLButtonElement>('button[data-act="next"]')!;
@@ -37,7 +39,7 @@ export function createTimelineUI(container: HTMLElement, deps: TimelineUiDeps): 
     render();
   };
 
-  /** 简单本地播放：每 1/30s 前进一帧，到 max 停止。 */
+  /** 简单本地播放：每 1/fps 秒前进一帧，到 max 停止。 */
   const play = (): void => {
     playing = true;
     lastTs = null;
@@ -68,18 +70,38 @@ export function createTimelineUI(container: HTMLElement, deps: TimelineUiDeps): 
     frameInput.value = String(timeline.frame);
     playBtn.textContent = playing ? "⏸" : "⏵";
     playBtn.setAttribute("aria-label", playing ? "停止" : "播放");
+    // fps 跟随（H→C 时随 Houdini 上报变化）。
+    fpsEl.textContent = `${timeline.fps}fps`;
+    // 锚定灯：链接 Houdini = ●（蓝），否则本地 ○。
+    if (timeline.linkEnabled) {
+      anchor.textContent = "●";
+      anchor.style.color = "#7fb0ff";
+      anchor.title = "Houdini 同步中";
+    } else {
+      anchor.textContent = "○";
+      anchor.style.color = "";
+      anchor.title = "本地模式（未链接 Houdini）";
+    }
   };
 
   const commitFrame = (raw: string): void => {
     if (raw.trim() === "") return; // 空白输入视为非法，忽略
     const f = Number(raw);
     if (!Number.isFinite(f)) return;
+    // 同步调用：直接 setFrame 即触发 C→H 提交（controller 内 linkEnabled && !dragging 门控）。
     timeline.setFrame(f);
   };
 
   scrub.addEventListener("input", () => {
     timeline.setFrame(Number(scrub.value));
   });
+  // 拖动抑制：pointerdown 起标记 dragging（抑制 applyRemote / onFrameCommit），松手复位。
+  scrub.addEventListener("pointerdown", () => timeline.setDragging(true));
+  scrub.addEventListener("pointerup", () => {
+    timeline.setDragging(false);
+    timeline.setFrame(timeline.frame); // 松手补一帧提交（拖动期间 onFrameCommit 被抑制）
+  });
+  scrub.addEventListener("pointercancel", () => timeline.setDragging(false));
 
   frameInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") commitFrame(frameInput.value);

@@ -25,39 +25,13 @@ from .protocol import (
     is_valid_serial,
 )
 from .scenes import cleanup_scenes, create_scene, list_scenes, open_scene, save_scene
-from .snapshot import build_meta, read_snapshot, write_snapshot
+from .snapshot import maybe_snapshot, read_snapshot, write_snapshot
 from .usdz import build_usdz_bytes
 from .ui_layout import UiLayoutStore, list_layouts, load_layout, save_layout
 from .state import get_state
 from .ws import manager
 
 router = APIRouter()
-
-# throttled snapshot writes (R5 content-compare inside write_snapshot; >=5s cadence)
-_SNAP_LAST: dict[str, float] = {}
-import time as _time
-
-
-async def _maybe_snapshot(serial: str) -> None:
-    """Persist inputs/outputs snapshot on data change, throttled to avoid cook storms."""
-    st = get_state()
-    rec = st.registry.get(serial)
-    if rec is None:
-        return
-    now = _time.time()
-    if now - _SNAP_LAST.get(serial, 0) < 5.0:
-        return
-    _SNAP_LAST[serial] = now
-    ws = st.workspaces.get_or_create(serial)
-    # disk I/O off the event loop: blocks would delay WS broadcast / stream wake
-    await asyncio.to_thread(
-        write_snapshot,
-        serial,
-        rec.hip,
-        meta=build_meta(serial, rec.hip, rec.nodePath, VERSION, ws.input_rev, ws.output_rev()),
-        inputs=[i.model_dump() for i in ws.inputs],
-        outputs=[o.model_dump() for o in ws.all_outputs()],
-    )
 
 
 @router.get("/")
@@ -111,7 +85,7 @@ async def put_inputs(serial: str, payload: InputsPut) -> dict:
         serial,
         {"type": "inputs", "inputs": [i.model_dump() for i in payload.inputs], "rev": rev, "frame": payload.frame},
     )
-    await _maybe_snapshot(serial)
+    await maybe_snapshot(serial)
     return {"ok": True, "serial": serial, "rev": rev}
 
 
@@ -153,7 +127,7 @@ async def put_outputs(serial: str, request: Request) -> dict:
         if st.get_sync_enabled(serial):
             st.stage_broadcast(serial, accepted, rev)
             st.notify_stream(serial)
-    await _maybe_snapshot(serial)
+    await maybe_snapshot(serial)
     return {"ok": True, "serial": serial, "rev": rev}
 
 

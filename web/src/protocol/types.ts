@@ -113,3 +113,33 @@ export type StreamEvent =
   | { type: "reset"; rev: number; fps?: number; sync_enabled?: boolean }
   | { type: "kick"; force: true; rev: number; fps?: number; sync_enabled?: boolean }
   | { type: "timeout"; rev: number; fps?: number; sync_enabled?: boolean };
+
+// 时间轴双向同步（bridge WS 广播 timeline 消息 + fxhoudinimcp 代理端点）。
+export interface TimelineMsg {
+  type: "timeline";
+  frame: number;
+  fps: number;
+  source: "hou" | "web";
+  ts: number;
+}
+
+export interface TimelineState {
+  frame: number;
+  fps: number;
+  source: "hou" | "web";
+  ts: number;
+}
+
+export interface HoudiniHealth {
+  status?: string;
+  houdini_version?: string;
+  hip_file?: string;
+  pid?: number;
+}
+
+export interface HoudiniStatus {
+  serial: string;
+  mcpPort: number;
+  alive: boolean;
+  health: HoudiniHealth | null;
+}

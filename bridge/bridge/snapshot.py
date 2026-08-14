@@ -16,13 +16,20 @@ Rules (devlog/snapshot-design.md + scene-snapshot-research.md):
 """
 from __future__ import annotations
 
+import asyncio
 import orjson
 import os
 import time
 from pathlib import Path
 from typing import Any
 
+from .protocol import VERSION, InputPayload, OutputBuffer
+
 DEFAULT_ROOT = Path(__file__).resolve().parent.parent / "data" / "snapshots"
+
+# throttled workspace -> disk mirror (moved from routes.py; >=5s cadence, R5 content-compare)
+_SNAP_LAST: dict[str, float] = {}
+_SNAP_THROTTLE = 5.0
 
 # fixed file names per part (no serial prefix - the serial is the folder)
 _PARTS: dict[str, tuple[str, str]] = {
@@ -53,12 +60,11 @@ def _part_path(root: Path, part: str) -> Path:
     return (root / folder / name) if folder != "." else (root / name)
 
 
-def read_snapshot(hip: str, serial: str) -> dict[str, Any] | None:
-    """Read all existing snapshot parts (schema v2 fixed names, fallback to v1 legacy)."""
-    root = snapshot_root(hip, serial)
-    if not root.exists():
-        return None
+def _read_root(root: Path, serial: str) -> dict[str, Any]:
+    """Read every snapshot part present under one root (schema v2 fixed names, v1 legacy fallback)."""
     out: dict[str, Any] = {}
+    if not root.exists():
+        return out
     for part in _PARTS:
         p = _part_path(root, part)
         if p.exists():
@@ -74,7 +80,24 @@ def read_snapshot(hip: str, serial: str) -> dict[str, Any] | None:
                 out[part] = orjson.loads(legacy.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 continue
-    return out if out else None
+    return out
+
+
+def read_snapshot(hip: str, serial: str) -> dict[str, Any] | None:
+    """Dual-root merge read: the hip-derived root wins, DEFAULT_ROOT/serial fills missing parts.
+
+    This reconciles the split that happens when the registry's hip is temporarily
+    empty at write time (snapshot lands in the fallback root) but is later set
+    (snapshot lands next to the .hip): reading only one root used to miss the other.
+    Both roots keep the schema-v2 fixed names + v1 legacy filename fallback.
+    """
+    primary = snapshot_root(hip, serial)
+    merged = _read_root(primary, serial)
+    fallback = DEFAULT_ROOT / serial
+    if fallback != primary:
+        for part, value in _read_root(fallback, serial).items():
+            merged.setdefault(part, value)
+    return merged if merged else None
 
 
 def write_snapshot(
@@ -137,3 +160,132 @@ def build_meta(serial: str, hip: str, node_path: str, version: str, input_rev: i
         "savedAt": time.time(),
         "snapshotId": f"{serial}-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}",
     }
+
+
+async def maybe_snapshot(serial: str) -> None:
+    """Persist inputs/outputs snapshot on data change, throttled to avoid cook storms.
+
+    Shared by the REST put paths (routes.py) and the WS edit path (ws.py): the WS
+    branch is the web's primary edit channel, so it MUST snapshot too, otherwise
+    io/outputs.json stays empty and a bridge restart loses every edit.
+    """
+    from .state import get_state  # local import: avoids a module-level cycle
+
+    st = get_state()
+    rec = st.registry.get(serial)
+    if rec is None:
+        return
+    now = time.time()
+    if now - _SNAP_LAST.get(serial, 0.0) < _SNAP_THROTTLE:
+        return
+    _SNAP_LAST[serial] = now
+    ws = st.workspaces.get_or_create(serial)
+    # disk I/O off the event loop: blocks would delay WS broadcast / stream wake
+    await asyncio.to_thread(
+        write_snapshot,
+        serial,
+        rec.hip,
+        meta=build_meta(serial, rec.hip, rec.nodePath, VERSION, ws.input_rev, ws.output_rev()),
+        inputs=[i.model_dump() for i in ws.inputs],
+        outputs=[o.model_dump() for o in ws.all_outputs()],
+    )
+
+
+def restore_workspace(serial: str, hip: str) -> bool:
+    """Restore inputs/outputs into a workspace that is completely empty.
+
+    Only ever touches a workspace with no inputs AND no outputs, so a live
+    workspace is never overwritten. Reads the merged disk snapshot and validates
+    each entry (bad entries are skipped + logged, never raise). Returns True when
+    any data was restored.
+    """
+    from .state import get_state  # local import: avoids a module-level cycle
+
+    st = get_state()
+    existing = st.workspaces.get(serial)
+    if existing is not None and (existing.inputs or existing.all_outputs()):
+        return False
+    snap = read_snapshot(hip, serial)
+    if snap is None:
+        return False
+
+    valid_inputs: list[InputPayload] = []
+    raw_inputs = snap.get("inputs")
+    if isinstance(raw_inputs, list):
+        for item in raw_inputs:
+            try:
+                valid_inputs.append(InputPayload.model_validate(item))
+            except Exception as exc:  # noqa: BLE001 - one bad entry must not kill the restore
+                st.logs.error("snapshot", f"skip invalid input snapshot entry: {exc}", serial)
+
+    valid_outputs: list[OutputBuffer] = []
+    raw_outputs = snap.get("outputs")
+    if isinstance(raw_outputs, list):
+        for item in raw_outputs:
+            try:
+                valid_outputs.append(OutputBuffer.model_validate(item))
+            except Exception as exc:  # noqa: BLE001 - one bad entry must not kill the restore
+                st.logs.error("snapshot", f"skip invalid output snapshot entry: {exc}", serial)
+
+    if not valid_inputs and not valid_outputs:
+        return False
+    ws = st.workspaces.get_or_create(serial)
+    if valid_inputs:
+        ws.set_inputs(valid_inputs)
+    if valid_outputs:
+        ws.put_outputs(valid_outputs)
+    st.logs.info(
+        "snapshot",
+        f"workspace restored from disk snapshot (inputs={len(valid_inputs)} outputs={len(valid_outputs)})",
+        serial,
+    )
+    return True
+
+
+def restore_all_workspaces() -> int:
+    """Restore every registry serial whose workspace is empty (startup scenario B).
+
+    Returns the number of serials that were actually restored.
+    """
+    from .state import get_state  # local import: avoids a module-level cycle
+
+    st = get_state()
+    restored = 0
+    for rec in st.registry.list():
+        if restore_workspace(rec.serial, rec.hip):
+            restored += 1
+    return restored
+
+
+def flush_workspace(serial: str) -> bool:
+    """Synchronously force-write the current workspace inputs/outputs + meta to disk.
+
+    Empty workspaces are skipped. Returns True when anything was written.
+    """
+    from .state import get_state  # local import: avoids a module-level cycle
+
+    st = get_state()
+    rec = st.registry.get(serial)
+    if rec is None:
+        return False
+    ws = st.workspaces.get(serial)
+    if ws is None:
+        return False
+    if not ws.inputs and not ws.all_outputs():
+        return False
+    return write_snapshot(
+        serial,
+        rec.hip,
+        meta=build_meta(serial, rec.hip, rec.nodePath, VERSION, ws.input_rev, ws.output_rev()),
+        inputs=[i.model_dump() for i in ws.inputs],
+        outputs=[o.model_dump() for o in ws.all_outputs()],
+    )
+
+
+def flush_all_workspaces() -> None:
+    """Flush every registry serial's workspace to disk (shutdown catch-up)."""
+    from .state import get_state  # local import: avoids a module-level cycle
+
+    st = get_state()
+    for rec in st.registry.list():
+        flush_workspace(rec.serial)

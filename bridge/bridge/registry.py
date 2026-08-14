@@ -31,7 +31,7 @@ class RegistryError(Exception):
 
 
 class RegistryRecord:
-    __slots__ = ("serial", "hip", "nodePath", "label", "createdAt", "lastSeen", "lastActivity")
+    __slots__ = ("serial", "hip", "nodePath", "label", "createdAt", "lastSeen", "lastActivity", "mcpPort")
 
     def __init__(
         self,
@@ -42,6 +42,7 @@ class RegistryRecord:
         createdAt: float | None = None,
         lastSeen: float | None = None,
         lastActivity: float | None = None,
+        mcpPort: int = 0,
     ) -> None:
         now = time.time()
         self.serial = serial
@@ -51,6 +52,7 @@ class RegistryRecord:
         self.createdAt = createdAt if createdAt is not None else now
         self.lastSeen = lastSeen if lastSeen is not None else now
         self.lastActivity = lastActivity if lastActivity is not None else 0
+        self.mcpPort = int(mcpPort) if mcpPort else 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -61,6 +63,7 @@ class RegistryRecord:
             "createdAt": self.createdAt,
             "lastSeen": self.lastSeen,
             "lastActivity": self.lastActivity,
+            "mcpPort": self.mcpPort,
         }
 
     @classmethod
@@ -73,6 +76,7 @@ class RegistryRecord:
             createdAt=float(d.get("createdAt", 0) or 0),
             lastSeen=float(d.get("lastSeen", 0) or 0),
             lastActivity=float(d.get("lastActivity", 0) or 0),
+            mcpPort=int(d.get("mcpPort", 0) or 0),
         )
 
 
@@ -147,6 +151,19 @@ class SerialRegistry:
             rec.lastActivity = time.time()
             self._dirty = True
             self._save()
+
+    def set_houdini_mcp(self, serial: str, port: int) -> None:
+        """Record the fxhoudinimcp HTTP RPC port for a serial (persists immediately).
+
+        The port is mutable runtime state (Houdini may restart on a different port).
+        register() re-contact never clears it; from_dict defaults to 0 for legacy
+        records written before this field existed."""
+        with self._lock:
+            rec = self._records.get(serial)
+            if rec is None:
+                return
+            rec.mcpPort = int(port)
+            self._save(force=True)
 
     def remove(self, serial: str) -> bool:
         """Drop a registry record (used by scene cleanup for dead serials)."""

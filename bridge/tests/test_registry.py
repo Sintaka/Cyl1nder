@@ -112,6 +112,7 @@ def test_save_debounced_touch_and_mark_activity(tmp_path: Path) -> None:
     for _ in range(30):
         reg.touch(s)
         reg.mark_activity(s)
+        time.sleep(0.02)  # lastSeen 用真实时钟：确保跨越一个时钟 tick（时间分辨率 flake 修复）
     # in-memory state still updates ...
     assert reg.get(s).lastSeen > before
     # ... but the file is untouched inside the debounce window (no disk write)

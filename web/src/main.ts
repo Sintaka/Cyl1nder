@@ -486,8 +486,31 @@ const timeline = createTimelineController({
   setFrame: (f) => store.setFrame(f),
   scheduleNetwork,
   log: (msg) => store.pushLog(msg),
+  // C→H: 本地帧改动（linkEnabled && !dragging 门控在 controller 内）→ 经 bridge 代理
+  // fxhoudinimcp animation.set_frame 写回 Houdini playhead。
+  onFrameCommit: (f) => {
+    const serial = store.serial;
+    if (!serial) return;
+    void client.putTimeline(serial, f).catch(() => undefined);
+  },
 });
 createTimelineUI(layout.timelineEl, { timeline });
+
+// H→C: 250ms 轮询 bridge 的 /timeline（bridge 内 0.25s 缓存 get_frame，只读成本低）。
+// 轮询同时是链接探测器：mcpPort>0 即点亮时间轴锚定灯；applyRemote 在拖动/未链接时自动忽略。
+setInterval(() => {
+  const serial = store.serial;
+  if (!serial || document.visibilityState !== "visible") return;
+  void client
+    .getTimeline(serial)
+    .then((t) => {
+      timeline.setLinkEnabled((t.mcpPort ?? 0) > 0);
+      if (typeof t.frame === "number" && Number.isFinite(t.frame)) {
+        timeline.applyRemote(t.frame, t.fps);
+      }
+    })
+    .catch(() => undefined);
+}, 250);
 
 const session = createSessionController({
   getPrefsSyncMaxFps: () => syncMaxFps,
