@@ -1,3 +1,5 @@
+> ⚠️ 状态注记（v0.1.00104）：计划 B（sidecar Rust core）未启动，留远期参考；现行实现为 JSON/msgpack + 快照（见 protocol.md / snapshot-design.md）。
+
 # 方案B落地设计：流式传输 + 本地原生 core（streaming-plan-b）
 
 > 状态：**设计定稿（决策完备）** —— 实现者按本文执行，不需要再做架构决策；个别标有「实现时确认」的仅限接口细节核对。

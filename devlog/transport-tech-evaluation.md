@@ -1,3 +1,5 @@
+> ⚠️ 状态注记（v0.1.00104）：结论已采纳（WS 主通道 + msgpack，B2 Rust core 未启动）；仅作技术参考。
+
 # 后续数据快速传输技术栈评估：WASM / 串流 / 本地通信
 
 > 日期：2026-08-11 · 状态：调研评估（只读，不改代码）· 关联：`streaming-plan-b.md`（B1/B2）、`livelink-roadmap.md`（延迟路线）、`hda-core-cpp-discussion.md`（native core 形态）、`sync-architecture.md`（内容对比自愈）、`decisions.md`（单桥 8375 / Houdini MCP 铁律）

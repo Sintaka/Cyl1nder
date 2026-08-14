@@ -1,6 +1,7 @@
 # Cyl1nder 统一路径系统 + 文件快照系统设计
 
 > 版本：v0.1 设计稿 · 日期：2026-08-10 · 作者：设计子智能体（只读设计，未改任何代码）
+> **状态注记（v0.1.00104，2026-08-14）**：P0 已落地（bridge snapshot.py 双根合并 + web 保存/恢复），场景 B（桥重启回填）与 `/snapshot/restore`、shutdown flush 见 `snapshot-fix-00102.md`；**本文件仍是统一路径系统的权威设计**（R1~R5 规则、路径推导、schema 不变）。
 > 关联源码：`bridge/bridge/{protocol,registry,workspace,routes,state,ws}.py`、`web/src/{main.ts,stores/workspace.ts,nodes2/graph.ts,protocol/types.ts}`、`hda/src/*.py`
 > 关联文档：`devlog/{decisions,protocol,sync-architecture,streaming-plan-b,temp-scene-log,annotations-*}.md`
 > 设计约束（用户原话）：以**网络（桥/registry/workspace）为最底层基准**，不解析 hda 文件；快照默认放 **hip 场景同目录 `Cyl1nder/<节点序列号>/`**；**当前不做备份系统**（单一最新、可覆盖写），但文件名/结构为将来备份留扩展位。

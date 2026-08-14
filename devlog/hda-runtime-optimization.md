@@ -1,3 +1,5 @@
+> ⚠️ 状态注记（v0.1.00104 归档）：runtime-optimized 布局已落地（单 python SOP + blast 拆分），本文仅历史调研。
+
 # HDA「一次 cook 多输入多输出」架构可行性调研报告
 
 > 调研对象：Cyl1nder 项目（Houdini⇄WebGL 中间站）。现状 = Subnet HDA（4 输入/4 输出），内部 4 个 Python SOP 薄壳，每个 Python SOP 从对应输入取几何→序列化推送本地桥→拉取结果写回对应 Output SOP；Houdini 因此 cook 4 次，且 4 个输出口曾全部返回第一个输入的几何。

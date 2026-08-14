@@ -1,3 +1,5 @@
+> ⚠️ 状态注记（v0.1.00104）：讨论文档；push 门控 / 脏检查已按 (sig,frame) 落地（见 annotations-hda），其余留参考。
+
 # 流式推送 dirty + 内存缓存讨论 / Streaming push-dirty & in-memory cache design
 
 > 日期：2026-08-11

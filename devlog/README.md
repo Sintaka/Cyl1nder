@@ -29,15 +29,15 @@
 | HDA 子系统改动标注 | [annotations-hda.md](annotations-hda.md) |
 | Web 子系统改动标注 | [annotations-web.md](annotations-web.md) |
 | HDA 热重载手册（免重启） | [hda-hot-reload.md](hda-hot-reload.md) |
-| 临时开发场景日志 | [temp-scene-log.md](temp-scene-log.md) |
-| 同步架构与脏几何教训 | [sync-architecture.md](sync-architecture.md) |
-| livelink 级同步路线图 | [livelink-roadmap.md](livelink-roadmap.md) |
+| 临时开发场景日志（归档） | [temp-scene-log.md](temp-scene-log.md) |
+| 同步架构与脏几何教训（归档：早期文档） | [sync-architecture.md](sync-architecture.md) |
+| livelink 级同步路线图（归档：已被心跳重设计取代） | [livelink-roadmap.md](livelink-roadmap.md) |
 | 同步信号重设计（事件驱动 + 心跳解耦） | [sync-heartbeat-redesign.md](sync-heartbeat-redesign.md) |
 | 同步速率上限 + bridge 阻塞修复 + 首选项系统 | [sync-rate-limit-and-preference.md](sync-rate-limit-and-preference.md) |
 | 自动保存 + 颜色系统 + 首选项浮动窗 | [autosave-color-prefs-ui.md](autosave-color-prefs-ui.md) |
-| 浮动面板 pop-out 调研（已取消，改视口钳制） | [popout-windows.md](popout-windows.md) |
+| 浮动面板 pop-out 调研（已取消，归档） | [popout-windows.md](popout-windows.md) |
 | 屎山代码（legacy spaghetti）标注 | [shit-mountains.md](shit-mountains.md) |
-| 架构优化持续改进计划 | [refactor-plan.md](refactor-plan.md) |
+| 架构优化持续改进计划（已完成，收尾归档） | [refactor-plan.md](refactor-plan.md) |
 | 重构复盘与后续建议 | [refactor-retrospective.md](refactor-retrospective.md) |
 | 优化轮 00059（dock 角标重做/File 菜单/Sync 语义/Layout 框） | [optimize-round-00059.md](optimize-round-00059.md) |
 | 优化轮 00060（dock 外折/点阵层级/Overview 新标签/HDA 重启恢复/视口 Undo） | [optimize-round-00060.md](optimize-round-00060.md) |
@@ -45,31 +45,31 @@
 | 优化轮 00062（HDA 崩溃根治/字体/颜色拾取器大改造） | [optimize-round-00062.md](optimize-round-00062.md) |
 | AHS 约定提炼（拆分/并行/验证/选型） | [ahs-conventions.md](ahs-conventions.md) |
 | Agent 代码库检索流程/函数引导/结构 | [agent-codebase-guide.md](agent-codebase-guide.md) |
-| Zeno 技术遗产调研 | [zeno-legacy.md](zeno-legacy.md) |
+| Zeno 技术遗产调研（归档：仅方法论参考） | [zeno-legacy.md](zeno-legacy.md) |
 | Zeno 代码检索指引字典 | [zeno-guide.md](zeno-guide.md) |
-| HDA Core 方案讨论（CPP vs 本地原生） | [hda-core-cpp-discussion.md](hda-core-cpp-discussion.md) |
-| 流式方案B落地设计（snapshot+delta / sidecar core） | [streaming-plan-b.md](streaming-plan-b.md) |
+| HDA Core 方案讨论（归档：已定案纯 Python） | [hda-core-cpp-discussion.md](hda-core-cpp-discussion.md) |
+| 流式方案B落地设计（状态注记：sidecar 未启动，远期参考） | [streaming-plan-b.md](streaming-plan-b.md) |
 | Zeno 技术遗产·算法索引 | [zeno/README.md](zeno/README.md)（算法全表：[zeno/algorithms.md](zeno/algorithms.md)） |
-| 节点网格 Houdini 化（调研+实现） | [node-graph-houdini.md](node-graph-houdini.md) |
-| 节点库选型调研（20+ 候选，rete.js 2 推荐） | [node-library-research.md](node-library-research.md) |
-| HDA runtime 优化调研（一次 cook 多输出可行性） | [hda-runtime-optimization.md](hda-runtime-optimization.md) |
-| HDK 多输出论坛调研（官方/社区证据） | [hdk-multi-output-forum.md](hdk-multi-output-forum.md) |
-| JS 技术栈选型（three.js + rete.js 性价比） | [js-stack-research.md](js-stack-research.md) |
-| 统一路径 + 文件快照系统设计 | [snapshot-design.md](snapshot-design.md) |
-| 场景快照调研（rete 序列化 / React Flow / ComfyUI 参考 / schema v2） | [scene-snapshot-research.md](scene-snapshot-research.md) |
+| 节点网格 Houdini 化（归档：已落地 nodes2） | [node-graph-houdini.md](node-graph-houdini.md) |
+| 节点库选型调研（归档：已选 rete.js 2） | [node-library-research.md](node-library-research.md) |
+| HDA runtime 优化调研（归档：已落地 runtime-optimized 布局） | [hda-runtime-optimization.md](hda-runtime-optimization.md) |
+| HDK 多输出论坛调研（归档：结论已采纳） | [hdk-multi-output-forum.md](hdk-multi-output-forum.md) |
+| JS 技术栈选型（归档：已选 three.js + rete.js） | [js-stack-research.md](js-stack-research.md) |
+| 统一路径 + 文件快照系统设计（权威，P0 已落地） | [snapshot-design.md](snapshot-design.md) |
+| 场景快照调研（归档：早期调研） | [scene-snapshot-research.md](scene-snapshot-research.md) |
 | 快捷键（分类记录） | [shortcuts.md](shortcuts.md) |
 | 视口显示踩坑记录（poly/线框/模式菜单/相机） | [viewport-bug-report.md](viewport-bug-report.md) |
 | 节点视图 MCP 调试工具报告 | [nodeview-mcp-report.md](nodeview-mcp-report.md) |
-| 视口显示模式 / Param 面板 MCP 通道调研 | [mcp-channel-proposals.md](mcp-channel-proposals.md) |
-| bridge⇄HDA 流式落地现状调研 | [streaming-hda-review.md](streaming-hda-review.md) |
-| 快速传输技术栈评估（WASM/串流/本地通信） | [transport-tech-evaluation.md](transport-tech-evaluation.md) |
-| Parm 参数面板系统设计（对标 Houdini，仅设计） | [parm-system-design.md](parm-system-design.md) |
+| 视口显示模式 / Param 面板 MCP 通道调研（归档：对接已由 fxhoudinimcp 取代） | [mcp-channel-proposals.md](mcp-channel-proposals.md) |
+| bridge⇄HDA 流式落地现状调研（归档） | [streaming-hda-review.md](streaming-hda-review.md) |
+| 快速传输技术栈评估（状态注记：结论已采纳） | [transport-tech-evaluation.md](transport-tech-evaluation.md) |
+| Parm 参数面板系统设计（状态注记：面板已落地） | [parm-system-design.md](parm-system-design.md) |
 | bridge⇄HDA 同步差值根因与改进优先级 | [streaming-sync-gap.md](streaming-sync-gap.md) |
 | Params 面板用户手册（中键 scrubbing / Ctrl+中键默认值 / 撤销） | [params-user-guide.md](params-user-guide.md) |
-| 流式推送 dirty + 内存缓存方案讨论 | [streaming-push-dirty.md](streaming-push-dirty.md) |
-| Houdini Python Runtime 接口设计 + transform 流式 panel 原型 | [python-runtime-design.md](python-runtime-design.md) |
+| 流式推送 dirty + 内存缓存方案讨论（状态注记） | [streaming-push-dirty.md](streaming-push-dirty.md) |
+| Houdini Python Runtime 接口设计（状态注记：runtime 现走 fxhoudinimcp） | [python-runtime-design.md](python-runtime-design.md) |
 | three.js gizmo 拖拽延迟调研（TS/three.js/WASM 澄清 + 改进方向） | [viewport-gizmo-latency.md](viewport-gizmo-latency.md) |
-| bgeo.sc 二进制几何缓存调研（对比 JSON + 升级分级建议） | [bgeo-cache-research.md](bgeo-cache-research.md) |
+| bgeo.sc 二进制几何缓存调研（状态注记：未落地） | [bgeo-cache-research.md](bgeo-cache-research.md) |
 | 缓存与显示管理调研（Zeno stamp/双缓冲 vs Houdini cook/detail 缓存 + 可借鉴清单） | [cache-display-research.md](cache-display-research.md) |
 | 缓存系统交接指引（给新会话：现状/路线/契约/先读） | [cache-system-guide.md](cache-system-guide.md) |
 | 视口中断系统重设计 + 本地新鲜度 + kick 限流 | [viewport-interrupt-redesign.md](viewport-interrupt-redesign.md) |
@@ -82,6 +82,7 @@
 | 快照系统修复（重启丢数据根因三重 + 启动恢复 + 双根合并） | [snapshot-fix-00102.md](snapshot-fix-00102.md) |
 | 时间轴同步卡顿实测分析（fxhoudinimcp 判责 + 修复设计 + 通道上限） | [timeline-sync-lag-analysis.md](timeline-sync-lag-analysis.md) |
 | 挂耳 HDA + 项目绑定 + 轨迹页 架构设计提案（待拍板） | [ear-hda-project-design.md](ear-hda-project-design.md) |
+| **挂耳 HDA + 项目绑定 + 轨迹页 实施计划（下一阶段主计划，先读）** | [ear-hda-plan.md](ear-hda-plan.md) |
 | no geometry 诊断与 HDA 热重载恢复 | [no-geometry-diagnosis.md](no-geometry-diagnosis.md) |
 
 ## 关键词 → 专题文件（快速跳读）
@@ -115,6 +116,7 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00104：**文档轮（为下一阶段交接）**——新 `devlog/ear-hda-plan.md`（挂耳 HDA+项目绑定+轨迹页实施计划，含 P1~P4 写集/契约/验收与 6 个待拍板门禁）；refactor-plan.md §七 收尾归档（重构阶段全部完成，后续以 ear-hda-plan 为主计划）；timeline-plan/design 状态注记补 00102/00103（双向同步已按 fxhoudinimcp 通道落地，engaged 门控待做）；**20 个过时文档批量加归档注记**（zeno-legacy / 早期选型调研 / streaming 系列 / 早期 sync 文档等，文件保留、README 字典标注归档）；README 字典标注归档/状态 + AGENT_QUICKSTART 更新当前焦点（新 agent 先读 ear-hda-plan + 提案 + 卡顿分析）。纯文档，无代码改动；验证零回归。
 - v0.1.00103：**优化轮（6 项 + 卡顿分析 + 架构提案）**——① 底部栏两行（时间轴独立行；Sync Max FPS/Sync/Update Mode 第二行，Update Mode 右下角）② 时间轴与所有 Houdini 周期性交互遵循 Sync Max FPS（bridge 轮询/设帧速率派生 `max(66/33ms,1000/fps)`，cmd/python 一次性调用除外）③ 卡顿实测分析：**fxhoudinimcp 无责**（get_frame ~52ms 是 dispatcher 固有封送；通道合计上限 ~19Hz），根因 = 我们自己的 4Hz 轮询+全店刷新+拖拽全抑制 → 改为 bridge 常驻轮询+WS 帧变化推送（~85-130ms 延迟）+ store.setFrame 不 emit + 拖拽节流提交 ④ 地址栏 explorer 化（分段按钮跳转/空白处变输入/直接编辑+Tab 补全，输入态 Tab 独占）⑤ 线段 bypass（选中按 B→虚线+亮度饱和度暗淡，随图快照持久化）⑥ 线段运行时流动虚线（≥120ms 才启，≤2s，防闪烁）；文档：timeline-sync-lag-analysis.md + ear-hda-project-design.md（挂耳 HDA+项目序列号+轨迹页提案，6 个待拍板点）；5 子智能体并行+主进程粘合；pytest 110, tsc 0, vitest 186, WS 推送/双向实测通过。
 - v0.1.00102：**快照系统修复（重启丢数据）+ fxhoudinimcp 对接（时间轴双向同步）**——快照根因三重修复（WS edit 通道从不落盘 → edit accept 后 maybe_snapshot；桥启动 lifespan 从磁盘回填空 workspace + `POST /snapshot/restore` + shutdown flush；read_snapshot 双根合并读 hip 根/回退根）；fxhoudinimcp 对接（bridge `houdini_mcp.py` HTTP RPC 客户端 + `houdini_routes.py` 代理端点 GET/PUT `/houdini`、`POST /houdini/cmd|python`、GET/PUT `/timeline` 0.25s 缓存 get_frame + 0.1s 节流 set_frame；registry `mcpPort`；HDA `cyl1nder_houdini_mcp.py` 纯 stdlib 端口发现（8100..8115 `mcp.health.pid==os.getpid()` 唯一判据）+ cook 钩子发现即上报；web timeline 双向（onFrameCommit/applyRemote/dragging 抑制/锚定灯 ●）；死锁红线：HDA 主线程禁同步 mcp.execute）；docs 大全/索引/对接设计三件套；4 子智能体并行 + 主进程粘合；实机验证：C→H 21→30→21、H→C 跟随、python 代理 `hou.frame()*2=42`、热重载×2 无崩溃、桥重启自动恢复 inputs=4/outputs=4。pytest 106, tsc 0, vitest 167, hython SMOKE OK。
 - v0.1.00101：**Phase B 手动双向同步开关（右下角，默认 OFF）**——web `syncEnabled` 单一事实源（prefs 持久化）+ 底部栏 Sync 开关 + network.shouldPush / session 忽略回显 / kick / viewport-edit 全 gate；bridge per-serial `sync_enabled`（默认 False，`PUT /sync-enabled`；OFF 不广播回显/不 notify_stream；`/pending`、`/stream` 事件携带，`/status` 返回 sync 块）；HDA 自适应循环（OFF ~1.5s `/pending` 探测零 /stream，ON 跑 /stream，事件 false 切回）；4 路并行（Singer=bridge / Confucius=hda / Franklin=web-core / Wegener=web-ui）+ 主进程合并（applyLoadedPreference 补推 gate）；e2e fixtures.toggleSyncEnabled + round22 骨架。pytest 61, tsc 0, vitest 160, hython SMOKE OK。timeline-plan.md Phase B 标记完成。

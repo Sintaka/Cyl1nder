@@ -1,3 +1,5 @@
+> ⚠️ 状态注记（v0.1.00104 归档）：早期同步文档；现行语义以 sync-heartbeat-redesign.md / sync-rate-limit-and-preference.md / protocol.md 为准。
+
 # 同步架构与脏几何教训 / Sync architecture & dirty-geometry lessons
 
 > 版本 0.1.00004 起。本篇回答"脏几何能否避免"：**能，且已根治**——同步/重建决策改为**内容对比**，不再依赖任何会失步的簿记。

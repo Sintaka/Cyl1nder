@@ -1,3 +1,5 @@
+> ⚠️ 状态注记（v0.1.00104 归档）：已选型 three.js + rete.js 2（结论采纳），本文仅历史调研。
+
 # three.js + rete.js 前端技术栈选型调研报告（Cyl1nder 项目参考）
 
 > 调研日期：2026-08-10（外网为主：GitHub / three.js 论坛 / HN / dev.to / 个人博客，已避开 CSDN 等国内站点）

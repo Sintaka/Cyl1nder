@@ -1,4 +1,6 @@
-﻿# 节点网格 Houdini 化（node-graph-houdini）
+> ⚠️ 状态注记（v0.1.00104 归档）：已落地（web/src/nodes2/），本文仅早期调研。
+
+# 节点网格 Houdini 化（node-graph-houdini）
 
 > 状态：v0.1.00006 已落地第一版；本文记录"先调研再实现"的结论，后续升级以本文为基线。
 > 关联：`web/src/nodes/*`（flags.ts / cyl1nderNode.ts / palette.ts / cutMode.ts / contextMenu.ts）、`web/src/viewport/renderer.ts`（联动）。

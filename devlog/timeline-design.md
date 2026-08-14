@@ -5,6 +5,7 @@
 > 方法：只读按序读 devlog（protocol / decisions / sync-architecture / livelink-roadmap / streaming-push-dirty / python-runtime-design / streaming-hda-review / streaming-sync-gap / README）+ 只读源码（bridge/bridge/protocol.py、routes.py、ws.py、state.py、workspace.py、registry.py；hda/src/cyl1nder_hda.py、cyl1nder_bridge.py；web/src/bridge/client.ts、protocol/types.ts、app/layout.ts、app/scrub.ts、main.ts）+ grep（pending/kick/_sync_loop/status/frame/fps/timeline）。
 > **本轮仅设计不实现**：协议三处（protocol.py / types.ts / protocol.md）与任何代码改动全部留到实现阶段，届时按铁律同步。
 > **状态注记（v0.1.00100，2026-08-14）**：`本地优先`时间轴 v1 已按 timeline-plan.md Phase A 落地——H→C inputs 捎带 frame → web 逐帧收集 → 纯本地 scrub（零 /stream、零 pushOutputs、零 Houdini 往返）。本设计的 engaged 门控 / C→H setFrame / fps 跟随 / 播放对齐留待 Phase B 手动同步开关后按需实现。
+> **状态注记（v0.1.00104，2026-08-14）**：双向同步的**实现通道已换**——本设计的 `/pending` 捎带 + kick 方案未采用；实际实现走官方 fxhoudinimcp（C→H `animation.set_frame`、H→C 常驻轮询 + WS 推送，见 `houdini-mcp-integration.md` / `timeline-sync-lag-analysis.md`）。**engaged 锚定门控仍未实现**（现门控 = `linkEnabled`（mcpPort>0）+ 拖动态回显抑制），是挂耳/项目阶段可选的补强项。
 
 ## 0. 一句话结论
 

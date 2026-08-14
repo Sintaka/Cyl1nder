@@ -1,3 +1,5 @@
+> ⚠️ 状态注记（v0.1.00104 归档）：Zeno 技术遗产仅作方法论参考（缓存/计算管理借鉴，见 cache-display-research.md），不复制代码。
+
 # Zeno 技术遗产调研（Cyl1nder 前端选型参考）
 
 > 调研对象：`D:\code\dev\zeno`（Zeno 2.0，zenustech/zeno，MPL-2.0）。只读探索，未修改任何文件。

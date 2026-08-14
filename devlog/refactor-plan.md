@@ -68,6 +68,7 @@
 - 已完成 **3.3**：抽 `web/src/core/dataflow.ts`（143 行，createDataflow）——把 main.ts 里「编辑 → 网络 → 视口」的四处直连（`handlers` 的 onNodePick/onFlagsChanged/onNetworkChanged/onParamsApplied + `refreshNodeFlags` + `graph.onSelectionChanged` + `flushStoreView` 的数据流段）收拢成 `{ handlers, refreshNodeFlags, flush, wireSelection }`；graph/network/viewport/gizmo 用 late-bound getter 破「graph 需 handlers，handlers 需 graph」的鸡生蛋。main.ts 892→793 行，只留 UI 装配 + 布局/会话/菜单/快捷键。
 - 验证：tsc 0 + vitest 101 + build 通过 + 视口/节点图 e2e（round2/4/5/6/7/8/12/16/17）26 passed。
 - 阶段 3 全部完成（3.1 hda / 3.2 color / 3.3 dataflow）。
+- **状态更新（v0.1.00104，2026-08-14）**：本计划全部阶段已完成，`§七` 收尾归档。后续架构工作以 `devlog/ear-hda-plan.md`（挂耳 HDA + 项目绑定 + 轨迹页）为主计划。
 ## 八、2.2 `graph.ts` 分支计划（已完成 2026-08-13）
 - 单独分支：`codex/<版本>-refactor-graph`（从完成 2.1 后的分支切出）。
 - 先做只读边界分析再切，因为 `graph.ts` 是 rete 渲染/连线/拖拽/撤销/参数/选择的耦合体，且对外暴露 `__cylGraph`、`createReteGraph`、`ReteGraphHandlers`。

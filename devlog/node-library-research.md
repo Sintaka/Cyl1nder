@@ -1,4 +1,6 @@
-﻿# Cyl1nder 前端「类 Houdini SOP 节点图」库选型调研报告
+> ⚠️ 状态注记（v0.1.00104 归档）：已选型 rete.js 2（结论采纳），本文仅历史调研。
+
+# Cyl1nder 前端「类 Houdini SOP 节点图」库选型调研报告
 
 - 调研日期：2026-08-10（数据来自公开 GitHub/npm/官方文档，stars 与 commit 为当日检索快照）
 - 背景：Cyl1nder 是 Houdini⇄WebGL 中间站，前端 Vite+TS，当前节点图基于 @antv/x6 自建（4 进 4 出静态图 + flags + Tab 搜索 + Y 剪切模式），效果不理想，拟换用现成库。

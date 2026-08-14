@@ -1,3 +1,5 @@
+> ⚠️ 状态注记（v0.1.00104 归档）：部分落地（nodeview MCP 工具）；Houdini 侧对接已由官方 fxhoudinimcp 方案取代（见 fxhoudinimcp-compendium / houdini-mcp-integration）。
+
 # MCP 通道调研与落地提案
 
 > 日期：2026-08-11 · 角色：实现子智能体 · 仓库：`D:\code\dev\Cyl1nder`

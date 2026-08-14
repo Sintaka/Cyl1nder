@@ -1,3 +1,5 @@
+> ⚠️ 状态注记（v0.1.00104）：参数面板已落地（见 params-user-guide.md）；本文仍是对标 Houdini 的设计参考。
+
 # Parm 面板系统设计（对标 Houdini Parameter 面板）
 
 > 状态：**本轮仅设计，不实现**（2026-08-11 · 分支 codex/cyl1nder-v0）

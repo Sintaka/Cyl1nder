@@ -1,3 +1,5 @@
+> ⚠️ 状态注记（v0.1.00104 归档）：调研归档，结论已采纳（Subnet 4 输出布局）。
+
 # Houdini「SOP 节点多输出」桥接方案调研报告
 
 > 项目背景：Cyl1nder（Houdini⇄WebGL 中间站）。HDA 内部当前为「1 个 Python SOP 合并输出 + blast 按 prim 属性拆分」，但**无 prim（纯点）数据流走不通**；用户拟回到「4 个 Python SOP + 进程内缓存」方案，并评估 HDK 多输出是否可行。

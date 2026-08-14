@@ -1,3 +1,5 @@
+> ⚠️ 状态注记（v0.1.00104 归档）：已被 sync-heartbeat-redesign.md 取代（事件驱动 + 心跳解耦）。
+
 # livelink 级同步路线图 / Sync latency roadmap
 
 > 版本 0.1.00004 起。背景：循环修复后 Houdini 视口曾"频闪"，当前同步达不到 livelink 级；未来可能在 Cyl1nder 对接实时动捕，Houdini 侧程序化 biped retargeting 预览。趁架构还能改，先记录延迟预算与升级路径。

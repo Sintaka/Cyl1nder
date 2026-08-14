@@ -1,3 +1,5 @@
+> ⚠️ 状态注记（v0.1.00104）：transform 流式 panel 原型思路保留；runtime 修改现统一经官方 fxhoudinimcp（见 houdini-mcp-integration.md §4 与 fxhoudinimcp-compendium.md）。
+
 # Python Runtime 接口设计 — Houdini 接收端（transform 流式 panel 原型）
 
 > 日期：2026-08-11 · 角色：并行子智能体（Houdini python runtime 接口设计 + transform 流式 panel）· 仓库：`D:\code\dev\Cyl1nder` · 分支：`codex/cyl1nder-v0`

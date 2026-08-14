@@ -1,3 +1,5 @@
+> ⚠️ 状态注记（v0.1.00104 归档）：bridge⇄HDA 流式现状调研；落地状态以 annotations-bridge / annotations-hda 为准。
+
 # bridge⇄HDA 流式传输计划落地现状（只读调研）
 
 > 调研日期：2026-08-11
