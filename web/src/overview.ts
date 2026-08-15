@@ -322,7 +322,7 @@ channelsHeading.className = "ov-section-heading";
 channelsHeading.textContent = "关联注册大全";
 const channelsRefresh = document.createElement("button");
 channelsRefresh.type = "button";
-channelsRefresh.className = "ov-refresh";
+channelsRefresh.className = "ov-channels-refresh"; // 独立类名：round8 的 strict locator 依赖 .ov-refresh 唯一（类冲突回归修复）
 channelsRefresh.textContent = "刷新";
 channelsHead.append(channelsHeading, channelsRefresh);
 const channelsHint = document.createElement("p");
@@ -442,11 +442,11 @@ projectsHeading.className = "ov-section-heading";
 projectsHeading.textContent = "项目";
 const projectsNew = document.createElement("button");
 projectsNew.type = "button";
-projectsNew.className = "ov-new-button";
+projectsNew.className = "ov-projects-new"; // 独立类名：round8 依赖 .ov-new-button 唯一（类冲突回归修复）
 projectsNew.textContent = "新建项目";
 const projectsRefresh = document.createElement("button");
 projectsRefresh.type = "button";
-projectsRefresh.className = "ov-refresh";
+projectsRefresh.className = "ov-projects-refresh";
 projectsRefresh.textContent = "刷新";
 projectsHead.append(projectsHeading, projectsNew, projectsRefresh);
 const projectsHint = document.createElement("p");

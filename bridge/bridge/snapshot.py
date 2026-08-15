@@ -289,3 +289,37 @@ def flush_all_workspaces() -> None:
     st = get_state()
     for rec in st.registry.list():
         flush_workspace(rec.serial)
+
+
+# --- 项目图（P2b，见 devlog/tag-hda-plan.md P2b）-------------------------------
+# 项目无单一 hip 上下文，项目图不放在 hip 旁：data_dir/projects/<project_id>/graph.json。
+# 原子写模式照 write_snapshot（tmp+replace + 内容对比）。
+
+
+def project_graph_path(data_dir, project_id: str) -> Path:
+    """data_dir/projects/<project_id>/graph.json"""
+    return data_dir / "projects" / project_id / "graph.json"
+
+
+def read_project_graph(data_dir, project_id: str) -> dict | None:
+    """读项目图；文件缺失/损坏（OSError/ValueError）→ None。"""
+    p = project_graph_path(data_dir, project_id)
+    try:
+        data = orjson.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def write_project_graph(data_dir, project_id: str, graph: dict) -> None:
+    """原子写（tmp+replace）+ 内容对比（与现文件相同则跳过）；mkdir parents。"""
+    target = project_graph_path(data_dir, project_id)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        if target.exists() and orjson.loads(target.read_text(encoding="utf-8")) == graph:
+            return
+    except (OSError, ValueError):
+        pass
+    tmp = target.with_suffix(".json.tmp")
+    tmp.write_text(orjson.dumps(graph, option=orjson.OPT_INDENT_2).decode("utf-8"), encoding="utf-8")
+    tmp.replace(target)

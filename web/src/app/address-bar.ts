@@ -13,8 +13,10 @@ export interface AddressBarDeps {
   getAddress(): string;
   /** Attempt to navigate/apply an address; false = not navigable. */
   navigate(address: string): boolean;
-  /** Tab-completion candidates for a (partial) path segment. */
-  getCompletions(segmentPrefix: string): Promise<string[]>;
+  /** Tab-completion candidates for a (partial) path segment. `address` is the full
+   *  in-progress input value so the caller can tell WHICH segment is being edited
+   *  (multi-segment paths: first segment vs. second segment of a project address). */
+  getCompletions(segmentPrefix: string, address: string): Promise<string[]>;
   /** Optional log sink. */
   log?(msg: string): void;
 }
@@ -245,7 +247,7 @@ export function createAddressBar(host: HTMLElement, deps: AddressBarDeps): Addre
       candidates = completion.candidates;
     } else {
       try {
-        candidates = await deps.getCompletions(prefix);
+        candidates = await deps.getCompletions(prefix, value);
       } catch (err) {
         log(`[addr] completion failed: ${String(err)}`);
         return;

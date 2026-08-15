@@ -12,7 +12,8 @@ import type { ActiveChains } from "./core/network";
 import { Viewport } from "./viewport/renderer";
 import { APP_VERSION } from "./app/app-config";
 import { inputsEqual } from "./protocol/compare";
-import type { InputPayload, OutputBuffer, UpdateMode } from "./protocol/types";
+import { PROJECT_SERIAL_RE } from "./protocol/types";
+import type { InputPayload, OutputBuffer, ProjectRef, UpdateMode } from "./protocol/types";
 import {
   applyPreferences,
   clampSyncFps,
@@ -29,7 +30,7 @@ import { createParamUndo } from "./core/param-undo";
 import { createNetworkRunner } from "./core/network";
 import { createGizmoController } from "./core/gizmo";
 import { createKickController } from "./core/kick";
-import { createSessionController } from "./core/session";
+import { createSessionManager, type SessionManager } from "./core/session";
 import { createTimelineController } from "./core/timeline";
 import { createTimelineUI } from "./app/timeline-ui";
 import { createAddressBar } from "./app/address-bar";
@@ -115,29 +116,74 @@ graphShell.appendChild(layout.graphContainer);
 
 // explorer.exe 式地址栏：分段按钮（点击跳转/复制）+ 点击空白处变输入框 + Tab 补全。
 // 输入态 Tab 由地址栏独占（graph-interact 的 Tab 处理器有 activeElement input 守卫）。
-let sessionCtl: ReturnType<typeof createSessionController> | null = null; // late-bound（session 声明在后）
+let sessionCtl: SessionManager | null = null; // late-bound（sessionMgr 声明在后）
 let lastAddress = "";
+/** P2b 项目模式状态（模块级）：currentProjectId 由 enterProjectMode 设置、?serial= boot /
+ *  Connect / 1 段 C1- 导航清空；getAddress / navigate / 保存路径据此分流。 */
+let currentProjectId: string | null = null;
+/** 当前项目详情缓存（成员列表供地址栏项目模式第二段补全）。 */
+let currentProject: ProjectRef | null = null;
+/** graph 在 setupDock 之后才创建（createReteGraph）：项目模式查询必须等它就绪（TDZ 保护）。 */
+let graphReady = false;
 const addressBar = createAddressBar(graphAddr, {
-  getAddress: () => (store.serial ? `/${store.serial}/` : "/"),
+  getAddress: () => projectAddress(),
   navigate: (addr) => {
     const segs = addr.split("/").filter(Boolean);
+    const isSerial = (s: string) => /^C1-[0-9a-z]{8,}-[0-9a-z]{4}$/.test(s);
+    const isProject = (s: string) => PROJECT_SERIAL_RE.test(s);
+    // 2 段 /<P1-…>/<C1-…>/：确保项目模式 + 激活成员 + 地址显示两段。
+    if (segs.length === 2) {
+      if (!isProject(segs[0]) || !isSerial(segs[1])) return false;
+      if (currentProjectId === segs[0] && isProjectModeActive()) {
+        // 已在目标项目：直接激活成员（避免重载图覆盖未保存编辑）。
+        sessionCtl?.activateSession(segs[1]);
+        updateGraphAddress();
+      } else {
+        void enterProjectMode(segs[0]).then(() => {
+          sessionCtl?.activateSession(segs[1]);
+          updateGraphAddress();
+        });
+      }
+      return true;
+    }
     if (segs.length !== 1) return false;
-    if (!/^C1-[0-9a-z]{8,}-[0-9a-z]{4}$/.test(segs[0])) return false;
-    if (segs[0] === store.serial) {
-      graph.frameSelection(); // 当前地址：跳到本图
+    if (isSerial(segs[0])) {
+      if (segs[0] === store.serial) {
+        graph.frameSelection(); // 当前地址：跳到本图
+        return true;
+      }
+      if (sessionCtl) {
+        layout.serialInput.value = segs[0];
+        currentProjectId = null; // 1 段 C1- 导航 = 退出项目模式（serial 模式）
+        sessionCtl.activateSession(segs[0]); // 跳转到另一个 serial（页面级导航）
+        return true;
+      }
+      return false;
+    }
+    if (isProject(segs[0])) {
+      void enterProjectMode(segs[0]); // 已在目标项目时内部走 fast path（回到项目根）
       return true;
     }
-    if (sessionCtl) {
-      layout.serialInput.value = segs[0];
-      sessionCtl.connect(segs[0]); // 跳转到另一个 serial（页面级导航）
-      return true;
-    }
+    store.pushLog(`[addr] 无法解析地址: ${addr}`); // 其它 → 忽略 + log
     return false;
   },
-  getCompletions: async (prefix) => {
+  getCompletions: async (prefix, fullAddress) => {
     try {
-      const serials = await client.listSerials();
-      return serials.filter((s) => s.startsWith(prefix));
+      // 项目模式第二段：补当前项目成员 serial（tag/hda 通道）。
+      const segs = fullAddress.split("/").filter(Boolean);
+      if (segs.length >= 2 && segs[0] === currentProjectId && isProjectModeActive()) {
+        const members = (currentProject?.members ?? [])
+          .filter((m) => (m.kind === "tag" || m.kind === "hda") && m.serial)
+          .map((m) => m.serial)
+          .filter((s): s is string => !!s);
+        return members.filter((s) => s.startsWith(prefix));
+      }
+      // 首段：serials ∪ projectSerials。
+      const [serials, projects] = await Promise.all([
+        client.listSerials().catch(() => [] as string[]),
+        client.listProjects().catch(() => ({ projects: [] as ProjectRef[] })),
+      ]);
+      return [...serials, ...projects.projects.map((p) => p.projectSerial)].filter((s) => s.startsWith(prefix));
     } catch {
       return [];
     }
@@ -249,6 +295,11 @@ layout.menuFile.querySelectorAll("button").forEach((b) => {
   b.addEventListener("click", () => {
     const act = (b as HTMLElement).dataset.act;
     if (act === "save") {
+      if (currentProjectId) {
+        saveProjectGraph();
+        store.pushLog("[file] project graph saved");
+        return;
+      }
       if (!store.serial) return;
       void client.putSnapshot(store.serial, { graph: graph.serializeGraph(), docking: getDockJson(), preference: prefs });
       store.pushLog("[file] scene saved");
@@ -259,7 +310,7 @@ layout.menuFile.querySelectorAll("button").forEach((b) => {
     } else if (act === "open-scene") {
       void openSceneFromDir();
     } else if (act === "saveas") {
-      if (!store.serial) return;
+      if (!store.serial && !currentProjectId) return; // 项目模式无 serial，放行给 saveSceneAs 项目分支
       void saveSceneAs();
     }
   });
@@ -347,6 +398,11 @@ async function readJsonFromDir(dir: FileSystemDirectoryHandle, relPath: string):
 /** Save Scene As: File System Access first (write <serial>/ under the picked dir,
  *  overwrite confirm when the serial folder exists), falls back to the bridge path. */
 async function saveSceneAs(): Promise<void> {
+  if (currentProjectId) {
+    saveProjectGraph(); // 项目模式：Save As = 保存项目图快照
+    store.pushLog("[file] project graph saved");
+    return;
+  }
   const serial = store.serial;
   if (!serial) return;
   try {
@@ -464,11 +520,16 @@ const dataflow = createDataflow({
   },
 });
 const graph = await createReteGraph(layout.graphContainer, dataflow.handlers);
+graphReady = true; // updateGraphAddress / isProjectModeActive 现可安全引用 graph
 
 const autosave = createAutosave({
   getPrefs: () => prefs,
   getSerial: () => store.serial,
   saveSnapshot: () => {
+    if (currentProjectId) {
+      saveProjectGraph(); // 项目模式：图快照存项目，不写 per-serial snapshot
+      return;
+    }
     const serial = store.serial;
     if (!serial) return;
     void client.putSnapshot(serial, { graph: graph.serializeGraph(), docking: getDockJson(), preference: prefs });
@@ -548,7 +609,7 @@ setInterval(() => {
     .catch(() => undefined);
 }, 1000);
 
-const session = createSessionController({
+const sessionMgr = createSessionManager({
   getPrefsSyncMaxFps: () => syncMaxFps,
   putSyncFps: (serial, fps) => client.putSyncFps(serial, fps),
   isSyncEnabled: () => syncEnabled,
@@ -574,11 +635,11 @@ const session = createSessionController({
     timeline.applyRemote(frame, fps);
   },
 });
-sessionCtl = session;
+sessionCtl = sessionMgr;
 
 layout.autoRunCheck.addEventListener("change", () => {
   const v = layout.autoRunCheck.checked;
-  session.setAutoRun(v);
+  sessionMgr.setAutoRun(v);
   store.pushLog(`auto-run ${v ? "on" : "off"}`);
 });
 
@@ -812,17 +873,93 @@ function renderInspector(): void {
   layout.inspectorEl.innerHTML = rows.join("");
 }
 
+/** P2b 项目模式：当前是否处于项目根（graph 就绪后才可查询；boot 早期必为 false）。 */
+function isProjectModeActive(): boolean {
+  return graphReady && currentProjectId !== null && graph.isProjectMode();
+}
+
+/** 当前地址：项目模式 → /<P1-…>/ 或 /<P1-…>/<C1-…>/（store.serial = 活动成员）；
+ *  serial 模式 → 现状 /<C1-…>/。 */
+function projectAddress(): string {
+  if (isProjectModeActive()) {
+    return store.serial ? `/${currentProjectId}/${store.serial}/` : `/${currentProjectId}/`;
+  }
+  return store.serial ? `/${store.serial}/` : "/";
+}
+
+/** P2b 项目模式保存：图快照 → PUT /api/projects/{id}/graph。
+ *  项目模式不写 per-serial snapshot（store.serial 为空会 400）；docking/preference 在
+ *  项目模式下跳过 —— 布局沿用全局 ui-layout 文件与 localStorage，偏好沿用 localStorage。 */
+function saveProjectGraph(): void {
+  if (!currentProjectId) return;
+  void client
+    .putProjectGraph(currentProjectId, graph.projectGraphSnapshot())
+    .then((r) => store.pushLog(r.ok ? "[file] project graph saved" : "[file] project graph save failed"))
+    .catch((e) => store.pushLog(`[file] project graph save failed: ${String(e)}`));
+}
+
+/** P2b 项目模式入口（?project= boot / 地址栏 1 段 P1- / 2 段 /<P1>/<C1>/ 导航）：
+ *  1. store.serial 置空（项目模式无单一活动成员镜像）；2. 取项目；3. 取图快照（失败当 null）；
+ *  4. loadProjectGraph；5. 对全部 tag/hda 成员 ensureSession（不激活）；6. 挂 channel display
+ *  点击 → 激活成员 + 地址刷新；7. 地址更新。失败 log 提示不崩。已在目标项目时走 fast path
+ *  （仅清空活动成员回项目根，不重载图以免覆盖未保存编辑）。 */
+async function enterProjectMode(projectId: string): Promise<void> {
+  if (currentProjectId === projectId && graphReady && graph.isProjectMode()) {
+    store.setSerial("");
+    store.pushLog(`[project] 项目模式 ${projectId}（已在，回到项目根）`);
+    updateGraphAddress();
+    return;
+  }
+  store.setSerial("");
+  store.pushLog(`[project] 项目模式 ${projectId} …`);
+  let project: ProjectRef | null = null;
+  try {
+    const r = await client.getProject(projectId);
+    if (r.ok) project = r.project;
+    else store.pushLog(`[project] 读取项目失败: ${projectId}`);
+  } catch (e) {
+    store.pushLog(`[project] 读取项目失败: ${String(e)}`);
+  }
+  if (!project) {
+    store.setStatus("offline");
+    return;
+  }
+  currentProjectId = projectId;
+  currentProject = project;
+  let graphJson: unknown = null;
+  try {
+    const g = await client.getProjectGraph(projectId);
+    if (g.ok) graphJson = g.graph;
+  } catch {
+    graphJson = null; // 读取失败当 null（如新项目尚无图快照）
+  }
+  graph.loadProjectGraph(
+    { projectSerial: project.projectSerial, label: project.label, members: project.members },
+    graphJson,
+  );
+  for (const m of project.members) {
+    if ((m.kind === "tag" || m.kind === "hda") && m.serial) {
+      sessionMgr.ensureSession(m.serial); // 不激活：仅确保该成员 workspace/轮询存在
+    }
+  }
+  graph.setChannelDisplayHandler((serial: string) => {
+    sessionMgr.activateSession(serial); // channel display 点击 = 激活成员
+    updateGraphAddress();
+  });
+  updateGraphAddress();
+}
+
 /** Graph panel chrome: address bar text + dock panel title follow the current
  *  serial ("/<serial>/", Houdini node-view style); without a serial the bar shows
  *  "/" and the panel keeps its "Node Graph" title. Idempotent - safe to run on
  *  every store flush and once right after setupDock. */
 function updateGraphAddress(): void {
-  const address = store.serial ? `/${store.serial}/` : "/";
+  const address = projectAddress();
   if (address !== lastAddress) {
     lastAddress = address;
     addressBar.setAddress(address);
   }
-  const title = store.serial ? `/${store.serial}/` : "Node Graph";
+  const title = store.serial ? address : "Node Graph";
   // dockview panel title via type assertion (no dockview type dependency): prefer
   // api.getPanel("graph"), fall back to scanning api.panels for the graph panel.
   const dock = dv as unknown as {
@@ -859,7 +996,9 @@ function flushStoreView(): void {
   const showHint = !store.serial || store.status === "offline";
   layout.hintEl.classList.toggle("hidden", !showHint);
   layout.hintEl.textContent = !store.serial
-    ? "未连接：在 Houdini 的 Cyl1nder 节点上点 Open in Browser，或在上方输入序列号后 Connect。"
+    ? isProjectModeActive()
+      ? `项目模式 ${currentProjectId}：点击通道显示节点进入成员工作区，或从地址栏跳转。`
+      : "未连接：在 Houdini 的 Cyl1nder 节点上点 Open in Browser，或在上方输入序列号后 Connect。"
     : store.status === "offline"
       ? "桥离线（127.0.0.1:8375）——请启动 bridge。"
       : "";
@@ -946,17 +1085,31 @@ function applyLoadedPreference(json: unknown): void {
 }
 
 
-layout.connectBtn.addEventListener("click", () => session.connect(layout.serialInput.value));
+const connectSerial = () => {
+  currentProjectId = null; // Connect = serial 模式动作（退出项目模式）
+  const v = layout.serialInput.value.trim();
+  if (!v) return;
+  // 显式重连语义（对齐旧 connect()：先拆旧 WS 再开新 WS）——round10 依赖每次
+  // Connect 点击都产生一条新 WebSocket（kick 速率限流断言）。
+  sessionMgr.closeSession(v);
+  sessionMgr.activateSession(v);
+};
+layout.connectBtn.addEventListener("click", connectSerial);
 layout.serialInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") session.connect(layout.serialInput.value);
+  if (e.key === "Enter") connectSerial();
 });
 
 const qs = new URLSearchParams(location.search).get("serial");
+const qp = new URLSearchParams(location.search).get("project");
 if (qs) {
   layout.serialInput.value = qs;
-  session.connect(qs);
+  currentProjectId = null; // ?serial= 路径 = serial 模式（退出项目模式）
+  sessionMgr.activateSession(qs); // 原 session.connect(qs) 语义（ensure + activate + loadSnapshot）
   // P2a 隐式项目：后台 ensure（无含该 serial 通道的项目则自动建 P1- 单成员项目），不改变现有行为。
   void client.ensureProject(qs).catch(() => undefined);
+} else if (qp && PROJECT_SERIAL_RE.test(qp)) {
+  // P2b 项目模式：?project=P1-… 直接进入项目根（index.html 已放行，不重定向 overview）。
+  void enterProjectMode(qp);
 } else {
   client
     .listSerials()
@@ -977,6 +1130,11 @@ bindShortcuts({
   // B 键优先级：有选中线段 → 切换 bypass（返回 true 吃掉按键）；否则保持 debug 盒行为。
   tryWireBypass: () => graph.toggleSelectedConnectionBypass(),
   quickSave: () => {
+    if (currentProjectId) {
+      saveProjectGraph();
+      store.pushLog("[file] project graph saved (Ctrl+S)");
+      return;
+    }
     if (!store.serial) return;
     void client.putSnapshot(store.serial, {
       graph: graph.serializeGraph(),

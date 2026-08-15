@@ -376,6 +376,22 @@ export class BridgeClient {
       }),
     );
   }
+
+  /** GET /api/projects/{projectId}/graph — P2b 项目图快照（nodeview 项目根）。 */
+  async getProjectGraph(projectId: string): Promise<{ ok: boolean; graph: unknown }> {
+    return json(await fetch(`${this.base}/api/projects/${encodeURIComponent(projectId)}/graph`));
+  }
+
+  /** PUT /api/projects/{projectId}/graph — 保存项目图快照（body {graph}）。 */
+  async putProjectGraph(projectId: string, graph: unknown): Promise<{ ok: boolean }> {
+    return json(
+      await fetch(`${this.base}/api/projects/${encodeURIComponent(projectId)}/graph`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ graph }),
+      }),
+    );
+  }
 }
 
 export type WsHandler = (msg: any) => void;

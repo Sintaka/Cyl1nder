@@ -34,6 +34,8 @@ const PALETTE: PaletteEntry[] = [
   { kind: "transform", label: "transform", desc: "translate by group 变换/移动", keywords: "transform translate move 变换 移动 组" },
   { kind: "dot", label: "_dot_", desc: "junction dot passthrough 连接点", keywords: "dot junction 连接点 _dot_" },
 ];
+// P2b：project/channel 刻意不出现在 Tab 面板（它们只能由 loadProjectGraph 建立——项目根
+// 与成员通道不是可自由创建的图元）；create() 与既有交互对这两种 kind 无特殊逻辑。
 
 const fuse = new Fuse(PALETTE, {
   keys: [

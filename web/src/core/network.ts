@@ -54,6 +54,8 @@ export function createNetworkRunner(deps: NetworkDeps): {
     const serial = deps.getSerial();
     if (!serial || deps.getInputs().length === 0) return;
     const cur = ++epoch;
+    // P2b：project/channel 节点在 getNetworkSnapshot 层已过滤（channel 关联线 v1 纯视觉），
+    // 因此 compute 永不看到它们——不进 race/输出计算；这里无需按 kind 特判。
     const snap = deps.getNetworkSnapshot();
     lastCookGraphVersion = deps.getGraphVersion();
     // P2: hand the version context to the chain cache so param-only edits take the

@@ -28,17 +28,17 @@ export interface HdaWatchdogDeps {
   setOfflineVisible: (visible: boolean) => void;
   log: (msg: string) => void;
 }
-export function createHdaWatchdog(deps: HdaWatchdogDeps): { start(serial: string): void; stop(): void } {
-  let timer: number | undefined;
-  let wasStale = false;
+export function createHdaWatchdog(deps: HdaWatchdogDeps): { start(serial: string): () => void; stop(): void } {
+  // 多槽（P2b 多会话）：每 serial 一个轮询 slot；start 返回该 slot 的 stop 函数，
+  // 重复 start 同 serial 先停旧 slot 再起。轮询语义不变（60s 间隔 / 150s 离线阈值）。
+  const slots = new Map<string, () => void>();
   const stop = (): void => {
-    if (timer !== undefined) window.clearInterval(timer);
-    timer = undefined;
-    wasStale = false;
-    deps.setOfflineVisible(false);
+    for (const serial of [...slots.keys()]) slots.get(serial)?.();
   };
-  const start = (serial: string): void => {
-    stop();
+  const start = (serial: string): () => void => {
+    slots.get(serial)?.(); // 重复 start：先停旧 slot
+    let timer: number | undefined;
+    let wasStale = false;
     const check = async () => {
       try {
         const st = await deps.getStatus(serial);
@@ -52,6 +52,15 @@ export function createHdaWatchdog(deps: HdaWatchdogDeps): { start(serial: string
     };
     void check();
     timer = window.setInterval(check, 60000);
+    const stopSlot = (): void => {
+      if (timer !== undefined) window.clearInterval(timer);
+      timer = undefined;
+      wasStale = false;
+      deps.setOfflineVisible(false);
+      slots.delete(serial);
+    };
+    slots.set(serial, stopSlot);
+    return stopSlot;
   };
   return { start, stop };
 }

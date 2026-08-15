@@ -99,6 +99,11 @@ export interface ProjectRef {
   members: ChannelRef[]; // 通道引用快照（live 状态以 /api/channels 为准）
 }
 
+// P2b：项目图快照负载（nodeview 项目根）。结构与 nodes2/graph 的
+// projectGraphSnapshot 序列化格式一致；web 与 bridge 之间仅作 opaque JSON 存读，
+// 故保持 unknown 透传即可（必要时再收敛为具体类型）。
+export type ProjectGraph = unknown;
+
 export interface StatusResponse {
   serial: string;
   registry: RegistryRecord | null;

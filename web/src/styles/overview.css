@@ -31,7 +31,9 @@ body {
   text-decoration: none;
 }
 .ov-link:hover { background: #3a6ea5; }
-.ov-refresh {
+.ov-refresh,
+.ov-channels-refresh,
+.ov-projects-refresh {
   background: #2e4f7d;
   color: #fff;
   border: 1px solid #3a6ea5;
@@ -39,8 +41,12 @@ body {
   padding: 4px 12px;
   cursor: pointer;
 }
-.ov-refresh:hover { background: #3a6ea5; }
-.ov-refresh:disabled { opacity: 0.5; cursor: default; }
+.ov-refresh:hover,
+.ov-channels-refresh:hover,
+.ov-projects-refresh:hover { background: #3a6ea5; }
+.ov-refresh:disabled,
+.ov-channels-refresh:disabled,
+.ov-projects-refresh:disabled { opacity: 0.5; cursor: default; }
 
 /* ---- cleanup ---- */
 .ov-cleanup {
@@ -166,7 +172,8 @@ body {
   border-radius: 4px;
   padding: 6px 8px;
 }
-.ov-new-button {
+.ov-new-button,
+.ov-projects-new {
   background: #7ce3a8;
   color: #0f1a13;
   border: none;
@@ -175,8 +182,10 @@ body {
   font-weight: 700;
   cursor: pointer;
 }
-.ov-new-button:hover { filter: brightness(1.08); }
-.ov-new-button:disabled { opacity: 0.5; cursor: default; }
+.ov-new-button:hover,
+.ov-projects-new:hover { filter: brightness(1.08); }
+.ov-new-button:disabled,
+.ov-projects-new:disabled { opacity: 0.5; cursor: default; }
 
 /* ---- projects (项目层 P2a：通道引用聚合 + 拖放入项目) ---- */
 .ov-projects-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }

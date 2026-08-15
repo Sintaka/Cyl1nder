@@ -36,7 +36,7 @@ pytest（channels 注册/心跳/探测 + 路由）/ tsc+vitest（store/面板）
 
 ## P2 — 项目层（多 HDA 绑定）
 
-> **拆分（2026-08-15，主进程拆结构）**：P2a（当前轮）= 项目注册表/端点 + `?project=` + 隐式项目兼容 + overview 项目面板与拖拽入项目；P2b（下轮）= nodeview 项目根 + 多 serial WS + 图快照按 project 存（web 核心手术，与 P2a 解耦）。
+> **拆分（2026-08-15，主进程拆结构）**：P2a（已完成 v0.1.00107）= 项目注册表/端点 + `?project=` + 隐式项目兼容 + overview 项目面板与拖拽入项目；P2b（当前）= nodeview 项目根 + 多 serial WS + 图快照按 project 存（web 核心手术）。P2b 再按调研契约拆子写集（session 多开 / nodeview 项目根 / project 图快照），单 serial 场景行为保持。
 
 ### P2a
 - `bridge/data/projects.json`（`P1-…` serial + label + members: channelRef[]）；端点：`POST /api/projects`（建）、`GET /api/projects`（列表）、`GET /api/projects/{id}`、`POST /api/projects/{id}/members`（加成员，按通道 key 去重）、`DELETE /api/projects/{id}/members?channelId=`（移成员）、`POST /api/projects/ensure`（body {serial}：无含该 serial 通道的项目则自动建 `P1-…` 单成员隐式项目 → 返回 {project, created}）。

@@ -25,12 +25,15 @@ import {
   DEFAULT_FLAGS,
   applyConnectionBypassVisual,
   getConnectionBypass,
+  makeChannelNode,
   makeInputNode,
   makeOutputNode,
+  makeProjectNode,
   nodeByKind,
   nodeFromTarget,
   notifySelection,
   onSelectionChange,
+  planProjectGraph,
   portIndexFromTarget,
   resolveInputSourcePort,
   serializeGraph,
@@ -39,7 +42,7 @@ import {
   setConnectionBypassFlag,
   log,
 } from "./graph-model";
-import type { AreaExtra, NodeKind, ParamSpec, ReteGraphHandlers, ReteGraph, Schemes } from "./graph-model";
+import type { AreaExtra, NodeKind, ParamSpec, ProjectGraphInput, ReteGraphHandlers, ReteGraph, Schemes } from "./graph-model";
 import {
   attachConnectionSelect,
   attachCutMode,
@@ -61,8 +64,84 @@ import { cancelGraphInteractions } from "./graph-interact";
 import { createGraphUndoManager } from "./graph-undo";
 
 export type { NodeKind, NodeFlags, ParamSpec, SelectedNodeInfo, ReteGraphHandlers, ReteGraph } from "./graph-model";
+export type { ProjectGraphInput } from "./graph-model";
 export { DEFAULT_FLAGS, CylNode, makeNullNode, makeTransformNode } from "./graph-model";
 export { setNodeStateHandler, fireNodeState, setRenameHandler, fireRename, initTooltip, showTooltip, hideTooltip } from "./graph-interact";
+
+// ---------------------------------------------------------------------------
+// P2b 项目模式模块态：当前图句柄 + channel display 独立状态机
+// ---------------------------------------------------------------------------
+// loadProjectGraph / projectGraphSnapshot / isProjectMode 是无参入口，需要编辑器/画布，
+// 因此 createReteGraph 把当前图句柄注册到这里（单图场景）。channel display 是**独立于**
+// 旧 kinds 的唯一 display 状态机：不碰 flags.display、不扫旧节点，只维护一个「当前点亮
+// channel serial」+ 回调激活（写集 C 把它绑到活动成员）。
+let activeGraph: { editor: NodeEditor<Schemes>; area: AreaPlugin<Schemes, AreaExtra> } | null = null;
+let channelDisplaySerial: string | null = null;
+let channelDisplayCb: ((serial: string) => void) | null = null;
+
+/** channel 节点点 display chip 时回调 fn(serial)（写集 C：激活成员 + 地址刷新）；null 解除。 */
+export function setChannelDisplayHandler(fn: ((serial: string) => void) | null): void {
+  channelDisplayCb = fn;
+}
+
+/** 当前点亮的 channel serial（NodeView 读它渲染 chip 点亮态；无则 null）。 */
+export function getChannelDisplaySerial(): string | null {
+  return channelDisplaySerial;
+}
+
+/** 当前图是否为项目根（存在 project 节点）；无图/纯旧 kinds → false（?serial= 路径不变）。 */
+export function isProjectMode(): boolean {
+  return activeGraph
+    ? activeGraph.editor.getNodes().some((n) => (n as CylNode).kind === "project")
+    : false;
+}
+
+/**
+ * P2b 项目模式入口（写集 C 调用）：清空现图（含连接）→ 按 planProjectGraph 的纯规划
+ * 建 project 根 + 各 tag/hda 成员 channel 节点（param 成员跳过），恢复 saved（项目图
+ * 快照 v3）中的位置/连接/viewport；缺失成员（saved 有、当前 members 没有）由 plan 天然
+ * 排除。channel 的 1 in/1 out 关联线 v1 纯视觉：compute 由 getNetworkSnapshot 过滤跳过。
+ */
+export function loadProjectGraph(input: ProjectGraphInput, saved: unknown): void {
+  const g = activeGraph;
+  if (!g) return;
+  const plan = planProjectGraph(input, saved);
+  void (async () => {
+    // 清空现图（含连接）——与 restoreGraph 相同的重建语义
+    for (const c of g.editor.getConnections()) await g.editor.removeConnection(c.id);
+    for (const n of g.editor.getNodes()) await g.editor.removeNode(n.id);
+    for (const pn of plan.nodes) {
+      const n =
+        pn.kind === "project"
+          ? makeProjectNode(pn.id, pn.label, pn.x, pn.y)
+          : pn.channel
+            ? makeChannelNode(pn.id, pn.channel, pn.label, pn.x, pn.y)
+            : null;
+      if (!n) continue;
+      await g.editor.addNode(n);
+      await g.area.translate(n.id, { x: pn.x, y: pn.y });
+    }
+    for (const c of plan.connections) {
+      const src = g.editor.getNode(c.source) as CylNode | undefined;
+      const tgt = g.editor.getNode(c.target) as CylNode | undefined;
+      if (!src || !tgt || src.id === tgt.id) continue;
+      await g.editor.addConnection(
+        new ClassicPreset.Connection(src, c.sourceOutput, tgt, c.targetInput) as unknown as Schemes["Connection"],
+      );
+    }
+    if (plan.viewport && plan.viewport.k) {
+      await g.area.area.zoom(plan.viewport.k);
+      await g.area.area.translate(plan.viewport.x ?? 0, plan.viewport.y ?? 0);
+    }
+    channelDisplaySerial = null; // 图重建后旧 serial 已不在图中 → display 重置
+    log(`loaded project graph: ${plan.nodes.length} nodes / ${plan.connections.length} connections`);
+  })();
+}
+
+/** 项目图快照 = serializeGraph() 输出（项目模式含 project/channel → 自动 v3）。 */
+export function projectGraphSnapshot(): unknown {
+  return activeGraph ? serializeGraph(activeGraph.editor, activeGraph.area) : null;
+}
 
 /** Connection ids on the display node's upstream in0 chain (input -> ... -> display),
  *  following null/transform/dot passthrough edges. Used by the runtime-flow
@@ -205,6 +284,7 @@ export async function createReteGraph(
   handlers: ReteGraphHandlers = {},
 ): Promise<ReteGraph> {
   const g = await buildGraph(container, handlers);
+  activeGraph = { editor: g.editor, area: g.area }; // P2b：项目模式无参入口需要图句柄
 
   // Param undo/redo wiring lives in graph-undo: it applies actions through the
   // chained topology replay and fires onNetworkChanged / onSelectionChanged /
@@ -294,12 +374,38 @@ export async function createReteGraph(
     handlers.onFlagsChanged?.(n.kind, { ...n.flags });
   });
   setDisplayHandler((nodeId) => {
+    const n = g.editor.getNode(nodeId) as CylNode | undefined;
+    if (!n) return;
+    // P2b 项目模式节点：project 不可 display（白名单拒绝）；channel 走独立 display 状态机
+    if (n.kind === "project") {
+      log(`display rejected: project node ${n.label} has no display`);
+      return;
+    }
+    if (n.kind === "channel") {
+      const serial = n.channel?.serial ?? null;
+      if (!serial) {
+        log(`display rejected: channel node ${n.label} has no serial`);
+        return;
+      }
+      // channel 之间 display 唯一：同一时刻仅一个 channel 亮（模块态 channelDisplaySerial），
+      // 与旧 kinds 的 display 状态机完全隔离（不碰 flags.display，不污染旧行为）；
+      // 点亮态变更时 notifyNodeChanged 让 React 层重渲染 chip，并回调激活（写集 C）。
+      if (channelDisplaySerial !== serial) {
+        channelDisplaySerial = serial;
+        notifyNodeChanged();
+        log(`channel display -> ${serial}`);
+      }
+      channelDisplayCb?.(serial); // 幂等激活：点击已亮 channel 再触发一次无副作用
+      return;
+    }
+    // 旧 kinds：现有「每网络唯一 display」状态机原样——只扫旧 kinds，绝不触碰 project/channel
     let changed: CylNode[] = [];
-    for (const n of g.editor.getNodes() as CylNode[]) {
-      const want = n.id === nodeId;
-      if (n.flags.display !== want) {
-        n.flags.display = want;
-        changed.push(n);
+    for (const x of g.editor.getNodes() as CylNode[]) {
+      if (x.kind === "project" || x.kind === "channel") continue;
+      const want = x.id === nodeId;
+      if (x.flags.display !== want) {
+        x.flags.display = want;
+        changed.push(x);
       }
     }
     if (changed.length > 0) {
@@ -314,6 +420,12 @@ export async function createReteGraph(
   setRenameHandler((nodeId, desired) => {
     const self = g.editor.getNode(nodeId) as CylNode | undefined;
     if (!self) return desired;
+    // P2b：project/channel 标题 v1 禁止改名（NodeView 双击入口也禁用；这里是双保险）。
+    // channel 标题与 serial 解耦——标题只镜像成员 label，改名无意义。
+    if (self.kind === "project" || self.kind === "channel") {
+      log(`rename rejected: ${self.kind} node labels are fixed in v1`);
+      return self.label;
+    }
     const used = new Set(
       (g.editor.getNodes() as CylNode[]).filter((n) => n.id !== nodeId).map((n) => n.label),
     );
@@ -382,7 +494,11 @@ export async function createReteGraph(
       if (actions.length === 0) return;
       undoManager.push({ type: "group", actions });
     },
-    destroy: () => (g.editor as unknown as { destroy?: () => void }).destroy?.(),
+    destroy: () => {
+      activeGraph = null; // P2b：图销毁后无参入口失效（单图场景）
+      channelDisplaySerial = null;
+      (g.editor as unknown as { destroy?: () => void }).destroy?.();
+    },
     setStats: (kind, stats) => {
       const n = nodeByKind(g.editor, kind);
       if (!n) return;
@@ -412,6 +528,9 @@ export async function createReteGraph(
     getSelectedNode: () => {
       const sel = (g.editor.getNodes() as CylNode[]).find((n) => (n as ClassicPreset.Node).selected);
       if (!sel) return null;
+      // P2b：project/channel 选中不驱动 Spreadsheet/Param 面板刷新——它们无 params，
+      // 标题与 serial 解耦；返回 null（面板保持上次内容，与「选中驱动刷新」语义一致）。
+      if (sel.kind === "project" || sel.kind === "channel") return null;
       let port: number | null = null;
       if (sel.kind === "null" || sel.kind === "transform") port = resolveInputSourcePort(g.editor, sel.id);
       return { kind: sel.kind, id: sel.id, label: sel.label, port, params: sel.params ?? [] };
@@ -426,6 +545,11 @@ export async function createReteGraph(
     },
     serializeGraph: () => serializeGraph(g.editor, g.area),
     restoreGraph: (data) => restoreGraph(g.editor, g.area, data),
+    // P2b 项目模式（写集 C 经 ReteGraph 调用；模块级导出同实现）
+    loadProjectGraph: (input, saved) => loadProjectGraph(input, saved),
+    projectGraphSnapshot: () => projectGraphSnapshot(),
+    setChannelDisplayHandler: (fn) => setChannelDisplayHandler(fn),
+    isProjectMode: () => isProjectMode(),
     getGraphVersion: () => g.getGraphVersion(),
     getNetworkSnapshot: () => getNetworkSnapshot(g.editor),
     setNodeParams: (nodeId, params) => {

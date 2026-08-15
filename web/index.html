@@ -6,9 +6,11 @@
     <title>Cyl1nder</title>
     <link rel="icon" href="data:," />
     <script>
-      // 默认入口：无 ?serial= 时重定向到 Overview 总管页；有 serial 才加载主应用（connect 视图）。
-      // 放在 module script 之前同步执行：无 serial 时不会加载主应用入口脚本，也不破坏 vite 入口加载。
-      if (!new URLSearchParams(window.location.search).has("serial")) {
+      // 默认入口：无 ?serial= 且无 ?project= 时重定向到 Overview 总管页；有任一参数才加载主应用
+      // （?serial= = connect 视图；?project= = P2b 项目模式）。放在 module script 之前同步执行：
+      // 无参数时不会加载主应用入口脚本，也不破坏 vite 入口加载（round9 断言路径保留）。
+      const _cylEntryParams = new URLSearchParams(window.location.search);
+      if (!_cylEntryParams.has("serial") && !_cylEntryParams.has("project")) {
         location.replace("/overview.html");
       }
     </script>

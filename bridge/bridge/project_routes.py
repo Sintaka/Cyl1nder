@@ -6,6 +6,8 @@
 - POST   /api/projects/{projectId}/members     加成员（body = channelRef，按通道 key 去重）
 - DELETE /api/projects/{projectId}/members     ?channelId= 移成员（query 而非 path，param 通道 key 含 "/"）
 - POST   /api/projects/ensure                  body {serial}：隐式项目（无含该 serial 的项目则自动建）
+- GET    /api/projects/{projectId}/graph       项目图读（缺省迁移：单成员 -> 其 serial 快照 graph 部分，纯读）
+- PUT    /api/projects/{projectId}/graph       项目图写（body {graph: dict}）-> {ok}
 
 main.py 由主进程挂载本 router（本文件不改 main.py）。
 """
@@ -14,6 +16,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from . import snapshot
 from .protocol import ChannelRef, is_valid_project_serial, is_valid_serial
 from .state import get_state
 
@@ -31,6 +34,10 @@ class ProjectCreateBody(BaseModel):
 
 class EnsureBody(BaseModel):
     serial: str
+
+
+class GraphPutBody(BaseModel):
+    graph: dict
 
 
 @router.post("/api/projects")
@@ -104,3 +111,32 @@ async def ensure_project(body: EnsureBody) -> dict:
     created = st.projects.create(label=body.serial)
     project = st.projects.add_member(created["projectSerial"], ref)
     return {"ok": True, "project": project, "created": True}
+
+
+@router.get("/api/projects/{projectId}/graph")
+async def get_project_graph(projectId: str) -> dict:
+    """项目图读。缺省迁移读（纯读不写回）：无项目图文件且项目恰 1 个 kind∈{tag,hda}
+    成员（serial/hip 均非空）时，取该成员 serial 快照的 graph 部分（P2b）。"""
+    _check_project_serial(projectId)
+    st = get_state()
+    project = st.projects.get(projectId)
+    if project is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    graph = snapshot.read_project_graph(st.data_dir, projectId)
+    if graph is None:
+        members = [m for m in project.get("members", []) if m.get("kind") in ("tag", "hda")]
+        if len(members) == 1 and members[0].get("serial") and members[0].get("hip"):
+            snap = snapshot.read_snapshot(members[0]["hip"], members[0]["serial"])
+            graph = snap.get("graph") if snap is not None else None
+    return {"ok": True, "graph": graph}
+
+
+@router.put("/api/projects/{projectId}/graph")
+async def put_project_graph(projectId: str, body: GraphPutBody) -> dict:
+    """项目图写（原子 tmp+replace + 内容对比，见 snapshot.write_project_graph）。"""
+    _check_project_serial(projectId)
+    st = get_state()
+    if st.projects.get(projectId) is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    snapshot.write_project_graph(st.data_dir, projectId, body.graph)
+    return {"ok": True}

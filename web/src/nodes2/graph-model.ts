@@ -9,13 +9,16 @@ import { AreaPlugin } from "rete-area-plugin";
 import { DataflowEngine, type DataflowEngineScheme } from "rete-engine";
 import type { ClassicScheme, ReactArea2D } from "rete-react-plugin";
 import { store } from "../stores/workspace";
+import type { ChannelRef } from "../protocol/types";
 import type { NetworkSnapshot } from "./network";
 import type { UndoAction } from "./undo";
 
 export type Schemes = ClassicScheme;
 export type AreaExtra = ReactArea2D<Schemes>;
 
-export type NodeKind = "input" | "output" | "null" | "transform" | "dot";
+// P2b 项目模式：project（项目根，无端口）+ channel（成员通道，1 in/1 out，compute 忽略——
+// v1 关联线纯视觉）。两者只在项目图（schemaVersion 3）中出现；?serial= 单 serial 场景保持旧 kinds。
+export type NodeKind = "input" | "output" | "null" | "transform" | "dot" | "project" | "channel";
 
 export interface NodeFlags {
   display: boolean;
@@ -39,6 +42,14 @@ export interface SelectedNodeInfo {
   label: string;
   port: number | null;
   params: ParamSpec[];
+}
+
+/** P2b 项目模式输入：项目根 serial（P1-…）+ label + 成员通道引用快照。
+ *  （graph.ts 的 loadProjectGraph 使用；planProjectGraph 是其纯规划核心。） */
+export interface ProjectGraphInput {
+  projectSerial: string;
+  label: string;
+  members: ChannelRef[];
 }
 
 export interface ReteGraphHandlers {
@@ -69,6 +80,14 @@ export interface ReteGraph {
   getGraphVersion(): number;
   getNetworkSnapshot(): NetworkSnapshot;
   setNodeParams(nodeId: string, params: ParamSpec[]): boolean;
+  /** P2b 项目模式：以项目根 + 成员 channel 节点重建图（saved = 项目图快照 v3）。 */
+  loadProjectGraph(input: ProjectGraphInput, saved: unknown): void;
+  /** 项目图快照（serializeGraph 的 v3 输出；项目模式下供保存）。 */
+  projectGraphSnapshot(): unknown;
+  /** channel 节点点 display chip 时回调 fn(serial)（写集 C：激活成员）；null 解除注册。 */
+  setChannelDisplayHandler(fn: ((serial: string) => void) | null): void;
+  /** 当前图是否为项目根（存在 project 节点）。 */
+  isProjectMode(): boolean;
   /** Toggle the bypass visual flag on the currently-selected connection; returns
    *  false when no (live) connection is selected. Pure visual + persisted. */
   toggleSelectedConnectionBypass(): boolean;
@@ -181,6 +200,12 @@ export class CylNode extends ClassicPreset.Node {
   kind: NodeKind = "null";
   baseLabel = "";
   params?: ParamSpec[];
+  /** P2b：仅 kind==="channel" 使用——成员通道引用（tag/hda 的 serial 即节点 id）。
+   *  project/channel 都不参与几何计算，关联线 v1 纯视觉。 */
+  channel?: ChannelRef | null;
+  /** 工厂位置提示（makeProjectNode/makeChannelNode 的 x/y 参数）；视图位置仍由
+   *  area.translate 落地（serializeGraph 读 area.nodeViews 的位置，不读本字段）。 */
+  pos?: { x: number; y: number };
   constructor(label: string, kind: NodeKind) {
     super(label);
     this.kind = kind;
@@ -267,6 +292,35 @@ export function makeTransformNode(): CylNode {
   return n;
 }
 
+// ---------------------------------------------------------------------------
+// P2b 项目模式节点工厂（project 根 / channel 成员通道）
+// ---------------------------------------------------------------------------
+
+/** 项目图序列化版本（P2b）：v3 只在图内含 project/channel 节点时输出（buildGraphSnapshot
+ *  自动判定）；否则保持 v2，绝不含新字段（round14-autosave / round16-undo 兼容）。 */
+export const PROJECT_GRAPH_SCHEMA = 3;
+
+/** 项目根节点：**无端口**（不参与任何连线/几何计算；id = 项目 serial P1-…，标签即项目名）。
+ *  x/y 仅作位置提示（loadProjectGraph/restoreGraph 仍以 area.translate 落地视图位置）。 */
+export function makeProjectNode(id: string, label: string, x = 24, y = 40): CylNode {
+  const n = new CylNode(label, "project");
+  n.id = id;
+  n.pos = { x, y };
+  return n;
+}
+
+/** 成员通道节点：**1 in / 1 out**（视觉关联线用，v1 不参与几何计算/旧 display 状态机）。
+ *  id = 成员 serial（tag/hda）；channel 携带完整 ChannelRef（label = member.label || serial）。 */
+export function makeChannelNode(id: string, channel: ChannelRef, label: string, x = 340, y = 40): CylNode {
+  const n = new CylNode(label, "channel");
+  n.id = id;
+  n.channel = channel;
+  n.pos = { x, y };
+  n.addInput("in0", new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
+  n.addOutput("out0", new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
+  return n;
+}
+
 /** rete connection augmented with the wire-bypass visual flag. B-key toggles it
  *  on the selected connection; it is persisted (serializeGraph) but NEVER read by
  *  the compute path (getNetworkSnapshot / network.ts ignore it). */
@@ -305,11 +359,62 @@ export function applyConnectionBypassVisual(
   }
 }
 
+/** 序列化用的纯节点描述（serializeGraph 从 editor/area 采集后交给 buildGraphSnapshot）。 */
+export interface GraphNodeSnapshotData {
+  id: string;
+  kind: NodeKind;
+  label: string;
+  baseLabel: string;
+  flags: NodeFlags;
+  params?: ParamSpec[];
+  x: number;
+  y: number;
+  channel?: ChannelRef | null;
+}
+
+/** 序列化用的纯连接描述（serializeGraph 采集后交给 buildGraphSnapshot）。 */
+export interface GraphConnectionSnapshotData {
+  source: string;
+  sourceOutput: string;
+  target: string;
+  targetInput: string;
+  bypass?: boolean;
+}
+
+/**
+ * 纯序列化（可单测）：图内含任一 project/channel 节点 → 输出 schemaVersion 3
+ * （channel 字段仅 channel 节点携带，null 省略——project/旧 kinds 不带该键）；
+ * 否则输出 schemaVersion 2 且**绝不含新字段**（保持 round14-autosave / round16-undo
+ * 字节兼容）。自动判定（最简实现）：无需调用方传 includeChannels。
+ */
+export function buildGraphSnapshot(
+  nodes: GraphNodeSnapshotData[],
+  connections: GraphConnectionSnapshotData[],
+  viewport: { k: number; x: number; y: number },
+): unknown {
+  const isProjectGraph = nodes.some((n) => n.kind === "project" || n.kind === "channel");
+  const serializedNodes = nodes.map((n) => {
+    const entry: Record<string, unknown> = {
+      id: n.id,
+      kind: n.kind,
+      label: n.label,
+      baseLabel: n.baseLabel,
+      flags: n.flags,
+      x: n.x,
+      y: n.y,
+    };
+    if (n.params && n.params.length > 0) entry.params = n.params;
+    if (isProjectGraph && n.channel) entry.channel = n.channel; // v2 绝不含新字段；v3 也省略 null
+    return entry;
+  });
+  return { schemaVersion: isProjectGraph ? PROJECT_GRAPH_SCHEMA : 2, viewport, nodes: serializedNodes, connections };
+}
+
 export function serializeGraph(
   editor: NodeEditor<Schemes>,
   area: AreaPlugin<Schemes, AreaExtra>,
 ): unknown {
-  const nodes = editor.getNodes().map((n) => {
+  const nodes: GraphNodeSnapshotData[] = editor.getNodes().map((n) => {
     const c = n as CylNode;
     const pos = area.nodeViews.get(n.id)?.position;
     return {
@@ -321,23 +426,18 @@ export function serializeGraph(
       params: c.params && c.params.length > 0 ? c.params : undefined,
       x: pos?.x ?? 0,
       y: pos?.y ?? 0,
+      channel: c.channel ?? undefined,
     };
   });
   // Defensive: only serialize connections whose endpoint nodes still exist. Rete can
   // leave orphan connections behind after node removal, and persisting those produced
   // the "4 headless segments" bug (1 node / 4 dangling conns snapshot).
   const nodeIds = new Set(editor.getNodes().map((n) => n.id));
-  const connections = editor
+  const connections: GraphConnectionSnapshotData[] = editor
     .getConnections()
     .filter((c) => nodeIds.has(c.source) && nodeIds.has(c.target))
     .map((c) => {
-      const entry: {
-        source: string;
-        sourceOutput: string;
-        target: string;
-        targetInput: string;
-        bypass?: boolean;
-      } = {
+      const entry: GraphConnectionSnapshotData = {
         source: c.source,
         sourceOutput: c.sourceOutput,
         target: c.target,
@@ -347,7 +447,38 @@ export function serializeGraph(
       if (getConnectionBypass(c)) entry.bypass = true;
       return entry;
     });
-  return { schemaVersion: 2, viewport: { ...area.area.transform }, nodes, connections };
+  return buildGraphSnapshot(nodes, connections, { ...area.area.transform });
+}
+
+/**
+ * 纯恢复决策（可单测）：按 kind 构造节点；project → 项目根（无端口），channel →
+ * 成员通道（需 channel 引用）；**未知 kind → null（跳过该节点不崩）**；channel 缺
+ * channel 引用 → null（跳过）。restoreGraph 对 null 直接 continue。
+ */
+export function restoreNodeForKind(nd: {
+  kind: NodeKind;
+  id?: string;
+  label?: string;
+  channel?: ChannelRef | null;
+}): CylNode | null {
+  switch (nd.kind) {
+    case "input":
+      return makeInputNode();
+    case "output":
+      return makeOutputNode();
+    case "null":
+      return makeNullNode();
+    case "transform":
+      return makeTransformNode();
+    case "dot":
+      return makeDotNode();
+    case "project":
+      return makeProjectNode(nd.id ?? "", nd.label ?? "project");
+    case "channel":
+      return nd.channel ? makeChannelNode(nd.id ?? "", nd.channel, nd.label ?? nd.channel.serial ?? "channel") : null;
+    default:
+      return null; // 未知 kind：跳过，不崩
+  }
 }
 
 export async function restoreGraph(
@@ -365,6 +496,7 @@ export async function restoreGraph(
       params?: ParamSpec[];
       x: number;
       y: number;
+      channel?: ChannelRef | null; // v3：channel 节点携带的成员引用
     }[];
     connections?: { source: string; sourceOutput: string; target: string; targetInput: string; bypass?: boolean }[];
     viewport?: { k: number; x: number; y: number };
@@ -377,13 +509,16 @@ export async function restoreGraph(
   const idMap = new Map<string, string>();
   let displayAssigned = false;
   for (const nd of d.nodes) {
-    let n: CylNode;
-    if (nd.kind === "input") n = makeInputNode();
-    else if (nd.kind === "output") n = makeOutputNode();
-    else if (nd.kind === "transform") n = makeTransformNode();
-    else if (nd.kind === "dot") n = makeDotNode();
-    else n = makeNullNode();
+    // v3 项目分支 + 未知 kind 跳过（restoreNodeForKind 返回 null 时 continue）
+    const n = restoreNodeForKind(nd);
+    if (!n) {
+      log(`restore skipped node id=${nd.id} kind=${String(nd.kind)} (unknown kind or missing channel ref)`);
+      continue;
+    }
     const flags = { ...DEFAULT_FLAGS, ...(nd.flags ?? {}) };
+    // P2b：project/channel 的 display 不进持久化状态机（channel display 是独立模块态，
+    // 由 graph.ts setDisplayHandler 路由；这里强制熄灭，避免污染旧 kinds 唯一 display）
+    if (n.kind === "project" || n.kind === "channel") flags.display = false;
     if (flags.display && displayAssigned) {
       flags.display = false; // only ONE display per network survives a restore
     } else if (flags.display) {
@@ -423,9 +558,16 @@ export async function restoreGraph(
 }
 
 export function getNetworkSnapshot(editor: NodeEditor<Schemes>): NetworkSnapshot {
-  const nodeIds = new Set(editor.getNodes().map((n) => n.id));
+  // P2b：project/channel **不进 compute 快照**——channel 的关联线 v1 纯视觉，不参与
+  // 几何计算/race；compute（traceChainSpecs / chain-cache）只应看到旧 kinds。过滤掉
+  // 这类节点及其连接后，输出链自然回退 passthrough（与「channel 即便有连接也不参与
+  // 几何计算」一致），且无需改 nodes2/network.ts。
+  const computeNodes = (editor.getNodes() as CylNode[]).filter(
+    (n) => n.kind !== "project" && n.kind !== "channel",
+  );
+  const nodeIds = new Set(computeNodes.map((n) => n.id));
   return {
-    nodes: (editor.getNodes() as CylNode[]).map((n) => ({
+    nodes: computeNodes.map((n) => ({
       id: n.id,
       kind: n.kind,
       label: n.label,
@@ -436,4 +578,68 @@ export function getNetworkSnapshot(editor: NodeEditor<Schemes>): NetworkSnapshot
       .filter((c) => nodeIds.has(c.source) && nodeIds.has(c.target))
       .map((c) => ({ source: c.source, sourceOutput: c.sourceOutput, target: c.target, targetInput: c.targetInput })),
   };
+}
+
+// ---------------------------------------------------------------------------
+// P2b 项目图规划（纯函数，graph.ts 的 loadProjectGraph 执行该计划）
+// ---------------------------------------------------------------------------
+
+/** loadProjectGraph 的纯规划结果：graph.ts 只负责把 plan 落到编辑器/画布。 */
+export interface ProjectGraphPlanNode {
+  id: string;
+  kind: "project" | "channel";
+  label: string;
+  channel: ChannelRef | null;
+  x: number;
+  y: number;
+}
+export interface ProjectGraphPlan {
+  nodes: ProjectGraphPlanNode[];
+  connections: GraphConnectionSnapshotData[];
+  viewport: { k: number; x: number; y: number } | null;
+}
+
+/**
+ * 纯规划（可单测）：project 根（label = input.label || input.projectSerial）+ 每个
+ * tag/hda 成员一个 channel 节点（id = serial，label = member.label || serial）；**param
+ * 成员跳过（v1）**。saved（项目图快照 v3）提供按 id 匹配的位置/连接/viewport；saved 里
+ * 存在但当前 members 没有的成员（缺失成员）→ 不在 plan 中，自然跳过。连接仅保留两端点
+ * 都在 plan 里的（防御性过滤，与 restoreGraph 一致）。
+ */
+export function planProjectGraph(input: ProjectGraphInput, saved?: unknown): ProjectGraphPlan {
+  const s = (saved ?? null) as {
+    nodes?: Array<{ id: string; x?: number; y?: number }>;
+    connections?: GraphConnectionSnapshotData[];
+    viewport?: { k: number; x: number; y: number };
+  } | null;
+  const posOf = (id: string): { x: number; y: number } | null => {
+    const hit = s?.nodes?.find((n) => n.id === id);
+    return hit && typeof hit.x === "number" ? { x: hit.x, y: hit.y ?? 0 } : null;
+  };
+  const nodes: ProjectGraphPlanNode[] = [];
+  nodes.push({
+    id: input.projectSerial,
+    kind: "project",
+    label: input.label || input.projectSerial,
+    channel: null,
+    ...(posOf(input.projectSerial) ?? { x: 24, y: 40 }),
+  });
+  let channelIndex = 0;
+  for (const m of input.members) {
+    if (m.kind !== "tag" && m.kind !== "hda") continue; // param 成员跳过（v1）
+    const id = m.serial ?? "";
+    if (!id) continue; // tag/hda 必有 serial；缺则防御性跳过
+    nodes.push({
+      id,
+      kind: "channel",
+      label: m.label || id,
+      channel: m,
+      ...(posOf(id) ?? { x: 340, y: 40 + channelIndex * 80 }), // 默认：项目根右侧纵向排列
+    });
+    channelIndex += 1;
+  }
+  const ids = new Set(nodes.map((n) => n.id));
+  const connections = (s?.connections ?? []).filter((c) => ids.has(c.source) && ids.has(c.target));
+  const viewport = s?.viewport && s.viewport.k ? s.viewport : null;
+  return { nodes, connections, viewport };
 }

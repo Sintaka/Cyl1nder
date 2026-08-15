@@ -106,3 +106,7 @@
 - **新 project_routes.py** 6 端点：`POST/GET /api/projects`、`GET /api/projects/{id}`、`POST /api/projects/{id}/members`（body=ChannelRef 去重）、`DELETE /api/projects/{id}/members?channelId=`（**query 参数**，param 通道 key 含 "/"）、`POST /api/projects/ensure`（成员命中 created=False；否则 tag>hda 按 registeredAt 取首个建成员，大全无通道则 fallback kind:"hda" 占位，created=True）。main.py 挂载（主进程粘合）。
 - 测试 +27（test_projects.py）；pytest **157 全绿**。
 - 实机（8100 实例桥）：建项目/加 tag+param 成员/DELETE 成员/ensure 两分支（已存在复用 created=False、新 serial 隐式建项 created=True）全部实测通过。
+## v0.1.00108（2026-08-15）——项目图端点（吊牌 HDA P2b）
+- `snapshot.py` 新增项目图读写：`project_graph_path`（data_dir/projects/<pid>/graph.json，项目无单一 hip 不挂 hip 旁）/`read_project_graph`（缺失/损坏/非 dict→None）/`write_project_graph`（原子 tmp+replace + 内容对比跳过）；**既有函数零改动**。
+- `project_routes.py` +`GET/PUT /api/projects/{projectId}/graph`（400/404；GET 缺省**迁移读**：恰 1 个 kind∈{tag,hda} 成员且 serial/hip 非空 → 其 serial 快照 graph 部分，纯读不写回）。
+- 测试 +12（test_project_graph.py）；pytest **169 全绿**。实机：项目图 v3 PUT/GET 往返通过。

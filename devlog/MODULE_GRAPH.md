@@ -121,6 +121,7 @@
 - `nodes2/graph-model.ts`
   - nodes2/network
   - nodes2/undo
+  - protocol/types
   - rete
   - rete-area-plugin
   - rete-engine

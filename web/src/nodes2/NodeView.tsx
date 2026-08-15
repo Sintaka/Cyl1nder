@@ -11,7 +11,7 @@ import React, { useEffect, useReducer, useRef } from "react";
 import { ClassicPreset } from "rete";
 import { Presets } from "rete-react-plugin";
 import type { ClassicScheme, ReactArea2D, RenderEmit } from "rete-react-plugin";
-import { fireNodeState, showTooltip, hideTooltip, fireRename } from "./graph";
+import { fireNodeState, showTooltip, hideTooltip, fireRename, getChannelDisplaySerial } from "./graph";
 import type { CylNode } from "./graph";
 
 const { RefSocket } = Presets.classic;
@@ -165,6 +165,56 @@ export function NodeView({ data, emit }: Props) {
   const inputs = Object.entries(node.inputs);
   const outputs = Object.entries(node.outputs);
   const flags = node.flags ?? { display: false, bypass: false, freeze: false, reference: false };
+
+  // P2b 项目根：标题 + label，无端口无 chips（display 等 4 chips 全部不渲染）。
+  // 双击改名入口禁用（v1 固定标签）；样式类 .cyl-rp-project。
+  if (node.kind === "project") {
+    return (
+      <div className={`cyl-rp-node cyl-rp-project ${node.selected ? "selected" : ""}`}>
+        <div className="cyl-rp-head">
+          <span className="cyl-rp-title" title={node.label}>
+            {node.label}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // P2b 成员通道：标题 = label、副标题 = serial；仅渲染 display chip（点亮态跟随
+  // channelDisplaySerial——与旧 kinds display 状态机隔离），其余 3 chips 不渲染；
+  // 1 in / 1 out 端口保留（视觉关联线用）；双击改名入口禁用（标题与 serial 解耦）。
+  // 样式类 .cyl-rp-channel。
+  if (node.kind === "channel") {
+    const serial = node.channel?.serial ?? "";
+    const lit = serial !== "" && getChannelDisplaySerial() === serial;
+    return (
+      <div className={`cyl-rp-node cyl-rp-channel ${lit ? "displayed" : ""} ${node.selected ? "selected" : ""}`}>
+        <div className="cyl-rp-head">
+          <span className="cyl-rp-title" title={node.label}>
+            {node.label}
+          </span>
+          <div className="cyl-rp-chips">
+            <button
+              type="button"
+              className={`cyl-ns display ${lit ? "on" : ""}`}
+              onPointerDownCapture={(e) => {
+                e.stopPropagation();
+                displayHandler?.(node.id as string); // 路由到 graph.ts 的 channel display 状态机
+              }}
+              onMouseEnter={(e) => showTooltip(e.clientX, e.clientY, "Display (active member, unique among channels)")}
+              onMouseMove={(e) => showTooltip(e.clientX, e.clientY, "Display (active member, unique among channels)")}
+              onMouseLeave={() => hideTooltip()}
+            />
+          </div>
+        </div>
+        <div className="cyl-rp-channel-sub">{serial}</div>
+        <div className="cyl-rp-ports">
+          <div className="cyl-rp-col">{inputs.map(([k, i]) => (i ? port("input", node.id as string, k, i.socket, i.label ?? k) : null))}</div>
+          <div className="cyl-rp-col">{outputs.map(([k, o]) => (o ? port("output", node.id as string, k, o.socket, o.label ?? k) : null))}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

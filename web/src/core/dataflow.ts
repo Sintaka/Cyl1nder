@@ -66,7 +66,10 @@ export function createDataflow(deps: DataflowDeps): Dataflow {
       : computeNodeResult(snap, inputs, nodeId, { inputsRev: store.inputRev, graphVersion: gv });
   };
 
-  /** Display node object (id + params) via the live editor (ReteGraph exposes editor). */
+  /** Display node object (id + params) via the live editor (ReteGraph exposes editor).
+   *  P2b：project/channel 不进 display 分支——它们的 display 是独立模块态（graph.ts 的
+   *  channelDisplaySerial），从不设 flags.display；这里过滤后，项目模式下若整图只有项目
+   *  节点 → 无 display → 走现有 inputs 回退，不改变任何组可见性，也不报错。 */
   function getDisplayNodeInfo(): {
     id: string;
     kind: string;
@@ -78,7 +81,9 @@ export function createDataflow(deps: DataflowDeps): Dataflow {
       params?: ParamLike[];
       flags: { display: boolean };
     }>;
-    const n = nodes.find((x) => x.flags.display);
+    const n = nodes.find(
+      (x) => x.flags.display && x.kind !== "project" && x.kind !== "channel",
+    );
     return n ? { id: n.id, kind: n.kind, params: n.params ?? [] } : null;
   }
 

@@ -228,6 +228,10 @@ function computeChainCached(
   key: string,
   active: boolean,
 ): CachedChainResult | null {
+  // P2b：project/channel 节点**不做 trace**（v1 关联线纯视觉，不参与几何计算）——
+  // 即便快照直接含这类节点（正常路径 getNetworkSnapshot 已过滤），也按死链处理：
+  // 返回 null 走 passthrough 兜底，不崩。
+  if (node.kind === "project" || node.kind === "channel") return null;
   const traced = traceChainSpecs(node, sourceOutput, inputs, snap, new Set());
   if (!traced) return null; // dead chain
 
