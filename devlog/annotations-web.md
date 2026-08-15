@@ -664,3 +664,11 @@ efreshSelectionPanels()——sel 为空且已渲染过 → 直接 return 不重�
 - `main.ts`（主进程粘合）：SessionDeps 注入 `applyChannelValues → channelPanelRef.current?.applyValues`；`layouts/Default.json` +channel 面板 tab（Inspector 组）。
 - 测试 +17（channel-panel.test.ts）；tsc 0、vitest **272**。
 - 实机：浏览器打开 ?serial=吊牌 → 「Channels 参数」面板渲染 tx=7.75/ty=1.5（与 Houdini 实值一致，含 Houdini 侧改动经心跳捎带更新）。
+## v0.1.00112（2026-08-15）——通道引用绑定（P5b，设计参考 Houdini ch()）
+- **graph-model.ts**：CylNode +`bindings?: Record<string,string>`（paramName→通道 absolutePath；空/缺省不序列化，旧图字节级兼容）；serialize/restore 双向（sanitizeBindings 校验）；数据层纯函数 `sanitizeBindings/nodeParamBindingsView/listNodeParamBindingsView/applyNodeBindings`（视图带完整 ParamSpec——主进程合并期契约锚点修正）。
+- **graph.ts**：模块级 `getNodeParamBindings/listNodeParamBindings/setNodeBindings`（委托纯函数，不触发 network.run，持久化走既有快照）。
+- **app/param.ts**：`renderParams` 第 4 参可选 `bindCtx`（bindings/listChannels/onBind）；参数名旁 ⛓ 按钮（未绑定灰/已绑定绿+title；点击弹出通道列表异步加载、点外/Esc 关闭；已绑定点击=解除）。
+- **core/channel-bind.ts**（新）：`createChannelBindManager`——onNodeParamsCommitted（bound 变化提取 → pending latest-wins → 1000/fps flush 单飞行 → putChannelValues；lastSent 失败回滚重试）；applyIncoming（值对比防回环 → applyNodeParamPatch 每节点一次）；flushNow/dispose。
+- **channel-panel.ts** +可选 `onValues`（WS/轮询两路转发）；**dock.ts** +`setChannelValuesSink`；**main.ts**（主进程粘合）：param 面板 onChange 与 gizmo setNodeParams 两路径接管理器、applyChannelValues 双路（面板+绑定）、bindCtx 装配（通道列表=当前 serial 的 param 通道）、调试钩子 `__cylBindMgr/__cylSetNodeBindings`。
+- 测试：bind-model +12、channel-bind +14；tsc 0、vitest **298**。
+- 实机（8100）：绑定 web transform.tx ↔ Houdini transform1.tx——C→H 提交 9.5 落地、H→C（面板激活轮询）回显 3.25、Ctrl+S 后重载 bindings 完整恢复。已知取舍：绑定值刷新依赖通道面板轮询/WS（面板非激活 tab 时无轮询——dockview 内容脱 DOM 门控，与 P5a 面板一致）。

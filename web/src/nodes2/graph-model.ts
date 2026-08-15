@@ -203,6 +203,9 @@ export class CylNode extends ClassicPreset.Node {
   /** P2b：仅 kind==="channel" 使用——成员通道引用（tag/hda 的 serial 即节点 id）。
    *  project/channel 都不参与几何计算，关联线 v1 纯视觉。 */
   channel?: ChannelRef | null;
+  /** P5b 通道引用绑定：paramName -> 通道 absolutePath（如 tx -> "/obj/geo1/transform1/tx"）。
+   *  空/缺省时不序列化该键（旧图字节级兼容）。 */
+  bindings?: Record<string, string>;
   /** 工厂位置提示（makeProjectNode/makeChannelNode 的 x/y 参数）；视图位置仍由
    *  area.translate 落地（serializeGraph 读 area.nodeViews 的位置，不读本字段）。 */
   pos?: { x: number; y: number };
@@ -370,6 +373,8 @@ export interface GraphNodeSnapshotData {
   x: number;
   y: number;
   channel?: ChannelRef | null;
+  /** P5b：通道引用绑定（paramName -> 通道 absolutePath；空/缺省时序列化省略该键）。 */
+  bindings?: Record<string, string>;
 }
 
 /** 序列化用的纯连接描述（serializeGraph 采集后交给 buildGraphSnapshot）。 */
@@ -404,6 +409,8 @@ export function buildGraphSnapshot(
       y: n.y,
     };
     if (n.params && n.params.length > 0) entry.params = n.params;
+    // P5b：bindings 非空才输出该键（空 {} / undefined 省略——旧图字节级兼容）
+    if (n.bindings && Object.keys(n.bindings).length > 0) entry.bindings = n.bindings;
     if (isProjectGraph && n.channel) entry.channel = n.channel; // v2 绝不含新字段；v3 也省略 null
     return entry;
   });
@@ -427,6 +434,8 @@ export function serializeGraph(
       x: pos?.x ?? 0,
       y: pos?.y ?? 0,
       channel: c.channel ?? undefined,
+      // P5b：bindings 非空才采集（空 {} / undefined → undefined → 序列化无该键）
+      bindings: c.bindings && Object.keys(c.bindings).length > 0 ? c.bindings : undefined,
     };
   });
   // Defensive: only serialize connections whose endpoint nodes still exist. Rete can
@@ -460,25 +469,40 @@ export function restoreNodeForKind(nd: {
   id?: string;
   label?: string;
   channel?: ChannelRef | null;
+  bindings?: unknown; // P5b：可选通道引用绑定（sanitizeBindings 校验；非法忽略）
 }): CylNode | null {
+  let n: CylNode | null;
   switch (nd.kind) {
     case "input":
-      return makeInputNode();
+      n = makeInputNode();
+      break;
     case "output":
-      return makeOutputNode();
+      n = makeOutputNode();
+      break;
     case "null":
-      return makeNullNode();
+      n = makeNullNode();
+      break;
     case "transform":
-      return makeTransformNode();
+      n = makeTransformNode();
+      break;
     case "dot":
-      return makeDotNode();
+      n = makeDotNode();
+      break;
     case "project":
-      return makeProjectNode(nd.id ?? "", nd.label ?? "project");
+      n = makeProjectNode(nd.id ?? "", nd.label ?? "project");
+      break;
     case "channel":
-      return nd.channel ? makeChannelNode(nd.id ?? "", nd.channel, nd.label ?? nd.channel.serial ?? "channel") : null;
+      n = nd.channel ? makeChannelNode(nd.id ?? "", nd.channel, nd.label ?? nd.channel.serial ?? "channel") : null;
+      break;
     default:
       return null; // 未知 kind：跳过，不崩
   }
+  // P5b：bindings 可选读入（非法忽略）——restoreGraph 的节点重建经此一处落地绑定
+  if (n) {
+    const bindings = sanitizeBindings(nd.bindings);
+    if (bindings) n.bindings = bindings;
+  }
+  return n;
 }
 
 export async function restoreGraph(
@@ -497,6 +521,7 @@ export async function restoreGraph(
       x: number;
       y: number;
       channel?: ChannelRef | null; // v3：channel 节点携带的成员引用
+      bindings?: unknown; // P5b：可选通道引用绑定（restoreNodeForKind 内校验读入）
     }[];
     connections?: { source: string; sourceOutput: string; target: string; targetInput: string; bypass?: boolean }[];
     viewport?: { k: number; x: number; y: number };
@@ -555,6 +580,70 @@ export async function restoreGraph(
   }
   store.pushLog(`[node] restored graph: ${d.nodes.length} nodes / ${(d.connections ?? []).length} connections`);
   notifySelection(); // selection was reset by the rebuild
+}
+
+// ---------------------------------------------------------------------------
+// P5b 通道引用绑定：数据层纯函数（无 DOM，可直接单测）。graph.ts 的薄壳 API
+// （getNodeParamBindings / listNodeParamBindings / setNodeBindings）把这里的纯函数
+// 绑到当前图句柄 activeGraph。绑定不触发 network.run；持久化走既有 serializeGraph
+// 快照机制（autosave / 显式保存自动携带 bindings 键）。
+// ---------------------------------------------------------------------------
+
+/** 校验反序列化 bindings：仅接受「普通对象 + 全部字符串值」；数组/字符串/null 等
+ *  非法输入 → undefined；值非字符串的键被忽略；结果为空 → undefined（restore 后
+ *  节点不带该键，保持旧图字节级兼容）。 */
+export function sanitizeBindings(v: unknown): Record<string, string> | undefined {
+  if (typeof v !== "object" || v === null || Array.isArray(v)) return undefined;
+  const out: Record<string, string> = {};
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    if (typeof val === "string") out[k] = val;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** 单节点绑定视图（params 名/值 + bindings 拷贝）；节点不存在 → null。 */
+export function nodeParamBindingsView(
+  editor: NodeEditor<Schemes>,
+  id: string,
+): { params: ParamSpec[]; bindings: Record<string, string> } | null {
+  const n = editor.getNode(id) as CylNode | undefined;
+  if (!n) return null;
+  return {
+    params: (n.params ?? []).map((p) => ({ name: p.name, type: p.type, value: p.value })), // 完整 ParamSpec（main.ts 合并写回用）
+    bindings: { ...(n.bindings ?? {}) },
+  };
+}
+
+/** 全部节点绑定视图（id/label/params/bindings）；无绑定节点 → bindings = {}。 */
+export function listNodeParamBindingsView(editor: NodeEditor<Schemes>): {
+  id: string;
+  label: string;
+  params: ParamSpec[];
+  bindings: Record<string, string>;
+}[] {
+  return (editor.getNodes() as CylNode[]).map((n) => ({
+    id: n.id,
+    label: n.label,
+    params: (n.params ?? []).map((p) => ({ name: p.name, type: p.type, value: p.value })), // 完整 ParamSpec
+    bindings: { ...(n.bindings ?? {}) },
+  }));
+}
+
+/** 写入节点 bindings（拷贝入节点；清空 = 传 {} → 删除该键，序列化时无 bindings）；
+ *  节点不存在 → false。 */
+export function applyNodeBindings(
+  editor: NodeEditor<Schemes>,
+  id: string,
+  bindings: Record<string, string>,
+): boolean {
+  const n = editor.getNode(id) as CylNode | undefined;
+  if (!n) return false;
+  if (Object.keys(bindings).length === 0) {
+    delete n.bindings; // 空 → 无键（字节级兼容：serializeGraph 不输出空 bindings）
+  } else {
+    n.bindings = { ...bindings };
+  }
+  return true;
 }
 
 export function getNetworkSnapshot(editor: NodeEditor<Schemes>): NetworkSnapshot {

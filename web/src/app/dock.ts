@@ -195,6 +195,12 @@ function readSyncMaxFpsFromPrefs(): number {
   return SYNC_FPS_DEFAULT;
 }
 
+/** P5b：面板轮询/WS 值回调 sink（main.ts 绑定管理器注入；面板内部两处拿值都转发）。 */
+let channelValuesSink: ((values: Record<string, unknown>) => void) | null = null;
+export function setChannelValuesSink(fn: ((values: Record<string, unknown>) => void) | null): void {
+  channelValuesSink = fn;
+}
+
 /** 通道参数面板实例（主实例与 "+" 新增实例共用）：容器注入 initChannelPanel；
  *  每次创建都重绑 channelPanelRef.current（main.ts 粘合 WS 推送的目标）。
  *  isVisible：dockview 隐藏 tab 时内容元素脱离 DOM（isConnected=false），
@@ -206,6 +212,7 @@ function createChannelPanel(): { el: HTMLElement; dispose: () => void; handle: C
     getSerial: () => store.serial,
     getSyncMaxFps: readSyncMaxFpsFromPrefs,
     isVisible: () => container.isConnected && document.visibilityState === "visible",
+    onValues: (v) => channelValuesSink?.(v), // P5b：转发给绑定管理器
   });
   channelPanelRef.current = handle;
   return { el: container, dispose: () => handle.dispose(), handle };

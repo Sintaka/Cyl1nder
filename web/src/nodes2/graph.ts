@@ -21,16 +21,19 @@ import { NodeView, notifyNodeChanged, setDisplayHandler } from "./NodeView";
 import { store } from "../stores/workspace";
 import type { UndoAction } from "./undo";
 import {
+  applyNodeBindings,
   CylNode,
   DEFAULT_FLAGS,
   applyConnectionBypassVisual,
   getConnectionBypass,
+  listNodeParamBindingsView,
   makeChannelNode,
   makeInputNode,
   makeOutputNode,
   makeProjectNode,
   nodeByKind,
   nodeFromTarget,
+  nodeParamBindingsView,
   notifySelection,
   onSelectionChange,
   planProjectGraph,
@@ -141,6 +144,38 @@ export function loadProjectGraph(input: ProjectGraphInput, saved: unknown): void
 /** 项目图快照 = serializeGraph() 输出（项目模式含 project/channel → 自动 v3）。 */
 export function projectGraphSnapshot(): unknown {
   return activeGraph ? serializeGraph(activeGraph.editor, activeGraph.area) : null;
+}
+
+// ---------------------------------------------------------------------------
+// P5b 通道引用绑定 API（写集 A：节点绑定模型）：读写节点 bindings 的薄壳。
+// 数据层逻辑在 graph-model（nodeParamBindingsView / listNodeParamBindingsView /
+// applyNodeBindings——纯函数，无 DOM，可直接单测）；这里绑到当前图句柄 activeGraph。
+// 绑定不触发 network.run；持久化走既有 serializeGraph 快照机制（autosave / 显式保存
+// 自动携带 bindings 键）。main.ts 的 Param 面板经 getNodeParamBindings 拉取绑定。
+// ---------------------------------------------------------------------------
+
+/** 单节点绑定视图：params（完整 ParamSpec）+ bindings（paramName -> 通道 absolutePath）；
+ *  节点不存在或无图 → null。 */
+export function getNodeParamBindings(
+  id: string,
+): { params: ParamSpec[]; bindings: Record<string, string> } | null {
+  return activeGraph ? nodeParamBindingsView(activeGraph.editor, id) : null;
+}
+
+/** 全部节点绑定视图（id/label/params/bindings）；无图 → []。 */
+export function listNodeParamBindings(): {
+  id: string;
+  label: string;
+  params: ParamSpec[];
+  bindings: Record<string, string>;
+}[] {
+  return activeGraph ? listNodeParamBindingsView(activeGraph.editor) : [];
+}
+
+/** 更新节点 bindings（清空 = 传 {}，内部删除空键 → 序列化无该键，字节级兼容）；
+ *  不触发 network.run；序列化快照保存走既有机制（store 变化防抖 / autosave）。 */
+export function setNodeBindings(id: string, bindings: Record<string, string>): void {
+  if (activeGraph) applyNodeBindings(activeGraph.editor, id, bindings);
 }
 
 /** Connection ids on the display node's upstream in0 chain (input -> ... -> display),

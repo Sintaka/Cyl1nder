@@ -166,6 +166,66 @@ body { font-family: var(--cyl-font-ui); }
   appearance: none;
 }
 
+/* ---- P5b 通道引用绑定（param 行 ⛓ 链接按钮 + 弹出列表，web/src/app/param.ts） ---- */
+.cyl-param-link {
+  background: none;
+  border: none;
+  padding: 0 4px 0 0;
+  font: inherit;
+  color: #6b7280; /* 未绑定：灰 */
+  cursor: pointer;
+  vertical-align: middle;
+  line-height: 1;
+}
+.cyl-param-link:hover { color: #cfd2d6; }
+.cyl-param-link.bound { color: #4ade80; } /* 已绑定：绿 */
+.cyl-param-link-pop {
+  position: fixed;
+  z-index: 150;
+  min-width: 220px;
+  max-width: 340px;
+  background: #1b1e24;
+  border: 1px solid #3a3f4a;
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .5);
+  font: 10px/1.5 var(--cyl-font-ui);
+  color: #cfd2d6;
+}
+.cyl-param-link-pop-title { color: #8f959e; padding: 2px 8px 4px; }
+.cyl-param-link-loading, .cyl-param-link-empty { color: #6b7280; padding: 4px 8px; }
+.cyl-param-link-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: #cfd2d6;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cyl-param-link-item:hover { background: #2b6cb0; color: #fff; }
+.cyl-param-link-unlink {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-top: 1px solid #2a2e35;
+  margin-top: 3px;
+  color: #f87171;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font: inherit;
+}
+.cyl-param-link-unlink:hover { background: #7f1d1d; color: #fff; }
+
 /* ---- middle-drag scrub popup (web/src/app/scrub.ts) ---- */
 .cyl-scrub {
   position: fixed;

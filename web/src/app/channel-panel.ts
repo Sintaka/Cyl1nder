@@ -25,6 +25,9 @@ export interface ChannelPanelDeps {
   /** 面板可见性（轮询门控）。dock 注入：容器 isConnected（dockview 隐藏 tab 时
    *  内容元素脱离 DOM）+ document.visibilityState。 */
   isVisible(): boolean;
+  /** P5b：H→C 值转发——WS 推送 / 250ms 轮询 / 首屏拉取拿到 values 后都回调
+   *  （main.ts 注入绑定管理器的 applyIncoming）。可选；缺省不接线行为不变。 */
+  onValues?(values: Record<string, unknown>): void;
 }
 
 export interface ChannelPanelHandle {
@@ -247,7 +250,8 @@ export function initChannelPanel(container: HTMLElement, deps: ChannelPanelDeps)
     if (!disposed && vr.ok) applyValues(vr.values);
   }
 
-  /** WS 推送 / 轮询结果应用：编辑中的行不覆盖；值类型翻转时重建输入控件。 */
+  /** WS 推送 / 轮询结果应用：编辑中的行不覆盖；值类型翻转时重建输入控件。
+   *  末尾转发原始 incoming 给 deps.onValues（绑定管理器 H→C 入口；防回环在管理器侧）。 */
   function applyValues(incoming: Record<string, unknown>): void {
     values = mergeValues(values, incoming, editing);
     for (const [path, v] of Object.entries(incoming)) {
@@ -255,6 +259,7 @@ export function initChannelPanel(container: HTMLElement, deps: ChannelPanelDeps)
       const row = rows.get(path);
       if (row) setRowValue(row, v);
     }
+    deps.onValues?.(incoming);
   }
 
   /** 节流 flush：pending 快照后立即清空（PUT 期间的编辑进入新 pending，latest-wins 不断流）。

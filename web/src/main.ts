@@ -1,12 +1,13 @@
 import "./styles.css";
 import { buildLayout } from "./app/layout";
 import { DEFAULT_LAYOUT, DEFAULT_LAYOUT_NAME } from "./app/layouts";
-import { applyLayout, channelPanelRef, setupDock } from "./app/dock";
+import { createChannelBindManager } from "./core/channel-bind";
+import { applyLayout, channelPanelRef, setChannelValuesSink, setupDock } from "./app/dock";
 import { renderSpreadsheet, type SpreadsheetFocus } from "./app/spreadsheet";
 import { renderParams } from "./app/param";
 import { store } from "./stores/workspace";
 import { BridgeClient } from "./bridge/client";
-import { createReteGraph, type ReteGraphHandlers } from "./nodes2/graph";
+import { createReteGraph, getNodeParamBindings, listNodeParamBindings, setNodeBindings, type ReteGraphHandlers } from "./nodes2/graph";
 import { computeOutputsDetailed } from "./nodes2/network";
 import type { ActiveChains } from "./core/network";
 import { Viewport } from "./viewport/renderer";
@@ -117,6 +118,8 @@ graphShell.appendChild(layout.graphContainer);
 // explorer.exe 式地址栏：分段按钮（点击跳转/复制）+ 点击空白处变输入框 + Tab 补全。
 // 输入态 Tab 由地址栏独占（graph-interact 的 Tab 处理器有 activeElement input 守卫）。
 let sessionCtl: SessionManager | null = null; // late-bound（sessionMgr 声明在后）
+/** P5b 通道引用绑定管理器（创建于 syncMaxFps 声明后；调用点均 late-bound 引用）。 */
+let bindMgr: ReturnType<typeof createChannelBindManager> | null = null;
 let lastAddress = "";
 /** P2b 项目模式状态（模块级）：currentProjectId 由 enterProjectMode 设置、?serial= boot /
  *  Connect / 1 段 C1- 导航清空；getAddress / navigate / 保存路径据此分流。 */
@@ -634,8 +637,11 @@ const sessionMgr = createSessionManager({
     timeline.setLinkEnabled(true);
     timeline.applyRemote(frame, fps);
   },
-  // WS {type:"channel-values"}（吊牌心跳捎带）：即时刷新通道参数面板（P5a）。
-  applyChannelValues: (values) => channelPanelRef.current?.applyValues(values),
+  // WS {type:"channel-values"}（吊牌心跳捎带）：即时刷新通道参数面板（P5a）+ 回显绑定节点（P5b）。
+  applyChannelValues: (values) => {
+    channelPanelRef.current?.applyValues(values);
+    bindMgr?.applyIncoming(values);
+  },
 });
 sessionCtl = sessionMgr;
 
@@ -654,6 +660,31 @@ let updateMode: UpdateMode = prefs.update_mode;
  *  NOT a cap on the web Auto Update push path - runNetwork and viewport edits
  *  push outputs as fast as possible. */
 let syncMaxFps: number = prefs.sync_max_fps;
+
+// P5b 通道引用绑定管理器：param 面板/gizmo 编辑 → 节流直写 Houdini；H→C 值回显 → 绑定节点（值对比防回环）。
+bindMgr = createChannelBindManager({
+  getSerial: () => store.serial,
+  getSyncMaxFps: () => syncMaxFps,
+  client,
+  listNodeParamBindings: () => listNodeParamBindings(),
+  applyNodeParamPatch: (id, patch) => {
+    const view = getNodeParamBindings(id);
+    if (!view) return false;
+    const changed = Object.entries(patch).some(
+      ([k, v]) => !Object.is(view.params.find((p) => p.name === k)?.value, v),
+    );
+    if (!changed) return false;
+    const merged = view.params.map((p) => (patch[p.name] !== undefined ? { ...p, value: patch[p.name] } : p));
+    graph.setNodeParams(id, merged);
+    void network.run(); // H→C 值变化 → 视口几何跟手
+    return true;
+  },
+});
+setChannelValuesSink((v) => bindMgr?.applyIncoming(v));
+// P5b 调试钩子（headless/实机驱动绑定管理器与节点绑定 API）。
+(window as unknown as { __cylBindMgr?: unknown }).__cylBindMgr = bindMgr;
+(window as unknown as { __cylSetNodeBindings?: unknown }).__cylSetNodeBindings = setNodeBindings;
+
 layout.updateModeSelect.onChange((v) => {
   updateMode = v === "mouseup" ? "mouseup" : "auto";
   prefs = { ...prefs, update_mode: updateMode };
@@ -720,7 +751,10 @@ const gizmo = createGizmoController({
   graph: {
     getSelectedNode: () => graph.getSelectedNode(),
     getNetworkSnapshot: () => graph.getNetworkSnapshot(),
-    setNodeParams: (id, params) => graph.setNodeParams(id, params),
+    setNodeParams: (id, params) => {
+      graph.setNodeParams(id, params);
+      bindMgr?.onNodeParamsCommitted(id, params); // P5b：gizmo 拖动经绑定管理器节流直写 Houdini
+    },
     pushUndo: (entry) => graph.pushUndo(entry),
   },
   scheduleNetwork,
@@ -825,6 +859,7 @@ function refreshSelectionPanels(): void {
           // a single { type: "params" } undo entry (selection switch flushes early)
           paramUndo.startOrMerge(selId, prevParams, params);
           graph.setNodeParams(selId, params);
+          bindMgr?.onNodeParamsCommitted(selId, params); // P5b：绑定参数节流直写 Houdini
           renderedParams = params;
           const prevValue = new Map(prevParams.map((q) => [q.name, q.value]));
           const changed = params.find((q) => prevValue.get(q.name) !== q.value);
@@ -835,6 +870,27 @@ function refreshSelectionPanels(): void {
             viewport.setEnterPivot(v.px ?? 0, v.py ?? 0, v.pz ?? 0);
           }
           void network.run();
+        }
+      : undefined,
+    sel && selId
+      ? {
+          // P5b 通道引用绑定 ctx：⛓ 链接按钮 → 当前 serial 的 param 通道列表。
+          bindings: getNodeParamBindings(selId)?.bindings ?? {},
+          listChannels: async () => {
+            const { channels } = await client.listChannels();
+            return channels
+              .filter((c) => c.kind === "param" && c.serial === store.serial && c.absolutePath)
+              .map((c) => ({ path: c.absolutePath ?? "", label: (c.absolutePath ?? "").split("/").pop() ?? "" }));
+          },
+          onBind: (name, channelPath) => {
+            const view = getNodeParamBindings(selId);
+            if (!view) return;
+            const next = { ...view.bindings };
+            if (channelPath) next[name] = channelPath;
+            else delete next[name];
+            setNodeBindings(selId, next);
+            refreshSelectionPanels(); // 重渲染 param 面板显示 ⛓ 徽标
+          },
         }
       : undefined,
   );

@@ -59,6 +59,8 @@
 - `color/wheel-sv.ts`
   - color/color-math
   - color/harmony
+- `core/channel-bind.ts`
+  - bridge/client
 - `core/dataflow.ts`
   - core/network
   - core/params
@@ -94,6 +96,7 @@
   - app/spreadsheet
   - app/timeline-ui
   - bridge/client
+  - core/channel-bind
   - core/dataflow
   - core/gizmo
   - core/kick

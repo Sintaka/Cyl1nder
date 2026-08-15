@@ -78,6 +78,7 @@
 - `PUT /api/hda/{serial}/channel-values`，body `{"values": {absolutePath: value}}` -> `{ok, throttled?}`：每通道 `parameters.set_parameter`，**Sync Max FPS 节流（max(33ms,1000/fps)）+ latest-wins 整 dict 替换 + single-flight**（照 PUT /timeline 模式）；成功后**不回显广播**（web 发起防回环）；每通道 trace `param-set`（web-param）。
 - **H→C 事件推送**：吊牌 cook 心跳捎带 `values`（可选字段，缺省兼容）→ bridge 直接 **WS 广播 `{type:"channel-values", values}`**（值不落地）。
 - web：主应用「通道参数」dock 面板——数值 scrubbing/输入节流提交（≤ Sync Max FPS，latest-wins）；WS 推送即时刷新（编辑行不覆盖）+ 250ms 轮询兜底（可见性门控）。
+- **通道引用绑定（P5b，客户端语义，协议零改动）**：web 节点参数可绑定到 param 通道 absolutePath（设计参考 Houdini `ch()` channel reference——值跟随源、引用有视觉标识）；节点 `bindings: {paramName: absolutePath}` 随图快照序列化；参数面板/gizmo 编辑经 `PUT channel-values` 直写 Houdini（节流 latest-wins），H→C 值回显应用到绑定节点（值对比防回环）。
 
 ## 项目端点（P2a，v0.1.00107 起）
 - **ProjectRef**：`{projectSerial: "P1-<b36ms>-<4rand>", label, createdAt, updatedAt, members: [channelRef…]}`。`P1-` 前缀 = 项目序列号（与 `C1-` 的 HDA/吊牌 serial 区分）；成员是通道引用**快照**（live 状态以 `/api/channels` 大全为准）。

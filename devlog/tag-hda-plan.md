@@ -67,8 +67,12 @@ pytest（channels 注册/心跳/探测 + 路由）/ tsc+vitest（store/面板）
 - **web**：主应用新增「通道参数」dock 面板——列出该 serial 的 param 通道（label/当前值/状态点）；数值 scrubbing/输入 → `putChannelValues` 节流提交（≤ Sync Max FPS，latest-wins）；WS `channel-values` 推送即时刷新 + 250ms 轮询兜底（可见性门控）。
 - 验收：web 面板拖 tx 滑块 → Houdini transform1.tx 跟手变化（<150ms 感知）→ 吊牌 cook 捎带/轮询回显 → 轨迹 param-set 审计；Houdini 侧改 tx → web 面板 ≤1s 内更新。
 
-### P5b（下轮候选）
-- viewport gizmo/节点参数与通道绑定（web transform 节点 T 属性直写 Houdini transform1）；数据通道值正式 UI；轨迹 ndjson 落盘（P3.5）。
+### P5b（当前，2026-08-15 起）——通道引用绑定（gizmo/节点参数 ⇄ Houdini 通道）
+> **设计参考 Houdini channel reference（`ch()`）**：引用参数值跟随源参数（/network/parms#link、expressions/ch）；引用参数有视觉标识（引用色）；RMB Copy/Paste reference 创建；视口手柄拖动**连续提交**跟手。Cyl1nder 映射：web transform 节点参数对 Houdini 通道的「通道引用」= 值跟随 + 双向写（web 编辑直写 Houdini，Houdini 改动回显）+ ⛓ 链接徽标 + gizmo 每帧经 Sync Max FPS 节流直写。
+- **模型**：CylNode +可选 `bindings?: Record<paramName, absolutePath>`（空省略不序列化，restore 容忍）；serialize/restore 双向。
+- **UI**：Param 面板参数行 ⛓ 按钮 → 弹出通道列表（当前 serial 的 param 通道）→ 选中即绑定（绿色徽标）；「解除链接」入口。
+- **行为**：param 面板编辑/gizmo 拖动（经 setNodeParams 两条路径）→ 绑定管理器提取 bound 变化 → `putChannelValues` 节流 latest-wins（≤ Sync Max FPS）；H→C 值（WS 推送 + 250ms 轮询）→ 应用到绑定节点 params（**值对比防回环**）→ `network.run()` 视口几何跟手。
+- **遗留（P5b.2）**：数据通道值正式 UI（overview prompt 版换正式面板）；轨迹 ndjson 落盘（P3.5）。
 
 ## 收尾清单（主进程，本轮最后）
 1. **清理过时内容**：删 `hda/otls/backup/` 54 个旧 .hda 备份（.gitignore 该目录）；检查根目录临时文件残留。
