@@ -1,4 +1,4 @@
-import { BRIDGE_URL, ChannelRef, InputPayload, LogEntry, OutputBuffer, ProjectRef, StatusResponse } from "../protocol/types";
+import { BRIDGE_URL, ChannelRef, InputPayload, LogEntry, OutputBuffer, ProjectRef, StatusResponse, TraceEvent } from "../protocol/types";
 import { encode, decode } from "@msgpack/msgpack";
 
 export interface HealthResponse {
@@ -275,6 +275,22 @@ export class BridgeClient {
     if (serial) q.set("serial", serial);
     if (level) q.set("level", level);
     return json<{ logs: LogEntry[] }>(await fetch(`${this.base}/api/logs?${q}`)).then((r) => r.logs);
+  }
+
+  /** GET /api/trace — 轨迹事件查询（P3 审计视图）。空值省略 query 参数，URLSearchParams 构造
+   *  （与 trace.ts 的 buildTraceQuery 同构，分层各自实现，不交叉 import）。 */
+  async listTrace(
+    filters: { project?: string; actor?: string; action?: string; channel?: string; target?: string; limit?: number } = {},
+  ): Promise<{ events: TraceEvent[]; count: number }> {
+    const q = new URLSearchParams();
+    if (filters.project) q.set("project", filters.project);
+    if (filters.actor) q.set("actor", filters.actor);
+    if (filters.action) q.set("action", filters.action);
+    if (filters.channel) q.set("channel", filters.channel);
+    if (filters.target) q.set("target", filters.target);
+    if (filters.limit !== undefined && filters.limit > 0) q.set("limit", String(filters.limit));
+    const qs = q.toString();
+    return json(await fetch(`${this.base}/api/trace${qs ? `?${qs}` : ""}`));
   }
 
   /** channelId URL 编码：去前导 `/`、保留段间 `/`（param 通道 id = absolutePath，tag/hda 通道 id = serial）。 */

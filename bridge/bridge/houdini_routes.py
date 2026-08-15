@@ -442,11 +442,38 @@ class CmdBody(BaseModel):
     params: dict | None = None
 
 
+def _trace_houdini_cmd(serial: str, command: str, params: dict | None) -> None:
+    """P3 埋点：白名单通过后记录 runtime-python 命令（零行为影响）。
+
+    parameters.set_parameter -> param-set（digest=value 截 80）；set_expression ->
+    expr-set（digest=表达式截 80）；其余 action=command 名截 40、digest=params 截 80。
+    target = node_path/parm_name（取不到 parm_name 则 node_path）。
+    """
+    params = params or {}
+    node = params.get("node_path", "")
+    parm = params.get("parm_name", "")
+    if command == "parameters.set_parameter":
+        action, digest = "param-set", f"value={str(params.get('value'))[:80]}"
+    elif command == "parameters.set_expression":
+        action, digest = "expr-set", str(params.get("expression", ""))[:80]
+    else:
+        action, digest = command[:40], str(params)[:80]
+    get_state().trace.add(
+        actor="runtime-python",
+        action=action,
+        channel=serial,
+        target=f"{node}/{parm}" if node and parm else node,
+        digest=digest,
+    )
+
+
 @router.post("/api/hda/{serial}/houdini/cmd")
 async def houdini_cmd(serial: str, payload: CmdBody) -> dict:
     _check_serial(serial)
     if not houdini_mcp.is_command_allowed(payload.command):
         raise HTTPException(status_code=403, detail="command not allowed")
+    # trace（P3）：白名单通过后埋点
+    _trace_houdini_cmd(serial, payload.command, payload.params)
     port = await asyncio.to_thread(_resolve_port, serial)
     if not port:
         return {"ok": False, "error": "houdini mcp not reachable"}
@@ -468,6 +495,14 @@ async def houdini_python(serial: str, payload: PythonBody) -> dict:
     _check_serial(serial)
     if not payload.code or not payload.code.strip():
         raise HTTPException(status_code=422, detail="code must be non-empty")
+    # trace（P3）：python 执行埋点（零行为影响）
+    get_state().trace.add(
+        actor="runtime-python",
+        action="python-exec",
+        channel=serial,
+        target="",
+        digest=payload.code.replace("\n", " ")[:80],
+    )
     port = await asyncio.to_thread(_resolve_port, serial)
     if not port:
         return {"ok": False, "error": "houdini mcp not reachable"}

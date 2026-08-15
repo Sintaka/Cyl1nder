@@ -15,6 +15,7 @@ from .routes import router as rest_router
 from .snapshot import flush_all_workspaces, restore_all_workspaces
 from .snapshot_routes import router as snapshot_routes_router
 from .state import get_state
+from .trace_routes import router as trace_routes_router
 from .ws import router as ws_router
 
 
@@ -48,6 +49,7 @@ def create_app() -> FastAPI:
     app.include_router(houdini_routes_router)
     app.include_router(channel_routes_router)
     app.include_router(project_routes_router)
+    app.include_router(trace_routes_router)
     app.include_router(ws_router)
     get_state().logs.info("main", f"bridge up (v{VERSION})")
     return app

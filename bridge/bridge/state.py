@@ -17,6 +17,7 @@ from .protocol import (
     OutputBuffer,
 )
 from .registry import SerialRegistry
+from .trace import TraceStore
 from .ui_layout import UiLayoutStore
 from .workspace import WorkspaceStore
 
@@ -32,6 +33,7 @@ class BridgeState:
         self.registry = SerialRegistry(data_dir / "registry.json")
         self.channels = ChannelRegistry(data_dir / "channels.json")
         self.projects = ProjectRegistry(data_dir / "projects.json")
+        self.trace = TraceStore()
         self.workspaces = WorkspaceStore()
         self.logs = LogRing()
         self.ui_layout = UiLayoutStore(data_dir / "ui-layout.json")

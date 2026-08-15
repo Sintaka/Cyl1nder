@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-15），由 `node scripts/gen-index.mjs` 产出。共 **788** 个函数/类。
+> 机器生成（2026-08-15），由 `node scripts/gen-index.mjs` 产出。共 **811** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | `main` | 7 | def |  | 2 |
 
-## bridge/bridge/channel_routes.py（133 行）
+## bridge/bridge/channel_routes.py（149 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -23,11 +23,11 @@
 | `_path_key` | 40 | def |  | 2 |
 | `_probe_key` | 47 | def |  | 2 |
 | `put_channel` | 53 | def |  | 1 |
-| `list_channels` | 62 | def |  | 1 |
-| `HeartbeatBody` | 66 | class |  | 1 |
-| `heartbeat` | 74 | def |  | 1 |
-| `probe` | 85 | def |  | 1 |
-| `_node_type_name` | 120 | def |  | 2 |
+| `list_channels` | 70 | def |  | 1 |
+| `HeartbeatBody` | 74 | class |  | 1 |
+| `heartbeat` | 82 | def |  | 1 |
+| `probe` | 101 | def |  | 1 |
+| `_node_type_name` | 136 | def |  | 2 |
 
 ## bridge/bridge/channels.py（106 行）
 
@@ -90,7 +90,7 @@
 | `execute_python` | 173 | def |  | 1 |
 | `is_command_allowed` | 180 | def |  | 1 |
 
-## bridge/bridge/houdini_routes.py（482 行）
+## bridge/bridge/houdini_routes.py（517 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -117,9 +117,10 @@
 | `HoudiniPut` | 419 | class |  | 1 |
 | `put_houdini` | 424 | def |  | 1 |
 | `CmdBody` | 440 | class |  | 1 |
-| `houdini_cmd` | 446 | def |  | 1 |
-| `PythonBody` | 461 | class |  | 1 |
-| `houdini_python` | 467 | def |  | 1 |
+| `_trace_houdini_cmd` | 445 | def |  | 2 |
+| `houdini_cmd` | 471 | def |  | 1 |
+| `PythonBody` | 488 | class |  | 1 |
+| `houdini_python` | 494 | def |  | 1 |
 
 ## bridge/bridge/logs.py（60 行）
 
@@ -135,12 +136,12 @@
 | `query` | 48 | def |  | 2 |
 | `errors` | 58 | def |  | 1 |
 
-## bridge/bridge/main.py（57 行）
+## bridge/bridge/main.py（59 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `lifespan` | 22 | def |  | 1 |
-| `create_app` | 36 | def |  | 2 |
+| `lifespan` | 23 | def |  | 1 |
+| `create_app` | 37 | def |  | 2 |
 
 ## bridge/bridge/mcp_server.py（303 行）
 
@@ -241,7 +242,7 @@
 | `_save` | 185 | def |  | 6 |
 | `_load` | 209 | def |  | 2 |
 
-## bridge/bridge/routes.py（420 行）
+## bridge/bridge/routes.py（436 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -251,31 +252,31 @@
 | `list_serials` | 57 | def |  | 1 |
 | `status` | 62 | def |  | 2 |
 | `put_inputs` | 75 | def |  | 1 |
-| `get_outputs` | 93 | def |  | 1 |
-| `put_outputs` | 111 | def |  | 2 |
-| `_parse_outputs_body` | 134 | def |  | 2 |
-| `SyncFpsPut` | 159 | class |  | 1 |
-| `put_sync_fps` | 165 | def |  | 1 |
-| `put_sync_enabled` | 174 | def |  | 1 |
-| `pending` | 183 | def |  | 1 |
-| `_ndjson` | 205 | def |  | 9 |
-| `stream` | 211 | def |  | 1 |
-| `kick` | 258 | def |  | 1 |
-| `serial_logs` | 280 | def |  | 1 |
-| `get_snapshot` | 290 | def |  | 1 |
-| `get_ui_layout` | 301 | def |  | 1 |
-| `put_ui_layout` | 308 | def |  | 1 |
-| `put_snapshot` | 316 | def |  | 1 |
-| `ui_layouts` | 334 | def |  | 1 |
-| `ui_layout_save` | 340 | def |  | 1 |
-| `ui_layout_load` | 347 | def |  | 1 |
-| `global_logs` | 354 | def |  | 1 |
-| `scenes_list` | 365 | def |  | 1 |
-| `scenes_create` | 371 | def |  | 1 |
-| `scenes_cleanup` | 378 | def |  | 1 |
-| `scene_save` | 384 | def |  | 1 |
-| `scenes_open` | 395 | def |  | 1 |
-| `get_usdz` | 408 | def |  | 1 |
+| `get_outputs` | 101 | def |  | 1 |
+| `put_outputs` | 119 | def |  | 2 |
+| `_parse_outputs_body` | 150 | def |  | 2 |
+| `SyncFpsPut` | 175 | class |  | 1 |
+| `put_sync_fps` | 181 | def |  | 1 |
+| `put_sync_enabled` | 190 | def |  | 1 |
+| `pending` | 199 | def |  | 1 |
+| `_ndjson` | 221 | def |  | 9 |
+| `stream` | 227 | def |  | 1 |
+| `kick` | 274 | def |  | 1 |
+| `serial_logs` | 296 | def |  | 1 |
+| `get_snapshot` | 306 | def |  | 1 |
+| `get_ui_layout` | 317 | def |  | 1 |
+| `put_ui_layout` | 324 | def |  | 1 |
+| `put_snapshot` | 332 | def |  | 1 |
+| `ui_layouts` | 350 | def |  | 1 |
+| `ui_layout_save` | 356 | def |  | 1 |
+| `ui_layout_load` | 363 | def |  | 1 |
+| `global_logs` | 370 | def |  | 1 |
+| `scenes_list` | 381 | def |  | 1 |
+| `scenes_create` | 387 | def |  | 1 |
+| `scenes_cleanup` | 394 | def |  | 1 |
+| `scene_save` | 400 | def |  | 1 |
+| `scenes_open` | 411 | def |  | 1 |
+| `get_usdz` | 424 | def |  | 1 |
 
 ## bridge/bridge/scenes.py（188 行）
 
@@ -315,29 +316,47 @@
 | `read_project_graph` | 304 | def |  | 1 |
 | `write_project_graph` | 314 | def |  | 1 |
 
-## bridge/bridge/state.py（250 行）
+## bridge/bridge/state.py（252 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `BridgeState` | 29 | class |  | 2 |
-| `__init__` | 30 | def |  | 1 |
-| `set_sync_fps` | 61 | def |  | 1 |
-| `get_sync_fps` | 72 | def |  | 3 |
-| `set_sync_enabled` | 76 | def |  | 1 |
-| `get_sync_enabled` | 81 | def |  | 1 |
-| `set_kick` | 87 | def |  | 1 |
-| `take_kick` | 92 | def |  | 1 |
-| `try_arm_kick` | 97 | def |  | 1 |
-| `subscribe` | 114 | def |  | 1 |
-| `unsubscribe` | 123 | def |  | 2 |
-| `notify_stream` | 132 | def |  | 1 |
-| `_wake_stream` | 161 | def |  | 1 |
-| `stage_broadcast` | 172 | def |  | 1 |
-| `_arm_broadcast_flush` | 204 | def |  | 1 |
-| `_flush_broadcast` | 211 | def |  | 3 |
-| `default_data_dir` | 231 | def |  | 2 |
-| `get_state` | 238 | def |  | 1 |
-| `reset_state` | 245 | def |  | 1 |
+| `BridgeState` | 30 | class |  | 2 |
+| `__init__` | 31 | def |  | 1 |
+| `set_sync_fps` | 63 | def |  | 1 |
+| `get_sync_fps` | 74 | def |  | 3 |
+| `set_sync_enabled` | 78 | def |  | 1 |
+| `get_sync_enabled` | 83 | def |  | 1 |
+| `set_kick` | 89 | def |  | 1 |
+| `take_kick` | 94 | def |  | 1 |
+| `try_arm_kick` | 99 | def |  | 1 |
+| `subscribe` | 116 | def |  | 1 |
+| `unsubscribe` | 125 | def |  | 2 |
+| `notify_stream` | 134 | def |  | 1 |
+| `_wake_stream` | 163 | def |  | 1 |
+| `stage_broadcast` | 174 | def |  | 1 |
+| `_arm_broadcast_flush` | 206 | def |  | 1 |
+| `_flush_broadcast` | 213 | def |  | 3 |
+| `default_data_dir` | 233 | def |  | 2 |
+| `get_state` | 240 | def |  | 1 |
+| `reset_state` | 247 | def |  | 1 |
+
+## bridge/bridge/trace_routes.py（53 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `_project_channel_keys` | 25 | def |  | 2 |
+| `trace` | 36 | def |  | 1 |
+
+## bridge/bridge/trace.py（90 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `TraceStore` | 17 | class |  | 0 |
+| `__init__` | 18 | def |  | 1 |
+| `add` | 22 | def |  | 1 |
+| `list` | 52 | def |  | 1 |
+| `count` | 66 | def |  | 1 |
+| `_filtered` | 70 | def |  | 2 |
 
 ## bridge/bridge/ui_layout.py（75 行）
 
@@ -387,7 +406,7 @@
 | `serials` | 119 | def |  | 1 |
 | `status` | 123 | def |  | 1 |
 
-## bridge/bridge/ws.py（168 行）
+## bridge/bridge/ws.py（176 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -740,13 +759,13 @@
 | `createDropdown` | 46 | function | export | 1 |
 | `createStepper` | 130 | function | export | 1 |
 
-## web/src/bridge/client.ts（443 行）
+## web/src/bridge/client.ts（459 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `BridgeClient` | 24 | class | export | 0 |
-| `connectWs` | 400 | function | export | 1 |
-| `connect` | 405 | arrow |  | 1 |
+| `connectWs` | 416 | function | export | 1 |
+| `connect` | 421 | arrow |  | 1 |
 
 ## web/src/color/color-math.ts（147 行）
 
@@ -1142,7 +1161,7 @@
 | `payloadEqual` | 4 | function |  | 2 |
 | `inputsEqual` | 16 | function | export | 1 |
 
-## web/src/protocol/types.ts（177 行）
+## web/src/protocol/types.ts（191 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -1178,6 +1197,25 @@
 | `inputToOutput` | 31 | function | export | 1 |
 | `applyTranslateGrouped` | 52 | function | export | 1 |
 | `applyTranslateDeltaInPlace` | 77 | function | export | 1 |
+
+## web/src/trace.ts（234 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `buildTraceQuery` | 24 | function | export | 1 |
+| `truncateDigest` | 35 | function | export | 4 |
+| `formatTraceTime` | 41 | function | export | 2 |
+| `actorColor` | 56 | function | export | 2 |
+| `$` | 70 | function |  | 0 |
+| `setBanner` | 92 | function |  | 6 |
+| `failMessage` | 98 | function |  | 2 |
+| `loadProjects` | 108 | function |  | 2 |
+| `currentFilters` | 134 | function |  | 2 |
+| `eventRowHtml` | 147 | function |  | 2 |
+| `renderEvents` | 161 | function |  | 2 |
+| `toggleDigest` | 173 | function |  | 2 |
+| `loadEvents` | 186 | function |  | 6 |
+| `boot` | 205 | function |  | 2 |
 
 ## web/src/viewport/backend.ts（31 行）
 

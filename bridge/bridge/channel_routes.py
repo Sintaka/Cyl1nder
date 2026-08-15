@@ -55,6 +55,14 @@ async def put_channel(channelId: str, ref: ChannelRef) -> dict:
     if key != _path_key(channelId, ref.kind):
         raise HTTPException(status_code=400, detail="channelId mismatch")
     stored = get_state().channels.register(ref.model_dump())
+    # trace（P3）：注册埋点（零行为影响）
+    get_state().trace.add(
+        actor="tag-hda",
+        action="register",
+        channel=key,
+        target=ref.kind,
+        digest=ref.label,
+    )
     return {"ok": True, "channelId": key, "ref": stored}
 
 
@@ -78,6 +86,14 @@ async def heartbeat(serial: str, payload: HeartbeatBody) -> dict:
     for ref in st.channels.list():
         if ref.get("serial") == serial:
             st.channels.touch(st.channels._key_of(ref), now)
+    # trace（P3）：心跳埋点（零行为影响）
+    st.trace.add(
+        actor="tag-hda",
+        action="heartbeat",
+        channel=serial,
+        target=payload.nodePath,
+        digest=payload.fingerprint,
+    )
     return {"ok": True, "serial": serial, "lastSeen": now}
 
 

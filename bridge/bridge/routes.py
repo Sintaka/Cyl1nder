@@ -86,6 +86,14 @@ async def put_inputs(serial: str, payload: InputsPut) -> dict:
         {"type": "inputs", "inputs": [i.model_dump() for i in payload.inputs], "rev": rev, "frame": payload.frame},
     )
     await maybe_snapshot(serial)
+    # trace（P3）：输入推送埋点（零行为影响）
+    st.trace.add(
+        actor="hda-cook",
+        action="inputs-push",
+        channel=serial,
+        target="inputs",
+        digest=f"{len(payload.inputs)} inputs, {sum(i.pointCount for i in payload.inputs)} pts, {sum(i.primCount for i in payload.inputs)} prims",
+    )
     return {"ok": True, "serial": serial, "rev": rev}
 
 
@@ -124,6 +132,14 @@ async def put_outputs(serial: str, request: Request) -> dict:
         st.registry.mark_activity(serial)
         # log only real content changes - no-op echo pushes would flood the log ring
         st.logs.info("routes", f"outputs pushed ({len(payload.outputs)}, accepted {len(accepted)}), rev={rev}", serial)
+        # trace（P3）：编辑结果埋点（零行为影响）
+        st.trace.add(
+            actor="web-gizmo",
+            action="outputs-edit",
+            channel=serial,
+            target=f"out[{','.join(str(o.index) for o in accepted)}]",
+            digest=f"rev={rev}, {len(accepted)} outputs",
+        )
         if st.get_sync_enabled(serial):
             st.stage_broadcast(serial, accepted, rev)
             st.notify_stream(serial)

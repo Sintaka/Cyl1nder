@@ -110,3 +110,9 @@
 - `snapshot.py` 新增项目图读写：`project_graph_path`（data_dir/projects/<pid>/graph.json，项目无单一 hip 不挂 hip 旁）/`read_project_graph`（缺失/损坏/非 dict→None）/`write_project_graph`（原子 tmp+replace + 内容对比跳过）；**既有函数零改动**。
 - `project_routes.py` +`GET/PUT /api/projects/{projectId}/graph`（400/404；GET 缺省**迁移读**：恰 1 个 kind∈{tag,hda} 成员且 serial/hip 非空 → 其 serial 快照 graph 部分，纯读不写回）。
 - 测试 +12（test_project_graph.py）；pytest **169 全绿**。实机：项目图 v3 PUT/GET 往返通过。
+## v0.1.00109（2026-08-15）——轨迹 TraceStore + 全通道埋点（吊牌 HDA P3）
+- **新 trace.py TraceStore**：内存环形 10000（deque maxlen 覆盖最旧）+ Lock 线程安全；`add`（ts/project="" v1/吞异常绝不 raise，零行为影响）/`list`（过滤 + ts 降序 + limit 钳 1..1000）/`count`/私有 `_filtered`（count 不受 limit 截断）。
+- **新 trace_routes.py**：`GET /api/trace?project=&actor=&action=&channel=&target=&limit=` → `{events, count}`；project 过滤 = 成员关系解析（ProjectRegistry._channel_key 语义），非法/不存在项目 → 空。
+- **埋点（6 处，全部 accepted/白名单通过分支，只加 trace 行）**：routes.put_inputs → hda-cook/inputs-push（digest=Σ点/prim）；routes.put_outputs 与 ws edit → web-gizmo/outputs-edit（out[idx] + rev）；houdini cmd → runtime-python/param-set|expr-set|command[:40]（target=node/parm）；houdini python → python-exec；channel register/heartbeat → tag-hda/register|heartbeat。state.py +`self.trace`；main.py 挂载（主进程粘合）。
+- 测试 +18（test_trace.py：单测+路由+烟囱）；pytest **187 全绿**。
+- 实机（8100）：runtime 改参 tx=2.0 → param-set 事件 + 吊牌自然 cook → heartbeat 事件（**审计链闭环**）；`?project=` 过滤命中成员 serial、伪造项目 → 空。

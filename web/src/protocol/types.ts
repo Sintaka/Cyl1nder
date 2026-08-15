@@ -99,6 +99,20 @@ export interface ProjectRef {
   members: ChannelRef[]; // 通道引用快照（live 状态以 /api/channels 为准）
 }
 
+// 轨迹事件（P3 审计视图：谁动了数据）。协议三处同步（protocol.py / types.ts / protocol.md）。
+export type TraceActor = "web-gizmo" | "web-param" | "runtime-python" | "tag-hda" | "hda-cook" | "bridge";
+export type TraceAction = "param-set" | "expr-set" | "inputs-push" | "outputs-edit" | "register" | "heartbeat" | "python-exec";
+
+export interface TraceEvent {
+  ts: number;
+  project: string; // v1 恒 ""（项目过滤在查询时按成员关系解析）
+  channel: string;
+  actor: TraceActor | string;
+  action: TraceAction | string;
+  target: string;
+  digest: string;
+}
+
 // P2b：项目图快照负载（nodeview 项目根）。结构与 nodes2/graph 的
 // projectGraphSnapshot 序列化格式一致；web 与 bridge 之间仅作 opaque JSON 存读，
 // 故保持 unknown 透传即可（必要时再收敛为具体类型）。

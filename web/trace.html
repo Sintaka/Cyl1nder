@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cyl1nder 轨迹 / Trace</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/src/styles/trace.css" />
+  </head>
+  <body>
+    <div class="tr-root">
+      <header class="tr-header">
+        <span class="tr-brand">Cyl1nder 轨迹 Trace <small>· 谁动了数据</small></span>
+        <span class="tr-spacer"></span>
+        <a class="tr-link" href="/overview.html">返回 Overview</a>
+      </header>
+      <div id="tr-banner" class="tr-banner hidden"></div>
+      <main class="tr-main">
+        <section class="tr-panel">
+          <h2 class="tr-section-heading">过滤器</h2>
+          <div class="tr-filters">
+            <label class="tr-field">
+              <span>项目</span>
+              <select id="tr-project">
+                <option value="">全部项目</option>
+              </select>
+            </label>
+            <label class="tr-field">
+              <span>actor</span>
+              <select id="tr-actor">
+                <option value="">全部</option>
+                <option value="web-gizmo">web-gizmo</option>
+                <option value="web-param">web-param</option>
+                <option value="runtime-python">runtime-python</option>
+                <option value="tag-hda">tag-hda</option>
+                <option value="hda-cook">hda-cook</option>
+                <option value="bridge">bridge</option>
+              </select>
+            </label>
+            <label class="tr-field">
+              <span>action</span>
+              <select id="tr-action">
+                <option value="">全部</option>
+                <option value="param-set">param-set</option>
+                <option value="expr-set">expr-set</option>
+                <option value="inputs-push">inputs-push</option>
+                <option value="outputs-edit">outputs-edit</option>
+                <option value="register">register</option>
+                <option value="heartbeat">heartbeat</option>
+                <option value="python-exec">python-exec</option>
+              </select>
+            </label>
+            <label class="tr-field">
+              <span>通道（channel）</span>
+              <input id="tr-channel" type="text" placeholder="如 obj/geo1/transform1/tx" autocomplete="off" spellcheck="false" />
+            </label>
+            <button class="tr-refresh" id="tr-refresh" type="button">刷新</button>
+          </div>
+        </section>
+        <section class="tr-panel">
+          <div class="tr-head">
+            <h2 class="tr-section-heading">事件</h2>
+            <span class="tr-count" id="tr-count"></span>
+          </div>
+          <p class="tr-hint" id="tr-hint">加载中…</p>
+          <div class="tr-list" id="tr-list"></div>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/src/trace.ts"></script>
+  </body>
+</html>

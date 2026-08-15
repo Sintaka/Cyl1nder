@@ -644,3 +644,9 @@ efreshSelectionPanels()——sel 为空且已渲染过 → 直接 return 不重�
 - **main.ts 项目模式粘合**（写集 C）：boot 三段（`?serial=` 原样+ensureProject / `?project=` → enterProjectMode / listSerials）；enterProjectMode（取项目→取图→loadProjectGraph→全员 ensureSession→channel display 回调→地址）；navigate 1 段 C1-/P1-、2 段 /P1/C1/；地址与补全（serials∪projects、项目模式二段补成员）；保存分流（项目模式 `putProjectGraph`，docking/preference 跳过）；index.html 放行 ?project=；client.ts +getProjectGraph/putProjectGraph。
 - **合并期修复（主进程）**：① P1/P2a 面板按钮类名冲突（`ov-refresh`/`ov-new-button` 被 channels/projects 面板复用 → round8 strict locator 多匹配）→ 独立类 `ov-channels-refresh/ov-projects-refresh/ov-projects-new`（样式共享扩展选择器）；② Connect 按钮恢复**显式重连**语义（closeSession+activateSession → 每次点击开新 WS，round10 kick 限流断言恢复）。
 - 验证：tsc 0、vitest **229**、e2e **86 passed/1 skipped** 全量回归；实机 8100：?project= 项目根渲染（project+channel 节点、地址 /P1-…/）、channel display 点击激活（地址两段 + 状态 connecting）、项目图 v3 PUT/GET 往返。
+## v0.1.00109（2026-08-15）——轨迹页 /trace.html（吊牌 HDA P3）
+- `types.ts`：TraceActor/TraceAction/TraceEvent 镜像（project v1 恒 ""）；`client.ts`：`listTrace(filters)`（空值省略 query）。
+- 新 `trace.html` + `src/trace.ts` + `styles/trace.css`：品牌区 + 过滤器行（项目 select / actor 6 枚举 / action 7 枚举 / channel 输入 300ms 防抖 / 刷新按钮）+ 事件行（时间/actor 徽标 6 色（actorColor 单一事实源可单测）/action/channel 截断+title/digest 截断 80 + 点击行展开）+ count 总数与显示条数说明 + 空占位 + 离线/未就绪双 banner + `?project=` 初始过滤（先填项目再拉事件防竞态）+ esc 全转义；`$`/esc/时间戳本地自实现（不 import overview.ts）。
+- `vite.config.ts`（主进程粘合）：build 多入口 +`trace`。
+- 测试 +15（trace.test.ts：query 构造/截断/时间格式化/actor 颜色映射）；tsc 0、vitest **244**。
+- 实机：/trace.html?project= 渲染 2 行审计事件（heartbeat+param-set），项目 select 初始选中。

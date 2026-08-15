@@ -47,7 +47,10 @@ pytest（channels 注册/心跳/探测 + 路由）/ tsc+vitest（store/面板）
 
 ## P3 — 轨迹页（谁动了数据）
 
-- bridge `TraceStore`（内存环形 10000，可选 ndjson）；埋点：put_inputs/put_outputs/WS edit/houdini cmd·python/吊牌注册与心跳；`/trace.html?project=` 过滤视图（时间/通道/actor/digest）。
+> **拆分（2026-08-15，主进程）**：本轮 = TraceStore（内存环形 10000，ndjson 落盘留 P3.5）+ 埋点（put_inputs/put_outputs/WS edit/houdini cmd·python/吊牌注册与心跳）+ `GET /api/trace` 查询端点 + `/trace.html?project=` 审计视图（时间/通道/actor/action 过滤、行展开 digest）。
+
+- 事件模型（协议三处同步）：`{ts, project, channel, actor, action, target, digest}`；actor = `web-gizmo|web-param|runtime-python|tag-hda|hda-cook|bridge`；action = `param-set|expr-set|inputs-push|outputs-edit|register|heartbeat|python-exec`。
+- 埋点语义：put_inputs → hda-cook/inputs-push（digest=端口+点数/prim 数）；put_outputs 与 WS edit → web-gizmo/outputs-edit（digest=rev+counts）；houdini cmd → runtime-python/param-set|expr-set（target=node_path/parm，digest=值截断）、python → python-exec；吊牌注册 → tag-hda/register、心跳 → tag-hda/heartbeat（digest=fingerprint）。
 - 验收：同一参数被两个项目引用时，改动来源/通道/新旧值可审计。
 
 ## P4 — 延伸（远期）

@@ -1,4 +1,4 @@
-﻿import { resolve } from "node:path";
+import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
@@ -13,12 +13,13 @@ export default defineConfig({
   resolve: webgpu
     ? { alias: [{ find: /^three$/, replacement: resolve(process.cwd(), "node_modules/three/build/three.webgpu.js") }] }
     : undefined,
-  // 多页构建：主应用 + Overview 总管页面（dev 下 Vite 自动服务根目录 html，无需额外配置）
+  // 多页构建：主应用 + Overview 总管页面 + Trace 轨迹页（dev 下 Vite 自动服务根目录 html，无需额外配置）
   build: {
     rollupOptions: {
       input: {
         main: resolve(process.cwd(), "index.html"),
         overview: resolve(process.cwd(), "overview.html"),
+        trace: resolve(process.cwd(), "trace.html"),
       },
     },
   },

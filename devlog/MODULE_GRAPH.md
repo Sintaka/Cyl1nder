@@ -180,6 +180,9 @@
 - `tools/transform.ts`
   - nodes2/groups
   - protocol/types
+- `trace.ts`
+  - bridge/client
+  - protocol/types
 - `viewport/backend.ts`
   - app/app-config
   - three

@@ -84,6 +84,13 @@
 - `POST /api/hda/{serial}/snapshot/restore` -> `{ok, serial, restored, inputRev, outputRev}`：从磁盘快照回填**空** workspace（绝不覆盖运行态），恢复后 WS 广播 inputs/outputs；桥启动时 lifespan 自动对全部 registry serial 执行等价回填（`snapshot.restore_all_workspaces`），关闭时 `flush_all_workspaces` 强制落盘。
 - 快照读取为**双根合并**：hip 目录旁 `Cyl1nder/<serial>/` 优先、`bridge/data/snapshots/<serial>/` 补缺（registry.hip 暂时为空时写入回退根，双根合并保证都能读到）。
 
+## 轨迹端点（P3，v0.1.00109 起）
+- **TraceEvent**：`{ts, project, channel, actor, action, target, digest}`。actor = `web-gizmo|web-param|runtime-python|tag-hda|hda-cook|bridge`；action = `param-set|expr-set|inputs-push|outputs-edit|register|heartbeat|python-exec`。`project` v1 恒 `""`（项目过滤在查询时按成员关系解析）；`channel` = 通道 key（serial 或 absolutePath）。
+- **埋点**：put_inputs → `hda-cook/inputs-push`；put_outputs 与 WS edit → `web-gizmo/outputs-edit`；`POST /houdini/cmd` → `runtime-python/param-set|expr-set`（target=node_path/parm，digest=值截断）；`POST /houdini/python` → `runtime-python/python-exec`；吊牌注册 → `tag-hda/register`、心跳 → `tag-hda/heartbeat`（digest=fingerprint）。
+- `GET /api/trace?project=&actor=&action=&channel=&target=&limit=` -> `{events: [...], count}`（新→旧；`project` 过滤按该项目成员的通道 key 集合匹配；limit 默认 200 钳 1..1000；count = 过滤后总数）。
+- **TraceStore**：内存环形 10000，线程安全，add 吞异常（埋点零行为影响）；ndjson 落盘留 P3.5。
+- 页面：`/trace.html?project=`（时间/通道/actor/action 过滤、行展开 digest）。验收：同一参数被多个项目引用时，改动来源/通道/新旧值可审计。
+
 ## MCP（Cyl1nder 桥 MCP，stdio）
 `cyl1nder_list_serials / cyl1nder_get_status / cyl1nder_read_logs / cyl1nder_get_errors / cyl1nder_get_geometry_summary / cyl1nder_index_query / cyl1nder_ping`
 

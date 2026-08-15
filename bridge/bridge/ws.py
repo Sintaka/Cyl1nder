@@ -152,6 +152,14 @@ async def ws_endpoint(websocket: WebSocket) -> None:
                     if accepted:
                         # log only real content changes - no-op echoes would flood the log ring
                         st.logs.info("ws", f"edit pushed ({len(parsed)}, accepted {len(accepted)}), rev={rev}", serial)
+                        # trace（P3）：WS 编辑埋点（零行为影响）
+                        st.trace.add(
+                            actor="web-gizmo",
+                            action="outputs-edit",
+                            channel=serial,
+                            target=f"out[{','.join(str(o.index) for o in accepted)}]",
+                            digest=f"rev={rev}, {len(accepted)} outputs",
+                        )
                         if st.get_sync_enabled(serial):
                             st.stage_broadcast(serial, accepted, rev)
                             st.notify_stream(serial)
