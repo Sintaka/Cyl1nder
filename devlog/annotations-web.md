@@ -650,3 +650,9 @@ efreshSelectionPanels()——sel 为空且已渲染过 → 直接 return 不重�
 - `vite.config.ts`（主进程粘合）：build 多入口 +`trace`。
 - 测试 +15（trace.test.ts：query 构造/截断/时间格式化/actor 颜色映射）；tsc 0、vitest **244**。
 - 实机：/trace.html?project= 渲染 2 行审计事件（heartbeat+param-set），项目 select 初始选中。
+## v0.1.00110（2026-08-15）——data 通道值面板（吊牌 HDA P4v1）
+- `types.ts`：ChannelKind +`"data"`、ChannelRef +`adapter?`、TraceAction +`data-get`/`data-set`；`stores/channels.ts` `channelIdOf` +data 分支（data→absolutePath，越写集 1 行已由主进程裁决接受）。
+- `client.ts` +`getChannelValue`/`putChannelValue`（共用 `channelValue`：错误归一 `{ok:false,error}`，404/400/MCP 不可达统一）。
+- `overview.ts`：data 行 6 列（+`ov-value-cell` 截断显示 title 全量）+「读值/写值」按钮（写值 prompt 预填 + JSON.parse 校验）；纯函数 `channelValueString/formatChannelValue/channelActionButtons` 导出供单测；页面块 document 守卫（node 可导入）；非 data 行 HTML 字节级不变。
+- `overview.css`：`.ov-row.channels.data` 6 列网格、`.ov-value-cell`、`.ov-kind.data` 徽标、action 列 flex 并排。
+- 测试 +11（data-channels.test.ts：formatChannelValue 三态/按钮分支/channelIdOf）；tsc 0、vitest **255**。

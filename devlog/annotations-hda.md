@@ -140,3 +140,7 @@
 - **`build_hda.py`** +`build_tag()`/`_tag_parm_group()`；顺手修既有 `_parm_group` 的 `setTag`→`setTags`（H22 复数才是真 API，原 serial 隐藏实为无效——既有问题顺手修）。
 - `reload_hda.py` MODULES +`cyl1nder_tag`；`hython_smoke.py` +吊牌 E2E（进程内 stub 随机端口，不碰真桥）+4 纯逻辑测试。
 - 验证：hython 冒烟全绿；实机 8100（beginTest-1.hip）热重载模块后搭 demo（null→xform→吊牌）：注册 tag+tx+ty 三通道、cook 心跳刷新 lastSeen、探测 alive+matched、runtime 改参 tx=3.5 落地。实机教训：改 hda/src 后必须先 `reload_cyl1nder()`，否则 HDA SOP 仍持旧模块（AttributeError put_channel）。
+## v0.1.00110（2026-08-15）——data 通道注册语法（吊牌 HDA P4v1）
+- **`cyl1nder_tag.py`**：新增 `_parse_entry(entry, upstream)`——param 条目原语义不变；data 条目 `@<adapter>:<nodePath>:<parmName>`（仅绝对节点路径）→ `("data", {"absolutePath": "<node>/<parm>", "adapter": …})`，非法 → None（状态写 `bad-entry: …`）。`register_channels` 拆 param/data 两列表（data 注册带 `adapter` 字段）；指纹载荷改为**原样条目文本**（条目文本变才重注册）。
+- `hython_smoke.py`：+`_test_tag_parse_entry`（param 原语义/data 解析/非法→None）+ `_test_tag_hda` 加 `@apex-anim:` 条目断言（kind=data + adapter 字段 + channelId 路径）。
+- 验证：hython SMOKE OK；实机 8100 data 通道注册与值读写往返通过。

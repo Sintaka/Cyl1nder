@@ -674,7 +674,7 @@ def _test_tag_hda() -> None:
         xform.setInput(0, box, 0)  # xform requires a source (min 1 input)
         tag = geo.createNode("Cyl1nderTag", "cyl1ndertag")
         tag.setInput(0, xform, 0)
-        tag.parm("entries").set("tx;ty")
+        tag.parm("entries").set("tx\n@apex-anim:/obj/cyl1nder_tag_smoke/transform1/animation")
         tag.parm("bridge_url").set(f"http://127.0.0.1:{port}")
 
         cyl1nder_tag._LAST_HEARTBEAT = 0.0  # fresh module state
@@ -690,11 +690,15 @@ def _test_tag_hda() -> None:
         assert tag_path in bodies, f"tag channel not registered: {sorted(bodies)}"
         assert bodies[tag_path]["kind"] == "tag", bodies[tag_path]
 
-        for name in ("tx", "ty"):
-            expect = f"/api/channels/obj/cyl1nder_tag_smoke/transform1/{name}"
-            assert expect in bodies, f"param channel {name} not registered: {sorted(bodies)}"
-            assert bodies[expect]["kind"] == "param", bodies[expect]
-        print("tag + param channels registered OK")
+        expect = "/api/channels/obj/cyl1nder_tag_smoke/transform1/tx"
+        assert expect in bodies, f"param channel tx not registered: {sorted(bodies)}"
+        assert bodies[expect]["kind"] == "param", bodies[expect]
+
+        data_expect = "/api/channels/obj/cyl1nder_tag_smoke/transform1/animation"
+        assert data_expect in bodies, f"data channel not registered: {sorted(bodies)}"
+        assert bodies[data_expect]["kind"] == "data", bodies[data_expect]
+        assert bodies[data_expect]["adapter"] == "apex-anim", bodies[data_expect]
+        print("tag + param + data channels registered OK")
 
         # second cook: fingerprint unchanged -> throttled heartbeat path (no re-register).
         # Force-cook the INNER python SOP directly: cooking the subnet is a no-op
@@ -732,6 +736,37 @@ def _test_tag_resolve() -> None:
     assert r("./tz", "/obj/geo1/transform1") == "/obj/geo1/transform1/tz"
     assert r("a/../tx", "/obj/geo1/transform1") == "/obj/geo1/transform1/tx"
     print("_resolve relative/absolute/../ normalization OK")
+
+
+def _test_tag_parse_entry() -> None:
+    """_parse_entry: param 原语义 + data 条目解析 + 非法条目 -> None."""
+    p = cyl1nder_tag._parse_entry
+
+    # param: relative / absolute / ../ keep the _resolve semantics
+    assert p("tx", "/obj/geo1/transform1") == (
+        "param", {"absolutePath": "/obj/geo1/transform1/tx"})
+    assert p("/obj/a/b/tx", "/obj/geo1/transform1") == (
+        "param", {"absolutePath": "/obj/a/b/tx"})
+    assert p("../ty", "/obj/geo1/transform1") == (
+        "param", {"absolutePath": "/obj/geo1/ty"})
+
+    # data: adapter + absolutePath assembled from <nodePath>/<parmName>
+    assert p("@apex-anim:/obj/geo1/sceneanimate1/animation", "/obj/geo1/transform1") == (
+        "data", {"absolutePath": "/obj/geo1/sceneanimate1/animation",
+                 "adapter": "apex-anim"})
+
+    # invalid data: relative node path (no leading /), missing parm segment
+    assert p("@x:obj/a/tx", "/obj/geo1/transform1") is None, \
+        "data node path must be absolute"
+    assert p("@x:/obj/geo1/", "/obj/geo1/transform1") is None, \
+        "data missing parm segment must be rejected"
+
+    # @ prefix but not a legal data entry -> None
+    assert p("@x", "/obj/geo1/transform1") is None, "@x is not a data entry"
+    assert p("@:", "/obj/geo1/transform1") is None, "@: has no adapter"
+    assert p("@x:", "/obj/geo1/transform1") is None, "@x: has no node path"
+    assert p("", "/obj/geo1/transform1") is None, "empty entry must be rejected"
+    print("_parse_entry param semantics + data parse + invalid -> None OK")
 
 
 def _test_tag_fingerprint() -> None:
@@ -975,6 +1010,7 @@ def main() -> int:
 
     _test_tag_hda()
     _test_tag_resolve()
+    _test_tag_parse_entry()
     _test_tag_fingerprint()
     _test_tag_heartbeat_throttle()
     _test_tag_entries()

@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-15），由 `node scripts/gen-index.mjs` 产出。共 **811** 个函数/类。
+> 机器生成（2026-08-15），由 `node scripts/gen-index.mjs` 产出。共 **829** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -14,20 +14,25 @@
 |---|---|---|---|---|
 | `main` | 7 | def |  | 2 |
 
-## bridge/bridge/channel_routes.py（149 行）
+## bridge/bridge/channel_routes.py（237 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_check_serial` | 29 | def |  | 2 |
-| `_key_of` | 34 | def |  | 3 |
-| `_path_key` | 40 | def |  | 2 |
-| `_probe_key` | 47 | def |  | 2 |
-| `put_channel` | 53 | def |  | 1 |
-| `list_channels` | 70 | def |  | 1 |
-| `HeartbeatBody` | 74 | class |  | 1 |
-| `heartbeat` | 82 | def |  | 1 |
-| `probe` | 101 | def |  | 1 |
-| `_node_type_name` | 136 | def |  | 2 |
+| `_check_serial` | 33 | def |  | 2 |
+| `_key_of` | 38 | def |  | 3 |
+| `_path_key` | 44 | def |  | 2 |
+| `_probe_key` | 51 | def |  | 4 |
+| `_find_channel` | 56 | def |  | 3 |
+| `_resolve_data_target` | 61 | def |  | 3 |
+| `ValuePut` | 70 | class |  | 1 |
+| `get_channel_value` | 75 | def |  | 1 |
+| `put_channel_value` | 108 | def |  | 1 |
+| `put_channel` | 141 | def |  | 1 |
+| `list_channels` | 158 | def |  | 1 |
+| `HeartbeatBody` | 162 | class |  | 1 |
+| `heartbeat` | 170 | def |  | 1 |
+| `probe` | 189 | def |  | 1 |
+| `_node_type_name` | 224 | def |  | 2 |
 
 ## bridge/bridge/channels.py（106 行）
 
@@ -70,6 +75,21 @@
 |---|---|---|---|---|
 | `PassthroughExecutor` | 8 | class |  | 1 |
 | `run` | 11 | def |  | 1 |
+
+## bridge/bridge/data_adapters/__init__.py（11 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `get_adapter` | 9 | def |  | 1 |
+
+## bridge/bridge/data_adapters/apex_anim.py（54 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `ApexAnimDataAdapter` | 11 | class |  | 0 |
+| `read` | 14 | def |  | 1 |
+| `write` | 28 | def |  | 1 |
+| `_rpc` | 44 | def |  | 3 |
 
 ## bridge/bridge/houdini_mcp.py（185 行）
 
@@ -202,7 +222,7 @@
 | `_save` | 101 | def |  | 5 |
 | `_load` | 119 | def |  | 2 |
 
-## bridge/bridge/protocol.py（181 行）
+## bridge/bridge/protocol.py（183 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -215,11 +235,11 @@
 | `OutputBuffer` | 118 | class |  | 1 |
 | `InputsPut` | 129 | class |  | 1 |
 | `ChannelRef` | 138 | class |  | 1 |
-| `generate_project_serial` | 153 | def |  | 1 |
-| `is_valid_project_serial` | 160 | def |  | 1 |
-| `ProjectRef` | 164 | class |  | 1 |
-| `OutputsPut` | 173 | class |  | 1 |
-| `SyncEnabledPut` | 178 | class |  | 1 |
+| `generate_project_serial` | 155 | def |  | 1 |
+| `is_valid_project_serial` | 162 | def |  | 1 |
+| `ProjectRef` | 166 | class |  | 1 |
+| `OutputsPut` | 175 | class |  | 1 |
+| `SyncEnabledPut` | 180 | class |  | 1 |
 
 ## bridge/bridge/registry.py（218 行）
 
@@ -451,7 +471,7 @@
 | `build_tag` | 153 | def |  | 2 |
 | `build` | 218 | def |  | 2 |
 
-## hda/scripts/hython_smoke.py（987 行）
+## hda/scripts/hython_smoke.py（1023 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -480,7 +500,7 @@
 | `inputs` | 457 | def |  | 1 |
 | `push_inputs` | 464 | def |  | 1 |
 | `_FakeRoot` | 467 | class |  | 1 |
-| `path` | 468 | def |  | 4 |
+| `path` | 468 | def |  | 5 |
 | `_test_sync_enabled_gate` | 519 | def |  | 2 |
 | `_test_tag_hda` | 629 | def |  | 2 |
 | `_Handler` | 639 | class |  | 1 |
@@ -490,14 +510,15 @@
 | `do_POST` | 655 | def |  | 1 |
 | `do_GET` | 659 | def |  | 1 |
 | `log_message` | 662 | def |  | 1 |
-| `_test_tag_resolve` | 726 | def |  | 2 |
-| `_test_tag_fingerprint` | 737 | def |  | 2 |
-| `_test_tag_heartbeat_throttle` | 748 | def |  | 2 |
-| `_Client` | 750 | class |  | 1 |
-| `heartbeat_channels` | 755 | def |  | 1 |
-| `_test_tag_entries` | 778 | def |  | 2 |
-| `main` | 790 | def |  | 2 |
-| `_stats` | 881 | def |  | 5 |
+| `_test_tag_resolve` | 730 | def |  | 2 |
+| `_test_tag_parse_entry` | 741 | def |  | 2 |
+| `_test_tag_fingerprint` | 772 | def |  | 2 |
+| `_test_tag_heartbeat_throttle` | 783 | def |  | 2 |
+| `_Client` | 785 | class |  | 1 |
+| `heartbeat_channels` | 790 | def |  | 1 |
+| `_test_tag_entries` | 813 | def |  | 2 |
+| `main` | 825 | def |  | 2 |
+| `_stats` | 916 | def |  | 5 |
 
 ## hda/scripts/reload_hda.py（121 行）
 
@@ -612,17 +633,18 @@
 | `stop_all_sync` | 203 | def |  | 1 |
 | `ensure_sync` | 216 | def |  | 4 |
 
-## hda/src/cyl1nder_tag.py（157 行）
+## hda/src/cyl1nder_tag.py（205 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_set_status` | 30 | def |  | 4 |
-| `_parse_entries` | 39 | def |  | 2 |
-| `_resolve` | 54 | def |  | 2 |
-| `_fingerprint` | 67 | def |  | 2 |
-| `register_channels` | 73 | def |  | 2 |
-| `heartbeat` | 109 | def |  | 2 |
-| `cook` | 126 | def |  | 3 |
+| `_set_status` | 31 | def |  | 5 |
+| `_parse_entries` | 40 | def |  | 2 |
+| `_resolve` | 55 | def |  | 2 |
+| `_parse_entry` | 68 | def |  | 2 |
+| `_fingerprint` | 88 | def |  | 2 |
+| `register_channels` | 97 | def |  | 2 |
+| `heartbeat` | 148 | def |  | 2 |
+| `cook` | 165 | def |  | 3 |
 
 ## web/src/app/address-bar.ts（310 行）
 
@@ -759,13 +781,13 @@
 | `createDropdown` | 46 | function | export | 1 |
 | `createStepper` | 130 | function | export | 1 |
 
-## web/src/bridge/client.ts（459 行）
+## web/src/bridge/client.ts（502 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `BridgeClient` | 24 | class | export | 0 |
-| `connectWs` | 416 | function | export | 1 |
-| `connect` | 421 | arrow |  | 1 |
+| `connectWs` | 459 | function | export | 1 |
+| `connect` | 464 | arrow |  | 1 |
 
 ## web/src/color/color-math.ts（147 行）
 
@@ -1113,46 +1135,52 @@
 |---|---|---|---|---|
 | `createUndoManager` | 76 | function | export | 2 |
 
-## web/src/overview.ts（672 行）
+## web/src/overview.ts（772 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `HttpError` | 38 | class |  | 3 |
-| `$` | 49 | function |  | 0 |
-| `epochMs` | 71 | function |  | 6 |
-| `relTime` | 75 | function |  | 8 |
-| `clockTime` | 87 | function |  | 2 |
-| `setBanner` | 93 | function |  | 4 |
-| `openSerial` | 98 | function |  | 4 |
-| `activeState` | 103 | function |  | 2 |
-| `activeRowHtml` | 119 | function |  | 1 |
-| `historyRowHtml` | 136 | function |  | 1 |
-| `renderActive` | 145 | function |  | 2 |
-| `renderHistory` | 151 | function |  | 2 |
-| `renderUnavailable` | 157 | function |  | 2 |
-| `fetchScenes` | 166 | function |  | 2 |
-| `failMessage` | 173 | function |  | 3 |
-| `loadScenes` | 182 | function |  | 4 |
-| `cleanupScenes` | 203 | function |  | 2 |
-| `channelLabel` | 279 | function |  | 2 |
-| `channelState` | 289 | function |  | 2 |
-| `channelRowHtml` | 297 | function |  | 1 |
-| `renderChannels` | 338 | function |  | 4 |
-| `findChannelRow` | 344 | function |  | 2 |
-| `setChannelRowState` | 352 | function |  | 2 |
-| `probeChannel` | 359 | function |  | 3 |
-| `loadChannels` | 391 | function |  | 3 |
-| `showProjectsError` | 467 | function |  | 6 |
-| `hideProjectsError` | 471 | function |  | 5 |
-| `projectDisplayName` | 476 | function |  | 2 |
-| `memberDisplayName` | 481 | function |  | 2 |
-| `memberRowHtml` | 486 | function |  | 2 |
-| `projectRowHtml` | 502 | function |  | 1 |
-| `renderProjects` | 524 | function |  | 5 |
-| `loadProjects` | 530 | function |  | 6 |
-| `removeMember` | 559 | function |  | 2 |
-| `addMemberByDrop` | 571 | function |  | 2 |
-| `clearDropHover` | 634 | function |  | 4 |
+| `HttpError` | 41 | class |  | 3 |
+| `epochMs` | 56 | function |  | 6 |
+| `relTime` | 60 | function |  | 8 |
+| `clockTime` | 72 | function |  | 2 |
+| `channelValueString` | 82 | function | export | 3 |
+| `formatChannelValue` | 92 | function | export | 2 |
+| `channelActionButtons` | 99 | function | export | 2 |
+| `$` | 112 | function |  | 0 |
+| `setBanner` | 130 | function |  | 4 |
+| `openSerial` | 135 | function |  | 4 |
+| `activeState` | 140 | function |  | 2 |
+| `activeRowHtml` | 156 | function |  | 1 |
+| `historyRowHtml` | 173 | function |  | 1 |
+| `renderActive` | 182 | function |  | 2 |
+| `renderHistory` | 188 | function |  | 2 |
+| `renderUnavailable` | 194 | function |  | 2 |
+| `fetchScenes` | 203 | function |  | 2 |
+| `failMessage` | 210 | function |  | 3 |
+| `loadScenes` | 219 | function |  | 4 |
+| `cleanupScenes` | 240 | function |  | 2 |
+| `channelLabel` | 316 | function |  | 2 |
+| `channelState` | 326 | function |  | 2 |
+| `channelRowHtml` | 334 | function |  | 1 |
+| `renderChannels` | 378 | function |  | 4 |
+| `findChannelRow` | 384 | function |  | 4 |
+| `setChannelRowState` | 392 | function |  | 2 |
+| `probeChannel` | 399 | function |  | 3 |
+| `setValueCell` | 432 | function |  | 3 |
+| `readChannelValue` | 447 | function |  | 2 |
+| `writeChannelValue` | 457 | function |  | 2 |
+| `loadChannels` | 478 | function |  | 3 |
+| `showProjectsError` | 566 | function |  | 6 |
+| `hideProjectsError` | 570 | function |  | 5 |
+| `projectDisplayName` | 575 | function |  | 2 |
+| `memberDisplayName` | 580 | function |  | 2 |
+| `memberRowHtml` | 585 | function |  | 2 |
+| `projectRowHtml` | 601 | function |  | 1 |
+| `renderProjects` | 623 | function |  | 5 |
+| `loadProjects` | 629 | function |  | 6 |
+| `removeMember` | 658 | function |  | 2 |
+| `addMemberByDrop` | 670 | function |  | 2 |
+| `clearDropHover` | 733 | function |  | 4 |
 
 ## web/src/protocol/compare.ts（24 行）
 
@@ -1161,17 +1189,17 @@
 | `payloadEqual` | 4 | function |  | 2 |
 | `inputsEqual` | 16 | function | export | 1 |
 
-## web/src/protocol/types.ts（191 行）
+## web/src/protocol/types.ts（193 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/stores/channels.ts（62 行）
+## web/src/stores/channels.ts（63 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `ChannelsStore` | 10 | class | export | 1 |
-| `channelIdOf` | 57 | function | export | 3 |
+| `channelIdOf` | 58 | function | export | 3 |
 
 ## web/src/stores/projects.ts（48 行）
 

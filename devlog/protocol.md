@@ -58,13 +58,20 @@
 - **v0.1.00103 起：所有与 Houdini 的周期性交互速率均由 per-serial Sync Max FPS 派生**（get 轮询 `max(66ms,1000/fps)`、set 节流 `max(33ms,1000/fps)`）；**实测通道上限 ≈19Hz 合计**（get ~52ms / set ~78ms 单次，共用 hdefereval 主线程封送队列，超出会积压雪崩——见 timeline-sync-lag-analysis.md）——66ms/33ms 地板即为此设。一次性 cmd/python 调用不受 fps 节流（用户显式动作），但 `_resolve_port` 失败有 2s 短缓存防扫端口风暴。
 
 ## 通道注册端点（吊牌 HDA Cyl1nderTag，v0.1.00106 起）
-- **channelRef**（协议三处同步）：`{kind: "tag"|"hda"|"param", serial?, nodePath?, absolutePath?, hip, label, registeredAt, lastSeen}`。注册表 key：kind=tag/hda → `serial`；kind=param → `absolutePath`。`registeredAt` 首次注册时服务端写、重复注册保留；`lastSeen` 注册/心跳/探测成功时刷新。
+- **channelRef**（协议三处同步）：`{kind: "tag"|"hda"|"param"|"data", serial?, nodePath?, absolutePath?, hip, label, registeredAt, lastSeen, adapter?}`。注册表 key：kind=tag/hda → `serial`；kind=param/data → `absolutePath`。`registeredAt` 首次注册时服务端写、重复注册保留；`lastSeen` 注册/心跳/探测成功时刷新。`adapter`（v0.1.00110 起）仅 kind=data 使用。
 - **channelId（URL 段）**：param 通道 = `absolutePath` 去前导 `/`（如 `obj/geo1/transform1/tx`），tag/hda 通道 = serial。客户端编码：`quote(id.lstrip("/"), safe="/")`（Python）/ `encodeURI(id.replace(/^\//,""))`（JS）；FastAPI 用 `{channelId:path}` 捕获，服务端对 param 通道回补前导 `/`。
 - `PUT  /api/channels/{channelId:path}`，body = channelRef：幂等 upsert；id 与 ref 键不一致 → 400；-> `{ok, channelId, ref}`
 - `GET  /api/channels` -> `{channels: [channelRef...]}`（按 registeredAt 升序）
 - `POST /api/hda/{serial}/channels/heartbeat`，body `{serial, nodePath, upstreamNodePath, fingerprint}`：对该 serial 的所有通道 touch lastSeen；-> `{ok, serial, lastSeen}`（未注册也容忍）
 - `GET  /api/channels/{channelId:path}/probe`：无此通道 → 404；经 fxhoudinimcp 代理 `nodes.get_node_info`（timeout 4s）确认节点存活与类型仍是 `Cyl1nderTag`；-> `{ok, alive, matched, nodePath, serial, reason}`（探测失败 ok 仍 true、alive=false）
 - **吊牌行为**：cook 时解析 `entries`（多行，相对路径以第 0 输入上游节点为基准）→ 首次/指纹变化注册（1 条 kind=tag + 每参数 1 条 kind=param）；否则心跳（节流 ≥5s）。改参一律走既有 `POST /api/hda/{serial}/houdini/cmd`（`parameters.set_parameter`），吊牌不参与。
+
+## 数据源通道（P4v1，v0.1.00110 起）
+- **kind="data"**：非 geo 数据源通道。`absolutePath` = `<node_path>/<parm_name>`（如 `/obj/geo1/sceneanimate1/animation`）；`adapter` = bridge 侧读写器名（注册表 `bridge/bridge/channels/`，首个适配器 `apex-anim`：经 `code.execute_python` 读写数据参数 `asData()/setFromData()`）。
+- **吊牌 entries 语法**：`@<adapter>:<nodePath>:<parmName>` 注册 data 通道（仅绝对路径）；普通条目仍是 param 通道。注册 payload 带 `adapter` 字段。
+- `GET /api/channels/{channelId:path}/value` -> `{ok: true, value}`（404 无通道 / 400 非 data 通道或未知 adapter / HTTP 200 + `{ok:false,error}` MCP 不可达）
+- `PUT /api/channels/{channelId:path}/value`，body `{"value": <任意 JSON>}` -> `{ok: true, value}`（同 GET 错误语义）
+- 埋点：actor=`web-param`，action=`data-get`/`data-set`，digest=值截断 80。
 
 ## 项目端点（P2a，v0.1.00107 起）
 - **ProjectRef**：`{projectSerial: "P1-<b36ms>-<4rand>", label, createdAt, updatedAt, members: [channelRef…]}`。`P1-` 前缀 = 项目序列号（与 `C1-` 的 HDA/吊牌 serial 区分）；成员是通道引用**快照**（live 状态以 `/api/channels` 大全为准）。

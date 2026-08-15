@@ -31,7 +31,7 @@ class ProjectRegistry:
 
     @staticmethod
     def _channel_key(ref: dict) -> str:
-        if ref.get("kind") == "param":
+        if ref.get("kind") in ("param", "data"):
             return ref.get("absolutePath") or ""
         return ref.get("serial") or ""
 

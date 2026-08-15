@@ -116,3 +116,10 @@
 - **埋点（6 处，全部 accepted/白名单通过分支，只加 trace 行）**：routes.put_inputs → hda-cook/inputs-push（digest=Σ点/prim）；routes.put_outputs 与 ws edit → web-gizmo/outputs-edit（out[idx] + rev）；houdini cmd → runtime-python/param-set|expr-set|command[:40]（target=node/parm）；houdini python → python-exec；channel register/heartbeat → tag-hda/register|heartbeat。state.py +`self.trace`；main.py 挂载（主进程粘合）。
 - 测试 +18（test_trace.py：单测+路由+烟囱）；pytest **187 全绿**。
 - 实机（8100）：runtime 改参 tx=2.0 → param-set 事件 + 吊牌自然 cook → heartbeat 事件（**审计链闭环**）；`?project=` 过滤命中成员 serial、伪造项目 → 空。
+## v0.1.00110（2026-08-15）——非 geo 数据源通道 + apex 读写器（吊牌 HDA P4v1）
+- **protocol.py**：ChannelRef +`adapter: str | None = None`（kind="data" 用）。
+- **新 data_adapters 包**（`bridge/bridge/data_adapters/`，主进程合并期定名——原 `channels/` 包会遮蔽既有 channels.py 模块，CPython 包优先）：注册表 `ADAPTERS/get_adapter` + `apex_anim.py`（ApexAnimDataAdapter：经 `houdini_mcp.execute_python` 读写数据参数 `asData()/setFromData()`；**信封解包 = {success,executed,return_value} 取 return_value**，实机核实后修正；value 双重 json.dumps 嵌入防注入）。
+- **channel_routes.py** +GET/PUT `/api/channels/{channelId:path}/value`（404/400 校验链、`_resolve_port`、无端口 HTTP 200+{ok:false,error}、只埋成功 data-get/data-set，actor=web-param）；`_key_of`/`_path_key`/`_find_channel` 支持 data（kind=param|data → absolutePath）；PUT value 路由前置声明（:path 吞后缀）。
+- **channels.py / projects.py 键控规则修正（主进程契约锚点）**：`kind in ("param","data")` → absolutePath（协议锚点「kind=param/data → absolutePath」落地，消除迁移期兜底扫）。
+- 测试 +7（test_data_channels.py，stub 实机双层信封）；pytest **194 全绿**。
+- 实机（8100）：demo 场景建 `apex::sceneanimate` + 吊牌条目 `@apex-anim:…/animation` → data 通道注册（adapter=apex-anim）→ GET value 解包 `{"geometry":""}` → PUT 合法值 ok 且 Houdini asData 确认、非法值被 apex 拒绝（数据语义在目标端，适配器纯透传）→ 轨迹 data-get×2/data-set×1。

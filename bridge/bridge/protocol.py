@@ -47,7 +47,7 @@ import time
 
 from pydantic import BaseModel, Field
 
-VERSION = "0.1.00109"
+VERSION = "0.1.00110"
 HOST = "127.0.0.1"
 PORT = 8375
 BASE_URL = f"http://{HOST}:{PORT}"
@@ -136,8 +136,9 @@ class InputsPut(BaseModel):
 
 
 class ChannelRef(BaseModel):
-    """吊牌 HDA 通道注册条目（关联注册大全，见 devlog/tag-hda-plan.md P1）。"""
-    kind: str                       # "tag" | "hda" | "param"
+    """吊牌 HDA 通道注册条目（关联注册大全，见 devlog/tag-hda-plan.md P1）；
+    kind="data" 时 adapter 指定 bridge 侧读写器（如 "apex-anim"，见 P4）。"""
+    kind: str                       # "tag" | "hda" | "param" | "data"
     serial: str | None = None       # kind=tag/hda: C1- serial；kind=param: 归属吊牌 serial
     nodePath: str | None = None     # kind=tag/hda: 节点绝对路径；kind=param: 归属吊牌节点路径
     absolutePath: str | None = None # kind=param: 参数绝对路径（/obj/geo1/transform1/tx）
@@ -145,6 +146,7 @@ class ChannelRef(BaseModel):
     label: str = ""
     registeredAt: float = 0.0       # 服务端权威：首次注册写 now，重复注册保留
     lastSeen: float = 0.0           # 注册/心跳/探测成功时刷新 now
+    adapter: str | None = None      # kind="data"：bridge 侧读写器名（如 "apex-anim"）
 
 
 PROJECT_SERIAL_RE = re.compile(r"^P1-[0-9a-z]{8,}-[0-9a-z]{4}$")

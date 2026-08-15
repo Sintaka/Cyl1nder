@@ -53,9 +53,10 @@ pytest（channels 注册/心跳/探测 + 路由）/ tsc+vitest（store/面板）
 - 埋点语义：put_inputs → hda-cook/inputs-push（digest=端口+点数/prim 数）；put_outputs 与 WS edit → web-gizmo/outputs-edit（digest=rev+counts）；houdini cmd → runtime-python/param-set|expr-set（target=node_path/parm，digest=值截断）、python → python-exec；吊牌注册 → tag-hda/register、心跳 → tag-hda/heartbeat（digest=fingerprint）。
 - 验收：同一参数被两个项目引用时，改动来源/通道/新旧值可审计。
 
-## P4 — 延伸（远期）
+## P4 — 延伸（非 geo 数据源通道 + apex 读写器）
 
-- apex scene animate 运行时修改、packfolder Animation Layer 同步（= 注册非 geo 数据源 + bridge 侧读写器）；时间轴互补通道（吊牌 cook 主线程捎带 frame，绕开 dispatcher 忙时延迟，见 `timeline-sync-lag-analysis.md` §4）。
+> **拆分（2026-08-15，主进程）**：P4v1（本轮，打通）= 新通道 kind `"data"`（非 geo 数据源）+ bridge 适配器注册表（`apex-anim`：经 `code.execute_python` 读写 `apex::sceneanimate` 节点 animation 数据参数 `asData()/setFromData()`）+ value 端点 + 轨迹 data-get/data-set + web 大全面板读/写值 + 吊牌 entries `@<adapter>:<nodePath>:<parm>` 注册语法。P4v2（完善）= apex.animstack Animation Layer 读写器（AnimationLayersModel/SetChannelsUndo）、时间轴互补通道（吊牌 cook 主线程捎带 frame，绕开 dispatcher 忙时延迟，见 `timeline-sync-lag-analysis.md` §4）、data 值面板正式 UI。
+- 实测侦察（8100 实例）：apex = SideFX APEX 包（`packages/apex/python3.11libs/apex`，animstack 子模块 = Animation Layer）；`apex::sceneanimate` 的 `animation` 是 DataParmTemplate，`asData() -> {'geometry': ''}` / `setFromData()` 可往返。
 
 ## 每阶段收尾（主进程）
 devlog 更新（README 字典/最近版本 + annotations-{bridge,hda,web} + 协议同步）→ 版本 bump → 索引再生成 → 单 commit。

@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-15T11:54:21.534Z",
-  "totalFunctions": 811,
+  "generatedAt": "2026-08-15T12:27:19.675Z",
+  "totalFunctions": 829,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -22,74 +22,109 @@
     },
     {
       "file": "bridge/bridge/channel_routes.py",
-      "lineCount": 149,
+      "lineCount": 237,
       "functions": [
         {
           "name": "_check_serial",
-          "line": 29,
+          "line": 33,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_key_of",
-          "line": 34,
+          "line": 38,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_path_key",
-          "line": 40,
+          "line": 44,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_probe_key",
-          "line": 47,
+          "line": 51,
           "kind": "def",
           "exported": false,
-          "calls": 2
+          "calls": 4
+        },
+        {
+          "name": "_find_channel",
+          "line": 56,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "_resolve_data_target",
+          "line": 61,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "ValuePut",
+          "line": 70,
+          "kind": "class",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "get_channel_value",
+          "line": 75,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "put_channel_value",
+          "line": 108,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
         },
         {
           "name": "put_channel",
-          "line": 53,
+          "line": 141,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "list_channels",
-          "line": 70,
+          "line": 158,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "HeartbeatBody",
-          "line": 74,
+          "line": 162,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "heartbeat",
-          "line": 82,
+          "line": 170,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "probe",
-          "line": 101,
+          "line": 189,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_node_type_name",
-          "line": 136,
+          "line": 224,
           "kind": "def",
           "exported": false,
           "calls": 2
@@ -271,6 +306,53 @@
           "kind": "def",
           "exported": false,
           "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "bridge/bridge/data_adapters/__init__.py",
+      "lineCount": 11,
+      "functions": [
+        {
+          "name": "get_adapter",
+          "line": 9,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "file": "bridge/bridge/data_adapters/apex_anim.py",
+      "lineCount": 54,
+      "functions": [
+        {
+          "name": "ApexAnimDataAdapter",
+          "line": 11,
+          "kind": "class",
+          "exported": false,
+          "calls": 0
+        },
+        {
+          "name": "read",
+          "line": 14,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "write",
+          "line": 28,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "_rpc",
+          "line": 44,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
         }
       ]
     },
@@ -990,7 +1072,7 @@
     },
     {
       "file": "bridge/bridge/protocol.py",
-      "lineCount": 181,
+      "lineCount": 183,
       "functions": [
         {
           "name": "_b36",
@@ -1057,35 +1139,35 @@
         },
         {
           "name": "generate_project_serial",
-          "line": 153,
+          "line": 155,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "is_valid_project_serial",
-          "line": 160,
+          "line": 162,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "ProjectRef",
-          "line": 164,
+          "line": 166,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "OutputsPut",
-          "line": 173,
+          "line": 175,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "SyncEnabledPut",
-          "line": 178,
+          "line": 180,
           "kind": "class",
           "exported": false,
           "calls": 1
@@ -2298,7 +2380,7 @@
     },
     {
       "file": "hda/scripts/hython_smoke.py",
-      "lineCount": 987,
+      "lineCount": 1023,
       "functions": [
         {
           "name": "_req",
@@ -2480,7 +2562,7 @@
           "line": 468,
           "kind": "def",
           "exported": false,
-          "calls": 4
+          "calls": 5
         },
         {
           "name": "_test_sync_enabled_gate",
@@ -2547,56 +2629,63 @@
         },
         {
           "name": "_test_tag_resolve",
-          "line": 726,
+          "line": 730,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_test_tag_parse_entry",
+          "line": 741,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_test_tag_fingerprint",
-          "line": 737,
+          "line": 772,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_test_tag_heartbeat_throttle",
-          "line": 748,
+          "line": 783,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_Client",
-          "line": 750,
+          "line": 785,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "heartbeat_channels",
-          "line": 755,
+          "line": 790,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_test_tag_entries",
-          "line": 778,
+          "line": 813,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "main",
-          "line": 790,
+          "line": 825,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_stats",
-          "line": 881,
+          "line": 916,
           "kind": "def",
           "exported": false,
           "calls": 5
@@ -3135,53 +3224,60 @@
     },
     {
       "file": "hda/src/cyl1nder_tag.py",
-      "lineCount": 157,
+      "lineCount": 205,
       "functions": [
         {
           "name": "_set_status",
-          "line": 30,
+          "line": 31,
           "kind": "def",
           "exported": false,
-          "calls": 4
+          "calls": 5
         },
         {
           "name": "_parse_entries",
-          "line": 39,
+          "line": 40,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_resolve",
-          "line": 54,
+          "line": 55,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_parse_entry",
+          "line": 68,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_fingerprint",
-          "line": 67,
+          "line": 88,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "register_channels",
-          "line": 73,
+          "line": 97,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "heartbeat",
-          "line": 109,
+          "line": 148,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "cook",
-          "line": 126,
+          "line": 165,
           "kind": "def",
           "exported": false,
           "calls": 3
@@ -3755,7 +3851,7 @@
     },
     {
       "file": "web/src/bridge/client.ts",
-      "lineCount": 459,
+      "lineCount": 502,
       "functions": [
         {
           "name": "BridgeClient",
@@ -3766,14 +3862,14 @@
         },
         {
           "name": "connectWs",
-          "line": 416,
+          "line": 459,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "connect",
-          "line": 421,
+          "line": 464,
           "kind": "arrow",
           "exported": false,
           "calls": 1
@@ -5449,256 +5545,298 @@
     },
     {
       "file": "web/src/overview.ts",
-      "lineCount": 672,
+      "lineCount": 772,
       "functions": [
         {
           "name": "HttpError",
-          "line": 38,
+          "line": 41,
           "kind": "class",
           "exported": false,
           "calls": 3
         },
         {
-          "name": "$",
-          "line": 49,
-          "kind": "function",
-          "exported": false,
-          "calls": 0
-        },
-        {
           "name": "epochMs",
-          "line": 71,
+          "line": 56,
           "kind": "function",
           "exported": false,
           "calls": 6
         },
         {
           "name": "relTime",
-          "line": 75,
+          "line": 60,
           "kind": "function",
           "exported": false,
           "calls": 8
         },
         {
           "name": "clockTime",
-          "line": 87,
+          "line": 72,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
+          "name": "channelValueString",
+          "line": 82,
+          "kind": "function",
+          "exported": true,
+          "calls": 3
+        },
+        {
+          "name": "formatChannelValue",
+          "line": 92,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "channelActionButtons",
+          "line": 99,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "$",
+          "line": 112,
+          "kind": "function",
+          "exported": false,
+          "calls": 0
+        },
+        {
           "name": "setBanner",
-          "line": 93,
+          "line": 130,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "openSerial",
-          "line": 98,
+          "line": 135,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "activeState",
-          "line": 103,
+          "line": 140,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "activeRowHtml",
-          "line": 119,
+          "line": 156,
           "kind": "function",
           "exported": false,
           "calls": 1
         },
         {
           "name": "historyRowHtml",
-          "line": 136,
+          "line": 173,
           "kind": "function",
           "exported": false,
           "calls": 1
         },
         {
           "name": "renderActive",
-          "line": 145,
+          "line": 182,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderHistory",
-          "line": 151,
+          "line": 188,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderUnavailable",
-          "line": 157,
+          "line": 194,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "fetchScenes",
-          "line": 166,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "failMessage",
-          "line": 173,
-          "kind": "function",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "loadScenes",
-          "line": 182,
-          "kind": "function",
-          "exported": false,
-          "calls": 4
-        },
-        {
-          "name": "cleanupScenes",
           "line": 203,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
+          "name": "failMessage",
+          "line": 210,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "loadScenes",
+          "line": 219,
+          "kind": "function",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "cleanupScenes",
+          "line": 240,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "channelLabel",
-          "line": 279,
+          "line": 316,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "channelState",
-          "line": 289,
+          "line": 326,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "channelRowHtml",
-          "line": 297,
+          "line": 334,
           "kind": "function",
           "exported": false,
           "calls": 1
         },
         {
           "name": "renderChannels",
-          "line": 338,
+          "line": 378,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "findChannelRow",
-          "line": 344,
+          "line": 384,
           "kind": "function",
           "exported": false,
-          "calls": 2
+          "calls": 4
         },
         {
           "name": "setChannelRowState",
-          "line": 352,
+          "line": 392,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "probeChannel",
-          "line": 359,
+          "line": 399,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
+          "name": "setValueCell",
+          "line": 432,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "readChannelValue",
+          "line": 447,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "writeChannelValue",
+          "line": 457,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "loadChannels",
-          "line": 391,
+          "line": 478,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "showProjectsError",
-          "line": 467,
+          "line": 566,
           "kind": "function",
           "exported": false,
           "calls": 6
         },
         {
           "name": "hideProjectsError",
-          "line": 471,
+          "line": 570,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "projectDisplayName",
-          "line": 476,
+          "line": 575,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "memberDisplayName",
-          "line": 481,
+          "line": 580,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "memberRowHtml",
-          "line": 486,
+          "line": 585,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "projectRowHtml",
-          "line": 502,
+          "line": 601,
           "kind": "function",
           "exported": false,
           "calls": 1
         },
         {
           "name": "renderProjects",
-          "line": 524,
+          "line": 623,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "loadProjects",
-          "line": 530,
+          "line": 629,
           "kind": "function",
           "exported": false,
           "calls": 6
         },
         {
           "name": "removeMember",
-          "line": 559,
+          "line": 658,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "addMemberByDrop",
-          "line": 571,
+          "line": 670,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "clearDropHover",
-          "line": 634,
+          "line": 733,
           "kind": "function",
           "exported": false,
           "calls": 4
@@ -5727,12 +5865,12 @@
     },
     {
       "file": "web/src/protocol/types.ts",
-      "lineCount": 191,
+      "lineCount": 193,
       "functions": []
     },
     {
       "file": "web/src/stores/channels.ts",
-      "lineCount": 62,
+      "lineCount": 63,
       "functions": [
         {
           "name": "ChannelsStore",
@@ -5743,7 +5881,7 @@
         },
         {
           "name": "channelIdOf",
-          "line": 57,
+          "line": 58,
           "kind": "function",
           "exported": true,
           "calls": 3

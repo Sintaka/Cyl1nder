@@ -74,14 +74,16 @@ export interface RegistryRecord {
 }
 
 // 关联注册（吊牌 HDA 通道）：bridge/bridge/channels.py channelRef 的 TS 镜像。
-// param 通道 id = absolutePath，tag/hda 通道 id = serial。
-export type ChannelKind = "tag" | "hda" | "param";
+// param/data 通道 id = absolutePath，tag/hda 通道 id = serial。
+export type ChannelKind = "tag" | "hda" | "param" | "data";
 
 export interface ChannelRef {
   kind: ChannelKind;
   serial?: string | null;
   nodePath?: string | null;
   absolutePath?: string | null;
+  /** data 通道专属：bridge 侧读写器名（如 apex-anim）；其余 kind 恒 null/缺省。 */
+  adapter?: string | null;
   hip: string;
   label: string;
   registeredAt: number;
@@ -101,7 +103,7 @@ export interface ProjectRef {
 
 // 轨迹事件（P3 审计视图：谁动了数据）。协议三处同步（protocol.py / types.ts / protocol.md）。
 export type TraceActor = "web-gizmo" | "web-param" | "runtime-python" | "tag-hda" | "hda-cook" | "bridge";
-export type TraceAction = "param-set" | "expr-set" | "inputs-push" | "outputs-edit" | "register" | "heartbeat" | "python-exec";
+export type TraceAction = "param-set" | "expr-set" | "inputs-push" | "outputs-edit" | "register" | "heartbeat" | "python-exec" | "data-get" | "data-set";
 
 export interface TraceEvent {
   ts: number;

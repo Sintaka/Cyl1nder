@@ -28,7 +28,7 @@ class ChannelRegistry:
 
     @staticmethod
     def _key_of(ref: dict) -> str:
-        if ref.get("kind") == "param":
+        if ref.get("kind") in ("param", "data"):
             return ref.get("absolutePath") or ""
         return ref.get("serial") or ""
 

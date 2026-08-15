@@ -340,6 +340,49 @@ export class BridgeClient {
     return json(await fetch(`${this.base}/api/channels/${this._channelUrl(channelId)}/probe`));
   }
 
+  /** GET /api/channels/{id}/value — data 通道读值（P4）。
+   *  不抛：404 无通道 / 400 非 data 或未知 adapter / MCP 不可达（HTTP 200 + {ok:false,error}）
+   *  都归一为 {ok:false, error}。 */
+  async getChannelValue(channelId: string): Promise<{ ok: boolean; value: unknown; error?: string }> {
+    return this.channelValue("GET", channelId);
+  }
+
+  /** PUT /api/channels/{id}/value — data 通道写值（body {"value": <任意 JSON>}），错误语义同 getChannelValue。 */
+  async putChannelValue(channelId: string, value: unknown): Promise<{ ok: boolean; value: unknown; error?: string }> {
+    return this.channelValue("PUT", channelId, value);
+  }
+
+  /** data 通道 value 端点共用实现：GET 无 body；PUT body {"value": value}（JSON.stringify）。 */
+  private async channelValue(
+    method: "GET" | "PUT",
+    channelId: string,
+    value?: unknown,
+  ): Promise<{ ok: boolean; value: unknown; error?: string }> {
+    try {
+      const res = await fetch(`${this.base}/api/channels/${this._channelUrl(channelId)}/value`, {
+        method,
+        headers: value !== undefined ? { "Content-Type": "application/json" } : undefined,
+        body: value !== undefined ? JSON.stringify({ value }) : undefined,
+      });
+      const body = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        value?: unknown;
+        error?: string;
+        detail?: unknown;
+      } | null;
+      if (!res.ok) {
+        let error: string;
+        if (body && typeof body.error === "string") error = body.error;
+        else if (body && body.detail !== undefined) error = String(body.detail);
+        else error = `${res.status} ${res.statusText}`;
+        return { ok: false, value: undefined, error };
+      }
+      return { ok: body?.ok ?? true, value: body?.value, error: body?.error };
+    } catch (err) {
+      return { ok: false, value: undefined, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
   /** GET /api/projects — 项目列表（P2a 项目层，成员为通道引用快照）。 */
   async listProjects(): Promise<{ projects: ProjectRef[] }> {
     return json(await fetch(`${this.base}/api/projects`));

@@ -53,9 +53,10 @@ export class ChannelsStore {
   }
 }
 
-/** 通道全局唯一 id：param 通道 = absolutePath，tag/hda 通道 = serial。 */
+/** 通道全局唯一 id：param/data 通道 = absolutePath，tag/hda 通道 = serial。
+ *  （P4 起 kind=data 与 param 同规则：注册表 key 即 absolutePath，见 devlog/protocol.md channelId。） */
 export function channelIdOf(ref: ChannelRef): string {
-  return ref.kind === "param" ? (ref.absolutePath ?? "") : (ref.serial ?? "");
+  return ref.kind === "param" || ref.kind === "data" ? (ref.absolutePath ?? "") : (ref.serial ?? "");
 }
 
 export const channelsStore = new ChannelsStore();
