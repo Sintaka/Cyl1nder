@@ -2,7 +2,8 @@
 
 - PUT  /api/channels/{channelId:path}             注册（幂等 upsert）
 - GET  /api/channels                              关联注册大全
-- POST /api/hda/{serial}/channels/heartbeat       心跳摘要（touch 该 serial 的所有通道）
+- POST /api/hda/{serial}/channels/heartbeat       心跳摘要（touch 该 serial 的所有通道；
+                                                  body 可选 values -> WS 广播 channel-values，P5a）
 - GET  /api/channels/{channelId:path}/probe       经 houdini 代理做存活探测
 - GET/PUT /api/channels/{channelId:path}/value    data 通道值读写（经适配器 code.execute_python 代理）
 
@@ -26,6 +27,7 @@ from .data_adapters import get_adapter
 from .houdini_routes import _resolve_port
 from .protocol import ChannelRef, is_valid_serial
 from .state import get_state
+from .ws import manager
 
 router = APIRouter()
 
@@ -164,6 +166,7 @@ class HeartbeatBody(BaseModel):
     nodePath: str
     upstreamNodePath: str
     fingerprint: str
+    values: dict | None = None  # P5a：可选参数值捎带（旧 HDA 缺省兼容）
 
 
 @router.post("/api/hda/{serial}/channels/heartbeat")
@@ -182,6 +185,9 @@ async def heartbeat(serial: str, payload: HeartbeatBody) -> dict:
         target=payload.nodePath,
         digest=payload.fingerprint,
     )
+    # P5a：心跳捎带参数值 -> WS 广播 channel-values（不回写内存、值不落地）
+    if payload.values:
+        await manager.broadcast(serial, {"type": "channel-values", "values": payload.values})
     return {"ok": True, "serial": serial, "lastSeen": now}
 
 

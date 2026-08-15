@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-15T12:27:19.675Z",
-  "totalFunctions": 829,
+  "generatedAt": "2026-08-15T12:46:57.534Z",
+  "totalFunctions": 852,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -22,109 +22,109 @@
     },
     {
       "file": "bridge/bridge/channel_routes.py",
-      "lineCount": 237,
+      "lineCount": 243,
       "functions": [
         {
           "name": "_check_serial",
-          "line": 33,
+          "line": 35,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_key_of",
-          "line": 38,
+          "line": 40,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_path_key",
-          "line": 44,
+          "line": 46,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_probe_key",
-          "line": 51,
+          "line": 53,
           "kind": "def",
           "exported": false,
           "calls": 4
         },
         {
           "name": "_find_channel",
-          "line": 56,
+          "line": 58,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_resolve_data_target",
-          "line": 61,
+          "line": 63,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "ValuePut",
-          "line": 70,
+          "line": 72,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get_channel_value",
-          "line": 75,
+          "line": 77,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_channel_value",
-          "line": 108,
+          "line": 110,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_channel",
-          "line": 141,
+          "line": 143,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "list_channels",
-          "line": 158,
+          "line": 160,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "HeartbeatBody",
-          "line": 162,
+          "line": 164,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "heartbeat",
-          "line": 170,
+          "line": 173,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "probe",
-          "line": 189,
+          "line": 195,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_node_type_name",
-          "line": 224,
+          "line": 230,
           "kind": "def",
           "exported": false,
           "calls": 2
@@ -462,193 +462,235 @@
     },
     {
       "file": "bridge/bridge/houdini_routes.py",
-      "lineCount": 517,
+      "lineCount": 672,
       "functions": [
         {
           "name": "_get_interval",
-          "line": 76,
+          "line": 85,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_get_set_interval",
-          "line": 81,
+          "line": 90,
           "kind": "def",
           "exported": false,
-          "calls": 3
+          "calls": 5
         },
         {
           "name": "_check_serial",
-          "line": 86,
+          "line": 95,
           "kind": "def",
           "exported": false,
-          "calls": 8
+          "calls": 10
         },
         {
           "name": "_tl_default",
-          "line": 91,
+          "line": 100,
           "kind": "def",
           "exported": false,
           "calls": 6
         },
         {
           "name": "_resolve_port",
-          "line": 95,
+          "line": 104,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_poller_done",
-          "line": 134,
+          "line": 143,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_inflight_done",
-          "line": 140,
+          "line": 149,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "ensure_poller",
-          "line": 146,
+          "line": 155,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_poller_loop",
-          "line": 160,
+          "line": 169,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_get_frame_once",
-          "line": 193,
+          "line": 202,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_apply_frame",
-          "line": 214,
+          "line": 223,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "get_timeline",
-          "line": 248,
+          "line": 257,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "TimelinePut",
-          "line": 281,
+          "line": 290,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_timeline",
-          "line": 286,
+          "line": 295,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_arm_set_flush",
-          "line": 312,
+          "line": 321,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_flush_pending",
-          "line": 323,
+          "line": 332,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_send_pending",
-          "line": 333,
+          "line": 342,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "get_channel_values",
+          "line": 389,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "ChannelValuesPut",
+          "line": 432,
+          "kind": "class",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "put_channel_values",
+          "line": 437,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "_arm_cv_flush",
+          "line": 465,
+          "kind": "def",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "_flush_cv_pending",
+          "line": 476,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_send_cv_pending",
+          "line": 486,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "HouTimelinePut",
-          "line": 376,
+          "line": 531,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_hou_timeline",
-          "line": 382,
+          "line": 537,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get_houdini",
-          "line": 409,
+          "line": 564,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "HoudiniPut",
-          "line": 419,
+          "line": 574,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_houdini",
-          "line": 424,
+          "line": 579,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "CmdBody",
-          "line": 440,
+          "line": 595,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_trace_houdini_cmd",
-          "line": 445,
+          "line": 600,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "houdini_cmd",
-          "line": 471,
+          "line": 626,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "PythonBody",
-          "line": 488,
+          "line": 643,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "houdini_python",
-          "line": 494,
+          "line": 649,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -2380,7 +2422,7 @@
     },
     {
       "file": "hda/scripts/hython_smoke.py",
-      "lineCount": 1023,
+      "lineCount": 1041,
       "functions": [
         {
           "name": "_req",
@@ -2576,7 +2618,7 @@
           "line": 629,
           "kind": "def",
           "exported": false,
-          "calls": 2
+          "calls": 3
         },
         {
           "name": "_Handler",
@@ -2629,63 +2671,63 @@
         },
         {
           "name": "_test_tag_resolve",
-          "line": 730,
+          "line": 740,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_test_tag_parse_entry",
-          "line": 741,
+          "line": 751,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_test_tag_fingerprint",
-          "line": 772,
+          "line": 782,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_test_tag_heartbeat_throttle",
-          "line": 783,
+          "line": 793,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_Client",
-          "line": 785,
+          "line": 795,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "heartbeat_channels",
-          "line": 790,
+          "line": 800,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_test_tag_entries",
-          "line": 813,
+          "line": 831,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "main",
-          "line": 825,
+          "line": 843,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_stats",
-          "line": 916,
+          "line": 934,
           "kind": "def",
           "exported": false,
           "calls": 5
@@ -3224,7 +3266,7 @@
     },
     {
       "file": "hda/src/cyl1nder_tag.py",
-      "lineCount": 205,
+      "lineCount": 222,
       "functions": [
         {
           "name": "_set_status",
@@ -3269,15 +3311,22 @@
           "calls": 2
         },
         {
-          "name": "heartbeat",
+          "name": "_read_param_values",
           "line": 148,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
+          "name": "heartbeat",
+          "line": 161,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "cook",
-          "line": 165,
+          "line": 182,
           "kind": "def",
           "exported": false,
           "calls": 3
@@ -3317,167 +3366,285 @@
       "functions": []
     },
     {
+      "file": "web/src/app/channel-panel.ts",
+      "lineCount": 328,
+      "functions": [
+        {
+          "name": "isNumericValue",
+          "line": 40,
+          "kind": "function",
+          "exported": true,
+          "calls": 3
+        },
+        {
+          "name": "parseInput",
+          "line": 45,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "mergeValues",
+          "line": 54,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "mergePending",
+          "line": 69,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "clampFps",
+          "line": 84,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "initChannelPanel",
+          "line": 99,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "onInputChange",
+          "line": 135,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "buildRow",
+          "line": 152,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "replaceRow",
+          "line": 174,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "setRowValue",
+          "line": 182,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "renderList",
+          "line": 192,
+          "kind": "function",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "refresh",
+          "line": 219,
+          "kind": "function",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "applyValues",
+          "line": 251,
+          "kind": "function",
+          "exported": false,
+          "calls": 4
+        },
+        {
+          "name": "flushPending",
+          "line": 262,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        }
+      ]
+    },
+    {
       "file": "web/src/app/color.ts",
       "lineCount": 3,
       "functions": []
     },
     {
       "file": "web/src/app/dock.ts",
-      "lineCount": 541,
+      "lineCount": 609,
       "functions": [
         {
           "name": "layoutDebug",
-          "line": 57,
+          "line": 62,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "categorizeLog",
-          "line": 80,
+          "line": 85,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderLogBody",
-          "line": 89,
+          "line": 94,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "createFreshLog",
-          "line": 95,
+          "line": 100,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "createFreshInspector",
-          "line": 123,
+          "line": 128,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "render",
-          "line": 126,
+          "line": 131,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "createFreshSpreadsheet",
-          "line": 148,
+          "line": 153,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "createFreshParam",
-          "line": 164,
+          "line": 169,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
+          "name": "readSyncMaxFpsFromPrefs",
+          "line": 185,
+          "kind": "function",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "createChannelPanel",
+          "line": 202,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
           "name": "createPlaceholder",
-          "line": 179,
+          "line": 220,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "createInstanceContent",
-          "line": 189,
+          "line": 230,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "nextInstanceIndex",
-          "line": 213,
+          "line": 256,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "addInstancePanel",
-          "line": 223,
+          "line": 266,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "hideAddMenu",
-          "line": 237,
+          "line": 280,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "ensureAddMenu",
-          "line": 242,
+          "line": 285,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "toggleAddMenu",
-          "line": 281,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "groupIdForButton",
-          "line": 296,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "attachTabBarWheel",
-          "line": 306,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "closeTabGroup",
           "line": 324,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
+          "name": "groupIdForButton",
+          "line": 339,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "attachTabBarWheel",
+          "line": 349,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "closeTabGroup",
+          "line": 367,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "refreshAddButtons",
-          "line": 340,
+          "line": 383,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "setupDock",
-          "line": 398,
+          "line": 441,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "onLayoutChange",
-          "line": 486,
+          "line": 554,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "applyLayout",
-          "line": 530,
+          "line": 598,
           "kind": "function",
           "exported": true,
-          "calls": 1
+          "calls": 2
         }
       ]
     },
@@ -3851,7 +4018,7 @@
     },
     {
       "file": "web/src/bridge/client.ts",
-      "lineCount": 502,
+      "lineCount": 559,
       "functions": [
         {
           "name": "BridgeClient",
@@ -3862,14 +4029,14 @@
         },
         {
           "name": "connectWs",
-          "line": 459,
+          "line": 516,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "connect",
-          "line": 464,
+          "line": 521,
           "kind": "arrow",
           "exported": false,
           "calls": 1
@@ -4195,11 +4362,11 @@
     },
     {
       "file": "web/src/core/session.ts",
-      "lineCount": 176,
+      "lineCount": 184,
       "functions": [
         {
           "name": "createSessionManager",
-          "line": 63,
+          "line": 66,
           "kind": "function",
           "exported": true,
           "calls": 1
@@ -4234,7 +4401,7 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 1162,
+      "lineCount": 1164,
       "functions": [
         {
           "name": "matchLogFilter",
@@ -4329,112 +4496,112 @@
         },
         {
           "name": "applyLayoutSettings",
-          "line": 751,
+          "line": 753,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "refreshSelectionPanels",
-          "line": 766,
+          "line": 768,
           "kind": "function",
           "exported": false,
           "calls": 1
         },
         {
           "name": "inputStatsText",
-          "line": 841,
+          "line": 843,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "outputStatsText",
-          "line": 850,
+          "line": 852,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderInspector",
-          "line": 859,
+          "line": 861,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "isProjectModeActive",
-          "line": 877,
+          "line": 879,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "projectAddress",
-          "line": 883,
+          "line": 885,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "saveProjectGraph",
-          "line": 893,
+          "line": 895,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "enterProjectMode",
-          "line": 906,
+          "line": 908,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "updateGraphAddress",
-          "line": 956,
+          "line": 958,
           "kind": "function",
           "exported": false,
           "calls": 8
         },
         {
           "name": "scheduleNetwork",
-          "line": 984,
+          "line": 986,
           "kind": "function",
           "exported": false,
           "calls": 1
         },
         {
           "name": "flushStoreView",
-          "line": 987,
+          "line": 989,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "loadSnapshotIntoStore",
-          "line": 1014,
+          "line": 1016,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "applyLoadedPreference",
-          "line": 1051,
+          "line": 1053,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "connectSerial",
-          "line": 1088,
+          "line": 1090,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "markGraphDirty",
-          "line": 1155,
+          "line": 1157,
           "kind": "function",
           "exported": false,
           "calls": 2
@@ -5865,7 +6032,7 @@
     },
     {
       "file": "web/src/protocol/types.ts",
-      "lineCount": 193,
+      "lineCount": 196,
       "functions": []
     },
     {

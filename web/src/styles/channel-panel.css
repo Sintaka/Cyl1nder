@@ -1,0 +1,94 @@
+/* ---- 通道参数面板（P5a，web/src/app/channel-panel.ts）----
+   深色主题，色板与 base.css 一致（#101114 面板底 / #2b6cb0 焦点蓝 / 状态三色同 store） */
+.cyl-channel-panel {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: auto;
+  background: #101114;
+  color: #cfd2d6;
+  font: 10px/1.5 var(--cyl-font-ui);
+  padding: 6px 10px;
+}
+.cyl-channel-head {
+  color: #7ce3a8;
+  font-weight: 700;
+  margin: 2px 0 4px;
+}
+.cyl-channel-error {
+  background: #2a1515;
+  border: 1px solid #7a2e2e;
+  color: #ff9e9e;
+  border-radius: 4px;
+  padding: 3px 8px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.cyl-channel-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cyl-channel-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cyl-channel-label {
+  flex: 0 0 38%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #cfd2d6;
+}
+.cyl-channel-input {
+  flex: 1;
+  min-width: 0;
+  background: #1a1d22;
+  border: 1px solid #33363c;
+  color: #cfd2d6;
+  padding: 1px 5px;
+  font: inherit;
+  border-radius: 3px;
+  box-sizing: border-box;
+}
+.cyl-channel-input:focus {
+  border-color: #2b6cb0;
+  outline: none;
+}
+/* 隐藏原生数字步进箭头（键盘输入保留），与 .cyl-param-table 一致 */
+.cyl-channel-input[type="number"]::-webkit-inner-spin-button,
+.cyl-channel-input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.cyl-channel-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: none;
+}
+.cyl-channel-dot {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.cyl-channel-dot.ok {
+  background: #38a169; /* 已同步 */
+}
+.cyl-channel-dot.pending {
+  background: #d69e2e; /* 编辑中（待提交） */
+}
+.cyl-channel-dot.error {
+  background: #e53e3e; /* 提交失败 */
+}
+.cyl-channel-empty {
+  color: #6b7280;
+  padding: 6px 0;
+}

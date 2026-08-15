@@ -5,10 +5,16 @@
 - `app/address-bar.ts`
 - `app/app-config.ts`
   - three/webgpu
+- `app/channel-panel.ts`
+  - bridge/client
+  - protocol/types
+  - styles/channel-panel.css
 - `app/color.ts`
   - color/color-math
   - color/picker
 - `app/dock.ts`
+  - app/channel-panel
+  - app/preference
   - bridge/client
   - dockview
   - dockview/dist/styles/dockview.css

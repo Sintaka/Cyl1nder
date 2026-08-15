@@ -73,6 +73,12 @@
 - `PUT /api/channels/{channelId:path}/value`，body `{"value": <任意 JSON>}` -> `{ok: true, value}`（同 GET 错误语义）
 - 埋点：actor=`web-param`，action=`data-get`/`data-set`，digest=值截断 80。
 
+## 参数通道值同步（P5a，v0.1.00111 起）
+- `GET /api/hda/{serial}/channel-values` -> `{ok, values: {absolutePath: value, ...}}`：对 serial 的 param 通道批量 `parameters.get_parameter`（值宽容提取 `data.value`），**0.25s 整响应缓存**（照 GET /timeline 模式）；无通道 → 空 dict。
+- `PUT /api/hda/{serial}/channel-values`，body `{"values": {absolutePath: value}}` -> `{ok, throttled?}`：每通道 `parameters.set_parameter`，**Sync Max FPS 节流（max(33ms,1000/fps)）+ latest-wins 整 dict 替换 + single-flight**（照 PUT /timeline 模式）；成功后**不回显广播**（web 发起防回环）；每通道 trace `param-set`（web-param）。
+- **H→C 事件推送**：吊牌 cook 心跳捎带 `values`（可选字段，缺省兼容）→ bridge 直接 **WS 广播 `{type:"channel-values", values}`**（值不落地）。
+- web：主应用「通道参数」dock 面板——数值 scrubbing/输入节流提交（≤ Sync Max FPS，latest-wins）；WS 推送即时刷新（编辑行不覆盖）+ 250ms 轮询兜底（可见性门控）。
+
 ## 项目端点（P2a，v0.1.00107 起）
 - **ProjectRef**：`{projectSerial: "P1-<b36ms>-<4rand>", label, createdAt, updatedAt, members: [channelRef…]}`。`P1-` 前缀 = 项目序列号（与 `C1-` 的 HDA/吊牌 serial 区分）；成员是通道引用**快照**（live 状态以 `/api/channels` 大全为准）。
 - `POST /api/projects`，body `{label?}` -> `{ok, project}`

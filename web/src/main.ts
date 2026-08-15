@@ -1,7 +1,7 @@
 import "./styles.css";
 import { buildLayout } from "./app/layout";
 import { DEFAULT_LAYOUT, DEFAULT_LAYOUT_NAME } from "./app/layouts";
-import { applyLayout, setupDock } from "./app/dock";
+import { applyLayout, channelPanelRef, setupDock } from "./app/dock";
 import { renderSpreadsheet, type SpreadsheetFocus } from "./app/spreadsheet";
 import { renderParams } from "./app/param";
 import { store } from "./stores/workspace";
@@ -634,6 +634,8 @@ const sessionMgr = createSessionManager({
     timeline.setLinkEnabled(true);
     timeline.applyRemote(frame, fps);
   },
+  // WS {type:"channel-values"}（吊牌心跳捎带）：即时刷新通道参数面板（P5a）。
+  applyChannelValues: (values) => channelPanelRef.current?.applyValues(values),
 });
 sessionCtl = sessionMgr;
 

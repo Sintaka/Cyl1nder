@@ -55,8 +55,22 @@ pytest（channels 注册/心跳/探测 + 路由）/ tsc+vitest（store/面板）
 
 ## P4 — 延伸（非 geo 数据源通道 + apex 读写器）
 
-> **拆分（2026-08-15，主进程）**：P4v1（本轮，打通）= 新通道 kind `"data"`（非 geo 数据源）+ bridge 适配器注册表（`apex-anim`：经 `code.execute_python` 读写 `apex::sceneanimate` 节点 animation 数据参数 `asData()/setFromData()`）+ value 端点 + 轨迹 data-get/data-set + web 大全面板读/写值 + 吊牌 entries `@<adapter>:<nodePath>:<parm>` 注册语法。P4v2（完善）= apex.animstack Animation Layer 读写器（AnimationLayersModel/SetChannelsUndo）、时间轴互补通道（吊牌 cook 主线程捎带 frame，绕开 dispatcher 忙时延迟，见 `timeline-sync-lag-analysis.md` §4）、data 值面板正式 UI。
-- 实测侦察（8100 实例）：apex = SideFX APEX 包（`packages/apex/python3.11libs/apex`，animstack 子模块 = Animation Layer）；`apex::sceneanimate` 的 `animation` 是 DataParmTemplate，`asData() -> {'geometry': ''}` / `setFromData()` 可往返。
+> **拆分（2026-08-15，主进程）**：P4v1（已完成 v0.1.00110，打通）= 新通道 kind `"data"` + `data_adapters/` 包（apex-anim 读写器）+ value 端点 + 埋点 + web 读/写值 + 吊牌 `@adapter:node:parm` 语法。**P4v2 搁置（用户拍板，2026-08-15）**：apex.animstack Animation Layer 读写器、时间轴互补通道（吊牌 cook 主线程捎带 frame）、data 值面板正式 UI——恢复时从本清单继续。
 
-## 每阶段收尾（主进程）
-devlog 更新（README 字典/最近版本 + annotations-{bridge,hda,web} + 协议同步）→ 版本 bump → 索引再生成 → 单 commit。
+## P5 — 参数同步极致化（transform translate，当前）
+
+> **目标（用户拍板，2026-08-15）**：以 `transform1` 的 translate（tx/ty/tz）为试点，把「web ⇄ Houdini 参数」双向同步优化到极致（低延迟、跟手、无回环、可审计），收掉 P1.5 遗留（web 参数面板→runtime 改参 UI 接线）。apex 部分搁置。
+
+### P5a（本轮）——translate 双向值同步闭环
+- **bridge**：`GET /api/hda/{serial}/channel-values`（对 serial 的 param 通道批量 `parameters.get_parameter`，0.25s 缓存，照 GET /timeline 模式）→ `{ok, values: {absolutePath: value}}`；`PUT /api/hda/{serial}/channel-values`（body `{values}` → 每通道 `parameters.set_parameter`，**Sync Max FPS 节流 + latest-wins + single-flight**，照 PUT /timeline 模式，成功后不回显广播）；心跳路由接收可选 `values` 捎带 → 存内存 + **WS 广播 `{type:"channel-values", values}`** + 轨迹。
+- **hda（吊牌）**：cook 心跳捎带注册参数**当前值**（`hou.parm(absPath).eval()`，仅 JSON 可序列化标量，读失败跳过）——事件驱动 H→C（吊牌被 cook 时零轮询即推送）。
+- **web**：主应用新增「通道参数」dock 面板——列出该 serial 的 param 通道（label/当前值/状态点）；数值 scrubbing/输入 → `putChannelValues` 节流提交（≤ Sync Max FPS，latest-wins）；WS `channel-values` 推送即时刷新 + 250ms 轮询兜底（可见性门控）。
+- 验收：web 面板拖 tx 滑块 → Houdini transform1.tx 跟手变化（<150ms 感知）→ 吊牌 cook 捎带/轮询回显 → 轨迹 param-set 审计；Houdini 侧改 tx → web 面板 ≤1s 内更新。
+
+### P5b（下轮候选）
+- viewport gizmo/节点参数与通道绑定（web transform 节点 T 属性直写 Houdini transform1）；数据通道值正式 UI；轨迹 ndjson 落盘（P3.5）。
+
+## 收尾清单（主进程，本轮最后）
+1. **清理过时内容**：删 `hda/otls/backup/` 54 个旧 .hda 备份（.gitignore 该目录）；检查根目录临时文件残留。
+2. **md/devlog 全面更新**：本计划各阶段状态、README 最近版本/字典、AGENT_QUICKSTART 当前焦点（收尾状态）、annotations 收口。
+3. 版本 bump + 索引再生成 + 单 commit 收尾。

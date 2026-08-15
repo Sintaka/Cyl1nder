@@ -40,7 +40,8 @@
               "data": {
                 "views": [
                   "inspector",
-                  "param"
+                  "param",
+                  "channel"
                 ],
                 "activeView": "inspector",
                 "id": "7"
@@ -98,6 +99,11 @@
       "id": "param",
       "contentComponent": "param",
       "title": "Params"
+    },
+    "channel": {
+      "id": "channel",
+      "contentComponent": "channel",
+      "title": "Channels 参数"
     }
   },
   "activeGroup": "4",

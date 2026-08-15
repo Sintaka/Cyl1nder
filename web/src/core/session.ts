@@ -28,6 +28,9 @@ export interface SessionDeps {
    * timeline.applyRemote；可选 dep：缺省（本地模式）为 no-op。
    */
   applyTimeline?(frame: number, fps: number): void;
+  /** H→C 通道值推送应用（WS {type:"channel-values"} 分支）。main.ts 合并时注入
+   *  channelPanelRef.current.applyValues；可选 dep：缺省（未建通道面板）为 no-op。 */
+  applyChannelValues?(values: Record<string, unknown>): void;
   /** 可注入的 WS 建立函数，默认 client.connectWs；测试注入 fake 捕获
    *  onMessage/onStatus 并返回 disconnect 探针。 */
   connectWsFn?: (serial: string, onMessage: WsHandler, onStatus: (open: boolean) => void) => () => void;
@@ -106,6 +109,11 @@ export function createSessionManager(deps: SessionDeps): SessionManager {
         // H→C 时间轴推送（bridge 广播 Houdini playhead）：应用远端帧/fps。
         // 非法帧/拖动/未链接由 applyTimeline 的注入方（timeline.applyRemote）内部忽略。
         deps.applyTimeline?.(msg.frame as number, msg.fps as number);
+      } else if (msg.type === "channel-values") {
+        if (!active) return; // 后台成员：丢弃，不碰通道面板
+        // H→C 通道值推送（bridge 广播吊牌 cook 捎带/轮询的值）：注入方
+        // （main.ts → channelPanelRef.current.applyValues）即时刷新面板。
+        deps.applyChannelValues?.(msg.values);
       }
     };
 

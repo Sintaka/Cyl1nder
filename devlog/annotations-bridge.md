@@ -123,3 +123,8 @@
 - **channels.py / projects.py 键控规则修正（主进程契约锚点）**：`kind in ("param","data")` → absolutePath（协议锚点「kind=param/data → absolutePath」落地，消除迁移期兜底扫）。
 - 测试 +7（test_data_channels.py，stub 实机双层信封）；pytest **194 全绿**。
 - 实机（8100）：demo 场景建 `apex::sceneanimate` + 吊牌条目 `@apex-anim:…/animation` → data 通道注册（adapter=apex-anim）→ GET value 解包 `{"geometry":""}` → PUT 合法值 ok 且 Houdini asData 确认、非法值被 apex 拒绝（数据语义在目标端，适配器纯透传）→ 轨迹 data-get×2/data-set×1。
+## v0.1.00111（2026-08-15）——参数通道值双向同步（P5a 参数同步极致化）
+- **channel_routes.py**：`HeartbeatBody` +可选 `values: dict | None`（旧 HDA 缺省兼容）；heartbeat 非空 values → `await manager.broadcast(serial, {"type":"channel-values","values":...})`（**不回写内存、值不落地**），touch/trace 不变。
+- **houdini_routes.py** +2 端点（timeline 旁）：`GET /api/hda/{serial}/channel-values`（通道源=大全 kind=param 且 serial 匹配；逐通道 `parameters.get_parameter`（timeout 4）、值宽容提取 `data.value`、失败/信封 error 跳过；**0.25s 整响应缓存**；无通道空 dict、无端口 ok:False）；`PUT /api/hda/{serial}/channel-values`（`values` 整 dict 替换 = **latest-wins**，`_get_set_interval` 节流 + `_CV_FLIGHT` single-flight + timer flush，逐项 `set_parameter`，失败 error trace 继续，成功后**不回显广播**，每项 trace web-param/param-set）。
+- 测试 +12（test_channel_values.py）；pytest **206 全绿**。
+- 实机（8100）：GET {tx:2.0,ty:0.0} → PUT {tx:5.25,ty:1.5} → Houdini 落地确认 → Houdini 侧改 tx=7.75 + 吊牌 cook 心跳捎带 → GET 读回 7.75；轨迹 param-set×2 + heartbeat。

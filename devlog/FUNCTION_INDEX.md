@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-15），由 `node scripts/gen-index.mjs` 产出。共 **829** 个函数/类。
+> 机器生成（2026-08-15），由 `node scripts/gen-index.mjs` 产出。共 **852** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -14,25 +14,25 @@
 |---|---|---|---|---|
 | `main` | 7 | def |  | 2 |
 
-## bridge/bridge/channel_routes.py（237 行）
+## bridge/bridge/channel_routes.py（243 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_check_serial` | 33 | def |  | 2 |
-| `_key_of` | 38 | def |  | 3 |
-| `_path_key` | 44 | def |  | 2 |
-| `_probe_key` | 51 | def |  | 4 |
-| `_find_channel` | 56 | def |  | 3 |
-| `_resolve_data_target` | 61 | def |  | 3 |
-| `ValuePut` | 70 | class |  | 1 |
-| `get_channel_value` | 75 | def |  | 1 |
-| `put_channel_value` | 108 | def |  | 1 |
-| `put_channel` | 141 | def |  | 1 |
-| `list_channels` | 158 | def |  | 1 |
-| `HeartbeatBody` | 162 | class |  | 1 |
-| `heartbeat` | 170 | def |  | 1 |
-| `probe` | 189 | def |  | 1 |
-| `_node_type_name` | 224 | def |  | 2 |
+| `_check_serial` | 35 | def |  | 2 |
+| `_key_of` | 40 | def |  | 3 |
+| `_path_key` | 46 | def |  | 2 |
+| `_probe_key` | 53 | def |  | 4 |
+| `_find_channel` | 58 | def |  | 3 |
+| `_resolve_data_target` | 63 | def |  | 3 |
+| `ValuePut` | 72 | class |  | 1 |
+| `get_channel_value` | 77 | def |  | 1 |
+| `put_channel_value` | 110 | def |  | 1 |
+| `put_channel` | 143 | def |  | 1 |
+| `list_channels` | 160 | def |  | 1 |
+| `HeartbeatBody` | 164 | class |  | 1 |
+| `heartbeat` | 173 | def |  | 1 |
+| `probe` | 195 | def |  | 1 |
+| `_node_type_name` | 230 | def |  | 2 |
 
 ## bridge/bridge/channels.py（106 行）
 
@@ -110,37 +110,43 @@
 | `execute_python` | 173 | def |  | 1 |
 | `is_command_allowed` | 180 | def |  | 1 |
 
-## bridge/bridge/houdini_routes.py（517 行）
+## bridge/bridge/houdini_routes.py（672 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_get_interval` | 76 | def |  | 3 |
-| `_get_set_interval` | 81 | def |  | 3 |
-| `_check_serial` | 86 | def |  | 8 |
-| `_tl_default` | 91 | def |  | 6 |
-| `_resolve_port` | 95 | def |  | 1 |
-| `_poller_done` | 134 | def |  | 2 |
-| `_inflight_done` | 140 | def |  | 2 |
-| `ensure_poller` | 146 | def |  | 2 |
-| `_poller_loop` | 160 | def |  | 2 |
-| `_get_frame_once` | 193 | def |  | 2 |
-| `_apply_frame` | 214 | def |  | 3 |
-| `get_timeline` | 248 | def |  | 1 |
-| `TimelinePut` | 281 | class |  | 1 |
-| `put_timeline` | 286 | def |  | 1 |
-| `_arm_set_flush` | 312 | def |  | 3 |
-| `_flush_pending` | 323 | def |  | 2 |
-| `_send_pending` | 333 | def |  | 3 |
-| `HouTimelinePut` | 376 | class |  | 1 |
-| `put_hou_timeline` | 382 | def |  | 1 |
-| `get_houdini` | 409 | def |  | 1 |
-| `HoudiniPut` | 419 | class |  | 1 |
-| `put_houdini` | 424 | def |  | 1 |
-| `CmdBody` | 440 | class |  | 1 |
-| `_trace_houdini_cmd` | 445 | def |  | 2 |
-| `houdini_cmd` | 471 | def |  | 1 |
-| `PythonBody` | 488 | class |  | 1 |
-| `houdini_python` | 494 | def |  | 1 |
+| `_get_interval` | 85 | def |  | 3 |
+| `_get_set_interval` | 90 | def |  | 5 |
+| `_check_serial` | 95 | def |  | 10 |
+| `_tl_default` | 100 | def |  | 6 |
+| `_resolve_port` | 104 | def |  | 1 |
+| `_poller_done` | 143 | def |  | 2 |
+| `_inflight_done` | 149 | def |  | 2 |
+| `ensure_poller` | 155 | def |  | 2 |
+| `_poller_loop` | 169 | def |  | 2 |
+| `_get_frame_once` | 202 | def |  | 2 |
+| `_apply_frame` | 223 | def |  | 3 |
+| `get_timeline` | 257 | def |  | 1 |
+| `TimelinePut` | 290 | class |  | 1 |
+| `put_timeline` | 295 | def |  | 1 |
+| `_arm_set_flush` | 321 | def |  | 3 |
+| `_flush_pending` | 332 | def |  | 2 |
+| `_send_pending` | 342 | def |  | 3 |
+| `get_channel_values` | 389 | def |  | 1 |
+| `ChannelValuesPut` | 432 | class |  | 1 |
+| `put_channel_values` | 437 | def |  | 1 |
+| `_arm_cv_flush` | 465 | def |  | 3 |
+| `_flush_cv_pending` | 476 | def |  | 2 |
+| `_send_cv_pending` | 486 | def |  | 3 |
+| `HouTimelinePut` | 531 | class |  | 1 |
+| `put_hou_timeline` | 537 | def |  | 1 |
+| `get_houdini` | 564 | def |  | 1 |
+| `HoudiniPut` | 574 | class |  | 1 |
+| `put_houdini` | 579 | def |  | 1 |
+| `CmdBody` | 595 | class |  | 1 |
+| `_trace_houdini_cmd` | 600 | def |  | 2 |
+| `houdini_cmd` | 626 | def |  | 1 |
+| `PythonBody` | 643 | class |  | 1 |
+| `houdini_python` | 649 | def |  | 1 |
 
 ## bridge/bridge/logs.py（60 行）
 
@@ -471,7 +477,7 @@
 | `build_tag` | 153 | def |  | 2 |
 | `build` | 218 | def |  | 2 |
 
-## hda/scripts/hython_smoke.py（1023 行）
+## hda/scripts/hython_smoke.py（1041 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -502,7 +508,7 @@
 | `_FakeRoot` | 467 | class |  | 1 |
 | `path` | 468 | def |  | 5 |
 | `_test_sync_enabled_gate` | 519 | def |  | 2 |
-| `_test_tag_hda` | 629 | def |  | 2 |
+| `_test_tag_hda` | 629 | def |  | 3 |
 | `_Handler` | 639 | class |  | 1 |
 | `_record` | 640 | def |  | 3 |
 | `_reply` | 645 | def |  | 4 |
@@ -510,15 +516,15 @@
 | `do_POST` | 655 | def |  | 1 |
 | `do_GET` | 659 | def |  | 1 |
 | `log_message` | 662 | def |  | 1 |
-| `_test_tag_resolve` | 730 | def |  | 2 |
-| `_test_tag_parse_entry` | 741 | def |  | 2 |
-| `_test_tag_fingerprint` | 772 | def |  | 2 |
-| `_test_tag_heartbeat_throttle` | 783 | def |  | 2 |
-| `_Client` | 785 | class |  | 1 |
-| `heartbeat_channels` | 790 | def |  | 1 |
-| `_test_tag_entries` | 813 | def |  | 2 |
-| `main` | 825 | def |  | 2 |
-| `_stats` | 916 | def |  | 5 |
+| `_test_tag_resolve` | 740 | def |  | 2 |
+| `_test_tag_parse_entry` | 751 | def |  | 2 |
+| `_test_tag_fingerprint` | 782 | def |  | 2 |
+| `_test_tag_heartbeat_throttle` | 793 | def |  | 2 |
+| `_Client` | 795 | class |  | 1 |
+| `heartbeat_channels` | 800 | def |  | 1 |
+| `_test_tag_entries` | 831 | def |  | 2 |
+| `main` | 843 | def |  | 2 |
+| `_stats` | 934 | def |  | 5 |
 
 ## hda/scripts/reload_hda.py（121 行）
 
@@ -633,7 +639,7 @@
 | `stop_all_sync` | 203 | def |  | 1 |
 | `ensure_sync` | 216 | def |  | 4 |
 
-## hda/src/cyl1nder_tag.py（205 行）
+## hda/src/cyl1nder_tag.py（222 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -643,8 +649,9 @@
 | `_parse_entry` | 68 | def |  | 2 |
 | `_fingerprint` | 88 | def |  | 2 |
 | `register_channels` | 97 | def |  | 2 |
-| `heartbeat` | 148 | def |  | 2 |
-| `cook` | 165 | def |  | 3 |
+| `_read_param_values` | 148 | def |  | 2 |
+| `heartbeat` | 161 | def |  | 2 |
+| `cook` | 182 | def |  | 3 |
 
 ## web/src/app/address-bar.ts（310 行）
 
@@ -659,37 +666,58 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
+## web/src/app/channel-panel.ts（328 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `isNumericValue` | 40 | function | export | 3 |
+| `parseInput` | 45 | function | export | 2 |
+| `mergeValues` | 54 | function | export | 2 |
+| `mergePending` | 69 | function | export | 2 |
+| `clampFps` | 84 | function |  | 2 |
+| `initChannelPanel` | 99 | function | export | 1 |
+| `onInputChange` | 135 | function |  | 2 |
+| `buildRow` | 152 | function |  | 3 |
+| `replaceRow` | 174 | function |  | 2 |
+| `setRowValue` | 182 | function |  | 2 |
+| `renderList` | 192 | function |  | 4 |
+| `refresh` | 219 | function |  | 4 |
+| `applyValues` | 251 | function |  | 4 |
+| `flushPending` | 262 | function |  | 2 |
+
 ## web/src/app/color.ts（3 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/dock.ts（541 行）
+## web/src/app/dock.ts（609 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `layoutDebug` | 57 | function |  | 2 |
-| `categorizeLog` | 80 | function |  | 2 |
-| `renderLogBody` | 89 | function |  | 4 |
-| `createFreshLog` | 95 | function |  | 2 |
-| `createFreshInspector` | 123 | function |  | 2 |
-| `render` | 126 | arrow |  | 2 |
-| `createFreshSpreadsheet` | 148 | function |  | 2 |
-| `createFreshParam` | 164 | function |  | 2 |
-| `createPlaceholder` | 179 | function |  | 2 |
-| `createInstanceContent` | 189 | function |  | 2 |
-| `nextInstanceIndex` | 213 | function |  | 2 |
-| `addInstancePanel` | 223 | function |  | 2 |
-| `hideAddMenu` | 237 | function |  | 5 |
-| `ensureAddMenu` | 242 | function |  | 2 |
-| `toggleAddMenu` | 281 | function |  | 2 |
-| `groupIdForButton` | 296 | function |  | 2 |
-| `attachTabBarWheel` | 306 | function |  | 2 |
-| `closeTabGroup` | 324 | function |  | 2 |
-| `refreshAddButtons` | 340 | function |  | 4 |
-| `setupDock` | 398 | function | export | 1 |
-| `onLayoutChange` | 486 | arrow |  | 0 |
-| `applyLayout` | 530 | function | export | 1 |
+| `layoutDebug` | 62 | function |  | 2 |
+| `categorizeLog` | 85 | function |  | 2 |
+| `renderLogBody` | 94 | function |  | 4 |
+| `createFreshLog` | 100 | function |  | 2 |
+| `createFreshInspector` | 128 | function |  | 2 |
+| `render` | 131 | arrow |  | 2 |
+| `createFreshSpreadsheet` | 153 | function |  | 2 |
+| `createFreshParam` | 169 | function |  | 2 |
+| `readSyncMaxFpsFromPrefs` | 185 | function |  | 1 |
+| `createChannelPanel` | 202 | function |  | 3 |
+| `createPlaceholder` | 220 | function |  | 2 |
+| `createInstanceContent` | 230 | function |  | 2 |
+| `nextInstanceIndex` | 256 | function |  | 2 |
+| `addInstancePanel` | 266 | function |  | 2 |
+| `hideAddMenu` | 280 | function |  | 5 |
+| `ensureAddMenu` | 285 | function |  | 2 |
+| `toggleAddMenu` | 324 | function |  | 2 |
+| `groupIdForButton` | 339 | function |  | 2 |
+| `attachTabBarWheel` | 349 | function |  | 2 |
+| `closeTabGroup` | 367 | function |  | 2 |
+| `refreshAddButtons` | 383 | function |  | 4 |
+| `setupDock` | 441 | function | export | 1 |
+| `onLayoutChange` | 554 | arrow |  | 0 |
+| `applyLayout` | 598 | function | export | 2 |
 
 ## web/src/app/layout.ts（295 行）
 
@@ -781,13 +809,13 @@
 | `createDropdown` | 46 | function | export | 1 |
 | `createStepper` | 130 | function | export | 1 |
 
-## web/src/bridge/client.ts（502 行）
+## web/src/bridge/client.ts（559 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `BridgeClient` | 24 | class | export | 0 |
-| `connectWs` | 459 | function | export | 1 |
-| `connect` | 464 | arrow |  | 1 |
+| `connectWs` | 516 | function | export | 1 |
+| `connect` | 521 | arrow |  | 1 |
 
 ## web/src/color/color-math.ts（147 行）
 
@@ -884,11 +912,11 @@
 | `cloneParams` | 19 | function | export | 1 |
 | `paramsEqual` | 24 | function | export | 1 |
 
-## web/src/core/session.ts（176 行）
+## web/src/core/session.ts（184 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `createSessionManager` | 63 | function | export | 1 |
+| `createSessionManager` | 66 | function | export | 1 |
 
 ## web/src/core/shortcuts.ts（59 行）
 
@@ -902,7 +930,7 @@
 |---|---|---|---|---|
 | `createTimelineController` | 43 | function | export | 1 |
 
-## web/src/main.ts（1162 行）
+## web/src/main.ts（1164 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -919,22 +947,22 @@
 | `readJsonFromDir` | 386 | function |  | 5 |
 | `saveSceneAs` | 400 | function |  | 3 |
 | `openSceneFromDir` | 459 | function |  | 2 |
-| `applyLayoutSettings` | 751 | function |  | 4 |
-| `refreshSelectionPanels` | 766 | function |  | 1 |
-| `inputStatsText` | 841 | function |  | 2 |
-| `outputStatsText` | 850 | function |  | 2 |
-| `renderInspector` | 859 | function |  | 2 |
-| `isProjectModeActive` | 877 | function |  | 5 |
-| `projectAddress` | 883 | function |  | 3 |
-| `saveProjectGraph` | 893 | function |  | 5 |
-| `enterProjectMode` | 906 | function |  | 4 |
-| `updateGraphAddress` | 956 | function |  | 8 |
-| `scheduleNetwork` | 984 | function |  | 1 |
-| `flushStoreView` | 987 | function |  | 2 |
-| `loadSnapshotIntoStore` | 1014 | function |  | 3 |
-| `applyLoadedPreference` | 1051 | function |  | 3 |
-| `connectSerial` | 1088 | arrow |  | 1 |
-| `markGraphDirty` | 1155 | function |  | 2 |
+| `applyLayoutSettings` | 753 | function |  | 4 |
+| `refreshSelectionPanels` | 768 | function |  | 1 |
+| `inputStatsText` | 843 | function |  | 2 |
+| `outputStatsText` | 852 | function |  | 2 |
+| `renderInspector` | 861 | function |  | 2 |
+| `isProjectModeActive` | 879 | function |  | 5 |
+| `projectAddress` | 885 | function |  | 3 |
+| `saveProjectGraph` | 895 | function |  | 5 |
+| `enterProjectMode` | 908 | function |  | 4 |
+| `updateGraphAddress` | 958 | function |  | 8 |
+| `scheduleNetwork` | 986 | function |  | 1 |
+| `flushStoreView` | 989 | function |  | 2 |
+| `loadSnapshotIntoStore` | 1016 | function |  | 3 |
+| `applyLoadedPreference` | 1053 | function |  | 3 |
+| `connectSerial` | 1090 | arrow |  | 1 |
+| `markGraphDirty` | 1157 | function |  | 2 |
 
 ## web/src/nodes2/chain-cache.ts（358 行）
 
@@ -1189,7 +1217,7 @@
 | `payloadEqual` | 4 | function |  | 2 |
 | `inputsEqual` | 16 | function | export | 1 |
 
-## web/src/protocol/types.ts（193 行）
+## web/src/protocol/types.ts（196 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|

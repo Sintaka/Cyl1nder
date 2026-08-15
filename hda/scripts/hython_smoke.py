@@ -705,10 +705,20 @@ def _test_tag_hda() -> None:
         # while it is clean, so the python SOP would not re-run otherwise.
         cyl1nder_tag._LAST_HEARTBEAT = 0.0
         tag.node("cyl1nder_tag_py").cook(force=True)
-        post_paths = [r["path"] for r in requests if r["method"] == "POST"]
-        assert f"/api/hda/{serial}/channels/heartbeat" in post_paths, \
-            f"heartbeat not sent: {post_paths}"
-        print("tag heartbeat sent on unchanged cook OK")
+        hb_path = f"/api/hda/{serial}/channels/heartbeat"
+        heartbeats = [
+            json.loads(r["body"]) for r in requests
+            if r["method"] == "POST" and r["path"] == hb_path
+        ]
+        assert heartbeats, f"heartbeat not sent: {[r['path'] for r in requests if r['method'] == 'POST']}"
+        payload = heartbeats[-1]
+        assert "values" in payload, f"heartbeat payload lacks values: {payload}"
+        vals = payload["values"]
+        tx = "/obj/cyl1nder_tag_smoke/transform1/tx"
+        assert tx in vals, f"heartbeat values missing tx channel: {vals}"
+        assert isinstance(vals[tx], (int, float)) and not isinstance(vals[tx], bool), \
+            f"tx value not numeric: {vals[tx]!r}"
+        print(f"tag heartbeat sent on unchanged cook OK (values tx={vals[tx]})")
 
         # shape readback: in-session defaultShape OR persisted nodeshape userData
         shape = ""
@@ -793,21 +803,29 @@ def _test_tag_heartbeat_throttle() -> None:
 
     client = _Client()
     orig = cyl1nder_tag._LAST_HEARTBEAT
+    # real param left in the scene by _test_tag_hda (tx = 0.0) + a bogus path:
+    # values must carry the live scalar and skip the unreadable one.
+    param_paths = ["/obj/cyl1nder_tag_smoke/transform1/tx", "/obj/cyl1nder_tag_smoke/transform1/nope"]
+    tx = "/obj/cyl1nder_tag_smoke/transform1/tx"
     try:
         cyl1nder_tag._LAST_HEARTBEAT = 0.0
-        cyl1nder_tag.heartbeat(client, "C1-x", "/obj/geo1/transform1", "fp1")
+        cyl1nder_tag.heartbeat(client, "C1-x", "/obj/geo1/transform1", "fp1", param_paths)
         assert len(client.calls) == 1, "first heartbeat must fire"
-        cyl1nder_tag.heartbeat(client, "C1-x", "/obj/geo1/transform1", "fp1")
+        cyl1nder_tag.heartbeat(client, "C1-x", "/obj/geo1/transform1", "fp1", param_paths)
         assert len(client.calls) == 1, "second heartbeat within window must be throttled"
         assert client.calls[0]["upstreamNodePath"] == "/obj/geo1/transform1"
         assert client.calls[0]["fingerprint"] == "fp1"
         assert client.calls[0]["nodePath"] == "/obj/tag"
+        assert "values" in client.calls[0], "heartbeat payload must carry the values key"
+        assert client.calls[0]["values"][tx] == 0.0, client.calls[0]["values"]
+        assert "nope" not in client.calls[0]["values"], \
+            f"unreadable param must be skipped: {client.calls[0]['values']}"
         cyl1nder_tag._LAST_HEARTBEAT = 0.0  # simulate window passing
-        cyl1nder_tag.heartbeat(client, "C1-x", "/obj/geo1/transform1", "fp1")
+        cyl1nder_tag.heartbeat(client, "C1-x", "/obj/geo1/transform1", "fp1", param_paths)
         assert len(client.calls) == 2, "heartbeat after window must fire"
     finally:
         cyl1nder_tag._LAST_HEARTBEAT = orig
-    print("heartbeat >=5s throttle OK")
+    print("heartbeat >=5s throttle + values key OK")
 
 
 def _test_tag_entries() -> None:

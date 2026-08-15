@@ -18,6 +18,8 @@ import { DockviewComponent } from "dockview";
 import "dockview/dist/styles/dockview.css";
 import { store } from "../stores/workspace";
 import { BridgeClient } from "../bridge/client";
+import { initChannelPanel, type ChannelPanelHandle } from "./channel-panel";
+import { clampSyncFps, SYNC_FPS_DEFAULT } from "./preference";
 
 export interface DockContent {
   graph: HTMLElement;
@@ -26,6 +28,8 @@ export interface DockContent {
   log: HTMLElement;
   spreadsheet: HTMLElement;
   param: HTMLElement;
+  /** 通道参数面板容器（P5a）。main.ts 不传（非其写集），dock 自建主实例；可选以兼容旧调用。 */
+  channel?: HTMLElement;
 }
 
 const STORAGE_KEY = "cyl1nder.dock.layout.v1";
@@ -39,6 +43,7 @@ const PANEL_TYPES = [
   { type: "log", title: "Log" },
   { type: "spreadsheet", title: "Spreadsheet" },
   { type: "param", title: "Params" },
+  { type: "channel", title: "通道参数" },
 ] as const;
 
 const PANEL_TYPE_TITLES: Record<string, string> = Object.fromEntries(
@@ -170,6 +175,42 @@ function createFreshParam(): { el: HTMLElement; dispose: () => void } {
   return { el, dispose: () => {} };
 }
 
+/** P5a 通道参数面板句柄注册点：main.ts 在 SessionDeps 注入 applyChannelValues 时调用
+ *  channelPanelRef.current?.applyValues(...)。dock 每次创建通道面板实例后赋值；
+ *  current 为 null（面板尚未创建）时 main.ts 端 no-op。接口稳定，勿改形状。 */
+export const channelPanelRef: { current: ReturnType<typeof initChannelPanel> | null } = { current: null };
+
+/** P5a 面板节流来源：main.ts 的 syncMaxFps 是模块内 let（非本文件可读），
+ *  面板自读 localStorage "cyl1nder.prefs" 的 sync_max_fps（1..60，缺省 30）。 */
+function readSyncMaxFpsFromPrefs(): number {
+  try {
+    const raw = localStorage.getItem("cyl1nder.prefs");
+    if (raw) {
+      const p = JSON.parse(raw) as { sync_max_fps?: unknown };
+      return clampSyncFps(p.sync_max_fps);
+    }
+  } catch {
+    /* corrupt JSON -> default */
+  }
+  return SYNC_FPS_DEFAULT;
+}
+
+/** 通道参数面板实例（主实例与 "+" 新增实例共用）：容器注入 initChannelPanel；
+ *  每次创建都重绑 channelPanelRef.current（main.ts 粘合 WS 推送的目标）。
+ *  isVisible：dockview 隐藏 tab 时内容元素脱离 DOM（isConnected=false），
+ *  叠加 document.visibilityState 门控轮询。 */
+function createChannelPanel(): { el: HTMLElement; dispose: () => void; handle: ChannelPanelHandle } {
+  const container = document.createElement("div");
+  container.className = "cyl-channel-panel";
+  const handle = initChannelPanel(container, {
+    getSerial: () => store.serial,
+    getSyncMaxFps: readSyncMaxFpsFromPrefs,
+    isVisible: () => container.isConnected && document.visibilityState === "visible",
+  });
+  channelPanelRef.current = handle;
+  return { el: container, dispose: () => handle.dispose(), handle };
+}
+
 /**
  * Viewport / Node Graph are heavy singletons (a second WebGL canvas / rete
  * editor would require wiring from main.ts which is out of scope). v1: add the
@@ -196,6 +237,8 @@ function createInstanceContent(type: string, title: string): { el: HTMLElement; 
       return createFreshSpreadsheet();
     case "param":
       return createFreshParam();
+    case "channel":
+      return createChannelPanel();
     default:
       return createPlaceholder(type, title);
   }
@@ -404,6 +447,7 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
     spreadsheet: content.spreadsheet,
     param: content.param,
   };
+  if (content.channel) byId.channel = content.channel;
 
   const dv = new DockviewComponent(container, {
     createComponent: (opts: { id: string; name: string } & { params?: { cylInstance?: boolean; cylPanelType?: string } }) => {
@@ -436,8 +480,23 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
         };
       }
 
-      // Original 6 panels: shared content element from byId.
-      const inner = byId[raw];
+      // Original 6 panels: shared content element from byId. The channel panel is
+      // NOT part of main.ts's DockContent (out of that file's scope) - dock.ts
+      // builds its own primary instance, so a layout referencing
+      // contentComponent "channel" restores correctly and binds channelPanelRef.
+      let inner: HTMLElement | undefined;
+      let builtChannel: { dispose: () => void } | null = null;
+      if (raw === "channel") {
+        if (byId.channel) {
+          inner = byId.channel; // 调用方自供容器（未来 main.ts 接住时用）
+        } else {
+          const built = createChannelPanel();
+          builtChannel = built;
+          inner = built.el;
+        }
+      } else {
+        inner = byId[raw];
+      }
       return {
         element: wrapper,
         init: () => {
@@ -446,7 +505,7 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
             if (!wrapper.contains(inner)) wrapper.appendChild(inner);
           }
         },
-        dispose: () => {},
+        dispose: () => builtChannel?.dispose(),
       };
     },
     theme: { name: "dark", className: "dockview-theme-dark", colorScheme: "dark" },
@@ -479,6 +538,15 @@ export function setupDock(container: HTMLElement, content: DockContent): Dockvie
     component: "spreadsheet",
     title: "Spreadsheet",
     position: { referencePanel: "graph", direction: "below" },
+  });
+  // P5a 通道参数面板（主实例）：main.ts 之后 applyLayout(Default.json) 会重建网格，
+  // 该面板不在 Default.json 时会被关闭（applyLayout 失败回退程序化布局时保留）；
+  // 随时可用 "+" 菜单重新添加。createComponent("channel") 自建实例并绑定 channelPanelRef。
+  dv.addPanel({
+    id: "channel",
+    component: "channel",
+    title: "通道参数",
+    position: { referencePanel: "spreadsheet", direction: "below" },
   });
 
   // Save layout (debounced) + print debug summary + keep "+" buttons in sync.

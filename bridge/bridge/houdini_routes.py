@@ -3,6 +3,7 @@
 Endpoints:
 - GET/PUT /api/hda/{serial}/timeline        web <-> Houdini timeline sync
 - PUT    /api/hda/{serial}/hou-timeline     HDA reports its timeline (push path)
+- GET/PUT /api/hda/{serial}/channel-values  batch param channel value sync (P5a)
 - GET/PUT /api/hda/{serial}/houdini         MCP port + liveness probe
 - POST   /api/hda/{serial}/houdini/cmd      command proxy (allow-listed namespaces)
 - POST   /api/hda/{serial}/houdini/python   code.execute_python proxy
@@ -64,6 +65,13 @@ _SET_FLIGHT: dict[str, bool] = {}
 # call_later flush handles per serial (PUT /timeline latest-wins flush)
 _SET_TIMERS: dict[str, asyncio.TimerHandle] = {}
 
+# P5a channel-values: GET 0.25s 整响应缓存 + PUT latest-wins 节流（per serial）
+_CHANNEL_VALUES_CACHE: dict[str, tuple[float, dict]] = {}  # (time.time, values)
+_CV_PENDING: dict[str, dict] = {}    # PUT 最新 pending values（整 dict 替换 = latest-wins）
+_CV_LAST: dict[str, float] = {}      # PUT 上次 flush 的 monotonic ts
+_CV_FLIGHT: dict[str, bool] = {}     # PUT single-flight
+_CV_TIMERS: dict[str, asyncio.TimerHandle] = {}  # PUT flush handles
+
 _WRITEBACK_INTERVAL = 30.0     # seconds between registry mcpPort disk writes
 _TL_IDLE = 10.0                # seconds without a GET before the poller stops
 _POLL_FAIL_MAX = 3             # consecutive get_frame failures before resting
@@ -71,6 +79,7 @@ _POLL_FAIL_REST = 2.0          # seconds to rest after a failure streak
 _PORT_FAIL_CACHE_TTL = 2.0     # seconds to skip full discovery after a failed resolve
 _GET_MIN_INTERVAL = 0.066      # 66ms floor -> ~15Hz max get poll regardless of fps
 _SET_MIN_INTERVAL = 0.033      # 33ms floor for set_frame regardless of fps
+_CV_CACHE_TTL = 0.25           # channel-values GET 整响应缓存 TTL（秒）
 
 
 def _get_interval(serial: str) -> float:
@@ -371,6 +380,152 @@ async def _send_pending(serial: str, port: int) -> str | None:
     if more_pending:
         _arm_set_flush(serial, port, _get_set_interval(serial))
     return err
+
+
+# --- channel-values（P5a：批量 param 通道值同步）-------------------------------
+
+
+@router.get("/api/hda/{serial}/channel-values")
+async def get_channel_values(serial: str) -> dict:
+    """P5a：批量读该 serial 的 param 通道当前值（0.25s 整响应缓存）。
+
+    通道来源 = 关联注册大全 kind=param 且 serial 匹配；absolutePath 按 rsplit("/", 1)
+    拆 node_path/parm_name；单通道读失败或信封 error 跳过（不进 values）。
+    """
+    _check_serial(serial)
+    with _LOCK:
+        cached = _CHANNEL_VALUES_CACHE.get(serial)
+    if cached is not None and time.time() - cached[0] < _CV_CACHE_TTL:
+        return {"ok": True, "values": cached[1]}
+    channels = [
+        r for r in get_state().channels.list()
+        if r.get("kind") == "param" and r.get("serial") == serial
+    ]
+    values: dict = {}
+    if channels:
+        port = await asyncio.to_thread(_resolve_port, serial)
+        if not port:
+            return {"ok": False, "error": "houdini mcp not reachable"}
+        for ref in channels:
+            absolute = ref.get("absolutePath") or ""
+            parts = absolute.rsplit("/", 1)
+            if len(parts) != 2 or not parts[0] or not parts[1]:
+                continue  # 畸形 absolutePath 跳过
+            node, parm = parts
+            try:
+                result = await asyncio.to_thread(
+                    houdini_mcp.rpc, port, "parameters.get_parameter",
+                    {"node_path": node, "parm_name": parm}, 4.0,
+                )
+            except Exception:
+                continue  # 读失败通道跳过
+            if not isinstance(result, dict) or result.get("status") == "error":
+                continue  # 信封 error 通道跳过
+            data = result.get("data")
+            # 值提取宽容：data 为 dict 取 value，否则 data 本身
+            values[absolute] = data.get("value") if isinstance(data, dict) else data
+    with _LOCK:
+        _CHANNEL_VALUES_CACHE[serial] = (time.time(), values)
+    return {"ok": True, "values": values}
+
+
+class ChannelValuesPut(BaseModel):
+    values: dict
+
+
+@router.put("/api/hda/{serial}/channel-values")
+async def put_channel_values(serial: str, payload: ChannelValuesPut) -> dict:
+    """P5a：批量写 param 通道值（latest-wins 节流 + single-flight，照 PUT /timeline）。
+
+    成功后不回显广播（web 发起，防回环）；每项 trace param-set（失败项 digest=error:...）。
+    """
+    _check_serial(serial)
+    values = payload.values or {}
+    port = await asyncio.to_thread(_resolve_port, serial)
+    if not port:
+        return {"ok": False, "error": "houdini mcp not reachable"}
+    if not values:
+        return {"ok": True}
+    interval = _get_set_interval(serial)
+    now = time.monotonic()
+    with _LOCK:
+        _CV_PENDING[serial] = values  # 整 dict 替换 = latest-wins
+        last = _CV_LAST.get(serial, 0.0)
+        in_flight = _CV_FLIGHT.get(serial, False)
+    if in_flight:
+        # 发送中：完成后自动补发最新 pending
+        return {"ok": True, "throttled": True}
+    if now - last < interval:
+        _arm_cv_flush(serial, port, interval - (now - last))
+        return {"ok": True, "throttled": True}
+    await _send_cv_pending(serial, port)
+    return {"ok": True}
+
+
+def _arm_cv_flush(serial: str, port: int, delay: float) -> None:
+    """Arm a single call_later flush of the latest pending values (latest-wins)."""
+    loop = asyncio.get_running_loop()
+    with _LOCK:
+        existing = _CV_TIMERS.get(serial)
+        if existing is not None and not existing.cancelled():
+            return  # flush already armed; latest pending is picked up at fire time
+        handle = loop.call_later(delay, lambda: loop.create_task(_flush_cv_pending(serial, port)))
+        _CV_TIMERS[serial] = handle
+
+
+async def _flush_cv_pending(serial: str, port: int) -> None:
+    with _LOCK:
+        _CV_TIMERS.pop(serial, None)
+        in_flight = _CV_FLIGHT.get(serial, False)
+        pending = _CV_PENDING.get(serial)
+    if in_flight or pending is None:
+        return
+    await _send_cv_pending(serial, port)
+
+
+async def _send_cv_pending(serial: str, port: int) -> None:
+    """Send the latest pending values to Houdini (single-flight, no echo broadcast)."""
+    with _LOCK:
+        pending = _CV_PENDING.pop(serial, None)
+        if pending is None:
+            return
+        _CV_FLIGHT[serial] = True
+        _CV_LAST[serial] = time.monotonic()
+    for absolute, value in pending.items():
+        parts = absolute.rsplit("/", 1)
+        if len(parts) != 2 or not parts[0] or not parts[1]:
+            get_state().logs.error("houdini", f"bad channel target {absolute!r}", serial)
+            get_state().trace.add(
+                actor="web-param", action="param-set", channel=serial,
+                target=absolute, digest="error:bad target",
+            )
+            continue
+        node, parm = parts
+        err: str | None = None
+        try:
+            result = await asyncio.to_thread(
+                houdini_mcp.rpc, port, "parameters.set_parameter",
+                {"node_path": node, "parm_name": parm, "value": value}, 4.0,
+            )
+        except Exception as exc:
+            err = str(exc)
+        else:
+            if not isinstance(result, dict) or result.get("status") == "error":
+                err = str(result.get("error") if isinstance(result, dict) else result)
+        if err is not None:
+            get_state().logs.error("houdini", f"set_parameter {absolute} failed: {err}", serial)
+            digest = f"error:{err}"[:80]
+        else:
+            digest = str(value)[:80]
+        get_state().trace.add(
+            actor="web-param", action="param-set", channel=serial,
+            target=absolute, digest=digest,
+        )
+    with _LOCK:
+        _CV_FLIGHT[serial] = False
+        more_pending = serial in _CV_PENDING
+    if more_pending:
+        _arm_cv_flush(serial, port, _get_set_interval(serial))
 
 
 class HouTimelinePut(BaseModel):

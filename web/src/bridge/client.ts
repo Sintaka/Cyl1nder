@@ -383,6 +383,63 @@ export class BridgeClient {
     }
   }
 
+  /** GET /api/hda/{serial}/channel-values — 该 serial 全部 param 通道的当前值
+   *  （bridge 侧 0.25s 缓存，照 GET /timeline 模式）。不抛：断连/旧桥/400 都归一为
+   *  {ok:false, values:{}, error}。 */
+  async getChannelValues(serial: string): Promise<{ ok: boolean; values: Record<string, unknown>; error?: string }> {
+    try {
+      const res = await fetch(`${this.base}/api/hda/${serial}/channel-values`);
+      const body = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        values?: Record<string, unknown>;
+        error?: string;
+        detail?: unknown;
+      } | null;
+      if (!res.ok) {
+        let error: string;
+        if (body && typeof body.error === "string") error = body.error;
+        else if (body && body.detail !== undefined) error = String(body.detail);
+        else error = `${res.status} ${res.statusText}`;
+        return { ok: false, values: {}, error };
+      }
+      return { ok: body?.ok ?? true, values: body?.values ?? {}, error: body?.error };
+    } catch (err) {
+      return { ok: false, values: {}, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  /** PUT /api/hda/{serial}/channel-values — 批量写 param 通道值（body {values}；
+   *  bridge 侧 Sync Max FPS 节流 + latest-wins + single-flight，成功后不回显广播）。
+   *  错误语义同 getChannelValues。 */
+  async putChannelValues(
+    serial: string,
+    values: Record<string, unknown>,
+  ): Promise<{ ok: boolean; values?: Record<string, unknown>; error?: string }> {
+    try {
+      const res = await fetch(`${this.base}/api/hda/${serial}/channel-values`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ values }),
+      });
+      const body = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        values?: Record<string, unknown>;
+        error?: string;
+        detail?: unknown;
+      } | null;
+      if (!res.ok) {
+        let error: string;
+        if (body && typeof body.error === "string") error = body.error;
+        else if (body && body.detail !== undefined) error = String(body.detail);
+        else error = `${res.status} ${res.statusText}`;
+        return { ok: false, error };
+      }
+      return { ok: body?.ok ?? true, values: body?.values, error: body?.error };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
   /** GET /api/projects — 项目列表（P2a 项目层，成员为通道引用快照）。 */
   async listProjects(): Promise<{ projects: ProjectRef[] }> {
     return json(await fetch(`${this.base}/api/projects`));

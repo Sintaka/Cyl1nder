@@ -656,3 +656,11 @@ efreshSelectionPanels()——sel 为空且已渲染过 → 直接 return 不重�
 - `overview.ts`：data 行 6 列（+`ov-value-cell` 截断显示 title 全量）+「读值/写值」按钮（写值 prompt 预填 + JSON.parse 校验）；纯函数 `channelValueString/formatChannelValue/channelActionButtons` 导出供单测；页面块 document 守卫（node 可导入）；非 data 行 HTML 字节级不变。
 - `overview.css`：`.ov-row.channels.data` 6 列网格、`.ov-value-cell`、`.ov-kind.data` 徽标、action 列 flex 并排。
 - 测试 +11（data-channels.test.ts：formatChannelValue 三态/按钮分支/channelIdOf）；tsc 0、vitest **255**。
+## v0.1.00111（2026-08-15）——通道参数面板（P5a 参数同步极致化）
+- `types.ts`：WsServerMessage 联合 +`{type:"channel-values", values}`；`client.ts` +`getChannelValues`/`putChannelValues`（错误归一不抛）。
+- `core/session.ts`：SessionDeps +可选 `applyChannelValues?`；onMessage `channel-values` 分支（非活动成员 return）。
+- 新 `app/channel-panel.ts`：面板组件（列表=大全 kind=param 且 serial 匹配；数字→number 输入、其它 text；编辑行 editing 不覆盖；pending latest-wins + 1000/fps 定时 flush 单飞行；WS 推送即时刷新 + 250ms 轮询兜底（isVisible 门控）；serial 变化重拉）；纯逻辑导出 `isNumericValue/parseInput/mergeValues/mergePending`。
+- `app/dock.ts`：注册「通道参数」面板（"+"菜单 + 实例工厂 + 布局恢复 + 程序化默认）+ 导出 `channelPanelRef`；`styles/channel-panel.css` 深色主题。
+- `main.ts`（主进程粘合）：SessionDeps 注入 `applyChannelValues → channelPanelRef.current?.applyValues`；`layouts/Default.json` +channel 面板 tab（Inspector 组）。
+- 测试 +17（channel-panel.test.ts）；tsc 0、vitest **272**。
+- 实机：浏览器打开 ?serial=吊牌 → 「Channels 参数」面板渲染 tx=7.75/ty=1.5（与 Houdini 实值一致，含 Houdini 侧改动经心跳捎带更新）。

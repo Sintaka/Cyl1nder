@@ -144,3 +144,7 @@
 - **`cyl1nder_tag.py`**：新增 `_parse_entry(entry, upstream)`——param 条目原语义不变；data 条目 `@<adapter>:<nodePath>:<parmName>`（仅绝对节点路径）→ `("data", {"absolutePath": "<node>/<parm>", "adapter": …})`，非法 → None（状态写 `bad-entry: …`）。`register_channels` 拆 param/data 两列表（data 注册带 `adapter` 字段）；指纹载荷改为**原样条目文本**（条目文本变才重注册）。
 - `hython_smoke.py`：+`_test_tag_parse_entry`（param 原语义/data 解析/非法→None）+ `_test_tag_hda` 加 `@apex-anim:` 条目断言（kind=data + adapter 字段 + channelId 路径）。
 - 验证：hython SMOKE OK；实机 8100 data 通道注册与值读写往返通过。
+## v0.1.00111（2026-08-15）——心跳捎带参数值（P5a 参数同步极致化）
+- **`cyl1nder_tag.py`**：`_read_param_values(param_paths)`（`hou.parm(absPath).eval()`，str/int/float/bool/None 直传、其它 str() 化、读失败跳过）；`heartbeat` 签名 +第 5 参 `param_paths`，**节流通过后才读值**（节流期零轮询开销），payload +`"values"`。
+- `hython_smoke.py`：节流单测断言 `values` 键 + 真实 tx 值 0.0 + 坏路径跳过；E2E 第二次 cook 断言 heartbeat body 含 `values[transform1/tx]`。
+- 验证：hython SMOKE OK；实机 8100 心跳捎带 tx 值经 bridge WS 广播 → web 面板即时回显。

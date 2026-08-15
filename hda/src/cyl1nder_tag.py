@@ -145,8 +145,24 @@ def register_channels(client, param_paths, data_refs, upstream, hip, tag_path, s
     return refs
 
 
-def heartbeat(client, serial, upstream, fingerprint) -> None:
-    """Throttled (>= TAG_HEARTBEAT_INTERVAL) heartbeat summary POST."""
+def _read_param_values(param_paths: list[str]) -> dict:
+    """读注册参数当前值（hou.parm 绝对路径）；仅 JSON 可序列化标量（str/int/float/bool/None），
+    其它（如向量）str() 化；读失败跳过该通道。"""
+    values: dict = {}
+    for path in param_paths:
+        try:
+            v = hou.parm(path).eval()
+        except Exception:
+            continue
+        values[path] = v if isinstance(v, (str, int, float, bool)) or v is None else str(v)
+    return values
+
+
+def heartbeat(client, serial, upstream, fingerprint, param_paths) -> None:
+    """Throttled (>= TAG_HEARTBEAT_INTERVAL) heartbeat summary POST.
+
+    Registered params' current values are read only when the throttle passes
+    (zero polling cost on throttled cooks)."""
     global _LAST_HEARTBEAT
     now = time.time()
     if now - _LAST_HEARTBEAT < TAG_HEARTBEAT_INTERVAL:
@@ -158,6 +174,7 @@ def heartbeat(client, serial, upstream, fingerprint) -> None:
             "nodePath": client.node_path,
             "upstreamNodePath": upstream,
             "fingerprint": fingerprint,
+            "values": _read_param_values(param_paths),
         }
     )
 
@@ -196,7 +213,7 @@ def cook() -> None:
         register_channels(client, param_paths, data_refs, upstream.path(), hip, tag_path, serial)
         _FINGERPRINTS[serial] = fingerprint
     else:
-        heartbeat(client, serial, upstream.path(), fingerprint)
+        heartbeat(client, serial, upstream.path(), fingerprint, param_paths)
 
     if bad:
         _set_status(subnet, f"bad-entry: {bad[0]}")

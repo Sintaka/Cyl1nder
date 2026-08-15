@@ -152,7 +152,10 @@ export type WsServerMessage =
   | { type: "hello"; serial: string; inputRev: number; outputRev: number }
   | { type: "inputs"; inputs: InputPayload[]; rev: number; frame?: number }
   | { type: "outputs"; outputs: OutputBuffer[]; rev: number }
-  | { type: "pong" };
+  | { type: "pong" }
+  // P5a 通道值推送（bridge 广播 {values: {absolutePath: value}}，session 接收后经
+  // applyChannelValues 注入通道参数面板即时刷新）。
+  | { type: "channel-values"; values: Record<string, unknown> };
 
 // NDJSON long-poll events (HDA -> bridge GET /stream; web does not consume)
 export type StreamEvent =
