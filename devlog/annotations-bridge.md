@@ -100,3 +100,9 @@
 - `state.py` +`self.channels`；`protocol.py` +`ChannelRef`（VERSION 未动）。`set_houdini_mcp` 对未注册 serial 不建条目 → 吊牌探测经 discover_first 兜底、不污染 HDA 场景列表（实机确认）。
 - 测试 +20（registry 单测 + 裸 FastAPI 路由测试 + 本地 mcp stub + `_node_type_name` 变体）；pytest **130 全绿**。
 - 实机：桥重启上线 0.1.00105，/api/channels 注册/探测/runtime 改参实测通过。
+## v0.1.00107（2026-08-15）——项目注册（吊牌 HDA P2a）
+- **protocol.py**：`PROJECT_SERIAL_RE`（`P1-<b36ms>-<4rand>`）、`generate_project_serial`/`is_valid_project_serial`、`ProjectRef`（projectSerial/label/createdAt/updatedAt/members: list[ChannelRef] 引用快照，live 状态以 /api/channels 为准）。
+- **新 projects.py ProjectRegistry**：照 ChannelRegistry（Lock + 1s debounce + tmp+replace + 容错 load），落盘 `bridge/data/projects.json`；create（P1- serial、立即 force 落盘）/get/list（createdAt 升序）/add_member（按通道 key 去重替换、updatedAt 刷新）/remove_member/save_now。
+- **新 project_routes.py** 6 端点：`POST/GET /api/projects`、`GET /api/projects/{id}`、`POST /api/projects/{id}/members`（body=ChannelRef 去重）、`DELETE /api/projects/{id}/members?channelId=`（**query 参数**，param 通道 key 含 "/"）、`POST /api/projects/ensure`（成员命中 created=False；否则 tag>hda 按 registeredAt 取首个建成员，大全无通道则 fallback kind:"hda" 占位，created=True）。main.py 挂载（主进程粘合）。
+- 测试 +27（test_projects.py）；pytest **157 全绿**。
+- 实机（8100 实例桥）：建项目/加 tag+param 成员/DELETE 成员/ensure 两分支（已存在复用 created=False、新 serial 隐式建项 created=True）全部实测通过。

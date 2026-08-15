@@ -1,6 +1,6 @@
 # API 索引 / API INDEX
 
-> 机器生成（2026-08-14），由 `node scripts/gen-api-index.mjs` 产出。单源：bridge/bridge/*.py
+> 机器生成（2026-08-15），由 `node scripts/gen-api-index.mjs` 产出。单源：bridge/bridge/*.py
 
 ## REST (127.0.0.1:8375)
 
@@ -43,6 +43,12 @@
 - `GET` `/api/channels` (channel_routes.py:61)
 - `POST` `/api/hda/{serial}/channels/heartbeat` (channel_routes.py:73)
 - `GET` `/api/channels/{channelId:path}/probe` (channel_routes.py:84)
+- `POST` `/api/projects` (project_routes.py:36)
+- `GET` `/api/projects` (project_routes.py:42)
+- `GET` `/api/projects/{projectId}` (project_routes.py:47)
+- `POST` `/api/projects/{projectId}/members` (project_routes.py:56)
+- `DELETE` `/api/projects/{projectId}/members` (project_routes.py:65)
+- `POST` `/api/projects/ensure` (project_routes.py:76)
 - `WEBSOCKET` `/ws` (ws.py:105)
 
 ## MCP tools (bridge.mcp_server)

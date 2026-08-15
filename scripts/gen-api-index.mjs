@@ -16,7 +16,7 @@ md.push("");
 // REST
 md.push("## REST (127.0.0.1:8375)");
 md.push("");
-for (const f of ["routes.py", "houdini_routes.py", "snapshot_routes.py", "channel_routes.py", "ws.py"]) {
+for (const f of ["routes.py", "houdini_routes.py", "snapshot_routes.py", "channel_routes.py", "project_routes.py", "ws.py"]) {
   const p = path.join(B, f);
   if (!fs.existsSync(p)) continue;
   const lines = fs.readFileSync(p, "utf8").split(/\r?\n/);

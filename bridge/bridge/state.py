@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .channels import ChannelRegistry
 from .logs import LogRing
+from .projects import ProjectRegistry
 from .protocol import (
     SYNC_FPS_DEFAULT,
     SYNC_FPS_MAX,
@@ -30,6 +31,7 @@ class BridgeState:
         self.data_dir = data_dir
         self.registry = SerialRegistry(data_dir / "registry.json")
         self.channels = ChannelRegistry(data_dir / "channels.json")
+        self.projects = ProjectRegistry(data_dir / "projects.json")
         self.workspaces = WorkspaceStore()
         self.logs = LogRing()
         self.ui_layout = UiLayoutStore(data_dir / "ui-layout.json")

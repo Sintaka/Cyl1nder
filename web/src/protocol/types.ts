@@ -88,6 +88,17 @@ export interface ChannelRef {
   lastSeen: number;
 }
 
+// 项目层（P2a）：项目 = 通道引用聚合。项目序列号前缀 P1-，与 HDA serial（C1-）区分。
+export const PROJECT_SERIAL_RE = /^P1-[0-9a-z]{8,}-[0-9a-z]{4}$/;
+
+export interface ProjectRef {
+  projectSerial: string;
+  label: string;
+  createdAt: number;
+  updatedAt: number;
+  members: ChannelRef[]; // 通道引用快照（live 状态以 /api/channels 为准）
+}
+
 export interface StatusResponse {
   serial: string;
   registry: RegistryRecord | null;

@@ -17,6 +17,8 @@
 
 ## P1 — 吊牌 HDA 最小闭环（参数注册 + 心跳 + runtime 改参）
 
+> **状态（v0.1.00106，2026-08-15）：已完成并实机验收（8100 实例）。** 详情见 annotations-{hda,bridge,web}.md v0.1.00106 节。遗留 P1.5：web 参数面板→runtime 改参 UI 接线、entries menu 生成、pass-through 可选版（纯侧挂不在 display 链时上游变化不自然 cook，探测为主路径、心跳为机会式）。
+
 ### 写集（拟定，实现时按并行规范再拆不相交）
 - **hda**：`hda/scripts/build_hda.py`（新节点类型 `Cyl1nderTag`：Subnet、外形 = Z 菜单第 22 号、隐藏参数 `cyl1nder_serial`、参数列表多行 string parm、1 输入 N/1 输出或纯侧挂）；`hda/src/cyl1nder_tag.py`（新：薄壳 cook——首次/修改时把条目翻译成绝对路径并注册；心跳摘要节流 ≥5s；纯 stdlib 客户端复用 `cyl1nder_bridge` 模式）；`hda/scripts/reload_hda.py` MODULES 增 `cyl1nder_tag`（保持无长生命周期线程红线）。
 - **bridge**：`bridge/bridge/channels.py`（新：通道注册表——内存 + `bridge/data/channels.json` 落盘，channelRef = `{kind:"tag"|"hda"|"param", serial?, nodePath?, absolutePath?, hip, label, registeredAt, lastSeen}`）；`bridge/bridge/channel_routes.py`（新路由：`PUT /api/channels/{channelId}` 注册、`GET /api/channels` 大全列表、`POST /api/hda/{serial}/channels/heartbeat` 心跳摘要、`GET /api/channels/{channelId}/probe` 经 houdini 代理做存活探测）；`main.py` 挂载（主进程粘合）。
@@ -34,9 +36,14 @@ pytest（channels 注册/心跳/探测 + 路由）/ tsc+vitest（store/面板）
 
 ## P2 — 项目层（多 HDA 绑定）
 
-- `bridge/data/projects.json`（`P1-…` serial + label + members: channelRef[]）；`?project=` 路由；nodeview 根 = 项目（成员通道为子节点）；多 serial WS（每成员一条，复用现机制）；关联大全面板（overview 扩展）拖通道入项目。
-- 兼容：`?serial=X` → 隐式项目（自动建单成员）。
-- 协议：`P1-` 序列号正则 + projects 端点三处同步。
+> **拆分（2026-08-15，主进程拆结构）**：P2a（当前轮）= 项目注册表/端点 + `?project=` + 隐式项目兼容 + overview 项目面板与拖拽入项目；P2b（下轮）= nodeview 项目根 + 多 serial WS + 图快照按 project 存（web 核心手术，与 P2a 解耦）。
+
+### P2a
+- `bridge/data/projects.json`（`P1-…` serial + label + members: channelRef[]）；端点：`POST /api/projects`（建）、`GET /api/projects`（列表）、`GET /api/projects/{id}`、`POST /api/projects/{id}/members`（加成员，按通道 key 去重）、`DELETE /api/projects/{id}/members?channelId=`（移成员）、`POST /api/projects/ensure`（body {serial}：无含该 serial 通道的项目则自动建 `P1-…` 单成员隐式项目 → 返回 {project, created}）。
+- 兼容：`?serial=X` 行为不变（照常开工作区），boot 后台 ensure 隐式项目；`?project=P1-…` overview 展开该项目（成员列表 + 每成员「打开工作区」= `?serial=` 跳转）。
+- web：stores/projects.ts + client 端点方法 + overview「项目」区块（新建项目、HTML5 DnD 拖通道入项目、成员列表）。
+- 协议：`P1-` 序列号正则 + ProjectRef + projects 端点三处同步（protocol.py / types.ts / protocol.md）。
+- 语义：项目成员是 channelRef **引用快照**（live 状态以 /api/channels 大全为准）。
 
 ## P3 — 轨迹页（谁动了数据）
 

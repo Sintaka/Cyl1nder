@@ -66,6 +66,15 @@
 - `GET  /api/channels/{channelId:path}/probe`：无此通道 → 404；经 fxhoudinimcp 代理 `nodes.get_node_info`（timeout 4s）确认节点存活与类型仍是 `Cyl1nderTag`；-> `{ok, alive, matched, nodePath, serial, reason}`（探测失败 ok 仍 true、alive=false）
 - **吊牌行为**：cook 时解析 `entries`（多行，相对路径以第 0 输入上游节点为基准）→ 首次/指纹变化注册（1 条 kind=tag + 每参数 1 条 kind=param）；否则心跳（节流 ≥5s）。改参一律走既有 `POST /api/hda/{serial}/houdini/cmd`（`parameters.set_parameter`），吊牌不参与。
 
+## 项目端点（P2a，v0.1.00107 起）
+- **ProjectRef**：`{projectSerial: "P1-<b36ms>-<4rand>", label, createdAt, updatedAt, members: [channelRef…]}`。`P1-` 前缀 = 项目序列号（与 `C1-` 的 HDA/吊牌 serial 区分）；成员是通道引用**快照**（live 状态以 `/api/channels` 大全为准）。
+- `POST /api/projects`，body `{label?}` -> `{ok, project}`
+- `GET  /api/projects` -> `{projects: [...]}`（createdAt 升序）
+- `GET  /api/projects/{projectId}` -> `{ok, project}`（非法 400 / 不存在 404）
+- `POST /api/projects/{projectId}/members`，body = channelRef -> `{ok, project}`（按通道 key 去重）
+- `DELETE /api/projects/{projectId}/members?channelId=<key>` -> `{ok, project}`（channelId 用 **query 参数**：param 通道 key 含 "/"）
+- `POST /api/projects/ensure`，body `{serial}` -> `{ok, project, created}`：无含该 serial 成员的项目则自动建 `P1-…` 单成员隐式项目（成员优先取 /api/channels 大全中该 serial 的 tag/hda 通道，缺失则 fallback `kind:"hda"`）
+
 ## 快照恢复端点（v0.1.00102 起）
 - `POST /api/hda/{serial}/snapshot/restore` -> `{ok, serial, restored, inputRev, outputRev}`：从磁盘快照回填**空** workspace（绝不覆盖运行态），恢复后 WS 广播 inputs/outputs；桥启动时 lifespan 自动对全部 registry serial 执行等价回填（`snapshot.restore_all_workspaces`），关闭时 `flush_all_workspaces` 强制落盘。
 - 快照读取为**双根合并**：hip 目录旁 `Cyl1nder/<serial>/` 优先、`bridge/data/snapshots/<serial>/` 补缺（registry.hip 暂时为空时写入回退根，双根合并保证都能读到）。

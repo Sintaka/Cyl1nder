@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-14），由 `node scripts/gen-index.mjs` 产出。共 **730** 个函数/类。
+> 机器生成（2026-08-15），由 `node scripts/gen-index.mjs` 产出。共 **765** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -135,12 +135,12 @@
 | `query` | 48 | def |  | 2 |
 | `errors` | 58 | def |  | 1 |
 
-## bridge/bridge/main.py（55 行）
+## bridge/bridge/main.py（57 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `lifespan` | 21 | def |  | 1 |
-| `create_app` | 35 | def |  | 2 |
+| `lifespan` | 22 | def |  | 1 |
+| `create_app` | 36 | def |  | 2 |
 
 ## bridge/bridge/mcp_server.py（303 行）
 
@@ -168,11 +168,41 @@
 | `cyl1nder_index_query` | 274 | def |  | 1 |
 | `run_stdio` | 297 | def |  | 2 |
 
-## bridge/bridge/protocol.py（158 行）
+## bridge/bridge/project_routes.py（107 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_b36` | 70 | def |  | 3 |
+| `_check_project_serial` | 23 | def |  | 4 |
+| `ProjectCreateBody` | 28 | class |  | 1 |
+| `EnsureBody` | 32 | class |  | 1 |
+| `create_project` | 37 | def |  | 1 |
+| `list_projects` | 43 | def |  | 1 |
+| `get_project` | 48 | def |  | 1 |
+| `add_member` | 57 | def |  | 3 |
+| `remove_member` | 66 | def |  | 2 |
+| `ensure_project` | 77 | def |  | 1 |
+
+## bridge/bridge/projects.py（130 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `ProjectRegistry` | 21 | class |  | 0 |
+| `__init__` | 22 | def |  | 1 |
+| `_channel_key` | 33 | def |  | 4 |
+| `create` | 38 | def |  | 1 |
+| `get` | 53 | def |  | 9 |
+| `list` | 58 | def |  | 2 |
+| `add_member` | 64 | def |  | 1 |
+| `remove_member` | 82 | def |  | 1 |
+| `save_now` | 97 | def |  | 1 |
+| `_save` | 101 | def |  | 5 |
+| `_load` | 119 | def |  | 2 |
+
+## bridge/bridge/protocol.py（181 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `_b36` | 70 | def |  | 5 |
 | `generate_serial` | 81 | def |  | 1 |
 | `is_valid_serial` | 92 | def |  | 1 |
 | `AttributeData` | 96 | class |  | 1 |
@@ -181,8 +211,11 @@
 | `OutputBuffer` | 118 | class |  | 1 |
 | `InputsPut` | 129 | class |  | 1 |
 | `ChannelRef` | 138 | class |  | 1 |
-| `OutputsPut` | 150 | class |  | 1 |
-| `SyncEnabledPut` | 155 | class |  | 1 |
+| `generate_project_serial` | 153 | def |  | 1 |
+| `is_valid_project_serial` | 160 | def |  | 1 |
+| `ProjectRef` | 164 | class |  | 1 |
+| `OutputsPut` | 173 | class |  | 1 |
+| `SyncEnabledPut` | 178 | class |  | 1 |
 
 ## bridge/bridge/registry.py（218 行）
 
@@ -276,29 +309,29 @@
 | `flush_workspace` | 260 | def |  | 2 |
 | `flush_all_workspaces` | 285 | def |  | 1 |
 
-## bridge/bridge/state.py（248 行）
+## bridge/bridge/state.py（250 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `BridgeState` | 28 | class |  | 2 |
-| `__init__` | 29 | def |  | 1 |
-| `set_sync_fps` | 59 | def |  | 1 |
-| `get_sync_fps` | 70 | def |  | 3 |
-| `set_sync_enabled` | 74 | def |  | 1 |
-| `get_sync_enabled` | 79 | def |  | 1 |
-| `set_kick` | 85 | def |  | 1 |
-| `take_kick` | 90 | def |  | 1 |
-| `try_arm_kick` | 95 | def |  | 1 |
-| `subscribe` | 112 | def |  | 1 |
-| `unsubscribe` | 121 | def |  | 2 |
-| `notify_stream` | 130 | def |  | 1 |
-| `_wake_stream` | 159 | def |  | 1 |
-| `stage_broadcast` | 170 | def |  | 1 |
-| `_arm_broadcast_flush` | 202 | def |  | 1 |
-| `_flush_broadcast` | 209 | def |  | 3 |
-| `default_data_dir` | 229 | def |  | 2 |
-| `get_state` | 236 | def |  | 1 |
-| `reset_state` | 243 | def |  | 1 |
+| `BridgeState` | 29 | class |  | 2 |
+| `__init__` | 30 | def |  | 1 |
+| `set_sync_fps` | 61 | def |  | 1 |
+| `get_sync_fps` | 72 | def |  | 3 |
+| `set_sync_enabled` | 76 | def |  | 1 |
+| `get_sync_enabled` | 81 | def |  | 1 |
+| `set_kick` | 87 | def |  | 1 |
+| `take_kick` | 92 | def |  | 1 |
+| `try_arm_kick` | 97 | def |  | 1 |
+| `subscribe` | 114 | def |  | 1 |
+| `unsubscribe` | 123 | def |  | 2 |
+| `notify_stream` | 132 | def |  | 1 |
+| `_wake_stream` | 161 | def |  | 1 |
+| `stage_broadcast` | 172 | def |  | 1 |
+| `_arm_broadcast_flush` | 204 | def |  | 1 |
+| `_flush_broadcast` | 211 | def |  | 3 |
+| `default_data_dir` | 231 | def |  | 2 |
+| `get_state` | 238 | def |  | 1 |
+| `reset_state` | 245 | def |  | 1 |
 
 ## bridge/bridge/ui_layout.py（75 行）
 
@@ -701,13 +734,13 @@
 | `createDropdown` | 46 | function | export | 1 |
 | `createStepper` | 130 | function | export | 1 |
 
-## web/src/bridge/client.ts（374 行）
+## web/src/bridge/client.ts（427 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `BridgeClient` | 24 | class | export | 0 |
-| `connectWs` | 331 | function | export | 1 |
-| `connect` | 336 | arrow |  | 1 |
+| `connectWs` | 384 | function | export | 1 |
+| `connect` | 389 | arrow |  | 1 |
 
 ## web/src/color/color-math.ts（147 行）
 
@@ -822,7 +855,7 @@
 |---|---|---|---|---|
 | `createTimelineController` | 43 | function | export | 1 |
 
-## web/src/main.ts（1002 行）
+## web/src/main.ts（1004 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -847,7 +880,7 @@
 | `flushStoreView` | 850 | function |  | 2 |
 | `loadSnapshotIntoStore` | 875 | function |  | 3 |
 | `applyLoadedPreference` | 912 | function |  | 3 |
-| `markGraphDirty` | 995 | function |  | 2 |
+| `markGraphDirty` | 997 | function |  | 2 |
 
 ## web/src/nodes2/chain-cache.ts（354 行）
 
@@ -1038,35 +1071,46 @@
 |---|---|---|---|---|
 | `createUndoManager` | 76 | function | export | 2 |
 
-## web/src/overview.ts（423 行）
+## web/src/overview.ts（672 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `HttpError` | 37 | class |  | 3 |
-| `$` | 48 | function |  | 0 |
-| `epochMs` | 70 | function |  | 6 |
-| `relTime` | 74 | function |  | 8 |
-| `clockTime` | 86 | function |  | 2 |
-| `setBanner` | 92 | function |  | 4 |
-| `openSerial` | 97 | function |  | 3 |
-| `activeState` | 102 | function |  | 2 |
-| `activeRowHtml` | 118 | function |  | 1 |
-| `historyRowHtml` | 135 | function |  | 1 |
-| `renderActive` | 144 | function |  | 2 |
-| `renderHistory` | 150 | function |  | 2 |
-| `renderUnavailable` | 156 | function |  | 2 |
-| `fetchScenes` | 165 | function |  | 2 |
-| `failMessage` | 172 | function |  | 3 |
-| `loadScenes` | 181 | function |  | 4 |
-| `cleanupScenes` | 202 | function |  | 2 |
-| `channelLabel` | 278 | function |  | 2 |
-| `channelState` | 288 | function |  | 2 |
-| `channelRowHtml` | 296 | function |  | 1 |
-| `renderChannels` | 337 | function |  | 3 |
-| `findChannelRow` | 343 | function |  | 2 |
-| `setChannelRowState` | 351 | function |  | 2 |
-| `probeChannel` | 358 | function |  | 3 |
-| `loadChannels` | 390 | function |  | 3 |
+| `HttpError` | 38 | class |  | 3 |
+| `$` | 49 | function |  | 0 |
+| `epochMs` | 71 | function |  | 6 |
+| `relTime` | 75 | function |  | 8 |
+| `clockTime` | 87 | function |  | 2 |
+| `setBanner` | 93 | function |  | 4 |
+| `openSerial` | 98 | function |  | 4 |
+| `activeState` | 103 | function |  | 2 |
+| `activeRowHtml` | 119 | function |  | 1 |
+| `historyRowHtml` | 136 | function |  | 1 |
+| `renderActive` | 145 | function |  | 2 |
+| `renderHistory` | 151 | function |  | 2 |
+| `renderUnavailable` | 157 | function |  | 2 |
+| `fetchScenes` | 166 | function |  | 2 |
+| `failMessage` | 173 | function |  | 3 |
+| `loadScenes` | 182 | function |  | 4 |
+| `cleanupScenes` | 203 | function |  | 2 |
+| `channelLabel` | 279 | function |  | 2 |
+| `channelState` | 289 | function |  | 2 |
+| `channelRowHtml` | 297 | function |  | 1 |
+| `renderChannels` | 338 | function |  | 4 |
+| `findChannelRow` | 344 | function |  | 2 |
+| `setChannelRowState` | 352 | function |  | 2 |
+| `probeChannel` | 359 | function |  | 3 |
+| `loadChannels` | 391 | function |  | 3 |
+| `showProjectsError` | 467 | function |  | 6 |
+| `hideProjectsError` | 471 | function |  | 5 |
+| `projectDisplayName` | 476 | function |  | 2 |
+| `memberDisplayName` | 481 | function |  | 2 |
+| `memberRowHtml` | 486 | function |  | 2 |
+| `projectRowHtml` | 502 | function |  | 1 |
+| `renderProjects` | 524 | function |  | 5 |
+| `loadProjects` | 530 | function |  | 6 |
+| `removeMember` | 559 | function |  | 2 |
+| `addMemberByDrop` | 571 | function |  | 2 |
+| `clearDropHover` | 634 | function |  | 4 |
 
 ## web/src/protocol/compare.ts（24 行）
 
@@ -1075,7 +1119,7 @@
 | `payloadEqual` | 4 | function |  | 2 |
 | `inputsEqual` | 16 | function | export | 1 |
 
-## web/src/protocol/types.ts（161 行）
+## web/src/protocol/types.ts（172 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -1086,6 +1130,12 @@
 |---|---|---|---|---|
 | `ChannelsStore` | 10 | class | export | 1 |
 | `channelIdOf` | 57 | function | export | 3 |
+
+## web/src/stores/projects.ts（48 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `ProjectsStore` | 8 | class | export | 1 |
 
 ## web/src/stores/workspace.ts（152 行）
 

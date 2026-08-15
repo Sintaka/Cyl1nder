@@ -1,4 +1,4 @@
-import { BRIDGE_URL, ChannelRef, InputPayload, LogEntry, OutputBuffer, StatusResponse } from "../protocol/types";
+import { BRIDGE_URL, ChannelRef, InputPayload, LogEntry, OutputBuffer, ProjectRef, StatusResponse } from "../protocol/types";
 import { encode, decode } from "@msgpack/msgpack";
 
 export interface HealthResponse {
@@ -322,6 +322,59 @@ export class BridgeClient {
     reason?: string | null;
   }> {
     return json(await fetch(`${this.base}/api/channels/${this._channelUrl(channelId)}/probe`));
+  }
+
+  /** GET /api/projects — 项目列表（P2a 项目层，成员为通道引用快照）。 */
+  async listProjects(): Promise<{ projects: ProjectRef[] }> {
+    return json(await fetch(`${this.base}/api/projects`));
+  }
+
+  /** POST /api/projects — 新建项目；P2a 不做改名，label 可空。 */
+  async createProject(label?: string): Promise<{ ok: boolean; project: ProjectRef }> {
+    return json(
+      await fetch(`${this.base}/api/projects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: label ?? "" }),
+      }),
+    );
+  }
+
+  /** GET /api/projects/{id} — 单个项目详情。 */
+  async getProject(projectId: string): Promise<{ ok: boolean; project: ProjectRef }> {
+    return json(await fetch(`${this.base}/api/projects/${encodeURIComponent(projectId)}`));
+  }
+
+  /** POST /api/projects/{id}/members — 加成员（body = channelRef，bridge 按通道 key 去重）。 */
+  async addProjectMember(projectId: string, ref: ChannelRef): Promise<{ ok: boolean; project: ProjectRef }> {
+    return json(
+      await fetch(`${this.base}/api/projects/${encodeURIComponent(projectId)}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(ref),
+      }),
+    );
+  }
+
+  /** DELETE /api/projects/{id}/members?channelId= — 移除成员（channelId 同 channelIdOf）。 */
+  async removeProjectMember(projectId: string, channelId: string): Promise<{ ok: boolean; project: ProjectRef }> {
+    return json(
+      await fetch(
+        `${this.base}/api/projects/${encodeURIComponent(projectId)}/members?channelId=${encodeURIComponent(channelId)}`,
+        { method: "DELETE" },
+      ),
+    );
+  }
+
+  /** POST /api/projects/ensure — 隐式项目：无含该 serial 通道的项目则自动建 P1-… 单成员项目。 */
+  async ensureProject(serial: string): Promise<{ ok: boolean; project: ProjectRef; created: boolean }> {
+    return json(
+      await fetch(`${this.base}/api/projects/ensure`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serial }),
+      }),
+    );
   }
 }
 

@@ -32,7 +32,7 @@
 - **Houdini 免重启热重载**（详见 devlog/hda-hot-reload.md）：
   - 改 `hda/src/*.py`：Houdini Python Shell 执行 `exec(open(r"D:/code/dev/Cyl1nder/hda/scripts/reload_hda.py").read()); reload_cyl1nder()`
   - 改 HDA 定义（内部网络/参数/按钮）：`reload_cyl1nder(definition=True)`（重建 + `hou.hda.reloadFile`）
-  - 改 bridge 进程：重启 bridge（`cd bridge; .venv\Scripts\python -m bridge`），与 Houdini 无关
+  - 改 bridge 进程：**重启一律走 Houdini shelf `cyl1nder::reload_bridge`**（内部 `bridge_control.restart_bridge()`：按端口 8375/8376 定位 LISTENING 进程后重启，并顺带拉起 vite 8376；结果落 `bridge_control.log`）。`cd bridge; .venv\scripts\python -m bridge` 手动起桥仅用于无 Houdini 的自起场景；与 Houdini 无关。
 - 关键机制：python SOP 用 `cook(force=True)` 强制重跑（普通 cook() 命中缓存）；实例 `maintainstate=0` 使每次 HDA recook 自动重跑新代码。
 - **使用 fxhoudinimcp 前必须先读官方使用手册**（github healkeiser/fxhoudinimcp 的 README/源码，尤其 `bridge.py` 与工具参数）。工具名/参数一律以官方为准，**禁止凭猜测调用**。已踩过的坑：
   - `shelf.run_shelf_tool` 参数是 `tool_name`（不是 `name`），可选 `kwargs/parent_path`。
@@ -48,6 +48,7 @@
 - **禁止用会弹 Windows 消息框/错误框的方式调试**（如 `cmd /c start` 引号错误会弹 "Windows cannot find ..."）。调试信息一律写文件/日志（如 `bridge_control.log`、`spawn_out.txt`）或经 fxhoudinimcp 读回，不要用窗口。启动外部进程统一 `subprocess.CREATE_NEW_CONSOLE`（可见但非弹窗）。
 - **从 Houdini 拉外部 Python 必须剥离 PYTHONHOME/PYTHONPATH**：Houdini 把 `PYTHONHOME` 指向自己的 3.11 stdlib，子进程（如 bridge venv 3.12）继承后启动即崩（SRE module mismatch）。spawn 时 `env={k:v for k,v in os.environ.items() if not k.upper().startswith("PYTHON")}`。详见 annotations-hda v0.1.00010。
 - **Houdini 可能随时重启，Codex 不会收到任何消息**：fxhoudinimcp（8100）连不上时按序排查——① 先尝试重连（重试当前 MCP 调用 / 新会话）；② 仍连不上 → 查找是否有 `Houdini.exe` 进程（`tasklist | findstr Houdini` 或 `Get-Process houdini*`）：有进程 = Houdini 在跑，只是 MCP 服务未起/端口变化（看 8100~8115 或让用户确认），无进程 = Houdini 没开，需提示用户启动。不要一上来就假设是 MCP 配置坏了。
+- **禁止随意杀进程（铁律，2026-08-15 起）**：本机同时跑着**无关的 Python 项目**（HQueue Server/Client、其他 Python312 进程）与 harness 托管的后台任务——**绝不允许按 PID 直接 `Stop-Process`/`taskkill` 杀进程**（进程清单里的 python 与端口无可靠映射，曾因试图杀候选 PID 被用户否决）。桥重启一律走官方路径：Houdini shelf `cyl1nder::reload_bridge`（内部 `bridge_control.restart_bridge()`，**只按端口 8375/8376 精确定位 LISTENING 进程**，并顺带拉起 vite）；Houdini MCP（8100）**绝不杀**；自己的后台任务用 job_kill；除桥外的任何进程（HQueue 等）一律不动。
 - **浏览器实例注意事项（2026-08-10）**：
   - **命令行/无头开的浏览器与用户手操作的浏览器是不同实例**（不同 profile），`localStorage` / cookie / session **互不互通**。
   - 判断"用户实际看到什么"时，**以用户的浏览器为准**：用户改动的 UI 状态（如 dockview 布局）只存在于用户浏览器，agent 的 headless 浏览器默认看不到。
@@ -59,6 +60,7 @@
   - PowerShell here-string + `[System.IO.File]::WriteAllText($path, $text, [System.Text.UTF8Encoding]::new($false))`（UTF-8 无 BOM）；或
   - 先 `Set-Content -Encoding utf8` 写 UTF-8 临时文件，再让 python 用 `utf-8-sig` 读取。
   - 写完用 `??` 特征抽查（`Select-String -Pattern '\?\?'`）。
+- **PowerShell `Invoke-RestMethod -Body` 传中文 JSON 同样会变 `?`**（body 字符串按 Latin-1 编码；2026-08-15 实踩：项目 label "P2a 验收项目" 落库成 "P2a ????"）：中文 body 改用 `[System.Text.Encoding]::UTF8.GetBytes($json)` 传字节数组，或验收/测试数据一律用 ASCII。
 - **PowerShell 里外部命令输出是字符串数组（按行拆分）**：`git show` / `git log` / `Get-Content` 直接赋值得到的是 `string[]`。要当文本用必须先 `$out -join "`n"`；**严禁对数组直接 `.TrimEnd()` / `+ 字符串` 拼接**——数组会被隐式转成"用空格连接的一行"，毁掉 md 的换行/分隔线结构（已踩坑：viewport-bug-report / annotations-web 首行被压成 1.6 万字符）。
 - **git 历史卫生**：devlog/文档保持小体积；**禁止把大文件或日志（如 append 循环产物）提交进历史**——GitHub 硬拒 >100MB、警告 >50MB，push 会被 pre-receive 拒绝。
 - **历史清理流程（破坏性，先备份）**：① `git bundle create <path>.bundle --all` 全量备份；② `git filter-branch --force --index-filter "if git cat-file -e \"$GIT_COMMIT:<path>\" 2>/dev/null; then git update-index --cacheinfo 100644,<新blob>,<path>; fi" -- <branch>` 把该文件在每个提交替换为小版本；③ 删 `refs/original` + `git reflog expire --expire=now --all` + `git gc --prune=now --aggressive`；④ 验证 `git cat-file --batch-all-objects --batch-check` 无 >1MB blob；⑤ `git push --force-with-lease`。**备份在确认远端一切正常前不删**（partial clone 下 prune 后旧对象本地不可恢复，bundle 是唯一备份）。

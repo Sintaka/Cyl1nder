@@ -1,6 +1,6 @@
 # 模块依赖图 / MODULE GRAPH (web/src)
 
-> 机器生成（2026-08-14），由 `node scripts/gen-graph.mjs` 产出。
+> 机器生成（2026-08-15），由 `node scripts/gen-graph.mjs` 产出。
 
 - `app/address-bar.ts`
 - `app/app-config.ts`
@@ -163,11 +163,15 @@
   - bridge/client
   - protocol/types
   - stores/channels
+  - stores/projects
 - `protocol/compare.ts`
   - fast-deep-equal
   - protocol/types
 - `protocol/types.ts`
 - `stores/channels.ts`
+  - bridge/client
+  - protocol/types
+- `stores/projects.ts`
   - bridge/client
   - protocol/types
 - `stores/workspace.ts`

@@ -1,6 +1,7 @@
-import { BRIDGE_URL, ChannelRef } from "./protocol/types";
+import { BRIDGE_URL, ChannelRef, ProjectRef } from "./protocol/types";
 import { BridgeClient } from "./bridge/client";
 import { channelsStore, channelIdOf } from "./stores/channels";
+import { projectsStore } from "./stores/projects";
 
 // Overview 总管页面：新建场景（置顶）/ 活跃场景 / 历史场景。
 // 契约（bridge scenes.py，并行实现中）：
@@ -298,7 +299,7 @@ function channelRowHtml(ref: ChannelRef): string {
   const id = channelIdOf(ref);
   const label = channelLabel(ref);
   return `
-    <div class="ov-row channels" data-channel-id="${esc(id)}">
+    <div class="ov-row channels" data-channel-id="${esc(id)}" draggable="true">
       <div class="ov-cell ov-label" title="${esc(label)}">${esc(label)}</div>
       <div class="ov-cell"><span class="ov-kind ${esc(ref.kind)}">${esc(ref.kind)}</span></div>
       <div class="ov-cell ov-serial" title="${esc(id)}">${esc(id)}</div>
@@ -418,5 +419,253 @@ channelsList.addEventListener("click", (e) => {
   void probeChannel(id);
 });
 
+// 拖拽入项目（HTML5 DnD）：通道行可拖，dragstart 写入通道 id；不影响行内点击/探测。
+channelsList.addEventListener("dragstart", (e) => {
+  const row = (e.target as HTMLElement).closest?.("[data-channel-id]") as HTMLElement | null;
+  if (!row) return;
+  const id = row.dataset.channelId ?? "";
+  if (!id || !e.dataTransfer) return;
+  e.dataTransfer.effectAllowed = "copy";
+  e.dataTransfer.setData("text/cyl-channel-id", id);
+});
+
+// ============ 项目（P2a：通道引用聚合；项目行做拖放目标） ============
+const projectsClient = new BridgeClient();
+
+const projectsPanel = document.createElement("section");
+projectsPanel.className = "ov-panel";
+projectsPanel.id = "projects-panel";
+const projectsHead = document.createElement("div");
+projectsHead.className = "ov-projects-head";
+const projectsHeading = document.createElement("h2");
+projectsHeading.className = "ov-section-heading";
+projectsHeading.textContent = "项目";
+const projectsNew = document.createElement("button");
+projectsNew.type = "button";
+projectsNew.className = "ov-new-button";
+projectsNew.textContent = "新建项目";
+const projectsRefresh = document.createElement("button");
+projectsRefresh.type = "button";
+projectsRefresh.className = "ov-refresh";
+projectsRefresh.textContent = "刷新";
+projectsHead.append(projectsHeading, projectsNew, projectsRefresh);
+const projectsHint = document.createElement("p");
+projectsHint.className = "ov-hint";
+projectsHint.textContent = "加载中…";
+const projectsError = document.createElement("p");
+projectsError.className = "ov-error hidden";
+const projectsList = document.createElement("div");
+projectsList.className = "ov-list";
+projectsPanel.append(projectsHead, projectsHint, projectsError, projectsList);
+$(".ov-main").appendChild(projectsPanel);
+
+/** 展开中的项目 serial（刷新后保留展开态）。 */
+const expandedProjects = new Set<string>();
+/** ?project= 落地标记：命中且展开时给对应项目行加 .focused。 */
+const focusProject: string | null = new URLSearchParams(location.search).get("project");
+
+function showProjectsError(msg: string): void {
+  projectsError.textContent = msg;
+  projectsError.classList.remove("hidden");
+}
+function hideProjectsError(): void {
+  projectsError.classList.add("hidden");
+}
+
+/** 项目行显示名：label 空回退 projectSerial。 */
+function projectDisplayName(p: ProjectRef): string {
+  return p.label || p.projectSerial;
+}
+
+/** 成员显示名：param 显示 absolutePath 全文，tag/hda 显示 label（回退 serial/id）。 */
+function memberDisplayName(m: ChannelRef): string {
+  if (m.kind === "param") return m.absolutePath ?? channelIdOf(m);
+  return m.label || m.serial || channelIdOf(m);
+}
+
+function memberRowHtml(p: ProjectRef, m: ChannelRef): string {
+  const id = channelIdOf(m);
+  const display = memberDisplayName(m);
+  // tag/hda 成员可打开工作区；param 成员给移除（成员是引用快照，live 状态以 /api/channels 为准）。
+  const action =
+    m.kind === "param"
+      ? `<button class="ov-remove" type="button" data-remove-project="${esc(p.projectSerial)}" data-remove-channel="${esc(id)}">移除</button>`
+      : `<button class="ov-open" type="button" data-open-serial="${esc(m.serial ?? "")}">打开</button>`;
+  return `
+    <div class="ov-member" data-member-id="${esc(id)}">
+      <span class="ov-kind ${esc(m.kind)}">${esc(m.kind)}</span>
+      <span class="ov-member-label" title="${esc(display)}">${esc(display)}</span>
+      <span class="ov-cell ov-action">${action}</span>
+    </div>`;
+}
+
+function projectRowHtml(p: ProjectRef): string {
+  const members = Array.isArray(p.members) ? p.members : [];
+  const expanded = expandedProjects.has(p.projectSerial);
+  const focused = focusProject === p.projectSerial && expanded;
+  const membersHtml = expanded
+    ? `<div class="ov-members" data-members="${esc(p.projectSerial)}">${
+        members.map((m) => memberRowHtml(p, m)).join("") ||
+        '<p class="ov-hint">（空项目：把下方通道行拖到本项目行加入）</p>'
+      }</div>`
+    : "";
+  return `
+    <div class="ov-project" data-project-serial="${esc(p.projectSerial)}">
+      <div class="ov-row projects${focused ? " focused" : ""}" data-project-serial="${esc(p.projectSerial)}">
+        <div class="ov-cell ov-label" title="${esc(p.label || p.projectSerial)}">${esc(projectDisplayName(p))}</div>
+        <div class="ov-cell ov-serial" title="${esc(p.projectSerial)}">${esc(p.projectSerial)}</div>
+        <div class="ov-cell ov-count">${members.length} 成员</div>
+        <div class="ov-cell ov-action"><button class="ov-expand" type="button" data-expand="${esc(p.projectSerial)}">${expanded ? "收起" : "展开"}</button></div>
+      </div>
+      ${membersHtml}
+    </div>`;
+}
+
+function renderProjects(list: ProjectRef[]): void {
+  projectsList.innerHTML = list.map(projectRowHtml).join("");
+  projectsHint.classList.toggle("hidden", list.length > 0);
+  projectsHint.textContent = list.length ? "" : "暂无项目（点「新建项目」，或把下方通道行拖到项目行）";
+}
+
+async function loadProjects(): Promise<void> {
+  projectsRefresh.disabled = true;
+  hideProjectsError();
+  projectsHint.classList.remove("hidden");
+  projectsHint.textContent = "加载中…";
+  projectsList.innerHTML = "";
+  try {
+    const { projects } = await projectsClient.listProjects();
+    projectsStore.setProjects(projects);
+    renderProjects(projects);
+    // ?project= 落地：列表加载后存在该项目 → 自动展开 + .focused 高亮。
+    if (focusProject && projects.some((p) => p.projectSerial === focusProject)) {
+      expandedProjects.add(focusProject);
+      renderProjects(projects);
+    }
+  } catch (err) {
+    projectsStore.setProjects([]);
+    renderProjects([]);
+    projectsError.textContent =
+      err instanceof HttpError
+        ? `桥返回 HTTP ${err.status}：/api/projects 未就绪？`
+        : "桥离线：无法连接 127.0.0.1:8375，项目列表不可用。";
+    projectsError.classList.remove("hidden");
+  } finally {
+    projectsRefresh.disabled = false;
+  }
+}
+
+/** 移除项目成员：成员行「移除」→ DELETE /members?channelId= → 刷新。 */
+async function removeMember(projectId: string, channelId: string): Promise<void> {
+  hideProjectsError();
+  if (!projectId || !channelId) return;
+  try {
+    await projectsClient.removeProjectMember(projectId, channelId);
+    await loadProjects();
+  } catch (err) {
+    showProjectsError(`移除成员失败：${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+/** 拖放入项目：channelsStore 找不到该通道 id → .ov-error 提示（拖拽失败）。 */
+async function addMemberByDrop(projectId: string, channelId: string): Promise<void> {
+  hideProjectsError();
+  if (!projectId || !channelId) {
+    showProjectsError("拖拽数据无效：缺少项目或通道 id");
+    return;
+  }
+  const ref = channelsStore.channels.find((c) => channelIdOf(c) === channelId);
+  if (!ref) {
+    showProjectsError(`找不到通道引用 ${channelId}（先刷新「关联注册大全」再拖）`);
+    return;
+  }
+  try {
+    await projectsClient.addProjectMember(projectId, ref);
+    // 刷新两区块：成员快照在项目列表里；通道大全本身未变，本地重渲染即可。
+    renderChannels(channelsStore.channels);
+    await loadProjects();
+  } catch (err) {
+    showProjectsError(`添加成员失败：${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+projectsNew.addEventListener("click", async () => {
+  hideProjectsError();
+  projectsNew.disabled = true;
+  projectsNew.textContent = "创建中…";
+  try {
+    await projectsClient.createProject("");
+    await loadProjects();
+  } catch (err) {
+    showProjectsError(`新建项目失败：${err instanceof Error ? err.message : String(err)}`);
+  } finally {
+    projectsNew.disabled = false;
+    projectsNew.textContent = "新建项目";
+  }
+});
+
+projectsRefresh.addEventListener("click", () => void loadProjects());
+
+// 项目行交互：展开/收起、成员「打开」、成员「移除」。
+projectsList.addEventListener("click", (e) => {
+  const expandBtn = (e.target as HTMLElement).closest?.("button[data-expand]");
+  if (expandBtn) {
+    const pid = (expandBtn as HTMLElement).dataset.expand ?? "";
+    if (expandedProjects.has(pid)) expandedProjects.delete(pid);
+    else expandedProjects.add(pid);
+    renderProjects(projectsStore.projects);
+    return;
+  }
+  const openBtn = (e.target as HTMLElement).closest?.("button[data-open-serial]");
+  if (openBtn) {
+    const serial = (openBtn as HTMLElement).dataset.openSerial ?? "";
+    if (serial) openSerial(serial);
+    return;
+  }
+  const removeBtn = (e.target as HTMLElement).closest?.("button[data-remove-project]");
+  if (removeBtn) {
+    const b = removeBtn as HTMLElement;
+    void removeMember(b.dataset.removeProject ?? "", b.dataset.removeChannel ?? "");
+  }
+});
+
+// 项目行 = 拖放目标：dragover 放行 + 高亮，drop 读通道 id 加入成员。
+let dropHoverRow: HTMLElement | null = null;
+function clearDropHover(): void {
+  dropHoverRow?.classList.remove("drop-hover");
+  dropHoverRow = null;
+}
+
+projectsList.addEventListener("dragover", (e) => {
+  const row = (e.target as HTMLElement).closest?.(".ov-row.projects") as HTMLElement | null;
+  if (!row) return;
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+  if (row !== dropHoverRow) {
+    clearDropHover();
+    dropHoverRow = row;
+    row.classList.add("drop-hover");
+  }
+});
+
+projectsList.addEventListener("dragleave", (e) => {
+  const t = e.target as HTMLElement;
+  if (!t.contains(e.relatedTarget as Node | null)) clearDropHover();
+});
+
+projectsList.addEventListener("drop", (e) => {
+  clearDropHover();
+  const row = (e.target as HTMLElement).closest?.(".ov-row.projects") as HTMLElement | null;
+  if (!row) return;
+  e.preventDefault();
+  const projectId = row.dataset.projectSerial ?? "";
+  const channelId = e.dataTransfer?.getData("text/cyl-channel-id") ?? "";
+  void addMemberByDrop(projectId, channelId);
+});
+
+// 拖拽在通道列表结束时清残留高亮（兜底：drop 未触发的情况）。
+channelsList.addEventListener("dragend", clearDropHover);
+
 void loadScenes();
 void loadChannels();
+void loadProjects();

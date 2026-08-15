@@ -47,7 +47,7 @@ import time
 
 from pydantic import BaseModel, Field
 
-VERSION = "0.1.00106"
+VERSION = "0.1.00107"
 HOST = "127.0.0.1"
 PORT = 8375
 BASE_URL = f"http://{HOST}:{PORT}"
@@ -145,6 +145,29 @@ class ChannelRef(BaseModel):
     label: str = ""
     registeredAt: float = 0.0       # 服务端权威：首次注册写 now，重复注册保留
     lastSeen: float = 0.0           # 注册/心跳/探测成功时刷新 now
+
+
+PROJECT_SERIAL_RE = re.compile(r"^P1-[0-9a-z]{8,}-[0-9a-z]{4}$")
+
+
+def generate_project_serial() -> str:
+    """项目 serial：P1-<base36 毫秒>-<4位base36随机>（镜像 generate_serial 只换前缀）。"""
+    ms = int(time.time() * 1000)
+    rnd = random.randrange(36**4)
+    return f"P1-{_b36(ms)}-{_b36(rnd).zfill(4)}"
+
+
+def is_valid_project_serial(pid: str) -> bool:
+    return bool(PROJECT_SERIAL_RE.match(pid or ""))
+
+
+class ProjectRef(BaseModel):
+    """吊牌 HDA 项目（多 HDA 绑定，见 devlog/tag-hda-plan.md P2a）。"""
+    projectSerial: str
+    label: str = ""
+    createdAt: float = 0.0        # 服务端权威：创建时写 now，不可变
+    updatedAt: float = 0.0        # 成员增删时刷 now
+    members: list[ChannelRef] = Field(default_factory=list)   # 通道引用快照（live 状态以 /api/channels 大全为准）
 
 
 class OutputsPut(BaseModel):

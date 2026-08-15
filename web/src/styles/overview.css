@@ -177,3 +177,67 @@ body {
 }
 .ov-new-button:hover { filter: brightness(1.08); }
 .ov-new-button:disabled { opacity: 0.5; cursor: default; }
+
+/* ---- projects (项目层 P2a：通道引用聚合 + 拖放入项目) ---- */
+.ov-projects-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.ov-projects-head .ov-section-heading { margin: 0; flex: 1; }
+/* 通道行可拖（HTML5 DnD 拖入项目行） */
+.ov-row.channels { cursor: grab; }
+.ov-row.projects { grid-template-columns: minmax(150px, 1.3fr) minmax(150px, 1.1fr) 80px 70px; }
+.ov-row.projects.drop-hover {
+  border-color: #7ce3a8;
+  background: rgba(124, 227, 168, 0.08);
+  box-shadow: 0 0 0 1px rgba(124, 227, 168, 0.55) inset;
+}
+.ov-row.projects.focused {
+  border-color: #9fd8ff;
+  box-shadow: 0 0 0 1px rgba(159, 216, 255, 0.55) inset;
+}
+.ov-count { color: #8f959e; font: 11px/1.4 var(--cyl-font-ui); }
+.ov-expand {
+  background: #1f2430;
+  color: #9fd8ff;
+  border: 1px solid #3a6ea5;
+  border-radius: 4px;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.ov-expand:hover { background: #2e4f7d; }
+.ov-project { display: flex; flex-direction: column; gap: 4px; }
+.ov-members {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 2px 0 0 16px;
+  padding-left: 8px;
+  border-left: 2px solid #2a2d33;
+}
+.ov-member {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 70px;
+  align-items: center;
+  gap: 8px;
+  background: #121317;
+  border: 1px solid #262a31;
+  border-radius: 4px;
+  padding: 3px 8px;
+}
+.ov-member-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #cfd2d6;
+  font: 11px/1.4 var(--cyl-font-ui);
+}
+.ov-remove {
+  background: #4a1f1f;
+  color: #fecaca;
+  border: 1px solid #7f1d1d;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.ov-remove:hover { background: #7f1d1d; }

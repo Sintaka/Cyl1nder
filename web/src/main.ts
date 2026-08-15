@@ -955,6 +955,8 @@ const qs = new URLSearchParams(location.search).get("serial");
 if (qs) {
   layout.serialInput.value = qs;
   session.connect(qs);
+  // P2a 隐式项目：后台 ensure（无含该 serial 通道的项目则自动建 P1- 单成员项目），不改变现有行为。
+  void client.ensureProject(qs).catch(() => undefined);
 } else {
   client
     .listSerials()

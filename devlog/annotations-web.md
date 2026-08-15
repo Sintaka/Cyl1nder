@@ -632,3 +632,9 @@ efreshSelectionPanels()——sel 为空且已渲染过 → 直接 return 不重�
 - 新 `stores/channels.ts`：`ChannelsStore`（无框架 pub-sub，照 WorkspaceStore）+`channelIdOf`（param→absolutePath、其余 serial）+单例；refresh 吞错保留原状。
 - `overview.ts` 新增「关联注册大全」区块（**动态 DOM 挂 `.ov-main`，不改 overview.html**）：行 = label / kind 徽标 / id / 状态灯（lastSeen>150s 离线）/ 探测按钮（!alive→离线、alive&&!matched→失联、否则在线）；`overview.css` +`.ov-channels-head/.ov-row.channels/.ov-kind.*/.ov-seen.lost`（不碰 base/nodeview/viewport/dock/spreadsheet.css）。
 - 测试 +8（channelIdOf 三分支/upsert 同 key 替换/退订等）；tsc 0、vitest **194**。
+## v0.1.00107（2026-08-15）——项目面板与拖拽入项目（吊牌 HDA P2a）
+- `types.ts`：`PROJECT_SERIAL_RE` + `ProjectRef` 镜像；`client.ts`：`listProjects/createProject/getProject/addProjectMember/removeProjectMember/ensureProject`。
+- 新 `stores/projects.ts`：`ProjectsStore`（subscribe/setProjects/upsertProject 按 projectSerial 去重/refresh 吞错）+ 单例。
+- `overview.ts`：「项目」区块（动态 DOM 挂 `.ov-main`，channels 之后）：项目行（label/serial/成员数/展开）、成员行（param→absolutePath+移除；tag/hda→打开=openSerial）、新建项目、**HTML5 DnD 拖通道入项目**（`text/cyl-channel-id` + `.drop-hover` 高亮，channelsStore 找不到 ref 时本地 .ov-error）、`?project=` 自动展开 + `.focused`；`overview.css` 少量新增（`.ov-row.projects/.ov-member*/.drop-hover/.focused`）。
+- `main.ts`（主进程粘合）：boot `?serial=` 分支后台 `ensureProject`（隐式项目静默建立，现有行为不变）。
+- 测试 +8（PROJECT_SERIAL_RE 正反例 + ProjectsStore）；tsc 0、vitest **202**。
