@@ -1,5 +1,29 @@
 # Web 子系统改动标注 / Web annotations
 
+## v0.1.00116（2026-08-19）· hip 文件名显示 + 状态后端持有 + nodeview 进入路径修复
+
+### 项目显示名 = hip 文件名
+- **overview.ts**：`projectDisplayName` 优先级改为 label（非序列号尾巴）→ `hipName`
+  → 旧的 `未命名项目 · <成员名>` 兜底。`shortHipPath(hip, keep=3)` 单独渲染成次级小字
+  （`…/beginTest-1/beginTest-1.hip`），完整路径进 `title`；`projectSerial` 只在 `title`。
+  `migratedAt > 0` 时给一枚安静的 `已换绑` 徽标（`previousHip → hip` 进 title）。
+
+### 刷新真的会检测（修「要一个个点才变状态」）
+- **stores/projects.ts**：新增 `mapWithLimit(items, limit, fn)` 定宽工作池
+  （`PROBE_CONCURRENCY = 5`），结果按下标对齐；单个任务抛错只结算自己那一格，
+  **不会中断整池**。`probeAllProjects()` 收集全部锚点 serial 去重后统一探测，
+  按钮显示 `检测中 3/9…` 并在期间禁用。顶栏与面板两个刷新都走 `loadProjects(true)`；
+  首次
+...[599 chars omitted]...
+   `graph.isProjectMode()`（图里要有 project 根节点），但**进入成员后图已换成该成员自己的
+  图**，project 根不在了 → 判定为非项目模式，地址退化成 `/C1-…/`，丢掉「从哪个项目进来的」
+  （用户实测：进入 `C1-msm6dsp7-ob6t` 得到 `/C1-msm6dsp7-ob6t/`，而非
+  `/P1-…/C1-msm6dsp7-ob6t`）。`currentProjectId` 才是归属项目的事实来源，成员工作区里依然有效。
+- 顺带：`enterProjectMode` 现在同步地址栏为 `?project=`（此处模式与地址一致）。
+- **注意**：可进入操作按要求**保留但尚未禁用**，下一轮再做开关。
+
+验证：tsc 0 / vitest 472。
+
 ## v0.1.00114（2026-08-16）· 项目优先 overview + 类型化端口 + 单端口地址形态
 
 > 设计与踩坑详见 [project-mapping-design.md](project-mapping-design.md)。

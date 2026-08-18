@@ -47,7 +47,7 @@ import time
 
 from pydantic import BaseModel, Field
 
-VERSION = "0.1.00115"
+VERSION = "0.1.00116"
 HOST = "127.0.0.1"
 PORT = 8375
 BASE_URL = f"http://{HOST}:{PORT}"
@@ -168,12 +168,46 @@ def is_valid_project_serial(pid: str) -> bool:
 
 
 class ProjectRef(BaseModel):
-    """吊牌 HDA 项目（多 HDA 绑定，见 devlog/tag-hda-plan.md P2a）。"""
+    """项目 = 一个 hip 文件（v0.1.00116 起）。
+
+    身份模型（关键）：
+    - **key 仍是 `projectSerial`（P1-…）**，创建即不可变。不能用 hip 路径或文件名当 key：
+      不同位置的同名文件会撞（`a/scene.hip` 与 `b/scene.hip`），路径本身又会因另存为而变。
+    - `hip` = 当前绑定的 hip 绝对路径（另存为后由迁移更新）。
+    - `label` 为空时 UI 显示 hip 文件名 + 简短路径；用户显式改名后才用 label。
+    - 同一 hip 只应有一个项目：HDA/吊牌 cook 上报 hip 时，桥按 hip 找到项目并**自动登记**
+      成员，因此「一个文件下的节点自动注册在一起」，不再出现两个项目共享同一成员。
+
+    另存为迁移：节点上报的 hip 与所属项目的 `hip` 不一致 → 该 hip 已另存为新文件。
+    pid/端口不变（同一个 Houdini 进程），所以迁移只需换绑文件并逐一核对旧成员在**新
+    文件里**是否还存在（旧文件此刻已不可达，只能从新文件核对）。见 SaveAsMigration。
+    """
     projectSerial: str
-    label: str = ""
+    label: str = ""               # 空 = 用 hip 文件名显示（用户改名后才有值）
+    hip: str = ""                 # 当前绑定的 hip 绝对路径（另存为迁移会更新）
+    hipName: str = ""             # hip 文件名（服务端派生，便于前端直接显示）
     createdAt: float = 0.0        # 服务端权威：创建时写 now，不可变
-    updatedAt: float = 0.0        # 成员增删时刷 now
+    updatedAt: float = 0.0        # 成员增删 / 迁移时刷 now
+    migratedAt: float = 0.0       # 最近一次另存为迁移的时刻（0 = 从未迁移）
+    previousHip: str = ""         # 迁移前的 hip（审计用；只留最近一次）
     members: list[ChannelRef] = Field(default_factory=list)   # 通道引用快照（live 状态以 /api/channels 大全为准）
+
+
+class SaveAsMigration(BaseModel):
+    """另存为迁移结果（POST /api/projects/migrate）。
+
+    触发：某成员 cook 时上报的 hip ≠ 项目当前 `hip`。
+    语义：**换绑文件 + 按新文件核对成员**——在新 hip 里仍存在的成员留下（重新登记），
+    找不到的移出（它属于旧文件，那份关系已经断了）。pid/端口不变，不重新发现实例。
+    快照目录随项目 serial 走，所以迁移**不动快照**，只改绑定。
+    """
+    projectSerial: str
+    fromHip: str = ""
+    toHip: str = ""
+    kept: list[str] = Field(default_factory=list)      # 新文件里仍存在 -> 保留的成员 key
+    dropped: list[str] = Field(default_factory=list)   # 新文件里找不到 -> 移出的成员 key
+    migrated: bool = False
+    reason: str = ""
 
 
 # ---------------------------------------------------------------------------

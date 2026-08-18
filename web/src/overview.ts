@@ -13,11 +13,14 @@ import {
 import { BridgeClient } from "./bridge/client";
 import { channelIdOf } from "./stores/channels";
 import {
+  EVIDENCE_CONCURRENCY,
+  PROBE_CONCURRENCY,
   cleanupProjects,
   deleteMapping,
   deleteProject,
   fetchMappings,
   getMappingValue,
+  mapWithLimit,
   patchProjectLabel,
   probeAnchor,
   projectsStore,
@@ -177,15 +180,53 @@ export function bestMemberLabel(members: ChannelRef[]): string {
   return "";
 }
 
-/** 项目行可见名（供单测）——序列号尾巴的修复点。
- *  label 有意义 → 原样用；label 空 / 只是成员 serial → 「未命名项目 · <最佳成员名>」，
- *  无成员则只写「未命名项目」。**任何情况下都不以序列号开头**；projectSerial 只进 title。 */
+/** 项目行可见名（供单测）——**项目 = hip 文件**（v0.1.00116）后的优先级：
+ *
+ *  1. 有意义的 `label`（用户改过名）→ 原样用；
+ *  2. 否则 `hipName`（如 `beginTest-1.hip`）—— 这才是现在的常态；
+ *  3. 都没有 → 「未命名项目 · <最佳成员名>」（旧回退，成员也没线索则只写「未命名项目」）。
+ *
+ *  **任何情况下都不以序列号开头**；projectSerial 只进 title。 */
 export function projectDisplayName(p: ProjectRef): string {
   const members = Array.isArray(p.members) ? p.members : [];
   const label = (p.label ?? "").trim();
   if (label && !isSerialTail(label, members)) return label;
+  const hipName = (p.hipName ?? "").trim();
+  if (hipName) return hipName;
   const hint = bestMemberLabel(members);
   return hint ? `${UNNAMED_PROJECT} · ${hint}` : UNNAMED_PROJECT;
+}
+
+/** hip 绝对路径的短形（供单测）：**只取尾部若干段**，前面用省略号省略。
+ *  为什么不显示全路径：项目名已经是文件名，全路径会把行撑爆；但只有文件名又分不清
+ *  `a/scene.hip` 与 `b/scene.hip`——所以留 2~3 段尾巴做辨识，全路径进 title。
+ *  Windows `\` 与 POSIX `/` 都吃；段数不超过 keep 时原样返回（不加省略号）。 */
+export function shortHipPath(hip: string, keep = 3): string {
+  const raw = (hip ?? "").trim();
+  if (!raw) return "";
+  const sep = raw.includes("\\") ? "\\" : "/";
+  const parts = raw.split(/[\\/]+/).filter((s) => s.length > 0);
+  if (parts.length === 0) return "";
+  const n = Math.max(1, Math.floor(keep) || 1);
+  if (parts.length <= n) {
+    // 段数本来就少：原样（POSIX 绝对路径保留打头的 `/`，否则 /tmp/a.hip 会变成 tmp/a.hip）
+    const lead = raw.startsWith("/") ? "/" : "";
+    return lead + parts.join(sep);
+  }
+  return `…${sep}${parts.slice(-n).join(sep)}`;
+}
+
+/** 另存为迁移徽标（供单测）：`migratedAt > 0` 才有；previousHip 进 title。
+ *  语气刻意平淡——迁移是正常操作（换绑文件），不是错误。 */
+export function migratedBadgeHtml(p: ProjectRef, now: number = Date.now()): string {
+  const at = p.migratedAt ?? 0;
+  if (!at) return "";
+  const prev = (p.previousHip ?? "").trim();
+  const when = relSince(now - epochMs(at));
+  const title = prev
+    ? `${when}另存为迁移：原文件 ${prev} → 现文件 ${p.hip ?? ""}（成员已按新文件核对）`
+    : `${when}另存为迁移（未记录原文件）`;
+  return `<span class="ov-badge migrated" title="${esc(title)}">已换绑</span>`;
 }
 
 /** 新建项目的默认名（供单测）：留空时用「项目 N」（N = 现有项目数 + 1），
@@ -201,11 +242,35 @@ export function defaultProjectName(count: number): string {
 // 冒充事实」（实测线上一个健康吊牌心跳已 2938s）。所以心跳超时只是**触发探测的条件**，
 // 结论由 `GET /api/projects/{pid}/anchors/{serial}/probe`（核对 mcp.health 的 pid）给出。
 
-/** 一个锚点的探测缓存条目：in-flight / 有结论 / 探不动。 */
+/** 一个锚点的探测缓存条目：in-flight / 本次探到的结论 / 探不动 / **持久化旧证据**。
+ *
+ *  `seeded` 是刷新网页后状态不掉的那一格：桥把每次探测结论写在锚点上
+ *  （`AnchorRef.verifiedAt` / `verifiedAlive`），页面加载时拿它回填。
+ *  但它是**过去的结论**，不是当前实测——所以类型上就与 `done` 分开，
+ *  渲染时也必须说清「这是记录，不是刚探的」。 */
 export type AnchorProbeEntry =
   | { status: "checking" }
   | { status: "done"; result: AnchorProbeResult }
-  | { status: "error"; error: string };
+  | { status: "error"; error: string }
+  | { status: "seeded"; alive: boolean; verifiedAt: number };
+
+/** 持久化证据的「新鲜」窗口：超过它就只算陈旧参考，不当结论用。
+ *  取 3 分钟——探测本来就是一瞬间的快照，几分钟前的存活说明不了现在。 */
+export const EVIDENCE_FRESH_MS = 180_000;
+
+/** 持久化证据是否已陈旧（供单测：now 可注入）。verifiedAt=0（从未核实）按陈旧处理。 */
+export function isStaleEvidence(verifiedAt: number, now: number = Date.now()): boolean {
+  if (!verifiedAt) return true;
+  return now - epochMs(verifiedAt) > EVIDENCE_FRESH_MS;
+}
+
+/** 由持久化锚点字段生成 seeded 条目（供单测）：从未核实过 → undefined（**不造结论**）。
+ *  这是「刷新掉状态」的修复入口：页面加载时对每个锚点调它一次即可。 */
+export function seedEntryFromAnchor(anchor: AnchorRef): AnchorProbeEntry | undefined {
+  const at = anchor.verifiedAt ?? 0;
+  if (!at) return undefined;
+  return { status: "seeded", alive: anchor.verifiedAlive === true, verifiedAt: at };
+}
 
 /** 探测结果查表：serial -> 条目。Map 与普通对象都收（页面用 Map，单测用字面量）。 */
 export type ProbeLookup = Map<string, AnchorProbeEntry> | Record<string, AnchorProbeEntry>;
@@ -259,14 +324,23 @@ export function anchorSerialsOf(p: ProjectRef): string[] {
  *  | 超时 | alive+pid 匹配 | idle | `在线（未 cook）` |
  *  | 超时 | alive 但 pid 不匹配 / 不 alive | gone | `失联` |
  *  | 超时 | expectedPid=0 | offline | `无心跳（无法核实）` |
+ *  | 超时 | seeded（新鲜，存活） | idle | `在线（未 cook·据记录）` |
+ *  | 超时 | seeded（新鲜，未确认） | gone | `失联（据记录）` |
+ *  | 超时 | seeded（陈旧） | stale | `旧记录：…`（仅供参考，非当前结论） |
  *
- *  注意 `无心跳` 不是 `离线`：心跳年龄证不了「不在了」，这层诚实要留着。 */
+ *  注意 `无心跳` 不是 `离线`：心跳年龄证不了「不在了」，这层诚实要留着。
+ *  同理 seeded（桥持久化的旧探测结论）**永远排在本次实测之后**，且文案自带
+ *  「据记录 / 旧记录」标注——把旧结论渲染成新结论正是本轮要消灭的「猜测冒充事实」。 */
 export function projectStatusLight(
   p: ProjectRef,
   now: number = Date.now(),
   liveSeen?: Record<string, number>,
   probes?: ProbeLookup,
-): { state: "online" | "offline" | "empty" | "idle" | "checking" | "gone"; text: string; title: string } {
+): {
+  state: "online" | "offline" | "empty" | "idle" | "checking" | "gone" | "stale";
+  text: string;
+  title: string;
+} {
   const members = Array.isArray(p.members) ? p.members : [];
   if (members.length === 0) return { state: "empty", text: "空", title: "项目还没有成员" };
   const seenOf = (m: ChannelRef): number => {
@@ -328,6 +402,47 @@ export function projectStatusLight(
       state: "offline",
       text: "无心跳（无法核实）",
       title: "吊牌没上报 pid（旧版 HDA），无法核对实例存活；心跳超时只说明最近没 cook",
+    };
+  }
+
+  // 本次会话没探过，但**桥上有持久化的旧结论** → 用它，但绝不装成刚探的。
+  // 这是「刷新网页掉状态」的修复点：状态来自后端持久化字段，而不是页面内存。
+  const seeds = entries
+    .filter((e) => e.entry?.status === "seeded")
+    .map((e) => ({ serial: e.serial, s: e.entry as { status: "seeded"; alive: boolean; verifiedAt: number } }));
+  if (seeds.length > 0) {
+    const recent = seeds.filter((e) => !isStaleEvidence(e.s.verifiedAt, now));
+    const recentAlive = recent.filter((e) => e.s.alive);
+    if (recentAlive.length > 0) {
+      const when = relSince(now - epochMs(recentAlive[0].s.verifiedAt));
+      return {
+        // 文案上明写「据记录」：与刚探出来的「在线（未 cook）」一眼分得开。
+        state: "idle",
+        text: "在线（未 cook·据记录）",
+        title: `${when}的探测记录显示实例存活（桥持久化的 verifiedAlive，非本次实测）：${recentAlive
+          .map((e) => e.serial)
+          .join("；")}。点「检测」取当前结论。`,
+      };
+    }
+    if (recent.length > 0) {
+      const when = relSince(now - epochMs(recent[0].s.verifiedAt));
+      return {
+        state: "gone",
+        text: "失联（据记录）",
+        title: `${when}的探测记录未能确认实例存活（桥持久化的 verifiedAlive=false，非本次实测）：${recent
+          .map((e) => e.serial)
+          .join("；")}。点「检测」取当前结论。`,
+      };
+    }
+    // 全是陈旧证据（超过新鲜窗口）→ 单独一档，**明说是旧记录且仅供参考**。
+    const newest = seeds.reduce((a, b) => (b.s.verifiedAt > a.s.verifiedAt ? b : a));
+    const when = relSince(now - epochMs(newest.s.verifiedAt));
+    return {
+      state: "stale",
+      text: newest.s.alive ? "旧记录：存活" : "旧记录：未确认",
+      title: `仅供参考，非当前结论：最近一次探测在${when}（${
+        newest.s.alive ? "当时存活" : "当时未确认存活"
+      }），已超过 ${Math.round(EVIDENCE_FRESH_MS / 60_000)} 分钟。心跳同时超时（吊牌只在 cook 时心跳）。点「检测」取当前结论。`,
     };
   }
 
@@ -460,6 +575,12 @@ export function parseMappingInput(raw: string): unknown {
   return parseChannelValue(raw);
 }
 
+/** 刷新按钮在「检测全部」期间的文案（供单测）：total=0 → 恢复「刷新」。 */
+export function probeProgressLabel(done: number, total: number): string {
+  if (total <= 0) return "刷新";
+  return `检测中 ${Math.min(done, total)}/${total}…`;
+}
+
 /** 清理结果文案（供单测）：removed 为空说明没有空项目。 */
 export function cleanupSummary(removed: string[]): string {
   if (removed.length === 0) return "没有空项目";
@@ -528,10 +649,14 @@ if (typeof document !== "undefined") {
   /** 锚点 serial -> 探测缓存。**按需**填充，绝不在渲染/轮询路径上探：
    *  一次探测 = 一次 Houdini 往返，放进 render 就等于每帧都问 Houdini。
    *  刷新（loadProjects）故意**不清**这张表：结论比心跳年龄有价值得多，
-   *  留着显示（陈旧与否由用户再点「检测」决定）。 */
+   *  留着显示（陈旧与否由用户再点「检测」决定）。
+   *  页面加载时还会用桥持久化的 verifiedAt/verifiedAlive 回填 `seeded` 条目，
+   *  所以**刷新网页不再掉状态**（seeded 与实测在类型上分开，文案也分开）。 */
   const probeByAnchor = new Map<string, AnchorProbeEntry>();
   /** 已自动探过一次的项目（展开时自动探一次，之后只认手动点「检测」）。 */
   const autoProbed = new Set<string>();
+  /** 「检测全部」进行中的进度（done/total）；total=0 表示没在跑。 */
+  let probeAllProgress = { done: 0, total: 0 };
 
   /** 拉通道大全（只为取 live lastSeen；失败由调用方退回快照）。 */
   async function fetchChannels(): Promise<{ channels: ChannelRef[] }> {
@@ -566,6 +691,73 @@ if (typeof document !== "undefined") {
     renderProjects(projectsStore.projects);
   }
 
+  /** 刷新按钮的进度文案（同步 projects 面板与顶部两个按钮）。 */
+  function syncRefreshButtons(): void {
+    const { done, total } = probeAllProgress;
+    const running = total > 0;
+    projectsRefresh.disabled = running;
+    projectsRefresh.textContent = running ? probeProgressLabel(done, total) : "刷新";
+    refreshBtn.disabled = running || refreshBtn.dataset.busy === "1";
+  }
+
+  /** 检测**全部**项目的锚点（刷新按钮的语义修复点）。
+   *
+   *  - 并发有界（PROBE_CONCURRENCY，默认 5）：每个探测都是一次 Houdini 往返，
+   *    项目多了不能一把梭；但也不能串行等一整轮。
+   *  - 同一 serial 只探一次（多个项目共享锚点时去重）。
+   *  - 单个失败不影响其余（probeAnchor 不抛，mapWithLimit 再兜一层）。
+   *  - 按钮显示 `检测中 3/9…` 并禁用；**没有任何定时器**——只在显式刷新时跑。 */
+  async function probeAllProjects(): Promise<void> {
+    if (probeAllProgress.total > 0) return; // 已经在跑：别叠一轮
+    const tasks: { pid: string; serial: string }[] = [];
+    const seen = new Set<string>();
+    for (const p of projectsStore.projects) {
+      for (const s of anchorSerialsOf(p)) {
+        if (seen.has(s)) continue;
+        seen.add(s);
+        tasks.push({ pid: p.projectSerial, serial: s });
+      }
+    }
+    if (tasks.length === 0) return;
+    probeAllProgress = { done: 0, total: tasks.length };
+    for (const t of tasks) probeByAnchor.set(t.serial, { status: "checking" });
+    syncRefreshButtons();
+    renderProjects(projectsStore.projects);
+    await mapWithLimit(tasks, PROBE_CONCURRENCY, async (t) => {
+      const r = await probeAnchor(t.pid, t.serial); // 不抛：失败也是普通结果
+      probeByAnchor.set(t.serial, "ok" in r ? { status: "error", error: r.error } : { status: "done", result: r });
+      probeAllProgress = { done: probeAllProgress.done + 1, total: probeAllProgress.total };
+      syncRefreshButtons();
+      renderProjects(projectsStore.projects); // 逐个亮灯，用户能看到进度
+    });
+    probeAllProgress = { done: 0, total: 0 };
+    syncRefreshButtons();
+    renderProjects(projectsStore.projects);
+  }
+
+  /** 用桥持久化的锚点证据（verifiedAt/verifiedAlive）回填状态 —— **刷新网页不掉状态**。
+   *
+   *  证据只能从 `GET /api/projects/{pid}/mappings` 的 anchors 拿（桥没有大全端点），
+   *  故按项目并发拉取（EVIDENCE_CONCURRENCY 有界；这是桥本地 JSON，不碰 Houdini）。
+   *  只填**空位**：本次会话已有 checking/done/error 的锚点不覆盖（实测优先于记录）。 */
+  async function seedProbesFromPersisted(list: ProjectRef[]): Promise<void> {
+    const pids = list.filter((p) => anchorSerialsOf(p).length > 0).map((p) => p.projectSerial);
+    if (pids.length === 0) return;
+    let filled = 0;
+    await mapWithLimit(pids, EVIDENCE_CONCURRENCY, async (pid) => {
+      const res = await fetchMappings(pid); // 抛错由 mapWithLimit 兜住（该项目无证据即可）
+      for (const anchor of Object.values(res.anchors ?? {})) {
+        const cur = probeByAnchor.get(anchor.serial);
+        if (cur && cur.status !== "seeded") continue; // 本次实测/在飞的不动
+        const seed = seedEntryFromAnchor(anchor);
+        if (!seed) continue;
+        probeByAnchor.set(anchor.serial, seed);
+        filled++;
+      }
+    });
+    if (filled > 0) renderProjects(projectsStore.projects);
+  }
+
   /** 展开时自动探一次：**只一次**（记在 autoProbed 里），之后要新结论就手动点「检测」。
    *  刻意不在这里做定时/轮询——一次探测就是一次 Houdini 往返。 */
   async function autoProbeOnce(pid: string): Promise<void> {
@@ -580,11 +772,16 @@ if (typeof document !== "undefined") {
     const light = projectStatusLight(p, Date.now(), liveSeenByChannel, probeByAnchor);
     const expanded = expandedProject === pid;
     const checking = anchorSerialsOf(p).some((s) => probeByAnchor.get(s)?.status === "checking");
-    // 名字列：改名中 → 行内 input（回车提交 / Esc 取消）；否则纯文本，序列号只进 title。
+    // 名字列：改名中 → 行内 input（回车提交 / Esc 取消）；否则「hip 文件名 + 短路径」，
+    // 序列号只进 title。短路径是**次要文字**（独立小字行），不塞进名字里。
+    const hip = (p.hip ?? "").trim();
+    const short = shortHipPath(hip);
     const nameCell =
       editingProject === pid
         ? `<input class="ov-name-input" type="text" data-rename-input="${esc(pid)}" value="${esc(p.label ?? "")}" placeholder="项目名称" />`
-        : `<span class="ov-project-name" title="${esc(pid)}">${esc(projectDisplayName(p))}</span>`;
+        : `<span class="ov-project-name" title="${esc(pid)}">${esc(projectDisplayName(p))}</span>` +
+          migratedBadgeHtml(p) +
+          (short ? `<small class="ov-project-hip" title="${esc(hip)}">${esc(short)}</small>` : "");
     return `
     <div class="ov-row projects${expanded ? " focused" : ""}${light.state === "gone" ? " probe-gone" : ""}" data-project-serial="${esc(pid)}">
       <div class="ov-cell ov-label">${nameCell}</div>
@@ -621,7 +818,12 @@ if (typeof document !== "undefined") {
     }
   }
 
-  async function loadProjects(): Promise<void> {
+  /** 拉项目列表并渲染。
+   *
+   *  `probeAll=true`（用户点「刷新」时）→ 列完之后**检测每一个**有锚点的项目，
+   *  而不是只更新列表把状态灯留在「无心跳」。首次加载传 false：状态由桥持久化
+   *  证据回填（seedProbesFromPersisted），不平白打一轮 Houdini 往返。 */
+  async function loadProjects(probeAll = false): Promise<void> {
     projectsRefresh.disabled = true;
     hideProjectsError();
     projectsHint.classList.remove("hidden");
@@ -648,6 +850,10 @@ if (typeof document !== "undefined") {
         void loadMappings(expandedProject);
         void autoProbeOnce(expandedProject); // ?project= 直达时也核实一次（仍是每项目一次）
       } else renderMappingsIdle();
+      // 刷新网页后状态不掉：先用桥持久化的 verifiedAt/verifiedAlive 回填（标注为记录）。
+      await seedProbesFromPersisted(projects);
+      // 用户点「刷新」= 「检测一下所有节点的状态」：实测覆盖掉上面的记录。
+      if (probeAll) await probeAllProjects();
     } catch (err) {
       projectsStore.setProjects([]);
       renderProjects([]);
@@ -658,7 +864,7 @@ if (typeof document !== "undefined") {
       );
       setBanner("offline", "桥离线：无法连接 127.0.0.1:8375，项目与场景列表不可用；新建也需要桥在线。");
     } finally {
-      projectsRefresh.disabled = false;
+      syncRefreshButtons(); // 探测跑完才解禁（probeAllProgress.total 归零后）
     }
   }
 
@@ -733,7 +939,8 @@ if (typeof document !== "undefined") {
     }
   }
 
-  projectsRefresh.addEventListener("click", () => void loadProjects());
+  // 「刷新」= 重新列项目 **并检测每一个项目的锚点状态**（用户诉求 2）。
+  projectsRefresh.addEventListener("click", () => void loadProjects(true));
   projectsCleanup.addEventListener("click", () => void runProjectsCleanup());
   projectNew.addEventListener("click", () => void createProject());
   projectName.addEventListener("keydown", (e) => {
@@ -1098,14 +1305,17 @@ if (typeof document !== "undefined") {
     }
   });
 
-  // 顶部「刷新」：项目 + 场景一起刷（映射跟随项目）。
+  // 顶部「刷新」：项目（含全量检测）+ 场景一起刷（映射跟随项目）。
   refreshBtn.addEventListener("click", () => {
+    refreshBtn.dataset.busy = "1";
     refreshBtn.disabled = true;
-    void Promise.all([loadProjects(), loadScenes()]).finally(() => {
-      refreshBtn.disabled = false;
+    void Promise.all([loadProjects(true), loadScenes()]).finally(() => {
+      refreshBtn.dataset.busy = "0";
+      syncRefreshButtons();
     });
   });
 
+  // 首次加载不探测（状态由桥持久化证据回填）；显式刷新才打 Houdini 往返。
   void loadProjects();
   void loadScenes();
 }

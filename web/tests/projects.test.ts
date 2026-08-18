@@ -17,8 +17,13 @@ const tag = (over: Partial<ChannelRef> = {}): ChannelRef => ({
 const project = (over: Partial<ProjectRef> = {}): ProjectRef => ({
   projectSerial: "P1-m1abc2d3e-ab12",
   label: "测试项目",
+  // v0.1.00116：项目 = 一个 hip 文件（key 仍是 projectSerial，hip 只是当前绑定）
+  hip: "D:/proj/scene.hip",
+  hipName: "scene.hip",
   createdAt: 1000,
   updatedAt: 1000,
+  migratedAt: 0,
+  previousHip: "",
   members: [],
   ...over,
 });

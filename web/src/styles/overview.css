@@ -212,14 +212,29 @@ body {
 .ov-projects-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .ov-projects-head .ov-section-heading { margin: 0; flex: 1; }
 /* 状态列放得下「在线（未 cook）」/「无心跳（无法核实）」；操作列多了「检测」按钮 */
-.ov-row.projects { grid-template-columns: minmax(170px, 1.5fr) 74px 132px minmax(300px, auto); }
+/* 状态列还要放得下「在线（未 cook·据记录）」/「旧记录：未确认」→ 比原来宽一点 */
+.ov-row.projects { grid-template-columns: minmax(170px, 1.5fr) 74px 150px minmax(290px, auto); }
 .ov-row.projects .ov-cell.ov-action { display: flex; gap: 6px; justify-content: flex-end; }
 .ov-row.projects.focused {
   border-color: #9fd8ff;
   box-shadow: 0 0 0 1px rgba(159, 216, 255, 0.55) inset;
 }
-/* 项目名：人类可读名字打头（序列号只在 title 里） */
+/* 项目名：hip 文件名打头（序列号只在 title 里） */
 .ov-project-name { font-weight: 600; color: #e5e7eb; }
+/* hip 绝对路径的短形：次要文字，独立小字行（不挤进名字，也不抢它的分量） */
+.ov-project-hip {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 10px/1.4 var(--cyl-font-code);
+  font-weight: 400;
+  color: #7a7f87;
+  cursor: help;
+}
+/* 项目名列要能摞两行（名字 + 短路径），故不整列裁剪 */
+.ov-row.projects .ov-cell.ov-label { overflow: visible; white-space: normal; }
 .ov-name-input {
   width: 100%;
   background: #0f1012;
@@ -254,6 +269,21 @@ body {
   padding: 1px 6px;
   font-weight: 700;
 }
+/* 旧记录（桥持久化的过期探测结论）= **不是当前结论**，所以既不给绿也不给红：
+ * 灰底斜体 + 虚线框，形状上就和实测结论区分开，鼠标悬停给「仅供参考」全文。 */
+.ov-row.projects .ov-seen.stale .ov-state {
+  display: inline-block;
+  color: #9aa0a8;
+  background: rgba(122, 127, 135, 0.14);
+  border: 1px dashed #4a5160;
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-style: italic;
+  font-weight: 500;
+  cursor: help;
+}
+/* 状态列允许换行：「在线（未 cook·据记录）」比原文案长 */
+.ov-row.projects .ov-cell.ov-seen { white-space: normal; overflow: visible; }
 .ov-row.projects.probe-gone { border-color: #7f1d1d; background: rgba(127, 29, 29, 0.1); }
 
 /* 「检测」按钮：中性蓝灰，不抢「打开」的主色 */
@@ -318,6 +348,13 @@ body {
 }
 /* 已移动 = 正常状态（逻辑名不变，路径自动跟随），用蓝而非红 */
 .ov-badge.moved { color: #9fd8ff; border: 1px solid rgba(159, 216, 255, 0.4); }
+/* 已换绑（另存为迁移）= 也是正常操作，只是值得知道 → 安静的灰蓝，不报警 */
+.ov-badge.migrated {
+  margin-left: 6px;
+  color: #a5b4c8;
+  border: 1px solid #3a3f47;
+  cursor: help;
+}
 
 /* ---- scenes 诊断区（默认折叠） ---- */
 .ov-diag { padding: 0; }

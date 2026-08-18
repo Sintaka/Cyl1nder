@@ -290,15 +290,27 @@ async def put_mapping_value(pid: str, name: str, payload: ValuePut) -> dict:
 
 @router.get("/api/projects/{pid}/mappings")
 async def list_mappings(pid: str) -> MappingsResponse:
+    """entries + resolved + **本项目相关的全部锚点**。
+
+    `anchors` 不能只回「被 entry 引用到的」：项目的吊牌成员可能还没建任何映射条目，
+    那样前端就拿不到它的 `verifiedAt`/`verifiedAlive`，刷新页面后状态只能退回「无心跳」
+    ——这正是「刷新网页掉状态」的最后一块缺口。所以并入该项目**成员 serial** 对应的锚点。
+    """
     _check_pid(pid)
-    reg = get_state().mappings
+    st = get_state()
+    reg = st.mappings
     entries = reg.list_entries(pid)
     all_anchors = reg.list_anchors()
-    used = {e.get("anchor") or "" for e in entries.values()}
+    wanted = {e.get("anchor") or "" for e in entries.values()}
+    project = st.projects.get(pid) if hasattr(st.projects, "get") else None
+    for m in (project or {}).get("members") or []:
+        serial = (m or {}).get("serial") or ""
+        if serial:
+            wanted.add(serial)
     return MappingsResponse(
         projectSerial=pid,
         entries=entries,
-        anchors={s: a for s, a in all_anchors.items() if s in used},
+        anchors={s: a for s, a in all_anchors.items() if s in wanted},
         resolved=reg.resolve_all(pid),
     )
 

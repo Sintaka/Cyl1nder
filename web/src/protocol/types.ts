@@ -96,15 +96,38 @@ export interface ChannelRef {
   mode?: TagMode | string | null;
 }
 
-// 项目层（P2a）：项目 = 通道引用聚合。项目序列号前缀 P1-，与 HDA serial（C1-）区分。
+// 项目层：**项目 = 一个 hip 文件**（v0.1.00116 起）。
+//
+// key 仍是 projectSerial（P1-…，创建即不可变）。**不能用 hip 路径/文件名当 key**：
+// 不同位置的同名文件会撞（a/scene.hip vs b/scene.hip），路径本身又会因另存为而变。
+// hip 只是「当前绑定的文件」，另存为迁移会更新它；显示名优先 hipName，label 为用户改名。
 export const PROJECT_SERIAL_RE = /^P1-[0-9a-z]{8,}-[0-9a-z]{4}$/;
 
 export interface ProjectRef {
   projectSerial: string;
-  label: string;
+  label: string;        // 空 = 用 hipName 显示（用户改名后才有值）
+  hip: string;          // 当前绑定的 hip 绝对路径
+  hipName: string;      // hip 文件名（服务端派生，前端直接显示）
   createdAt: number;
   updatedAt: number;
+  migratedAt: number;   // 最近一次另存为迁移时刻（0 = 从未迁移）
+  previousHip: string;  // 迁移前的 hip（审计用）
   members: ChannelRef[]; // 通道引用快照（live 状态以 /api/channels 为准）
+}
+
+/** 另存为迁移结果（POST /api/projects/migrate）。
+ *
+ *  触发：某成员 cook 上报的 hip ≠ 项目当前 hip。语义 = **换绑文件 + 按新文件核对成员**：
+ *  在新 hip 里仍存在的留下，找不到的移出（它属于旧文件，那份关系已经断了）。
+ *  pid/端口不变（同一个 Houdini 进程），快照跟着项目 serial 走所以不动。 */
+export interface SaveAsMigration {
+  projectSerial: string;
+  fromHip: string;
+  toHip: string;
+  kept: string[];     // 新文件里仍存在 -> 保留的成员 key
+  dropped: string[];  // 新文件里找不到 -> 移出的成员 key
+  migrated: boolean;
+  reason: string;
 }
 
 // ---------------------------------------------------------------------------

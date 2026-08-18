@@ -9,6 +9,7 @@ import type {
   ProjectRef,
 } from "../src/protocol/types";
 import {
+  EVIDENCE_FRESH_MS,
   UNNAMED_PROJECT,
   type AnchorProbeEntry,
   anchorEvidenceTitle,
@@ -18,15 +19,20 @@ import {
   channelValueString,
   cleanupSummary,
   defaultProjectName,
+  isStaleEvidence,
   mappingRowHtml,
   mappingRows,
+  migratedBadgeHtml,
   parseMappingInput,
+  probeProgressLabel,
   probeVerdict,
   projectDisplayName,
   projectStatusLight,
+  seedEntryFromAnchor,
+  shortHipPath,
   valuePlaceholder,
 } from "../src/overview";
-import { encodeMappingName } from "../src/stores/projects";
+import { PROBE_CONCURRENCY, encodeMappingName, mapWithLimit } from "../src/stores/projects";
 import { channelIdOf } from "../src/stores/channels";
 import { INVALID_CHANNEL_VALUE, parseChannelValue } from "../src/app/channel-value";
 
@@ -55,11 +61,17 @@ const param = (over: Partial<ChannelRef> = {}): ChannelRef => ({
   ...over,
 });
 
+// v0.1.00116：项目 = 一个 hip 文件。hip/hipName 默认留空，好让既有断言（label 空 →
+// 「未命名项目 · 成员」）继续测的是**成员回退**那一档；测 hipName 优先级的用例显式给值。
 const project = (over: Partial<ProjectRef> = {}): ProjectRef => ({
   projectSerial: "P1-m1abc2d3e-ab12",
   label: "角色绑定",
+  hip: "",
+  hipName: "",
   createdAt: 1000,
   updatedAt: 1000,
+  migratedAt: 0,
+  previousHip: "",
   members: [],
   ...over,
 });
@@ -113,6 +125,116 @@ describe("projectDisplayName（序列号尾巴修复）", () => {
   it("label 等于项目自身 P1- 序列号 → 未命名项目", () => {
     const pid = "P1-m1abc2d3e-ab12";
     expect(projectDisplayName(project({ projectSerial: pid, label: pid, members: [] }))).toBe(UNNAMED_PROJECT);
+  });
+});
+
+// v0.1.00116：项目 = hip 文件 → 优先级 label（改过名）> hipName（常态）> 未命名 · 成员。
+describe("projectDisplayName × hipName（项目 = hip 文件）", () => {
+  it("label 空 → 用 hip 文件名（现在的常态）", () => {
+    const p = project({ label: "", hip: "D:/proj/hip/beginTest-1.hip", hipName: "beginTest-1.hip" });
+    expect(projectDisplayName(p)).toBe("beginTest-1.hip");
+  });
+
+  it("用户改过名 → label 胜过 hipName", () => {
+    const p = project({ label: "角色绑定", hipName: "beginTest-1.hip" });
+    expect(projectDisplayName(p)).toBe("角色绑定");
+  });
+
+  it("label 是序列号尾巴而 hipName 有值 → 走 hipName，不退到「未命名项目 · 成员」", () => {
+    const p = project({ label: SERIAL, hipName: "beginTest-1.hip", members: [tag({ label: "手部吊牌" })] });
+    const name = projectDisplayName(p);
+    expect(name).toBe("beginTest-1.hip");
+    expect(name).not.toContain(UNNAMED_PROJECT);
+    expect(name).not.toContain(SERIAL);
+  });
+
+  it("label 是项目自身 P1- 序列号而 hipName 有值 → 同样走 hipName", () => {
+    const pid = "P1-m1abc2d3e-ab12";
+    expect(projectDisplayName(project({ projectSerial: pid, label: pid, hipName: "a.hip" }))).toBe("a.hip");
+  });
+
+  it("hipName 只有空白 → 视为空，回退成员线索", () => {
+    const p = project({ label: "", hipName: "   ", members: [tag({ label: "手部吊牌" })] });
+    expect(projectDisplayName(p)).toBe(`${UNNAMED_PROJECT} · 手部吊牌`);
+  });
+
+  it("label 与 hipName 都空 → 仍是旧的成员回退（不 regress）", () => {
+    expect(projectDisplayName(project({ label: "", hipName: "", members: [] }))).toBe(UNNAMED_PROJECT);
+  });
+
+  it("hipName 缺失（旧响应）不抛", () => {
+    const p = { ...project({ label: "" }), hipName: undefined as unknown as string };
+    expect(projectDisplayName(p)).toBe(UNNAMED_PROJECT);
+  });
+});
+
+describe("shortHipPath（文件名后面跟的短路径）", () => {
+  it("深路径只留尾部 3 段并加省略号", () => {
+    expect(shortHipPath("D:/code/dev/Cyl1nder/hip/beginTest-1.hip")).toBe("…/Cyl1nder/hip/beginTest-1.hip");
+  });
+
+  it("Windows 反斜杠沿用反斜杠分隔", () => {
+    const s = shortHipPath("D:\\code\\dev\\Cyl1nder\\hip\\beginTest-1.hip");
+    expect(s).toBe("…\\Cyl1nder\\hip\\beginTest-1.hip");
+    expect(s).not.toContain("/");
+  });
+
+  it("浅路径原样返回，不加省略号", () => {
+    expect(shortHipPath("D:/a.hip")).toBe("D:/a.hip");
+    expect(shortHipPath("a.hip")).toBe("a.hip");
+    expect(shortHipPath("/tmp/a.hip")).toBe("/tmp/a.hip"); // POSIX 绝对路径保留打头 /
+  });
+
+  it("空 / 空白 / 只有分隔符 → 空串（调用方据此不渲染小字）", () => {
+    expect(shortHipPath("")).toBe("");
+    expect(shortHipPath("   ")).toBe("");
+    expect(shortHipPath("///")).toBe("");
+  });
+
+  it("keep 可调，且恒至少留 1 段", () => {
+    expect(shortHipPath("a/b/c/d.hip", 2)).toBe("…/c/d.hip");
+    expect(shortHipPath("a/b/c/d.hip", 0)).toBe("…/d.hip");
+  });
+
+  it("两个同名文件靠短路径能分清（这就是它存在的理由）", () => {
+    const a = shortHipPath("D:/work/alpha/scene.hip");
+    const b = shortHipPath("D:/work/beta/scene.hip");
+    expect(a).not.toBe(b);
+  });
+});
+
+describe("migratedBadgeHtml（另存为迁移徽标）", () => {
+  const now = 10_000_000_000_00;
+
+  it("未迁移 → 无徽标", () => {
+    expect(migratedBadgeHtml(project({ migratedAt: 0 }), now)).toBe("");
+  });
+
+  it("已迁移 → 徽标 + previousHip 进 title，语气平淡不报警", () => {
+    const p = project({
+      migratedAt: now / 1000 - 120,
+      previousHip: "D:/proj/old.hip",
+      hip: "D:/proj/new.hip",
+    });
+    const html = migratedBadgeHtml(p, now);
+    expect(html).toContain("ov-badge migrated");
+    expect(html).toContain("已换绑");
+    expect(html).toContain("D:/proj/old.hip");
+    expect(html).toContain("D:/proj/new.hip");
+    expect(html).not.toContain("错误");
+    expect(html).not.toContain("失败");
+  });
+
+  it("previousHip 缺失时照实说「未记录原文件」", () => {
+    const html = migratedBadgeHtml(project({ migratedAt: now / 1000 - 60, previousHip: "" }), now);
+    expect(html).toContain("未记录原文件");
+  });
+
+  it("title 里的引号/尖括号被转义", () => {
+    const html = migratedBadgeHtml(project({ migratedAt: now, previousHip: 'D:/a"<b>.hip' }), now);
+    expect(html).toContain("&quot;");
+    expect(html).toContain("&lt;b&gt;");
+    expect(html).not.toContain('a"<b>');
   });
 });
 
@@ -358,6 +480,249 @@ describe("探测缓存按 serial 归属（A 的结论不能染到 B）", () => {
     const pB = project({ members: [tag({ serial: B, lastSeen: 1 })] });
     expect(projectStatusLight(pA, now, undefined, cache).state).toBe("idle");
     expect(projectStatusLight(pB, now, undefined, cache).state).toBe("gone");
+  });
+});
+
+// ---- 刷新网页不掉状态：由桥持久化的 verifiedAt/verifiedAlive 回填 ----
+//
+// 关键分寸：持久化的 verifiedAlive 是**过去的结论**，不是当前实测。回填让状态活过
+// 刷新，但绝不能把旧结论渲染成刚探出来的结论——那正是本轮要消灭的问题。
+
+describe("seedEntryFromAnchor（持久化证据 → 状态种子）", () => {
+  it("有 verifiedAt → seeded 条目（带结论与时刻）", () => {
+    const e = seedEntryFromAnchor(anchor({ verifiedAt: 1_700_000_000, verifiedAlive: true }));
+    expect(e).toEqual({ status: "seeded", alive: true, verifiedAt: 1_700_000_000 });
+  });
+
+  it("verifiedAlive=false 也照实回填（未确认存活也是记录）", () => {
+    expect(seedEntryFromAnchor(anchor({ verifiedAt: 1_700_000_000, verifiedAlive: false }))).toMatchObject({
+      status: "seeded",
+      alive: false,
+    });
+  });
+
+  it("从未核实（verifiedAt=0）→ undefined：不凭空造结论", () => {
+    expect(seedEntryFromAnchor(anchor({ verifiedAt: 0, verifiedAlive: false }))).toBeUndefined();
+    // 即使盘上 verifiedAlive 误为 true，没有时刻就没有证据
+    expect(seedEntryFromAnchor(anchor({ verifiedAt: 0, verifiedAlive: true }))).toBeUndefined();
+  });
+});
+
+describe("isStaleEvidence（几分钟前的存活说明不了现在）", () => {
+  const now = 10_000_000_000_00;
+
+  it("刚核实过 → 不算陈旧", () => {
+    expect(isStaleEvidence(now / 1000 - 10, now)).toBe(false);
+  });
+
+  it("超过新鲜窗口 → 陈旧", () => {
+    expect(isStaleEvidence(now / 1000 - EVIDENCE_FRESH_MS / 1000 - 60, now)).toBe(true);
+  });
+
+  it("verifiedAt=0（从未核实）按陈旧处理", () => {
+    expect(isStaleEvidence(0, now)).toBe(true);
+  });
+
+  // epochMs 以 1e12 为界判秒/毫秒，故这里用一个明确落在毫秒区间的 now
+  // （固定 now=1e12 减几秒就掉到秒区间了，那是固件问题不是实现问题）。
+  it("毫秒级时间戳同样处理（epochMs 兼容）", () => {
+    const msNow = 1_700_000_000_000;
+    expect(isStaleEvidence(msNow - 1_000, msNow)).toBe(false);
+    expect(isStaleEvidence(msNow - EVIDENCE_FRESH_MS - 1_000, msNow)).toBe(true);
+  });
+});
+
+describe("projectStatusLight × 持久化证据（刷新网页不掉状态）", () => {
+  const now = 10_000_000_000_00;
+  const stale = () => project({ members: [tag({ lastSeen: 1 })] }); // 心跳早已超时
+  const fresh = () => project({ members: [tag({ lastSeen: now })] });
+  const seeded = (over: Partial<AnchorRef> = {}): Record<string, AnchorProbeEntry> => {
+    const e = seedEntryFromAnchor(anchor(over));
+    return e ? { [SERIAL]: e } : {};
+  };
+
+  it("**心跳新鲜时短路在任何证据之前**（记录说没了也不影响）", () => {
+    const light = projectStatusLight(fresh(), now, undefined, seeded({ verifiedAt: now / 1000, verifiedAlive: false }));
+    expect(light.state).toBe("online");
+    expect(light.text).toBe("在线 1/1");
+  });
+
+  it("新鲜记录（存活）→ 给结论，但文案明标「据记录」", () => {
+    const light = projectStatusLight(stale(), now, undefined, seeded({ verifiedAt: now / 1000 - 20, verifiedAlive: true }));
+    expect(light.state).toBe("idle");
+    expect(light.text).toContain("据记录");
+    expect(light.title).toContain("非本次实测");
+    // 绝不能与刚探出来的文案一模一样，否则旧结论就冒充了新结论
+    expect(light.text).not.toBe("在线（未 cook）");
+  });
+
+  it("新鲜记录（未确认存活）→ 失联（据记录），同样标注来源", () => {
+    const light = projectStatusLight(stale(), now, undefined, seeded({ verifiedAt: now / 1000 - 20, verifiedAlive: false }));
+    expect(light.state).toBe("gone");
+    expect(light.text).toBe("失联（据记录）");
+    expect(light.title).toContain("非本次实测");
+  });
+
+  it("陈旧记录 → 独立的 stale 档，明写「仅供参考，非当前结论」", () => {
+    const old = now / 1000 - EVIDENCE_FRESH_MS / 1000 - 600;
+    const light = projectStatusLight(stale(), now, undefined, seeded({ verifiedAt: old, verifiedAlive: true }));
+    expect(light.state).toBe("stale");
+    expect(light.text).toContain("旧记录");
+    expect(light.title).toContain("仅供参考，非当前结论");
+    // 陈旧存活**不得**渲染成在线/未 cook 的绿灯
+    expect(light.state).not.toBe("idle");
+    expect(light.state).not.toBe("online");
+  });
+
+  it("陈旧记录（当时未确认）→ 也是 stale，不升级成 gone 那种确证坏结论", () => {
+    const old = now / 1000 - EVIDENCE_FRESH_MS / 1000 - 600;
+    const light = projectStatusLight(stale(), now, undefined, seeded({ verifiedAt: old, verifiedAlive: false }));
+    expect(light.state).toBe("stale");
+    expect(light.text).toContain("未确认");
+    expect(light.state).not.toBe("gone");
+  });
+
+  it("**本次实测胜过记录**：done 在，就不看 seeded", () => {
+    const cache: Record<string, AnchorProbeEntry> = { [SERIAL]: done(probe()) };
+    const light = projectStatusLight(stale(), now, undefined, cache);
+    expect(light.state).toBe("idle");
+    expect(light.text).toBe("在线（未 cook）"); // 不带「据记录」
+    expect(light.text).not.toContain("据记录");
+  });
+
+  it("探测在飞时显示检测中（不拿记录顶着假装已完成）", () => {
+    const light = projectStatusLight(stale(), now, undefined, { [SERIAL]: { status: "checking" } });
+    expect(light.state).toBe("checking");
+  });
+
+  it("从未核实过的锚点 → 回到诚实的「无心跳」（不造结论）", () => {
+    const light = projectStatusLight(stale(), now, undefined, seeded({ verifiedAt: 0 }));
+    expect(light.state).toBe("offline");
+    expect(light.text).toBe("无心跳");
+  });
+
+  it("多锚点：新鲜存活记录优先于陈旧记录", () => {
+    const other = "C1-bbbbbbbb-cccc";
+    const p = project({ members: [tag({ lastSeen: 1 }), tag({ serial: other, lastSeen: 1 })] });
+    const oldAt = now / 1000 - EVIDENCE_FRESH_MS / 1000 - 600;
+    const light = projectStatusLight(p, now, undefined, {
+      [SERIAL]: { status: "seeded", alive: true, verifiedAt: oldAt },
+      [other]: { status: "seeded", alive: true, verifiedAt: now / 1000 - 5 },
+    });
+    expect(light.state).toBe("idle");
+    expect(light.text).toContain("据记录");
+  });
+
+  it("无成员时记录无关 → 仍是空", () => {
+    expect(projectStatusLight(project({ members: [] }), now, undefined, seeded({ verifiedAt: now / 1000 })).state).toBe(
+      "empty",
+    );
+  });
+
+  // 混合场景：一个锚点探不动（桥离线），另一个有记录 → 记录仍可用，不因一个失败全灰。
+  it("探不动 + 另一锚点有新鲜记录 → 记录说话（并标注据记录）", () => {
+    const other = "C1-bbbbbbbb-cccc";
+    const p = project({ members: [tag({ lastSeen: 1 }), tag({ serial: other, lastSeen: 1 })] });
+    const light = projectStatusLight(p, now, undefined, {
+      [SERIAL]: { status: "error", error: "Failed to fetch" },
+      [other]: { status: "seeded", alive: true, verifiedAt: now / 1000 - 5 },
+    });
+    expect(light.state).toBe("idle");
+    expect(light.text).toContain("据记录");
+  });
+
+  it("本次实测的「无法核实」优先于旧记录（新证据即便无结论也比旧结论新）", () => {
+    const light = projectStatusLight(stale(), now, undefined, {
+      [SERIAL]: done(probe({ expectedPid: 0, alive: true, pidMatched: false })),
+    });
+    expect(light.text).toBe("无心跳（无法核实）");
+  });
+});
+
+describe("probeProgressLabel（刷新按钮的进度）", () => {
+  it("进行中显示 done/total", () => {
+    expect(probeProgressLabel(3, 9)).toBe("检测中 3/9…");
+    expect(probeProgressLabel(0, 2)).toBe("检测中 0/2…");
+  });
+
+  it("total=0 → 恢复「刷新」", () => {
+    expect(probeProgressLabel(0, 0)).toBe("刷新");
+  });
+
+  it("done 不会超过 total（末尾竞态也不显示 10/9）", () => {
+    expect(probeProgressLabel(10, 9)).toBe("检测中 9/9…");
+  });
+});
+
+describe("mapWithLimit（刷新时全量检测：并发有界 + 单个失败不掐掉整池）", () => {
+  it("并发上限落在 4~6（每个探测都是一次 Houdini 往返）", () => {
+    expect(PROBE_CONCURRENCY).toBeGreaterThanOrEqual(4);
+    expect(PROBE_CONCURRENCY).toBeLessThanOrEqual(6);
+  });
+
+  it("结果按输入下标对齐，全部都跑到", async () => {
+    const out = await mapWithLimit([1, 2, 3, 4, 5, 6, 7], 3, async (n) => n * 2);
+    expect(out).toEqual([2, 4, 6, 8, 10, 12, 14]);
+  });
+
+  it("在飞数量不超过 limit", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    await mapWithLimit(Array.from({ length: 20 }, (_, i) => i), 4, async () => {
+      inFlight++;
+      peak = Math.max(peak, inFlight);
+      await Promise.resolve();
+      await Promise.resolve();
+      inFlight--;
+    });
+    expect(peak).toBeLessThanOrEqual(4);
+    expect(peak).toBeGreaterThan(1); // 确实并发，不是串行
+  });
+
+  it("一个任务抛错 → 该位置 undefined，其余照跑完（刷新不能半途而废）", async () => {
+    const ran: number[] = [];
+    const out = await mapWithLimit([0, 1, 2, 3, 4], 2, async (n) => {
+      ran.push(n);
+      if (n === 2) throw new Error("probe blew up");
+      return n;
+    });
+    expect(out).toEqual([0, 1, undefined, 3, 4]);
+    expect(ran.sort()).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it("空输入 → 空结果（不起 worker）", async () => {
+    let calls = 0;
+    expect(
+      await mapWithLimit([], 5, async () => {
+        calls++;
+        return 1;
+      }),
+    ).toEqual([]);
+    expect(calls).toBe(0);
+  });
+
+  it("limit 非法时退化为 1（不变成无界）", async () => {
+    let peak = 0;
+    let inFlight = 0;
+    await mapWithLimit([1, 2, 3], 0, async () => {
+      inFlight++;
+      peak = Math.max(peak, inFlight);
+      await Promise.resolve();
+      inFlight--;
+    });
+    expect(peak).toBe(1);
+  });
+
+  it("limit 大于长度时不超发（宽度收敛到长度）", async () => {
+    let peak = 0;
+    let inFlight = 0;
+    await mapWithLimit([1, 2], 99, async () => {
+      inFlight++;
+      peak = Math.max(peak, inFlight);
+      await Promise.resolve();
+      inFlight--;
+    });
+    expect(peak).toBeLessThanOrEqual(2);
   });
 });
 

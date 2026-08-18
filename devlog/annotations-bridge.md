@@ -1,5 +1,32 @@
 # 桥子系统改动标注 / Bridge annotations
 
+## v0.1.00116（2026-08-19）· 项目 = hip 文件 + 另存为迁移 + 测试污染根治
+
+> 身份模型：**key 仍是 `projectSerial`**，hip 只是「当前绑定的文件」。
+> 不能用文件名当 key（`a/scene.hip` 与 `b/scene.hip` 会撞），也不能用路径（另存为就变）。
+
+### 项目按 hip 归拢（修「两个项目共享同一成员」）
+- **projects.py**：`create(label, hip)` / `find_by_hip` / `ensure_for_hip` / `rebind_hip`；
+  `hip_name_of()` 手动按两种分隔符切（桥可能跑在 posix，路径来自 Windows Houdini，
+  `Path().name` 不把 `\` 当分隔符）。归一化复用既有 `houdini_mcp.normalize_hip`。
+  `ensure_for_hip` 在**同一次持锁**内完成 find+create —— 并发心跳产生两个项目的竞态
+  正是重复 bug 的成因。空 hip **永不**命中，否则所有未绑定项目会塌成一个。
+- **project_routes.py**：`ensure` 收 `{serial, hip?}` 按 hip 归拢；新
+  `POST /api/projects/migrate` -> `SaveAsMigra
+...[1027 chars omitted]...
+`mapping.py`**：`lastSeen`/`verifiedAt` 改用注入的 `self._clock()`，不再混用
+  `time.time()`。原先 debounce 走假时钟、`lastSeen` 走真实时钟，两根时间轴不同步；
+  Windows 时钟分辨率 15.625ms，相邻两次 `time.time()` 绝大多数返回同值，
+  于是「越过 debounce 后 lastSeen 应变大」的严格 `>` 间歇性失败（实测 8 次挂 1 次）。
+  统一时间源后 15 次 0 失败。**修的是源码不是断言**——注册表本来就接受可注入 clock。
+
+### 映射
+- **mapping_routes.py**：`GET /mappings` 的 `anchors` 并入**该项目成员**对应的锚点，
+  不再只回「被 entry 引用到的」。否则吊牌成员还没建映射条目时前端拿不到
+  `verifiedAt/verifiedAlive`，刷新页面状态只能退回「无心跳」——这是「刷新掉状态」的最后一块缺口。
+
+验证：pytest 310。
+
 ## v0.1.00115（2026-08-16）· 存活实证（pid + 端口）+ 按 pid 重定位
 
 > 心跳只证明「最近 cook 过」，吊牌长期不 cook 是正常的——详见

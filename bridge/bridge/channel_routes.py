@@ -262,7 +262,28 @@ async def heartbeat(serial: str, payload: HeartbeatBody) -> dict:
             target=payload.nodePath,
             digest=f"pid {reported.get('old_pid') or 0} -> {payload.pid or 0} (houdini restarted)",
         )
+    await _sync_project_hip(serial, payload.hip or "")
     return {"ok": True, "serial": serial, "lastSeen": now}
+
+
+async def _sync_project_hip(serial: str, hip: str) -> None:
+    """心跳带 hip -> 按 hip 归拢项目（自动登记成员；hip 变了则另存为迁移）。
+
+    这是「一个文件下的节点自动注册在一起」的落点：用户什么都不用做。
+    best-effort，与 _report_anchor 同一口径：projects 未挂载或任何异常一律吞掉——
+    心跳的既有行为（touch lastSeen / channel-values 广播 / 锚点上报）绝不受影响。
+    迁移实现只有一份，在 project_routes 里（此处函数内 import 避免模块级循环依赖）。
+    """
+    if not hip:
+        return
+    if getattr(get_state(), "projects", None) is None:
+        return
+    try:
+        from .project_routes import bind_serial_to_hip
+
+        await bind_serial_to_hip(serial, hip)
+    except Exception:  # noqa: BLE001 - 项目归拢失败不影响心跳
+        return
 
 
 def _report_anchor(serial: str, payload: HeartbeatBody) -> dict | None:

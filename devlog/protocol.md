@@ -94,6 +94,27 @@
 - `GET /api/projects/{projectId}/graph` -> `{ok, graph|null}`（非法 400 / 项目不存在 404）。**迁移读**：graph 为空且项目**恰 1 个 kind∈{tag,hda} 成员**（serial/hip 非空）→ 返回该成员 serial 快照的 graph 部分（纯读不写回）。
 - `PUT /api/projects/{projectId}/graph`，body `{graph}` -> `{ok}`（原子 tmp+replace + 内容对比，同内容不重写）。
 
+## 项目 = hip 文件（v0.1.00116 起，身份模型变更）
+
+**ProjectRef**：`{projectSerial, label, hip, hipName, createdAt, updatedAt, migratedAt, previousHip, members}`。
+
+- **key 仍是 `projectSerial`（P1-…）**，创建即不可变。**绝不能用 hip 路径或文件名当 key**：不同位置的同名文件会撞（`a/scene.hip` vs `b/scene.hip`），且路径本身会因另存为而变。
+- `hip` = 当前绑定的 hip 绝对路径；`hipName` = 文件名（服务端派生）。显示名优先 `label`（用户改名过），为空则显示 `hipName` + 简短路径。
+- **同一 hip 只有一个项目**：HDA/吊牌 cook 上报 hip 时，桥按 hip 查到项目并**自动登记成员**（「一个文件下的节点自动注册在一起」）。这消除了此前两个项目共享同一成员、状态永远同步的重复现象（实测 `P2a-demo` 与 `未命名项目 · cyl1ndertag` 都持有 `C1-mst8wa94-8uz8`）。
+- `POST /api/projects/ensure` 语义改为**按 hip 归拢**：body `{serial, hip}` → 找到该 hip 的项目并登记成员，没有则建（label 留空，写入 hip/hipName）。
+
+### 另存为迁移
+- **SaveAsMigration**：`{projectSerial, fromHip, toHip, kept[], dropped[], migrated, reason}`。
+- 触发：某成员 cook 上报的 hip **≠** 项目当前 `hip` → 该文件已被另存为。
+- 语义：**换绑文件 + 按新文件核对成员**。旧文件此刻已不可达，只能从**新 hip** 核对：仍存在的成员重新登记（`kept`），找不到的移出（`dropped`——它属于旧文件，那份关系已断）。
+- **pid / 端口不变**（同一个 Houdini 进程），不重新发现实例；只更新项目绑定的场景文件与状态。
+- 快照目录按 `projectSerial` 组织，所以迁移**不搬快照**，只改绑定。
+- `POST /api/projects/migrate`，body `{projectSerial, toHip}` -> `SaveAsMigration`。
+
+### 快照根（统一）
+- `<hip 所在目录>/Cyl1nder/<projectSerial>/` —— 以**项目序列号**为文件夹名，**整个场景一份快照**（不再按节点细拆）：多个 input/output 同处一个 nodeview。
+- 旧的 `<hipdir>/Cyl1nder/<C1-serial>/` 与 `bridge/data/snapshots/<C1-serial>/` 是历史残留：读时兼容，不再新写。
+
 ## 项目管理端点（v0.1.00114 起，项目优先重构）
 - `PATCH  /api/projects/{projectId}`，body `{label}` -> `{ok, project}`（改名；刷 updatedAt）
 - `DELETE /api/projects/{projectId}` -> `{ok, removed}`（连带删除该项目的 mappings 分区与 `projects/<pid>/graph.json`）

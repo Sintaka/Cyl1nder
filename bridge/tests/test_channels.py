@@ -550,3 +550,116 @@ def test_node_type_name_variants() -> None:
     assert _node_type_name({"type": {"typeName": "Cyl1nderTag"}}) == "Cyl1nderTag"
     assert _node_type_name({"node_type": "Cyl1nderTag"}) == "Cyl1nderTag"
     assert _node_type_name({}) == ""
+
+
+# --- 心跳按 hip 归拢项目（自动登记 + 另存为迁移） ----------------------------
+
+
+def _no_houdini(monkeypatch) -> None:
+    """迁移探测口径：端口解析不出来 = Houdini 不可达 -> 成员一律保留。"""
+    import bridge.project_routes as pr
+
+    monkeypatch.setattr(pr, "_resolve_port", lambda serial: 0)
+
+
+def test_heartbeat_with_hip_auto_registers_member(tmp_path: Path, monkeypatch) -> None:
+    """心跳带 hip -> 自动建/找项目并登记成员（用户零操作）。"""
+    c, _, _ = _heartbeat_env(tmp_path, monkeypatch)
+    _no_houdini(monkeypatch)
+    serial = generate_serial()
+    _post_heartbeat(c, serial, nodePath="/obj/geo1/tag1", hip="D:/proj/scene.hip")
+    projects = get_state().projects.list()
+    assert len(projects) == 1
+    assert projects[0]["hip"] == "D:/proj/scene.hip"
+    assert projects[0]["hipName"] == "scene.hip"
+    assert [m["serial"] for m in projects[0]["members"]] == [serial]
+
+
+def test_heartbeat_two_serials_same_hip_one_project(tmp_path: Path, monkeypatch) -> None:
+    """同一个 hip 下的多个吊牌心跳 -> 归进同一个项目（重复项目的正解）。"""
+    c, _, _ = _heartbeat_env(tmp_path, monkeypatch)
+    _no_houdini(monkeypatch)
+    s1, s2 = generate_serial(), generate_serial()
+    _post_heartbeat(c, s1, nodePath="/obj/geo1/tag1", hip="D:/proj/scene.hip")
+    _post_heartbeat(c, s2, nodePath="/obj/geo1/tag2", hip="D:\\proj\\scene.hip")
+    projects = get_state().projects.list()
+    assert len(projects) == 1
+    assert sorted(m["serial"] for m in projects[0]["members"]) == sorted([s1, s2])
+
+
+def test_heartbeat_repeated_same_hip_is_stable(tmp_path: Path, monkeypatch) -> None:
+    """心跳每次都报 hip：反复上报不得反复迁移（migratedAt 保持 0）。"""
+    c, _, _ = _heartbeat_env(tmp_path, monkeypatch)
+    _no_houdini(monkeypatch)
+    serial = generate_serial()
+    for _ in range(3):
+        _post_heartbeat(c, serial, nodePath="/obj/geo1/tag1", hip="D:/proj/scene.hip")
+    projects = get_state().projects.list()
+    assert len(projects) == 1
+    assert projects[0]["migratedAt"] == 0.0
+    assert len(projects[0]["members"]) == 1
+
+
+def test_heartbeat_changed_hip_triggers_migration(tmp_path: Path, monkeypatch) -> None:
+    """另存为：心跳报了新 hip -> 换绑同一个项目，不新建第二个。"""
+    c, _, _ = _heartbeat_env(tmp_path, monkeypatch)
+    _no_houdini(monkeypatch)
+    serial = generate_serial()
+    _post_heartbeat(c, serial, nodePath="/obj/geo1/tag1", hip="D:/proj/a.hip")
+    pid = get_state().projects.list()[0]["projectSerial"]
+    _post_heartbeat(c, serial, nodePath="/obj/geo1/tag1", hip="D:/proj/b.hip")
+    projects = get_state().projects.list()
+    assert len(projects) == 1
+    assert projects[0]["projectSerial"] == pid
+    assert projects[0]["hip"] == "D:/proj/b.hip"
+    assert projects[0]["previousHip"] == "D:/proj/a.hip"
+    assert projects[0]["migratedAt"] > 0
+    assert [m["serial"] for m in projects[0]["members"]] == [serial]  # 探测不到也不丢
+
+
+def test_heartbeat_without_hip_creates_no_project(tmp_path: Path, monkeypatch) -> None:
+    """旧 HDA 不报 hip -> 不碰项目（既有行为不变）。"""
+    c, _, _ = _heartbeat_env(tmp_path, monkeypatch)
+    assert _post_heartbeat(c, generate_serial(), nodePath="/obj/geo1/tag1")["ok"] is True
+    assert get_state().projects.list() == []
+
+
+def test_heartbeat_ok_when_projects_registry_none(tmp_path: Path, monkeypatch) -> None:
+    """state.projects 为 None：心跳照常成功。"""
+    c, _, _ = _heartbeat_env(tmp_path, monkeypatch)
+    get_state().projects = None
+    body = _post_heartbeat(c, generate_serial(), nodePath="/obj/geo1/tag1", hip="D:/proj/scene.hip")
+    assert body["ok"] is True
+
+
+def test_heartbeat_ok_when_projects_attribute_absent(tmp_path: Path, monkeypatch) -> None:
+    """state 干脆没有 projects 属性：getattr 兜底，心跳照常成功。"""
+    c, _, _ = _heartbeat_env(tmp_path, monkeypatch)
+    st = get_state()
+    if hasattr(st, "projects"):
+        delattr(st, "projects")
+    body = _post_heartbeat(c, generate_serial(), nodePath="/obj/geo1/tag1", hip="D:/proj/scene.hip")
+    assert body["ok"] is True
+
+
+def test_heartbeat_project_binding_failure_is_swallowed(tmp_path: Path, monkeypatch) -> None:
+    """项目归拢炸了也不许打断心跳：既有行为（lastSeen / 锚点 / trace）全须保留。"""
+    import bridge.project_routes as pr
+
+    c, _, fake_maps = _heartbeat_env(tmp_path, monkeypatch)
+    calls: list[tuple[str, str]] = []
+
+    async def boom(serial: str, hip: str):
+        calls.append((serial, hip))
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(pr, "bind_serial_to_hip", boom)
+    serial = generate_serial()
+    st = get_state()
+    st.channels.register({"kind": "tag", "serial": serial, "nodePath": "/obj/geo1/tag1", "hip": "", "label": ""})
+    body = _post_heartbeat(c, serial, nodePath="/obj/geo1/tag1", hip="D:/proj/scene.hip")
+    assert calls == [(serial, "D:/proj/scene.hip")]  # 确实调到了、也确实炸了
+    assert body["ok"] is True and body["lastSeen"] > 0
+    assert st.channels.get(serial)["lastSeen"] > 0
+    assert fake_maps.calls == [(serial, "/obj/geo1/tag1", "D:/proj/scene.hip", "parm")]
+    assert st.trace.list(actor="tag-hda", action="heartbeat")

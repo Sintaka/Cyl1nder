@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-18），由 `node scripts/gen-index.mjs` 产出。共 **982** 个函数/类。
+> 机器生成（2026-08-18），由 `node scripts/gen-index.mjs` 产出。共 **1008** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | `main` | 7 | def |  | 2 |
 
-## bridge/bridge/channel_routes.py（345 行）
+## bridge/bridge/channel_routes.py（366 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -32,9 +32,10 @@
 | `list_channels` | 197 | def |  | 1 |
 | `HeartbeatBody` | 201 | class |  | 1 |
 | `heartbeat` | 217 | def |  | 1 |
-| `_report_anchor` | 268 | def |  | 2 |
-| `probe` | 297 | def |  | 1 |
-| `_node_type_name` | 332 | def |  | 2 |
+| `_sync_project_hip` | 269 | def |  | 2 |
+| `_report_anchor` | 289 | def |  | 2 |
+| `probe` | 318 | def |  | 1 |
+| `_node_type_name` | 353 | def |  | 2 |
 
 ## bridge/bridge/channels.py（106 行）
 
@@ -184,7 +185,7 @@
 | `lifespan` | 24 | def |  | 1 |
 | `create_app` | 38 | def |  | 2 |
 
-## bridge/bridge/mapping_routes.py（324 行）
+## bridge/bridge/mapping_routes.py（336 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -201,10 +202,10 @@
 | `get_mapping_value` | 217 | def |  | 1 |
 | `put_mapping_value` | 255 | def |  | 1 |
 | `list_mappings` | 292 | def |  | 1 |
-| `put_mapping` | 307 | def |  | 1 |
-| `delete_mapping` | 318 | def |  | 1 |
+| `put_mapping` | 319 | def |  | 1 |
+| `delete_mapping` | 330 | def |  | 1 |
 
-## bridge/bridge/mapping.py（315 行）
+## bridge/bridge/mapping.py（320 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -212,23 +213,23 @@
 | `MappingRegistry` | 36 | class |  | 0 |
 | `__init__` | 37 | def |  | 1 |
 | `upsert_anchor` | 50 | def |  | 1 |
-| `mark_verified` | 114 | def |  | 1 |
-| `get_anchor` | 137 | def |  | 1 |
-| `list_anchors` | 142 | def |  | 1 |
-| `put_entry` | 148 | def |  | 1 |
-| `del_entry` | 164 | def |  | 1 |
-| `get_entry` | 175 | def |  | 1 |
-| `list_entries` | 180 | def |  | 1 |
-| `resolve` | 186 | def |  | 1 |
-| `resolve_all` | 195 | def |  | 1 |
-| `_resolve_one` | 205 | def |  | 3 |
-| `entries_for_anchor` | 236 | def |  | 1 |
-| `_entries_for_anchor` | 240 | def |  | 4 |
-| `prune_anchor` | 249 | def |  | 1 |
-| `drop_project` | 262 | def |  | 1 |
-| `save_now` | 273 | def |  | 1 |
-| `_save` | 277 | def |  | 8 |
-| `_load` | 295 | def |  | 2 |
+| `mark_verified` | 119 | def |  | 1 |
+| `get_anchor` | 142 | def |  | 1 |
+| `list_anchors` | 147 | def |  | 1 |
+| `put_entry` | 153 | def |  | 1 |
+| `del_entry` | 169 | def |  | 1 |
+| `get_entry` | 180 | def |  | 1 |
+| `list_entries` | 185 | def |  | 1 |
+| `resolve` | 191 | def |  | 1 |
+| `resolve_all` | 200 | def |  | 1 |
+| `_resolve_one` | 210 | def |  | 3 |
+| `entries_for_anchor` | 241 | def |  | 1 |
+| `_entries_for_anchor` | 245 | def |  | 4 |
+| `prune_anchor` | 254 | def |  | 1 |
+| `drop_project` | 267 | def |  | 1 |
+| `save_now` | 278 | def |  | 1 |
+| `_save` | 282 | def |  | 8 |
+| `_load` | 300 | def |  | 2 |
 
 ## bridge/bridge/mcp_server.py（303 行）
 
@@ -256,48 +257,63 @@
 | `cyl1nder_index_query` | 274 | def |  | 1 |
 | `run_stdio` | 297 | def |  | 2 |
 
-## bridge/bridge/project_routes.py（205 行）
+## bridge/bridge/project_routes.py（424 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_check_project_serial` | 29 | def |  | 8 |
-| `_cascade_delete` | 34 | def |  | 3 |
-| `ProjectCreateBody` | 57 | class |  | 1 |
-| `ProjectPatchBody` | 61 | class |  | 1 |
-| `EnsureBody` | 65 | class |  | 1 |
-| `GraphPutBody` | 69 | class |  | 1 |
-| `create_project` | 74 | def |  | 1 |
-| `list_projects` | 80 | def |  | 1 |
-| `get_project` | 85 | def |  | 1 |
-| `rename_project` | 94 | def |  | 1 |
-| `delete_project` | 104 | def |  | 1 |
-| `cleanup_projects` | 114 | def |  | 1 |
-| `add_member` | 126 | def |  | 3 |
-| `remove_member` | 135 | def |  | 2 |
-| `ensure_project` | 146 | def |  | 1 |
-| `get_project_graph` | 179 | def |  | 1 |
-| `put_project_graph` | 197 | def |  | 1 |
+| `_check_project_serial` | 35 | def |  | 9 |
+| `_cascade_delete` | 40 | def |  | 3 |
+| `_member_probe_serial` | 63 | def |  | 6 |
+| `_probe_port_for` | 67 | def |  | 2 |
+| `_verify_member_in_hip` | 79 | def |  | 2 |
+| `migrate_project_hip` | 116 | def |  | 3 |
+| `is_transient_hip` | 175 | def |  | 3 |
+| `member_ref_for` | 198 | def |  | 3 |
+| `bind_serial_to_hip` | 219 | def |  | 2 |
+| `ProjectCreateBody` | 267 | class |  | 1 |
+| `ProjectPatchBody` | 272 | class |  | 1 |
+| `EnsureBody` | 276 | class |  | 1 |
+| `MigrateBody` | 281 | class |  | 1 |
+| `GraphPutBody` | 286 | class |  | 1 |
+| `create_project` | 291 | def |  | 1 |
+| `list_projects` | 297 | def |  | 1 |
+| `get_project` | 302 | def |  | 1 |
+| `rename_project` | 311 | def |  | 1 |
+| `delete_project` | 321 | def |  | 1 |
+| `cleanup_projects` | 331 | def |  | 1 |
+| `add_member` | 343 | def |  | 4 |
+| `remove_member` | 352 | def |  | 4 |
+| `ensure_project` | 363 | def |  | 1 |
+| `migrate_project` | 385 | def |  | 1 |
+| `get_project_graph` | 398 | def |  | 1 |
+| `put_project_graph` | 416 | def |  | 1 |
 
-## bridge/bridge/projects.py（153 行）
+## bridge/bridge/projects.py（231 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `ProjectRegistry` | 21 | class |  | 0 |
-| `__init__` | 22 | def |  | 1 |
-| `_channel_key` | 33 | def |  | 4 |
-| `create` | 38 | def |  | 1 |
-| `get` | 53 | def |  | 11 |
-| `list` | 58 | def |  | 4 |
-| `add_member` | 64 | def |  | 1 |
-| `remove_member` | 82 | def |  | 1 |
-| `set_label` | 97 | def |  | 1 |
-| `delete` | 108 | def |  | 1 |
-| `list_empty` | 116 | def |  | 1 |
-| `save_now` | 120 | def |  | 1 |
-| `_save` | 124 | def |  | 7 |
-| `_load` | 142 | def |  | 2 |
+| `hip_name_of` | 25 | def |  | 4 |
+| `ProjectRegistry` | 32 | class |  | 0 |
+| `__init__` | 33 | def |  | 1 |
+| `_channel_key` | 44 | def |  | 4 |
+| `_new_record` | 50 | def |  | 3 |
+| `create` | 64 | def |  | 1 |
+| `_find_by_hip_locked` | 75 | def |  | 3 |
+| `find_by_hip` | 83 | def |  | 1 |
+| `ensure_for_hip` | 92 | def |  | 1 |
+| `rebind_hip` | 108 | def |  | 1 |
+| `get` | 123 | def |  | 16 |
+| `list` | 128 | def |  | 4 |
+| `add_member` | 134 | def |  | 1 |
+| `remove_member` | 152 | def |  | 1 |
+| `set_label` | 167 | def |  | 1 |
+| `delete` | 178 | def |  | 1 |
+| `list_empty` | 186 | def |  | 1 |
+| `save_now` | 190 | def |  | 1 |
+| `_save` | 194 | def |  | 9 |
+| `_load` | 212 | def |  | 2 |
 
-## bridge/bridge/protocol.py（277 行）
+## bridge/bridge/protocol.py（311 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -313,14 +329,15 @@
 | `generate_project_serial` | 159 | def |  | 1 |
 | `is_valid_project_serial` | 166 | def |  | 1 |
 | `ProjectRef` | 170 | class |  | 1 |
-| `AnchorRef` | 194 | class |  | 1 |
-| `AnchorProbeResult` | 214 | class |  | 1 |
-| `MappingEntry` | 229 | class |  | 1 |
-| `MappingResolved` | 239 | class |  | 1 |
-| `MappingsResponse` | 251 | class |  | 1 |
-| `AnchorMovedMsg` | 259 | class |  | 1 |
-| `OutputsPut` | 269 | class |  | 1 |
-| `SyncEnabledPut` | 274 | class |  | 1 |
+| `SaveAsMigration` | 196 | class |  | 1 |
+| `AnchorRef` | 228 | class |  | 1 |
+| `AnchorProbeResult` | 248 | class |  | 1 |
+| `MappingEntry` | 263 | class |  | 1 |
+| `MappingResolved` | 273 | class |  | 1 |
+| `MappingsResponse` | 285 | class |  | 1 |
+| `AnchorMovedMsg` | 293 | class |  | 1 |
+| `OutputsPut` | 303 | class |  | 1 |
+| `SyncEnabledPut` | 308 | class |  | 1 |
 
 ## bridge/bridge/registry.py（218 行）
 
@@ -805,6 +822,12 @@
 | `onLayoutChange` | 561 | arrow |  | 0 |
 | `applyLayout` | 605 | function | export | 2 |
 
+## web/src/app/graph-address.ts（22 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `buildGraphAddress` | 18 | function | export | 1 |
+
 ## web/src/app/layout.ts（295 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
@@ -1035,41 +1058,41 @@
 |---|---|---|---|---|
 | `createTimelineController` | 43 | function | export | 1 |
 
-## web/src/main.ts（1262 行）
+## web/src/main.ts（1259 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `matchLogFilter` | 57 | arrow |  | 0 |
-| `renderLog` | 58 | arrow |  | 3 |
-| `isSerial` | 135 | arrow |  | 2 |
-| `isProject` | 136 | arrow |  | 2 |
-| `toggle` | 219 | arrow |  | 8 |
-| `updateLayoutMenuLabel` | 251 | function |  | 5 |
-| `getDockJson` | 254 | arrow |  | 6 |
-| `saveCurrentLayout` | 258 | arrow |  | 2 |
-| `refreshLayoutPresets` | 267 | arrow |  | 1 |
-| `writeJsonToDir` | 378 | function |  | 7 |
-| `readJsonFromDir` | 389 | function |  | 5 |
-| `saveSceneAs` | 403 | function |  | 3 |
-| `openSceneFromDir` | 462 | function |  | 2 |
-| `applyLayoutSettings` | 787 | function |  | 4 |
-| `refreshSelectionPanels` | 802 | function |  | 2 |
-| `inputStatsText` | 899 | function |  | 2 |
-| `outputStatsText` | 908 | function |  | 2 |
-| `renderInspector` | 917 | function |  | 2 |
-| `isProjectModeActive` | 935 | function |  | 5 |
+| `matchLogFilter` | 58 | arrow |  | 0 |
+| `renderLog` | 59 | arrow |  | 3 |
+| `isSerial` | 136 | arrow |  | 2 |
+| `isProject` | 137 | arrow |  | 2 |
+| `toggle` | 220 | arrow |  | 8 |
+| `updateLayoutMenuLabel` | 252 | function |  | 5 |
+| `getDockJson` | 255 | arrow |  | 6 |
+| `saveCurrentLayout` | 259 | arrow |  | 2 |
+| `refreshLayoutPresets` | 268 | arrow |  | 1 |
+| `writeJsonToDir` | 379 | function |  | 7 |
+| `readJsonFromDir` | 390 | function |  | 5 |
+| `saveSceneAs` | 404 | function |  | 3 |
+| `openSceneFromDir` | 463 | function |  | 2 |
+| `applyLayoutSettings` | 788 | function |  | 4 |
+| `refreshSelectionPanels` | 803 | function |  | 2 |
+| `inputStatsText` | 900 | function |  | 2 |
+| `outputStatsText` | 909 | function |  | 2 |
+| `renderInspector` | 918 | function |  | 2 |
+| `isProjectModeActive` | 936 | function |  | 4 |
 | `projectAddress` | 941 | function |  | 3 |
-| `saveProjectGraph` | 951 | function |  | 5 |
-| `enterProjectMode` | 964 | function |  | 4 |
-| `updateGraphAddress` | 1017 | function |  | 8 |
-| `scheduleNetwork` | 1045 | function |  | 1 |
-| `flushStoreView` | 1048 | function |  | 2 |
-| `loadSnapshotIntoStore` | 1075 | function |  | 3 |
-| `applyLoadedPreference` | 1112 | function |  | 3 |
-| `syncSerialInAddress` | 1152 | function |  | 3 |
-| `syncProjectInAddress` | 1168 | function |  | 2 |
-| `connectSerial` | 1180 | arrow |  | 1 |
-| `markGraphDirty` | 1255 | function |  | 2 |
+| `saveProjectGraph` | 948 | function |  | 5 |
+| `enterProjectMode` | 961 | function |  | 4 |
+| `updateGraphAddress` | 1014 | function |  | 8 |
+| `scheduleNetwork` | 1042 | function |  | 1 |
+| `flushStoreView` | 1045 | function |  | 2 |
+| `loadSnapshotIntoStore` | 1072 | function |  | 3 |
+| `applyLoadedPreference` | 1109 | function |  | 3 |
+| `syncSerialInAddress` | 1149 | function |  | 3 |
+| `syncProjectInAddress` | 1165 | function |  | 2 |
+| `connectSerial` | 1177 | arrow |  | 1 |
+| `markGraphDirty` | 1252 | function |  | 2 |
 
 ## web/src/nodes2/chain-cache.ts（358 行）
 
@@ -1293,67 +1316,75 @@
 |---|---|---|---|---|
 | `createUndoManager` | 76 | function | export | 2 |
 
-## web/src/overview.ts（1112 行）
+## web/src/overview.ts（1322 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `HttpError` | 68 | class |  | 4 |
-| `epochMs` | 83 | function |  | 10 |
-| `relSince` | 88 | function |  | 3 |
-| `relTime` | 99 | function |  | 5 |
-| `clockTime` | 111 | function |  | 2 |
-| `channelValueString` | 121 | function | export | 3 |
-| `formatChannelValue` | 131 | function | export | 1 |
-| `channelActionButtons` | 138 | function | export | 1 |
-| `isSerialTail` | 157 | function |  | 2 |
-| `memberHint` | 163 | function |  | 2 |
-| `bestMemberLabel` | 172 | function | export | 2 |
-| `projectDisplayName` | 183 | function | export | 4 |
-| `defaultProjectName` | 193 | function | export | 2 |
-| `probeEntryOf` | 213 | function |  | 2 |
-| `probeVerdict` | 226 | function | export | 2 |
-| `anchorSerialsOf` | 233 | function | export | 4 |
-| `projectStatusLight` | 264 | function | export | 2 |
-| `mappingRows` | 363 | function | export | 2 |
-| `valuePlaceholder` | 378 | function | export | 3 |
-| `anchorPidText` | 388 | function | export | 2 |
-| `anchorEvidenceTitle` | 397 | function | export | 2 |
-| `mappingRowHtml` | 419 | function | export | 1 |
-| `parseMappingInput` | 459 | function | export | 2 |
-| `cleanupSummary` | 464 | function | export | 2 |
-| `$` | 472 | function |  | 0 |
-| `setBanner` | 481 | function |  | 5 |
-| `openSerial` | 486 | function |  | 3 |
-| `openProject` | 490 | function |  | 2 |
-| `fetchChannels` | 537 | function |  | 2 |
-| `showProjectsError` | 543 | function |  | 5 |
-| `hideProjectsError` | 547 | function |  | 5 |
-| `probeProject` | 553 | function |  | 3 |
-| `autoProbeOnce` | 571 | function |  | 3 |
-| `projectRowHtml` | 577 | function |  | 1 |
-| `renderProjects` | 603 | function |  | 9 |
-| `loadProjects` | 624 | function |  | 8 |
-| `createProject` | 665 | function |  | 4 |
-| `submitRename` | 683 | function |  | 3 |
-| `removeProject` | 695 | function |  | 2 |
-| `runProjectsCleanup` | 716 | function |  | 2 |
-| `renderMappingsIdle` | 802 | function |  | 4 |
-| `loadMappings` | 810 | function |  | 5 |
-| `mappingInput` | 834 | function |  | 4 |
-| `setMappingResult` | 841 | function |  | 4 |
-| `readMapping` | 860 | function |  | 2 |
-| `writeMapping` | 867 | function |  | 3 |
-| `removeMapping` | 887 | function |  | 2 |
-| `activeState` | 935 | function |  | 2 |
-| `activeRowHtml` | 951 | function |  | 1 |
-| `historyRowHtml` | 968 | function |  | 1 |
-| `renderActive` | 977 | function |  | 2 |
-| `renderHistory` | 983 | function |  | 2 |
-| `renderUnavailable` | 989 | function |  | 2 |
-| `fetchScenes` | 998 | function |  | 2 |
-| `failMessage` | 1005 | function |  | 3 |
-| `loadScenes` | 1014 | function |  | 4 |
-| `cleanupScenes` | 1032 | function |  | 2 |
+| `HttpError` | 71 | class |  | 4 |
+| `epochMs` | 86 | function |  | 15 |
+| `relSince` | 91 | function |  | 7 |
+| `relTime` | 102 | function |  | 5 |
+| `clockTime` | 114 | function |  | 2 |
+| `channelValueString` | 124 | function | export | 3 |
+| `formatChannelValue` | 134 | function | export | 1 |
+| `channelActionButtons` | 141 | function | export | 1 |
+| `isSerialTail` | 160 | function |  | 2 |
+| `memberHint` | 166 | function |  | 2 |
+| `bestMemberLabel` | 175 | function | export | 2 |
+| `projectDisplayName` | 190 | function | export | 4 |
+| `shortHipPath` | 204 | function | export | 2 |
+| `migratedBadgeHtml` | 221 | function | export | 2 |
+| `defaultProjectName` | 234 | function | export | 2 |
+| `isStaleEvidence` | 262 | function | export | 2 |
+| `seedEntryFromAnchor` | 269 | function | export | 2 |
+| `probeEntryOf` | 278 | function |  | 2 |
+| `probeVerdict` | 291 | function | export | 2 |
+| `anchorSerialsOf` | 298 | function | export | 6 |
+| `projectStatusLight` | 334 | function | export | 2 |
+| `mappingRows` | 478 | function | export | 2 |
+| `valuePlaceholder` | 493 | function | export | 3 |
+| `anchorPidText` | 503 | function | export | 2 |
+| `anchorEvidenceTitle` | 512 | function | export | 2 |
+| `mappingRowHtml` | 534 | function | export | 1 |
+| `parseMappingInput` | 574 | function | export | 2 |
+| `probeProgressLabel` | 579 | function | export | 2 |
+| `cleanupSummary` | 585 | function | export | 2 |
+| `$` | 593 | function |  | 0 |
+| `setBanner` | 602 | function |  | 5 |
+| `openSerial` | 607 | function |  | 3 |
+| `openProject` | 611 | function |  | 2 |
+| `fetchChannels` | 662 | function |  | 2 |
+| `showProjectsError` | 668 | function |  | 5 |
+| `hideProjectsError` | 672 | function |  | 5 |
+| `probeProject` | 678 | function |  | 3 |
+| `syncRefreshButtons` | 695 | function |  | 6 |
+| `probeAllProjects` | 710 | function |  | 2 |
+| `seedProbesFromPersisted` | 743 | function |  | 2 |
+| `autoProbeOnce` | 763 | function |  | 3 |
+| `projectRowHtml` | 769 | function |  | 1 |
+| `renderProjects` | 800 | function |  | 13 |
+| `loadProjects` | 826 | function |  | 8 |
+| `createProject` | 871 | function |  | 4 |
+| `submitRename` | 889 | function |  | 3 |
+| `removeProject` | 901 | function |  | 2 |
+| `runProjectsCleanup` | 922 | function |  | 2 |
+| `renderMappingsIdle` | 1009 | function |  | 4 |
+| `loadMappings` | 1017 | function |  | 5 |
+| `mappingInput` | 1041 | function |  | 4 |
+| `setMappingResult` | 1048 | function |  | 4 |
+| `readMapping` | 1067 | function |  | 2 |
+| `writeMapping` | 1074 | function |  | 3 |
+| `removeMapping` | 1094 | function |  | 2 |
+| `activeState` | 1142 | function |  | 2 |
+| `activeRowHtml` | 1158 | function |  | 1 |
+| `historyRowHtml` | 1175 | function |  | 1 |
+| `renderActive` | 1184 | function |  | 2 |
+| `renderHistory` | 1190 | function |  | 2 |
+| `renderUnavailable` | 1196 | function |  | 2 |
+| `fetchScenes` | 1205 | function |  | 2 |
+| `failMessage` | 1212 | function |  | 3 |
+| `loadScenes` | 1221 | function |  | 4 |
+| `cleanupScenes` | 1239 | function |  | 2 |
 
 ## web/src/protocol/compare.ts（24 行）
 
@@ -1362,7 +1393,7 @@
 | `payloadEqual` | 4 | function |  | 2 |
 | `inputsEqual` | 16 | function | export | 1 |
 
-## web/src/protocol/types.ts（285 行）
+## web/src/protocol/types.ts（308 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -1374,21 +1405,21 @@
 | `ChannelsStore` | 10 | class | export | 1 |
 | `channelIdOf` | 58 | function | export | 3 |
 
-## web/src/stores/projects.ts（226 行）
+## web/src/stores/projects.ts（267 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `ProjectsStore` | 8 | class | export | 1 |
-| `encodeMappingName` | 59 | function | export | 2 |
-| `patchProjectLabel` | 84 | function | export | 1 |
-| `deleteProject` | 97 | function | export | 1 |
-| `cleanupProjects` | 105 | function | export | 1 |
-| `fetchMappings` | 113 | function | export | 1 |
-| `deleteMapping` | 125 | function | export | 1 |
-| `getMappingValue` | 134 | function | export | 1 |
-| `putMappingValue` | 142 | function | export | 1 |
-| `mappingValue` | 150 | function |  | 3 |
-| `probeAnchor` | 195 | function | export | 1 |
+| `encodeMappingName` | 100 | function | export | 2 |
+| `patchProjectLabel` | 125 | function | export | 1 |
+| `deleteProject` | 138 | function | export | 1 |
+| `cleanupProjects` | 146 | function | export | 1 |
+| `fetchMappings` | 154 | function | export | 1 |
+| `deleteMapping` | 166 | function | export | 1 |
+| `getMappingValue` | 175 | function | export | 1 |
+| `putMappingValue` | 183 | function | export | 1 |
+| `mappingValue` | 191 | function |  | 3 |
+| `probeAnchor` | 236 | function | export | 1 |
 
 ## web/src/stores/workspace.ts（152 行）
 

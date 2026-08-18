@@ -20,6 +20,7 @@
   - dockview
   - dockview/dist/styles/dockview.css
   - stores/workspace
+- `app/graph-address.ts`
 - `app/layout.ts`
   - app/widgets
 - `app/layouts.ts`
@@ -90,6 +91,7 @@
   - app/address-bar
   - app/app-config
   - app/dock
+  - app/graph-address
   - app/layout
   - app/layouts
   - app/param

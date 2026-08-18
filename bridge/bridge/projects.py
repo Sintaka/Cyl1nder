@@ -1,9 +1,12 @@
-"""吊牌 HDA 项目注册表（多 HDA 绑定，见 devlog/tag-hda-plan.md P2a）。
+"""吊牌 HDA 项目注册表（项目 = 一个 hip 文件，见 devlog/protocol.md「项目 = hip 文件」）。
 
 落盘 bridge/data/projects.json（路径由 state 传入），结构照 ChannelRegistry：
 threading.Lock + _dirty + 1.0s debounce + tmp+replace + 容错 load。
 成员是 channelRef 引用快照（live 状态以 /api/channels 大全为准），
 key 规则同 channels._key_of：kind=tag/hda -> serial；kind=param -> absolutePath。
+
+身份模型：key 恒为 projectSerial（P1-…，不可变），`hip` 只是**当前绑定**的文件路径
+（另存为后由迁移换绑）。绝不用 hip 路径/文件名当 key：不同目录的同名文件会撞。
 """
 from __future__ import annotations
 
@@ -12,10 +15,18 @@ import threading
 import time
 from pathlib import Path
 
+from .houdini_mcp import normalize_hip
 from .protocol import generate_project_serial
 
 # 成员增删写盘防抖：最多每秒落一次盘。
 _SAVE_DEBOUNCE = 1.0  # seconds
+
+
+def hip_name_of(hip: str) -> str:
+    """hip 路径 -> 文件名。手工切分而非 Path().name：桥可能跑在 posix 上而路径来自
+    Windows Houdini（反斜杠此时不是分隔符），两种分隔符必须一视同仁。"""
+    s = (hip or "").strip().strip("\"'").replace("\\", "/").rstrip("/")
+    return s.rpartition("/")[2]
 
 
 class ProjectRegistry:
@@ -35,20 +46,79 @@ class ProjectRegistry:
             return ref.get("absolutePath") or ""
         return ref.get("serial") or ""
 
-    def create(self, label: str = "") -> dict:
-        """建项目：P1- serial + createdAt/updatedAt=now + members=[]，立即落盘（force）。"""
+    @staticmethod
+    def _new_record(label: str, hip: str) -> dict:
         now = time.time()
-        rec = {
+        return {
             "projectSerial": generate_project_serial(),
             "label": label,
+            "hip": hip,
+            "hipName": hip_name_of(hip),
             "createdAt": now,
             "updatedAt": now,
+            "migratedAt": 0.0,
+            "previousHip": "",
             "members": [],
         }
+
+    def create(self, label: str = "", hip: str = "") -> dict:
+        """建项目：P1- serial + createdAt/updatedAt=now + members=[]，立即落盘（force）。
+
+        hip 缺省为空（旧调用方不变）；给了就派生 hipName 一并存下。
+        """
+        rec = self._new_record(label, hip)
         with self._lock:
             self._records[rec["projectSerial"]] = rec
             self._save(force=True)
         return dict(rec)
+
+    def _find_by_hip_locked(self, norm: str) -> dict | None:
+        if not norm:
+            return None
+        for rec in self._records.values():
+            if normalize_hip(rec.get("hip") or "") == norm:
+                return rec
+        return None
+
+    def find_by_hip(self, hip: str) -> dict | None:
+        """按 hip 找项目（同一文件只应有一个）。比较前先归一：斜杠统一 + casefold，
+        所以 `D:\\a\\x.hip` 与 `d:/a/x.hip` 是同一个项目。hip 为空恒不命中——
+        空 hip 不是身份，否则所有未绑定项目会被并成一个。"""
+        norm = normalize_hip(hip)
+        with self._lock:
+            rec = self._find_by_hip_locked(norm)
+            return dict(rec) if rec is not None else None
+
+    def ensure_for_hip(self, hip: str, label: str = "") -> tuple[dict, bool]:
+        """按 hip 找项目，没有就建 -> (project, created)。
+
+        查与建在**同一把锁**里完成：心跳并发时不会为同一个 hip 建出两个项目
+        （这正是此前重复项目的成因）。
+        """
+        norm = normalize_hip(hip)
+        with self._lock:
+            rec = self._find_by_hip_locked(norm)
+            if rec is not None:
+                return dict(rec), False
+            rec = self._new_record(label, hip)
+            self._records[rec["projectSerial"]] = rec
+            self._save(force=True)
+            return dict(rec), True
+
+    def rebind_hip(self, pid: str, new_hip: str) -> dict | None:
+        """另存为换绑：写 hip/hipName，记 previousHip + migratedAt，刷 updatedAt。"""
+        with self._lock:
+            rec = self._records.get(pid)
+            if rec is None:
+                return None
+            now = time.time()
+            rec["previousHip"] = rec.get("hip") or ""
+            rec["hip"] = new_hip
+            rec["hipName"] = hip_name_of(new_hip)
+            rec["migratedAt"] = now
+            rec["updatedAt"] = now
+            self._save(force=True)
+            return dict(rec)
 
     def get(self, pid: str) -> dict | None:
         with self._lock:
@@ -148,5 +218,13 @@ class ProjectRegistry:
             if not isinstance(item, dict):
                 continue
             pid = item.get("projectSerial")
-            if pid:
-                self._records[pid] = item
+            if not pid:
+                continue
+            # 旧记录（v0.1.00116 之前）没有 hip 相关字段，补默认值后再入表。
+            item.setdefault("hip", "")
+            item.setdefault("migratedAt", 0.0)
+            item.setdefault("previousHip", "")
+            item.setdefault("members", [])
+            if not item.get("hipName"):
+                item["hipName"] = hip_name_of(item.get("hip") or "")
+            self._records[pid] = item

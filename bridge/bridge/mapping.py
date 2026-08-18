@@ -69,7 +69,12 @@ class MappingRegistry:
         """
         if not serial:
             raise ValueError("empty anchor serial")
-        now = time.time()
+        # 用注入的 _clock（不是 time.time）：debounce 判定走 _clock，lastSeen 若走真实时钟，
+        # 两者就不是同一根时间轴——测试注入假时钟推进 2s 后，lastSeen 仍可能落在同一个
+        # Windows 时钟刻度（实测分辨率 15.625ms，相邻两次调用绝大多数返回同值），
+        # 于是「越过 debounce 窗口后 lastSeen 应变大」这类断言会间歇性失败（实测 8 次挂 1 次）。
+        # 注册表本来就接受可注入 clock，时间来源必须统一。
+        now = self._clock()
         with self._lock:
             existing = self._anchors.get(serial)
             old = (existing.get("nodePath") or "") if existing else ""
@@ -126,7 +131,7 @@ class MappingRegistry:
             if rec is None:
                 return None
             rec = dict(rec)
-            rec["verifiedAt"] = time.time()
+            rec["verifiedAt"] = self._clock()   # 同上：时间来源统一走注入的 clock
             rec["verifiedAlive"] = bool(alive)
             rec["mcpPort"] = int(port or 0) or int(rec.get("mcpPort") or 0)
             self._anchors[serial] = rec

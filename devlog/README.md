@@ -120,6 +120,12 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- **v0.1.00116**：**项目 = hip 文件 + 另存为迁移 + 残留根治**——身份模型：**key 仍是 `projectSerial`**（创建即不可变），`hip` 只是当前绑定的文件。不能用文件名当 key（`a/scene.hip` 与 `b/scene.hip` 会撞，已加测试钉住），也不能用路径（另存为就变）。同一 hip 只有一个项目，节点 cook 上报 hip 时自动归拢成员——这消除了「两个项目共享同一成员、状态永远同步」（实测 `P2a-demo` 与 `未命名项目 · cyl1ndertag` 都持有 `C1-mst8wa94-8uz8`）。**另存为迁移**：`POST /api/projects/migrate`，换绑文件 + 按**新 hip** 逐一核对成员（在的留、确认不在的移出），pid/端口不变，快照跟项目 serial 走所以不搬。三态探测 `True/False/None`，**只有 Houdini 明确答"节点不在/serial 不符"才移出**，不可达一律保留。
+  **崩溃恢复陷阱（用户重启 Houdini 才暴露）**：崩溃后 `hou.hipFile.path()` 先报 `<
+...[551 chars omitted]...
+项目并入一个 `beginTest-1.hip`（6 条映射条目全部保留、6/6 resolved ok），随后按成员核对自动移出已删节点的那一条。
+  **nodeview 进入路径**：`/C1-…/` → `/P1-…/C1-…/`（根因：`isProjectModeActive()` 要求图里有 project 根，但进入成员后图已换掉；`currentProjectId` 才是事实来源）。逻辑抽到 `app/graph-address.ts` 并加 5 例——原先是 main.ts 闭包，测试碰不到。可进入操作按要求保留、暂未禁用。
+  验证：pytest 310、tsc 0、vitest 472、实机（另存为迁移 `previousHip` 正确/3 保留 0 移出/重复迁移 no-op；崩溃重启后 pid 不匹配被正确判失联并移出已删成员）。
 - v0.1.00114 → **v0.1.00115**：**项目化重构（项目优先 + 映射系统 + 类型化端口 + 存活实证）**——一轮跨两个版本号，权威说明见 [project-mapping-design.md](project-mapping-design.md)。
   **映射系统**：node 只引用**逻辑名（相对地址）**，绝对 Houdini 路径只存在于桥侧；锚点 = 吊牌 serial（创建即不可变，移动/改名不变），吊牌每次 cook 上报自身 `nodePath`，锚点移动只改一处、其下全部 entry 自动跟随。解析 = `dirname(anchor.nodePath) + "/" + rel`（**兄弟节点语义**，HDA 侧与桥侧必须逐字一致，否则同一 rel 两侧算出不同路径——本轮真踩过）。
   **移动检测（修的真 bug）**：吊牌指纹漏了自身路径 `(entries, upstream)` → 移动/改名整个会话都不重注册、映射一直是旧路径；改为 `(entries, upstream, tagPath, mode)` 并在重注册时绕过心跳节流立刻上报。

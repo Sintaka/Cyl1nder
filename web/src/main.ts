@@ -35,6 +35,7 @@ import { createSessionManager, type SessionManager } from "./core/session";
 import { createTimelineController } from "./core/timeline";
 import { createTimelineUI } from "./app/timeline-ui";
 import { createAddressBar } from "./app/address-bar";
+import { buildGraphAddress } from "./app/graph-address";
 
 /** Log categories: geo data / viewport / ui / bridge(python runtime). */
 let logFilter = "all";
@@ -936,13 +937,9 @@ function isProjectModeActive(): boolean {
   return graphReady && currentProjectId !== null && graph.isProjectMode();
 }
 
-/** 当前地址：项目模式 → /<P1-…>/ 或 /<P1-…>/<C1-…>/（store.serial = 活动成员）；
- *  serial 模式 → 现状 /<C1-…>/。 */
+/** 当前地址（纯逻辑在 app/graph-address.ts，那里有 bug 说明与单测）。 */
 function projectAddress(): string {
-  if (isProjectModeActive()) {
-    return store.serial ? `/${currentProjectId}/${store.serial}/` : `/${currentProjectId}/`;
-  }
-  return store.serial ? `/${store.serial}/` : "/";
+  return buildGraphAddress(currentProjectId, store.serial);
 }
 
 /** P2b 项目模式保存：图快照 → PUT /api/projects/{id}/graph。

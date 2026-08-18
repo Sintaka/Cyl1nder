@@ -47,6 +47,47 @@ export class ProjectsStore {
 export const projectsStore = new ProjectsStore();
 
 // ---------------------------------------------------------------------------
+// 有界并发（刷新时「检测所有项目」用）
+//
+// 一次探测 = 一次 Houdini 往返，项目多了就不能一把梭全发出去；也不能串行等一整轮。
+// 故用固定宽度的 worker 池：最多 limit 个在飞，谁空谁取下一个。
+// ---------------------------------------------------------------------------
+
+/** 探测并发上限：Houdini 往返，压着点（4~6 是任务要求区间）。 */
+export const PROBE_CONCURRENCY = 5;
+/** 读取持久化证据（桥本地 JSON，不碰 Houdini）的并发上限，可比探测宽松些。 */
+export const EVIDENCE_CONCURRENCY = 6;
+
+/** 有界并发 map：最多 `limit` 个任务在飞，结果按输入下标对齐。
+ *
+ *  **单个任务抛错不中断其余**（该位置记为 undefined）——刷新要检测全部项目，
+ *  一个锚点探不动不该把剩下的都掐掉。 */
+export async function mapWithLimit<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<(R | undefined)[]> {
+  const n = items.length;
+  const out: (R | undefined)[] = new Array(n);
+  if (n === 0) return out;
+  const width = Math.min(Math.max(1, Math.floor(limit) || 1), n);
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      const i = next++;
+      if (i >= n) return;
+      try {
+        out[i] = await fn(items[i], i);
+      } catch {
+        out[i] = undefined; // 失败也是普通结果：不让它冒泡掐掉整池
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: width }, () => worker()));
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // 项目改名/删除/清理 + 映射读写的 HTTP 客户端。
 // 为什么写在 store 而不是 bridge/client.ts：这批端点是 overview 项目页专用，
 // bridge/client.ts 不在本次写集；overview 本来就直接 fetch BRIDGE_URL，此处沿用同款裸 fetch。
