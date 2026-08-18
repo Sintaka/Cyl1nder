@@ -178,6 +178,34 @@ def test_ensure_for_hip_empty_hip_does_not_collapse(tmp_path: Path) -> None:
     assert p["hip"] == ""
 
 
+def test_rebind_hip_is_idempotent_under_concurrency(tmp_path: Path) -> None:
+    """并发 rebind 不得把新 hip 当成 previousHip（实测过的 check-then-act 竞态）。
+
+    一个 hip 里有多个吊牌时，它们的心跳并发到达，两者都在任何一方提交前通过了
+    调用方的「hip 不同」检查；第二次 rebind 于是读到已更新的 hip，
+    把新 hip 记成 previousHip，审计线索丢失。实机现象：hip == previousHip。
+    顺序调用抓不到，必须直接打第二次 rebind。
+    """
+    reg = ProjectRegistry(tmp_path / "projects.json")
+    p = reg.create(label="", hip="D:/proj/beginTest-1.hip")
+    pid = p["projectSerial"]
+
+    first = reg.rebind_hip(pid, "D:/proj/beginTest-2.hip")
+    assert first is not None
+    assert first["previousHip"] == "D:/proj/beginTest-1.hip"
+    migrated_at = first["migratedAt"]
+
+    # 第二次同 hip：must be a no-op —— previousHip 与 migratedAt 都不许被改写
+    again = reg.rebind_hip(pid, "D:/proj/beginTest-2.hip")
+    assert again is not None
+    assert again["previousHip"] == "D:/proj/beginTest-1.hip"
+    assert again["migratedAt"] == migrated_at
+    # 大小写/斜杠变体同样算「已是该 hip」
+    variant = reg.rebind_hip(pid, r"d:\proj\BEGINTEST-2.HIP")
+    assert variant is not None
+    assert variant["previousHip"] == "D:/proj/beginTest-1.hip"
+
+
 def test_is_transient_hip_recognises_crash_and_untitled() -> None:
     """崩溃恢复 / untitled 形态上像另存为，但不是用户意图 —— 必须挡住。
 

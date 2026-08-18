@@ -106,11 +106,23 @@ class ProjectRegistry:
             return dict(rec), True
 
     def rebind_hip(self, pid: str, new_hip: str) -> dict | None:
-        """另存为换绑：写 hip/hipName，记 previousHip + migratedAt，刷 updatedAt。"""
+        """另存为换绑：写 hip/hipName，记 previousHip + migratedAt，刷 updatedAt。
+
+        **幂等性必须在锁内再判一次**（v0.1.00117 修）：调用方虽然也判了「hip 是否变化」，
+        但那是 check-then-act —— 一个 hip 里有多个吊牌时，它们的心跳并发到达，
+        两者都在任何一方提交前通过了「hip 不同」检查，于是第二次 rebind 读到的
+        `rec["hip"]` 已经是新值，把**新 hip 当成 previousHip 记了下来**，
+        审计线索（从哪个文件来的）就此丢失。
+
+        实测：两个吊牌并发上报新 hip -> `hip == previousHip`，两者都是 beginTest-2.hip。
+        顺序调用不会触发，所以只有并发用例能抓到它。
+        """
         with self._lock:
             rec = self._records.get(pid)
             if rec is None:
                 return None
+            if normalize_hip(rec.get("hip") or "") == normalize_hip(new_hip):
+                return dict(rec)   # 已是该 hip：不动 previousHip/migratedAt
             now = time.time()
             rec["previousHip"] = rec.get("hip") or ""
             rec["hip"] = new_hip
