@@ -13,7 +13,7 @@ import { Presets } from "rete-react-plugin";
 import type { ClassicScheme, ReactArea2D, RenderEmit } from "rete-react-plugin";
 import { fireNodeState, showTooltip, hideTooltip, fireRename, getChannelDisplaySerial } from "./graph";
 import type { CylNode } from "./graph";
-import { FLOAT, GEO, VEC3 } from "./graph-model";
+import { FLOAT, GEO, VEC3, socketTypeClass, worstSeverity } from "./graph-model";
 import { elide } from "../app/elide";
 
 const { RefSocket } = Presets.classic;
@@ -158,6 +158,11 @@ export function NodeView({ data, emit }: Props) {
     );
   }
 
+  // 错误角标状态：一个节点只出一枚（取最严重），tooltip 列全部原因。
+  const nodeErrors = node.errors ?? [];
+  const nodeSeverity = worstSeverity(nodeErrors);
+  const errorTip = nodeErrors.map((e) => `${e.severity === "warning" ? "⚠" : "✖"} ${e.message}`).join("\n");
+
   const startRename = () => {
     lastTitleDown = null;
     editingNodeId = node.id as string;
@@ -211,20 +216,27 @@ export function NodeView({ data, emit }: Props) {
     key: string,
     socket: ClassicPreset.Socket,
     label: string,
-  ) => (
+  ) => {
+    // 该端口自己的错误（NodeError.port === key）：端口点标红并把原因并进 tooltip，
+    // 这样"哪个端口有问题"一眼可见，不用去翻节点 info。
+    const portErr = (node.errors ?? []).find((e) => e.port === key);
+    const tip =
+      `${side} · ${label} (${socket.name})` + (portErr ? `\n⚠ ${portErr.message}` : "");
+    return (
     <div
-      className={`cyl-rp-port ${side}`}
+      className={`cyl-rp-port ${side} ${socketTypeClass(socket.name)}${portErr ? " has-error" : ""}`}
       key={key}
       data-port-id={key}
-      onMouseEnter={(e) => showTooltip(e.clientX, e.clientY, `${side} · ${label} (${socket.name})`)}
-      onMouseMove={(e) => showTooltip(e.clientX, e.clientY, `${side} · ${label} (${socket.name})`)}
+      onMouseEnter={(e) => showTooltip(e.clientX, e.clientY, tip)}
+      onMouseMove={(e) => showTooltip(e.clientX, e.clientY, tip)}
       onMouseLeave={() => hideTooltip()}
     >
       {side === "input" && <RefSocket name="input" side="input" emit={emit} nodeId={node.id as string as never} socketKey={key} payload={socket} />}
       <span className="cyl-rp-port-label">{label}</span>
       {side === "output" && <RefSocket name="output" side="output" emit={emit} nodeId={node.id as string as never} socketKey={key} payload={socket} />}
     </div>
-  );
+    );
+  };
 
   const inputs = Object.entries(node.inputs);
   const outputs = Object.entries(node.outputs);
@@ -288,8 +300,23 @@ export function NodeView({ data, emit }: Props) {
     <div
       className={`cyl-rp-node ${flags.bypass ? "bypass" : ""} ${flags.freeze ? "freeze" : ""} ${
         flags.reference ? "reference" : ""
-      } ${flags.display ? "displayed" : ""} ${node.selected ? "selected" : ""}`}
+      } ${flags.display ? "displayed" : ""} ${node.selected ? "selected" : ""}${
+        nodeSeverity ? ` has-${nodeSeverity}` : ""
+      }`}
     >
+      {/* 错误角标（照 Houdini：红三角=error、黄三角=warning）。
+          一个节点只出一枚，取最严重的一条；tooltip 列出全部原因，
+          所以"节点 info 里说明报错原因"不需要额外面板。 */}
+      {nodeSeverity ? (
+        <span
+          className={`cyl-rp-badge ${nodeSeverity}`}
+          onMouseEnter={(e) => showTooltip(e.clientX, e.clientY, errorTip)}
+          onMouseMove={(e) => showTooltip(e.clientX, e.clientY, errorTip)}
+          onMouseLeave={() => hideTooltip()}
+        >
+          ▲
+        </span>
+      ) : null}
       <div className="cyl-rp-head">
         {editing ? (
           <input

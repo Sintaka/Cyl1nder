@@ -261,6 +261,40 @@
 .cyl-graph .cyl-rp-dot.displayed.selected {
   box-shadow: inset 0 0 0 1.5px #60a5fa, 0 0 0 1px #60a5fa, 0 0 0 3px rgba(253,224,71,.4), 0 2px 8px rgba(0,0,0,.45);
 }
+/* ---- 错误角标 + 类型化端口配色（v0.1.00117）----
+   角标照 Houdini：红三角 error / 黄三角 warning，一个节点只出一枚（取最严重）。
+   放在节点左上角**外侧**，不占标题行宽度——标题已经要挤序列号小字。 */
+.cyl-graph .cyl-rp-badge {
+  position: absolute;
+  top: -7px; left: -7px;
+  font-size: 11px; line-height: 1;
+  cursor: help;
+  text-shadow: 0 1px 2px rgba(0,0,0,.75);
+  z-index: 3;
+}
+.cyl-graph .cyl-rp-badge.error { color: #ff4d4f; }
+.cyl-graph .cyl-rp-badge.warning { color: #fadb14; }
+/* 有错的节点整体描边，扫一眼定位（只加 outline，不改布局） */
+.cyl-graph .cyl-rp-node.has-error { outline: 1px solid rgba(255,77,79,.55); }
+.cyl-graph .cyl-rp-node.has-warning { outline: 1px solid rgba(250,219,20,.45); }
+
+/* 端口按数据类型着色，与连线配色同源：geo 朱红（默认，见上方 div[title] 规则）/
+   float 浅蓝 / vec3 深绿。geo 不加类 -> 旧 4 端口图零视觉变化。 */
+.cyl-graph .cyl-rp-port.cyl-port-float .output div[title],
+.cyl-graph .cyl-rp-port.cyl-port-float .input div[title] {
+  border-color: #7fb0ff; background: #0b1a2b;
+}
+.cyl-graph .cyl-rp-port.cyl-port-vec3 .output div[title],
+.cyl-graph .cyl-rp-port.cyl-port-vec3 .input div[title] {
+  border-color: #2f9e63; background: #0b2016;
+}
+/* 端口自身有错：实心红 + 外环，指明是「这个端口」的问题 */
+.cyl-graph .cyl-rp-port.has-error .output div[title],
+.cyl-graph .cyl-rp-port.has-error .input div[title] {
+  border-color: #ff4d4f; background: #ff4d4f;
+  box-shadow: 0 0 0 2px rgba(255,77,79,.35);
+}
+
 /* ---- connection reconnect (attachReconnect) ---- */
 /* grabbed original line: kept in place, dimmed while the dashed preview shows the reroute */
 .cyl-graph [data-testid="connection"] path.reconnect-grabbed {
