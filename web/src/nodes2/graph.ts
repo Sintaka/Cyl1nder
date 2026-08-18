@@ -107,6 +107,15 @@ export function getChannelDisplaySerial(): string | null {
   return channelDisplaySerial;
 }
 
+/** 该节点是否已接线（任一端）。dot 用它决定配色：**未接线是白色**，接线后才取类型色。
+ *  没有图时返回 false —— 未知一律按"未接线"，宁可显示中性白也不假装有类型。 */
+export function isNodeWired(nodeId: string): boolean {
+  if (!activeGraph) return false;
+  return activeGraph.editor
+    .getConnections()
+    .some((c) => c.source === nodeId || c.target === nodeId);
+}
+
 /** 当前图是否为项目根（存在 project 节点）；无图/纯旧 kinds → false（?serial= 路径不变）。 */
 export function isProjectMode(): boolean {
   return activeGraph

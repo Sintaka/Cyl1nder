@@ -11,7 +11,7 @@ import React, { useEffect, useReducer, useRef } from "react";
 import { ClassicPreset } from "rete";
 import { Presets } from "rete-react-plugin";
 import type { ClassicScheme, ReactArea2D, RenderEmit } from "rete-react-plugin";
-import { fireNodeState, showTooltip, hideTooltip, fireRename, getChannelDisplaySerial } from "./graph";
+import { fireNodeState, showTooltip, hideTooltip, fireRename, getChannelDisplaySerial, isNodeWired } from "./graph";
 import type { CylNode } from "./graph";
 import { FLOAT, GEO, VEC3, socketTypeClass, worstSeverity } from "./graph-model";
 import { elide } from "../app/elide";
@@ -38,6 +38,16 @@ export function dotTypeClass(socketName: string): string {
 /** dot 的端口类型：以 out0 为准（junction 两端同型；缺则退 in0，再退 geo）。 */
 function dotSocketName(node: CylNode): string {
   return node.outputs.out0?.socket?.name ?? node.inputs.in0?.socket?.name ?? GEO;
+}
+
+/** dot 的配色类：**未接线 = 中性白**，接线后才按类型上色。
+ *
+ *  只看 socket 名不够——未接线的 dot 与接了 geo 的 dot 都报 `geo`，
+ *  于是新建的 dot 会直接显示成 geo 朱红。用户要的是「默认白色圆点，接线后自动改颜色」，
+ *  所以先问连接状态，再决定要不要取类型色。 */
+function dotVisualClass(node: CylNode): string {
+  if (!isNodeWired(node.id as string)) return "unwired";
+  return dotTypeClass(dotSocketName(node));
 }
 
 /** Module-level display handler registered by createReteGraph. */
@@ -143,7 +153,7 @@ export function NodeView({ data, emit }: Props) {
     );
     return (
       <div
-        className={`cyl-rp-dot ${dotTypeClass(socketName)} ${flags.bypass ? "bypass" : ""} ${
+        className={`cyl-rp-dot ${dotVisualClass(node)} ${flags.bypass ? "bypass" : ""} ${
           flags.freeze ? "freeze" : ""
         } ${flags.reference ? "reference" : ""} ${flags.display ? "displayed" : ""} ${
           node.selected ? "selected" : ""

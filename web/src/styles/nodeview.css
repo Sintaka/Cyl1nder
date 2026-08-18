@@ -215,6 +215,14 @@
 /* socket anchors: measurable by rete, invisible to the user, inert to the pointer.
    NEVER use display:none/visibility:hidden here - getElementCenter() awaits a non-null
    offsetParent in a loop, so a hidden anchor makes that loop spin forever. */
+/* 未接线 = 中性白（用户要求：默认白色圆点，接线后才自动改颜色）。
+   注意不能只靠 socket 类型判断——未接线与接了 geo 都报 geo，会让新建的 dot
+   直接显示成 geo 朱红。类由 dotVisualClass 依据真实连接状态给出。 */
+.cyl-graph .cyl-rp-dot.unwired {
+  background: #f5f7fa;
+  box-shadow: inset 0 0 0 1.5px #ffffff, 0 2px 8px rgba(0,0,0,.45);
+}
+
 .cyl-graph .cyl-rp-dot .cyl-rp-dot-port {
   position: absolute; width: 0; height: 0; pointer-events: none;
 }
