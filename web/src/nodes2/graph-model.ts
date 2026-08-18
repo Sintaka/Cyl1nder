@@ -611,6 +611,26 @@ export function getConnectionBypass(conn: unknown): boolean {
   return (conn as BypassConnection).bypass === true;
 }
 
+/** waypoint 与 bypass 同一套约定：挂在连接对象上、会被序列化，但**计算路径永不读它**
+ *  （`getNetworkSnapshot` / `network.ts` 完全无视）——它是纯装饰件。 */
+interface WaypointConnection {
+  waypoint?: ConnectionWaypoint;
+}
+
+export function getConnectionWaypoint(conn: unknown): ConnectionWaypoint | null {
+  const wp = (conn as WaypointConnection).waypoint;
+  if (!wp || !Number.isFinite(wp.x) || !Number.isFinite(wp.y)) return null;
+  return wp;
+}
+
+/** 设/删路径中点。传 null 即删除——**删的是连接的一个属性，不是拓扑操作**，
+ *  所以绝不可能留下半截线。 */
+export function setConnectionWaypoint(conn: unknown, wp: ConnectionWaypoint | null): void {
+  const c = conn as WaypointConnection;
+  if (wp && Number.isFinite(wp.x) && Number.isFinite(wp.y)) c.waypoint = { x: wp.x, y: wp.y };
+  else delete c.waypoint;
+}
+
 export function setConnectionBypassFlag(conn: unknown, on: boolean): void {
   const c = conn as BypassConnection;
   if (on) c.bypass = true;
@@ -689,6 +709,21 @@ export interface GraphNodeSnapshotData {
   address?: string;
 }
 
+/** 连线上的路径中点（v0.1.00118）：**装饰件，不是节点**。
+ *
+ *  为什么挂在连接上而不是做成 NodeKind：旧的 `dot` 是真节点，插入时要
+ *  「删 1 条连接 + 加 1 节点 + 加 2 条连接」，于是它进入拓扑、参与 cook trace，
+ *  删掉还会留下两条半截线。改成连接自己的一个可选字段后：
+ *  - 连接始终是**一条**（source → target），不可能出现"连接一半的线"
+ *  - 拓扑不变 → cook 完全不受影响，无需 passthrough 特例
+ *  - 任一端断联时连接本身消失，waypoint 随之消失，不需要额外清理逻辑
+ *  - 天然兼容既有连线：给任何一条线加个字段即可，不用重连
+ */
+export interface ConnectionWaypoint {
+  x: number;
+  y: number;
+}
+
 /** 序列化用的纯连接描述（serializeGraph 采集后交给 buildGraphSnapshot）。 */
 export interface GraphConnectionSnapshotData {
   source: string;
@@ -696,6 +731,8 @@ export interface GraphConnectionSnapshotData {
   target: string;
   targetInput: string;
   bypass?: boolean;
+  /** 路径中点；**无则不输出该键**（无 waypoint 的图与旧图字节一致）。 */
+  waypoint?: ConnectionWaypoint;
 }
 
 /** 参数是否为「单端口默认值」——address="" 或 type="geo"。这类参数**不序列化**，
@@ -798,6 +835,9 @@ export function serializeGraph(
       };
       // only emit the flag when true, so older snapshots stay byte-compatible
       if (getConnectionBypass(c)) entry.bypass = true;
+      // 同理：无 waypoint 时不输出该键，无装饰件的图与旧图字节一致
+      const wp = getConnectionWaypoint(c);
+      if (wp) entry.waypoint = { x: wp.x, y: wp.y };
       return entry;
     });
   return buildGraphSnapshot(nodes, connections, { ...area.area.transform });
@@ -931,7 +971,14 @@ export async function restoreGraph(
       bindings?: unknown; // P5b：可选通道引用绑定（restoreNodeForKind 内校验读入）
       address?: unknown; // schema 4：可选逻辑名（restoreNodeForKind 内校验读入）
     }[];
-    connections?: { source: string; sourceOutput: string; target: string; targetInput: string; bypass?: boolean }[];
+    connections?: {
+      source: string;
+      sourceOutput: string;
+      target: string;
+      targetInput: string;
+      bypass?: boolean;
+      waypoint?: ConnectionWaypoint;
+    }[];
     viewport?: { k: number; x: number; y: number };
     schemaVersion?: number;
   };
@@ -987,6 +1034,8 @@ export async function restoreGraph(
       setConnectionBypassFlag(conn, true);
       applyConnectionBypassVisual(area, conn.id, true);
     }
+    // waypoint 随连接恢复（纯属性，无需重建拓扑）
+    if (c.waypoint) setConnectionWaypoint(conn, c.waypoint);
   }
   if (d.viewport && d.viewport.k) {
     await area.area.zoom(d.viewport.k);
