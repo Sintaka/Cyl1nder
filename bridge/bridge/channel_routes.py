@@ -282,8 +282,32 @@ async def _sync_project_hip(serial: str, hip: str) -> None:
         from .project_routes import bind_serial_to_hip
 
         await bind_serial_to_hip(serial, hip)
+        # 成员关系刚建立 -> 补建该 serial 的映射条目。
+        #
+        # 为什么必须在这里补：`_sync_mapping_entry` 只把条目发给「已含该 serial 的项目」，
+        # 而注册（PUT /api/channels）发生在心跳**之前**——那一刻该吊牌还不是任何项目的
+        # 成员，条目于是被丢掉，且除非条目文本变化触发重注册，永远不会再补上。
+        # 实测：新建吊牌 4 条 apex 条目全部丢失，只剩旧吊牌的 2 条。
+        _replay_mapping_entries(serial)
     except Exception:  # noqa: BLE001 - 项目归拢失败不影响心跳
         return
+
+
+def _replay_mapping_entries(serial: str) -> None:
+    """把该 serial 已注册的通道重新过一遍 `_sync_mapping_entry`（幂等 upsert）。
+
+    只针对带 `rel` 的 param/data 通道；tag 通道本身不是映射条目。
+    """
+    st = get_state()
+    for ch in st.channels.list():
+        if ch.get("serial") != serial:
+            continue
+        if not (ch.get("rel") or "").strip():
+            continue
+        try:
+            _sync_mapping_entry(ChannelRef(**ch))
+        except Exception:  # noqa: BLE001 - 单条失败不影响其余
+            continue
 
 
 def _report_anchor(serial: str, payload: HeartbeatBody) -> dict | None:
