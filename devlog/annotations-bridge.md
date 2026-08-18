@@ -1,5 +1,37 @@
 # 桥子系统改动标注 / Bridge annotations
 
+## v0.1.00117（2026-08-19）· 快照目录改名 + 三个实机 bug
+
+### 快照目录 `<场景名>_<serial>`（#1）
+- **snapshot.py**：`scene_dir_name(hip, serial)` -> `<hip stem>_<serial>`；
+  `_sanitize_dir_part` 替换 Windows 非法字符/控制字符、去首尾空白与点、限长 64；
+  清空则退回纯 serial。`CYL1NDER_SNAPSHOT_ROOT` 覆盖仍只用 serial（测试目录不需人眼分辨）。
+- **旧目录兜底 `_legacy_roots`**（关键）：不兜底的话改名当天所有既有快照全部读不到，
+  等于凭空造一次数据丢失。按序找回：纯 `<serial>` 目录 → 任何 `_<serial>` 结尾的目录
+  （另存为改名前的场景名）→ `bridge/data/snapshots/<serial>`。
+- **自动迁移 `migrate_snapshot_dir`**：写入前把旧目录**就地改名**。目标已存在则跳过
+  （不合并——两边都可能有用户数据）；改名失败吞掉，绝不阻断写入。
+- 实机：你的两个真实目录已迁移，`read_snapshot` 仍拿到全部 parts（含 45.9KB inputs）。
+
+### bug 1：新建吊牌的映射条目全部丢失
+`_sync_mapping_entry` 只把条目发给「成员里已含该 serial」的项目，而通道注册
+（`PUT /api/channels`）发生在心跳**之前**——那一刻吊牌还不属于任何项目，条目被静默
+丢弃，且除非条目文本变化触发重注册，永远补不上。实测新建吊牌 4 条 apex 条目全丢。
+修法：心跳里成员关系建立后立刻 `_replay_mapping_entries(serial)`，把已注册的带 `rel`
+通道重新过一遍（幂等 upsert）。实机 entries 2 → 6，6/6 resolved ok。
+
+### bug 2：并发心跳把新 hip 当成 previousHip
+`bind_serial_to_hip` 的「hip 是否变化」检查与 `rebind_hip` 的写入之间没有共享锁
+（check-then-act）。一个 hip 里多个吊牌时心跳**并发**到达，两者都在任何一方提交前
+通过检查，第二次 rebind 读到已更新的 hip、把新 hip 记成 previousHip。
+修法：`rebind_hip` 在**锁内**再判一次幂等。顺序用例永远抓不到，只有
+`asyncio.gather` 能复现——**上一轮我把这个现象误判成「自己手改数据造成的」，是错的**。
+
+### bug 3：测试污染（承前）
+`bridge/tests/conftest.py` 隔离 `DEFAULT_ROOT`，pytest 不再往真实数据目录写快照。
+
+验证：pytest 317。
+
 ## v0.1.00116（2026-08-19）· 项目 = hip 文件 + 另存为迁移 + 测试污染根治
 
 > 身份模型：**key 仍是 `projectSerial`**，hip 只是「当前绑定的文件」。

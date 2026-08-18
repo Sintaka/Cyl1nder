@@ -20,7 +20,9 @@
   - dockview
   - dockview/dist/styles/dockview.css
   - stores/workspace
+- `app/elide.ts`
 - `app/graph-address.ts`
+- `app/graph-scope.ts`
 - `app/layout.ts`
   - app/widgets
 - `app/layouts.ts`
@@ -67,6 +69,7 @@
   - core/network
   - core/params
   - nodes2/graph
+  - nodes2/graph-model
   - nodes2/network
   - protocol/types
   - stores/workspace
@@ -92,6 +95,7 @@
   - app/app-config
   - app/dock
   - app/graph-address
+  - app/graph-scope
   - app/layout
   - app/layouts
   - app/param
@@ -171,6 +175,7 @@
   - nodes2/groups
   - protocol/types
   - tools/transform
+- `nodes2/ref-registry.ts`
 - `nodes2/undo.ts`
 - `overview.ts`
   - app/channel-value
