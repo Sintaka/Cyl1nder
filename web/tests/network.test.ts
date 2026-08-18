@@ -3,6 +3,8 @@ import {
   computeNodeResult,
   computeOutputs,
   computeOutputsDetailed,
+  findMultiSourceErrors,
+  portDataType,
   type NetworkNode,
   type NetworkSnapshot,
 } from "../src/nodes2/network";
@@ -481,5 +483,164 @@ describe("createNetworkRunner lazy output (F4)", () => {
     expect(h.upserted[0].rev).toBe(1); // optimistic local rev applied first
     await new Promise((r) => setTimeout(r, 0)); // flush the push-response .then
     expect(h.rev()).toBe(7); // aligned up to the bridge rev
+  });
+});
+
+/** _input_ / _output_ node carrying the schema-4 single-port `type` param. */
+function typedPortNode(id: string, kind: "input" | "output", type: string): NetworkNode {
+  return n(id, kind, [
+    { name: "address", type: "string", value: "point_1/tx" },
+    { name: "type", type: "menu", value: type },
+  ]);
+}
+
+describe("多源喂同一端口 → 报错（不静默取第一条、不抛）", () => {
+  it("单源 / 零源：无错误（零源仍回退 passthrough，既有行为不变）", () => {
+    const single: NetworkSnapshot = {
+      nodes: [n("in", "input"), transformNode("t", { tx: 1 }), outNode],
+      connections: [c("in", "in0", "t", "in0"), c("t", "out0", "out", "out0")],
+    };
+    expect(findMultiSourceErrors(single)).toEqual([]);
+    expect(computeOutputsDetailed(inputs4, single).errors).toBeUndefined();
+    // 零源：out1..out3 无连线 → 回退 inputs[i]，且不报错
+    const outs = computeOutputs(inputs4, single);
+    expect(outs[1].points).toEqual(inputs4[1].points);
+    const zero: NetworkSnapshot = { nodes: [n("in", "input"), outNode], connections: [] };
+    expect(findMultiSourceErrors(zero)).toEqual([]);
+  });
+
+  it("两个 transform 喂同一个 out0：报错并点名端口与竞争源", () => {
+    const snap: NetworkSnapshot = {
+      nodes: [
+        n("in", "input"),
+        transformNode("t1", { tx: 1 }),
+        transformNode("t2", { ty: 2 }),
+        outNode,
+      ],
+      connections: [
+        c("in", "in0", "t1", "in0"),
+        c("in", "in0", "t2", "in0"),
+        c("t1", "out0", "out", "out0"),
+        c("t2", "out0", "out", "out0"), // 第二个源：非法
+      ],
+    };
+    const errs = findMultiSourceErrors(snap);
+    expect(errs).toHaveLength(1);
+    expect(errs[0].nodeId).toBe("out");
+    expect(errs[0].targetInput).toBe("out0"); // 端口被点名
+    expect(errs[0].sources).toEqual(["t1.out0", "t2.out0"]); // 竞争源被点名
+    expect(errs[0].message).toContain("out.out0");
+    expect(errs[0].message).toContain("t1.out0");
+    expect(errs[0].message).toContain("t2.out0");
+    // computeOutputsDetailed 附带 errors（结构化、纯附加），且**不抛**
+    const res = computeOutputsDetailed(inputs4, snap);
+    expect(res.errors).toHaveLength(1);
+    expect(res.errors?.[0]).toContain("out.out0");
+    expect(res.outputs).toHaveLength(4); // 计算照常完成
+  });
+
+  it("transform 的 in0 被两个源喂：同样报错（不止 _output_ 端口）", () => {
+    const snap: NetworkSnapshot = {
+      nodes: [n("in", "input"), n("null1", "null"), transformNode("t", { tx: 1 }), outNode],
+      connections: [
+        c("in", "in0", "t", "in0"),
+        c("null1", "out0", "t", "in0"), // 第二个源
+        c("t", "out0", "out", "out0"),
+      ],
+    };
+    const errs = findMultiSourceErrors(snap);
+    expect(errs).toHaveLength(1);
+    expect(errs[0].nodeLabel).toBe("t");
+    expect(errs[0].targetInput).toBe("in0");
+    expect(errs[0].sources.sort()).toEqual(["in.in0", "null1.out0"]);
+  });
+
+  it("三源与多端口冲突：每个冲突端口各一条错误", () => {
+    const snap: NetworkSnapshot = {
+      nodes: [n("in", "input"), n("n1", "null"), n("n2", "null"), n("n3", "null"), outNode],
+      connections: [
+        c("n1", "out0", "out", "out0"),
+        c("n2", "out0", "out", "out0"),
+        c("n3", "out0", "out", "out0"), // out0 三源
+        c("in", "in1", "out", "out1"),
+        c("n1", "out0", "out", "out1"), // out1 双源
+      ],
+    };
+    const errs = findMultiSourceErrors(snap);
+    expect(errs).toHaveLength(2);
+    const byPort = new Map(errs.map((e) => [e.targetInput, e]));
+    expect(byPort.get("out0")?.sources).toHaveLength(3);
+    expect(byPort.get("out1")?.sources).toHaveLength(2);
+    expect(byPort.get("out0")?.message).toContain("3 sources");
+  });
+
+  it("同源同端口的重复连线也算多源（rete 允许的脏拓扑）", () => {
+    const snap: NetworkSnapshot = {
+      nodes: [n("in", "input"), outNode],
+      connections: [c("in", "in0", "out", "out0"), c("in", "in0", "out", "out0")],
+    };
+    expect(findMultiSourceErrors(snap)).toHaveLength(1);
+  });
+});
+
+describe("非 geo 端口不参与几何计算", () => {
+  it("portDataType：读 type 参数；旧 4 端口节点无该参数 → geo", () => {
+    expect(portDataType(typedPortNode("in", "input", "float"))).toBe("float");
+    expect(portDataType(typedPortNode("in", "input", "vec3"))).toBe("vec3");
+    expect(portDataType(typedPortNode("in", "input", "geo"))).toBe("geo");
+    expect(portDataType(n("in", "input"))).toBe("geo"); // 无参数（旧图）
+    expect(portDataType(typedPortNode("in", "input", "banana"))).toBe("geo"); // 非法 → geo
+  });
+
+  it("float 的 _input_ 被排除在几何 trace 之外 → 回退 passthrough", () => {
+    const snap: NetworkSnapshot = {
+      nodes: [typedPortNode("in", "input", "float"), transformNode("t", { tx: 1 }), outNode],
+      connections: [c("in", "in0", "t", "in0"), c("t", "out0", "out", "out0")],
+    };
+    const outs = computeOutputs(inputs4, snap);
+    // 链被视为死链 → out0 回退 inputs[0]（未经 transform）
+    expect(outs[0].points).toEqual(inputs4[0].points);
+    expect(mocks.applyTranslateGrouped).not.toHaveBeenCalled();
+    // computeNodeResult 同样不产出几何
+    expect(computeNodeResult(snap, inputs4, "t")).toBeNull();
+  });
+
+  it("vec3 的 _input_ 同样被排除", () => {
+    const snap: NetworkSnapshot = {
+      nodes: [typedPortNode("in", "input", "vec3"), n("null1", "null"), outNode],
+      connections: [c("in", "in0", "null1", "in0"), c("null1", "out0", "out", "out0")],
+    };
+    expect(computeOutputs(inputs4, snap)[0].points).toEqual(inputs4[0].points);
+    expect(computeNodeResult(snap, inputs4, "null1")).toBeNull();
+  });
+
+  it("float 的 _output_ 被排除 → 4 路全回退 passthrough", () => {
+    const snap: NetworkSnapshot = {
+      nodes: [n("in", "input"), transformNode("t", { tx: 1 }), typedPortNode("out", "output", "float")],
+      connections: [c("in", "in0", "t", "in0"), c("t", "out0", "out", "out0")],
+    };
+    const outs = computeOutputs(inputs4, snap);
+    for (let i = 0; i < 4; i++) expect(outs[i].points).toEqual(inputs4[i].points);
+    expect(mocks.applyTranslateGrouped).not.toHaveBeenCalled();
+  });
+
+  it("显式 type=geo 的单端口节点几何照常计算（不被误排除）", () => {
+    const snap: NetworkSnapshot = {
+      nodes: [typedPortNode("in", "input", "geo"), transformNode("t", { tx: 1 }), typedPortNode("out", "output", "geo")],
+      connections: [c("in", "in0", "t", "in0"), c("t", "out0", "out", "out0")],
+    };
+    expect(computeOutputs(inputs4, snap)[0].points).toEqual([[1, 0, 0], [2, 0, 0]]);
+    expect(mocks.applyTranslateGrouped).toHaveBeenCalledTimes(1);
+  });
+
+  it("非 geo 端口既不破坏 trace 也不妨碍多源检测", () => {
+    const snap: NetworkSnapshot = {
+      nodes: [typedPortNode("in", "input", "float"), n("n1", "null"), outNode],
+      connections: [c("in", "in0", "out", "out0"), c("n1", "out0", "out", "out0")],
+    };
+    const res = computeOutputsDetailed(inputs4, snap);
+    expect(res.outputs).toHaveLength(4); // 不抛、不缺输出
+    expect(res.errors).toHaveLength(1);
+    expect(res.errors?.[0]).toContain("out.out0");
   });
 });

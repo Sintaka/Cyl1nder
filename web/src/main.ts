@@ -984,6 +984,9 @@ async function enterProjectMode(projectId: string): Promise<void> {
   }
   currentProjectId = projectId;
   currentProject = project;
+  // 进项目模式时地址栏同步成 ?project=（此处模式与地址一致，改写是诚实的；
+  // 对比 ?serial= 分支：那条不改地址，见该处注释）。
+  syncProjectInAddress(projectId);
   let graphJson: unknown = null;
   try {
     const g = await client.getProjectGraph(projectId);
@@ -1158,6 +1161,22 @@ function syncSerialInAddress(serial: string): void {
   }
 }
 
+/** 把地址栏换成 ?project=（不重载、不新增历史条目）。
+ *
+ *  项目优先（v0.1.00114）：`?serial=` 进来时 ensure 出所属项目后调用本函数，
+ *  地址栏统一成项目形态；`serial` 参数一并清掉，避免刷新时又走回 serial 分支。 */
+function syncProjectInAddress(projectId: string): void {
+  try {
+    const url = new URL(location.href);
+    if (url.searchParams.get("project") === projectId) return;
+    url.searchParams.delete("serial");
+    url.searchParams.set("project", projectId);
+    history.replaceState(history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  } catch {
+    /* 地址同步失败不影响会话本身 */
+  }
+}
+
 const connectSerial = () => {
   currentProjectId = null; // Connect = serial 模式动作（退出项目模式）
   const v = layout.serialInput.value.trim();
@@ -1179,7 +1198,14 @@ if (qs) {
   layout.serialInput.value = qs;
   currentProjectId = null; // ?serial= 路径 = serial 模式（退出项目模式）
   sessionMgr.activateSession(qs); // 原 session.connect(qs) 语义（ensure + activate + loadSnapshot）
-  // P2a 隐式项目：后台 ensure（无含该 serial 通道的项目则自动建 P1- 单成员项目），不改变现有行为。
+  syncSerialInAddress(qs);
+  // P2a 隐式项目：后台 ensure（无含该 serial 通道的项目则自动建 P1- 单成员项目）。
+  //
+  // 刻意**不**把地址栏改写成 ?project=（v0.1.00114 一度这么做过，是错的）：
+  // 这条分支跑的是 serial 模式（currentProjectId=null、会话 = 该 serial），
+  // 改成 ?project= 会让地址栏与实际模式不符——刷新后进的是项目模式，看到的东西不一样。
+  // 「项目优先」由 overview 的入口（打开 -> ?project=）实现；`?serial=` 保持旧语义，
+  // 老书签行为不变。
   void client.ensureProject(qs).catch(() => undefined);
 } else if (qp && PROJECT_SERIAL_RE.test(qp)) {
   // P2b 项目模式：?project=P1-… 直接进入项目根（index.html 已放行，不重定向 overview）。

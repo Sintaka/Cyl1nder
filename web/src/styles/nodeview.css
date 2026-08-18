@@ -242,6 +242,11 @@
   stroke-dasharray: 5 4;
   filter: brightness(0.65) saturate(0.5);
 }
+/* ---- 按数据类型着色（Houdini VOP 惯例：看线色即知类型） ----
+   geo 保持既有灰白（不加类）；float/vec3 由 applyConnectionTypeVisual 上类。
+   selected/runtime 用 !important 覆盖，因此这两条在被选中/流动时自然让位。 */
+.cyl-graph [data-testid="connection"] path.cyl-wire-float { stroke: #7ce3a8; }
+.cyl-graph [data-testid="connection"] path.cyl-wire-vec3 { stroke: #7fb0ff; }
 /* runtime flow: flowing dashed animation on the display chain during a slow cook
    (>=120ms); the JS layer adds/removes this class for min(ms, 2000) ms */
 .cyl-graph [data-testid="connection"] path.cyl-wire-runtime {

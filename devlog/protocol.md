@@ -58,7 +58,7 @@
 - **v0.1.00103 起：所有与 Houdini 的周期性交互速率均由 per-serial Sync Max FPS 派生**（get 轮询 `max(66ms,1000/fps)`、set 节流 `max(33ms,1000/fps)`）；**实测通道上限 ≈19Hz 合计**（get ~52ms / set ~78ms 单次，共用 hdefereval 主线程封送队列，超出会积压雪崩——见 timeline-sync-lag-analysis.md）——66ms/33ms 地板即为此设。一次性 cmd/python 调用不受 fps 节流（用户显式动作），但 `_resolve_port` 失败有 2s 短缓存防扫端口风暴。
 
 ## 通道注册端点（吊牌 HDA Cyl1nderTag，v0.1.00106 起）
-- **channelRef**（协议三处同步）：`{kind: "tag"|"hda"|"param"|"data", serial?, nodePath?, absolutePath?, hip, label, registeredAt, lastSeen, adapter?}`。注册表 key：kind=tag/hda → `serial`；kind=param/data → `absolutePath`。`registeredAt` 首次注册时服务端写、重复注册保留；`lastSeen` 注册/心跳/探测成功时刷新。`adapter`（v0.1.00110 起）仅 kind=data 使用。
+- **channelRef**（协议三处同步）：`{kind: "tag"|"hda"|"param"|"data", serial?, nodePath?, absolutePath?, hip, label, registeredAt, lastSeen, adapter?, rel?, type, mode?}`。注册表 key：kind=tag/hda → `serial`；kind=param/data → `absolutePath`。`registeredAt` 首次注册时服务端写、重复注册保留；`lastSeen` 注册/心跳/探测成功时刷新。`adapter`（v0.1.00110 起）仅 kind=data 使用。`rel`/`type`/`mode`（v0.1.00114 起）供映射系统建条目：`rel` = 相对**吊牌所在网络**的地址（兄弟节点语义，逻辑名默认取它），`type` ∈ `geo|float|vec3`（旧记录缺省 `float`），`mode` = 归属吊牌标记模式。
 - **channelId（URL 段）**：param 通道 = `absolutePath` 去前导 `/`（如 `obj/geo1/transform1/tx`），tag/hda 通道 = serial。客户端编码：`quote(id.lstrip("/"), safe="/")`（Python）/ `encodeURI(id.replace(/^\//,""))`（JS）；FastAPI 用 `{channelId:path}` 捕获，服务端对 param 通道回补前导 `/`。
 - `PUT  /api/channels/{channelId:path}`，body = channelRef：幂等 upsert；id 与 ref 键不一致 → 400；-> `{ok, channelId, ref}`
 - `GET  /api/channels` -> `{channels: [channelRef...]}`（按 registeredAt 升序）
@@ -93,6 +93,46 @@
 - 项目图 = nodeview 项目根布局（project 根 + channel 成员节点 + 连接 + viewport 变换），**透传 dict 无 pydantic 模型**；存 `bridge/data/projects/<projectSerial>/graph.json`（项目无单一 hip 上下文，不随 hip 旁快照）。
 - `GET /api/projects/{projectId}/graph` -> `{ok, graph|null}`（非法 400 / 项目不存在 404）。**迁移读**：graph 为空且项目**恰 1 个 kind∈{tag,hda} 成员**（serial/hip 非空）→ 返回该成员 serial 快照的 graph 部分（纯读不写回）。
 - `PUT /api/projects/{projectId}/graph`，body `{graph}` -> `{ok}`（原子 tmp+replace + 内容对比，同内容不重写）。
+
+## 项目管理端点（v0.1.00114 起，项目优先重构）
+- `PATCH  /api/projects/{projectId}`，body `{label}` -> `{ok, project}`（改名；刷 updatedAt）
+- `DELETE /api/projects/{projectId}` -> `{ok, removed}`（连带删除该项目的 mappings 分区与 `projects/<pid>/graph.json`）
+- `POST   /api/projects/cleanup` -> `{ok, removed: [projectSerial…]}`（删除 0 成员项目）
+
+## 映射系统（v0.1.00114 起，见 devlog/project-mapping-design.md）
+**为什么**：此前 node 里写的是绝对 Houdini 路径，吊牌一移动就全断。改为 node 只引用**逻辑名（相对地址）**，绝对路径只存在于映射系统。
+
+- **锚点（anchor）= 吊牌 serial**：创建即不可变、移动/改名不变（铁律 1）。吊牌**每次 cook 上报自身 nodePath**；锚点移动只改 `anchors` 一处，其下全部 entry 自动跟随。
+- **解析**：`absolutePath = <锚点 nodePath 所在网络> + "/" + entry.rel`。`rel` 以吊牌**所在网络**为基准（**兄弟节点语义**，不是吊牌自身路径）。
+- **逻辑名作用域 = 项目内唯一**（不同项目可同名指向不同锚点）。
+- **AnchorRef**：`{serial, nodePath, hip, mode: "parm"|"apex", lastSeen, movedAt, pid, mcpPort, verifiedAt, verifiedAlive}`（`movedAt` 0 = 从未移动）。
+  - `pid` / `mcpPort`（v0.1.00114）：吊牌 cook 时连自身 `os.getpid()` 与已发现的 MCP 端口一起上报。**用途 = 降级前实证**：心跳只能证明「最近 cook 过」，而吊牌长期不 cook 是正常的，所以心跳超时**不等于**失联。记下 pid+端口后可直接 `mcp.health` 核对 `pid == 记录值`（铁律：pid 是唯一可靠判据），区分「只是没 cook」与「实例真没了」。
+  - `verifiedAt` / `verifiedAlive`：最近一次**探测**（不是心跳）的时刻与结论。
+- **心跳间隔**：吊牌 cook 心跳节流从 5s 放宽到 **≥60s**（`TAG_HEARTBEAT_INTERVAL`）。存活判定改由探测负责，心跳只做低频「我还在 + 位置摘要」上报，不必频繁。
+- `GET /api/projects/{pid}/anchors/{serial}/probe` -> **AnchorProbeResult** `{serial, alive, pidMatched, port, expectedPid, actualPid, hip, reason}`：按记录的 `mcpPort` 发 `mcp.health`；端口对不上时按 `hip` 重新定位。`alive && pidMatched` 才是确认活着；`alive` 但 pid 不匹配 = 该端口现在被**另一个** Houdini 占着（实例换了），不可当同一实例用。成功时刷新锚点的 `verifiedAt`/`verifiedAlive`/`mcpPort`。
+- **MappingEntry**：`{anchor, rel, kind: "param"|"data", adapter?, type: "geo"|"float"|"vec3", label}`。
+- **MappingResolved**：`{name, absolutePath, kind, adapter?, type, anchor, ok, error}`（锚点缺失 → `ok=false`、`absolutePath=""`）。
+- 落盘 `bridge/data/mappings.json`：`{anchors: {serial: AnchorRef}, entries: {projectSerial: {name: MappingEntry}}}`。
+
+端点：
+- `GET    /api/projects/{pid}/mappings` -> `MappingsResponse{projectSerial, entries, anchors, resolved}`
+- `PUT    /api/projects/{pid}/mappings/{name:path}`，body = MappingEntry -> `{ok, entry, resolved}`
+- `DELETE /api/projects/{pid}/mappings/{name:path}` -> `{ok, removed}`
+- `GET    /api/projects/{pid}/mappings/{name:path}/value` -> `{ok, value}`（resolve 后按 kind 走 data adapter / `parameters.get_parameter`）
+- `PUT    /api/projects/{pid}/mappings/{name:path}/value`，body `{value}` -> `{ok, value}`（同上，写方向）
+
+WS 广播：
+- `{type:"anchor-moved", serial, oldPath, newPath, names:[…]}` —— 锚点位置变化。**逻辑名不变**，web 侧不需要改地址，仅提示与刷新。
+
+轨迹：新增 action `anchor-move`（actor `tag-hda`）。
+
+## 吊牌标记模式（v0.1.00114 起）
+`Cyl1nderTag` 新增 `mode` 参数（menu）：
+- `parm`（默认）：条目 = 相对参数地址，`transform1/tx` 或 `tx`（以上游节点为基准，兼容旧写法）
+- `apex`：条目 = `<sceneanimate 节点>/<控制器>[/<tx…rz>]`，自动补 `adapter="apex-ctrl"`，按有无分量后缀定 `type=vec3|float`
+
+模式只决定**解析与 adapter 归属**，不改注册端点形态。
+**移动检测**：吊牌 cook 指纹从 `(entries, upstream)` 改为 `(entries, upstream, tagPath, mode)` —— 此前漏掉 `tagPath`，移动/改名吊牌整个会话都不会重新注册（映射一直是旧路径）。
 
 ## 快照恢复端点（v0.1.00102 起）
 - `POST /api/hda/{serial}/snapshot/restore` -> `{ok, serial, restored, inputRev, outputRev}`：从磁盘快照回填**空** workspace（绝不覆盖运行态），恢复后 WS 广播 inputs/outputs；桥启动时 lifespan 自动对全部 registry serial 执行等价回填（`snapshot.restore_all_workspaces`），关闭时 `flush_all_workspaces` 强制落盘。

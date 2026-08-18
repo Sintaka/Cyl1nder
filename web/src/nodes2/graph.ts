@@ -12,7 +12,7 @@
  */
 import { ClassicPreset, NodeEditor } from "rete";
 import { AreaPlugin, AreaExtensions } from "rete-area-plugin";
-import { ConnectionPlugin, Presets as ConnectionPresets } from "rete-connection-plugin";
+import { ClassicFlow, ConnectionPlugin, type SocketData } from "rete-connection-plugin";
 import { DataflowEngine, type DataflowEngineScheme } from "rete-engine";
 import { Presets, ReactPlugin } from "rete-react-plugin";
 import { createRoot } from "react-dom/client";
@@ -25,7 +25,11 @@ import {
   CylNode,
   DEFAULT_FLAGS,
   applyConnectionBypassVisual,
+  applyConnectionTypeVisual,
+  canConnectSockets,
   getConnectionBypass,
+  socketNameOf,
+  syncPortSocketType,
   listNodeParamBindingsView,
   makeChannelNode,
   makeInputNode,
@@ -227,7 +231,14 @@ async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
     }, 0);
   };
   let graphVersion = 0;
-  (editor as unknown as { addPipe(mw: (ctx: { type: string; data?: { source?: string; target?: string } }) => unknown): void }).addPipe((ctx) => {
+  (editor as unknown as {
+    addPipe(
+      mw: (ctx: {
+        type: string;
+        data?: { id?: string; source?: string; sourceOutput?: string; target?: string };
+      }) => unknown,
+    ): void;
+  }).addPipe((ctx) => {
     if (ctx.type === "connectioncreate") {
       const data = ctx.data;
       if (data && data.source && data.source === data.target) {
@@ -238,6 +249,14 @@ async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
     }
     if (ctx.type === "connectioncreate" || ctx.type === "connectionremove" || ctx.type === "nodecreate" || ctx.type === "noderemove") {
       graphVersion += 1;
+    }
+    // 按数据类型着色：所有连线创建路径（拖拽 / 插入 / 重连 / restoreGraph / undo 重放）
+    // 都经过这里，因此只在这一处上色。
+    if (ctx.type === "connectioncreated") {
+      const d = ctx.data as { id?: string; source?: string; sourceOutput?: string } | undefined;
+      if (d?.id && d.source && d.sourceOutput) {
+        applyConnectionTypeVisual(area, d.id, socketNameOf(editor, d.source, "output", d.sourceOutput));
+      }
     }
     if (ctx.type === "connectioncreated" || ctx.type === "connectionremoved" || ctx.type === "nodecreated" || ctx.type === "noderemoved") {
       scheduleTopologyCook();
@@ -255,7 +274,37 @@ async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
   const engine = new DataflowEngine<DataflowEngineScheme>();
   const react = new ReactPlugin<Schemes, AreaExtra>({ createRoot });
 
-  connection.addPreset(ConnectionPresets.classic.setup());
+  // 类型校验连线预设（替换 ConnectionPresets.classic.setup()——那个来者不拒）。
+  // rete-connection-plugin 的钩子名是 canMakeConnection(from, to)（见
+  // _types/flow/builtin/classic/index.d.ts 的 ClassicParams）。默认实现只校验方向
+  // （output → input，getSourceTarget），这里在其之上叠加**类型相等**校验：
+  // 源输出端口类型 === 目标输入端口类型才放行，否则走既有 log 通道报明原因并拒绝。
+  connection.addPreset(
+    () =>
+      new ClassicFlow({
+        canMakeConnection: (from: SocketData, to: SocketData) => {
+          // 方向：始终 output 端为源、input 端为目标（反向拖拽也支持）
+          const [src, tgt] =
+            from.side === "output" && to.side === "input"
+              ? [from, to]
+              : from.side === "input" && to.side === "output"
+                ? [to, from]
+                : [null, null];
+          if (!src || !tgt) return false; // 同侧连线：默认预设同样拒绝
+          const srcType = socketNameOf(editor, src.nodeId, "output", src.key);
+          const tgtType = socketNameOf(editor, tgt.nodeId, "input", tgt.key);
+          if (!canConnectSockets(srcType, tgtType)) {
+            const s = (editor.getNode(src.nodeId) as CylNode | undefined)?.label ?? src.nodeId;
+            const t = (editor.getNode(tgt.nodeId) as CylNode | undefined)?.label ?? tgt.nodeId;
+            log(
+              `blocked connection ${s}.${src.key}(${srcType || "?"}) -> ${t}.${tgt.key}(${tgtType || "?"}): socket type mismatch`,
+            );
+            return false;
+          }
+          return true;
+        },
+      }),
+  );
   react.addPreset(
     Presets.classic.setup({
       customize: {
@@ -272,19 +321,20 @@ async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
   (area as unknown as { use(p: unknown): void }).use(connection);
   (editor as unknown as { use(p: unknown): void }).use(engine);
 
-  const input = makeInputNode();
-  const output = makeOutputNode();
+  // 新建图用 schema 4 单端口形态（1 端口 + address/type）；旧图恢复仍走 4 端口。
+  const input = makeInputNode(true);
+  const output = makeOutputNode(true);
   input.flags.display = true; // default Houdini display = input_ (shows source curves)
   await editor.addNode(input);
   await editor.addNode(output);
   await area.translate(input.id, { x: 24, y: 40 });
   await area.translate(output.id, { x: 420, y: 40 });
 
-  for (let i = 0; i < 4; i++) {
-    await editor.addConnection(
-      new ClassicPreset.Connection(input, `in${i}`, output, `out${i}`) as unknown as Schemes["Connection"],
-    );
-  }
+  // 单端口形态（schema 4）：默认只连 in0 -> out0。其余输出端口无连线时，
+  // computeOutputs 仍按既有语义回退 passthrough input_i，4 路输出行为不变。
+  await editor.addConnection(
+    new ClassicPreset.Connection(input, "in0", output, "out0") as unknown as Schemes["Connection"],
+  );
   void AreaExtensions.zoomAt(area, editor.getNodes());
 
   // --- node pick -> viewport linkage (capture phase: rete drag stops bubbling)
@@ -591,6 +641,33 @@ export async function createReteGraph(
       const n = g.editor.getNode(nodeId) as CylNode | undefined;
       if (!n) return false;
       n.params = params;
+      if (n.kind === "input" || n.kind === "output") {
+        // address 参数 -> address 字段（序列化读字段）；type 参数 -> 端口 socket 类型。
+        const addr = params.find((p) => p.name === "address")?.value;
+        if (typeof addr === "string" && addr !== "") n.address = addr;
+        else delete n.address;
+        if (syncPortSocketType(n)) {
+          // 端口类型变了：既有连线可能已非法（类型不再相等）→ 拆掉并报明，避免留下
+          // 校验放不过、compute 又当真的脏连线。
+          void (async () => {
+            const side = n.kind === "input" ? "source" : "target";
+            const stale = g.editor
+              .getConnections()
+              .filter((c) => (side === "source" ? c.source === n.id : c.target === n.id))
+              .filter(
+                (c) =>
+                  !canConnectSockets(
+                    socketNameOf(g.editor, c.source, "output", c.sourceOutput),
+                    socketNameOf(g.editor, c.target, "input", c.targetInput),
+                  ),
+              );
+            for (const c of stale) {
+              log(`removed connection ${c.id} on ${n.label}: socket type changed`);
+              await g.editor.removeConnection(c.id);
+            }
+          })();
+        }
+      }
       notifyNodeChanged();
       return true;
     },

@@ -145,6 +145,7 @@ async def put_channel(channelId: str, ref: ChannelRef) -> dict:
     if key != _path_key(channelId, ref.kind):
         raise HTTPException(status_code=400, detail="channelId mismatch")
     stored = get_state().channels.register(ref.model_dump())
+    _sync_mapping_entry(ref)
     # trace（P3）：注册埋点（零行为影响）
     get_state().trace.add(
         actor="tag-hda",
@@ -154,6 +155,42 @@ async def put_channel(channelId: str, ref: ChannelRef) -> dict:
         digest=ref.label,
     )
     return {"ok": True, "channelId": key, "ref": stored}
+
+
+def _sync_mapping_entry(ref: ChannelRef) -> None:
+    """注册带 rel 的通道 -> 在**含该吊牌的每个项目**里建/更新一条映射条目（v0.1.00114）。
+
+    逻辑名默认取 `rel`（相对吊牌所在网络的地址），这正是用户在 node 里要写的相对地址。
+    锚点 = 该吊牌 serial（不可变），因此吊牌移动后逻辑名不变、绝对路径自动跟随。
+
+    吊牌不知道自己属于哪个项目（项目是 web 侧概念），所以由桥在这里按成员关系分发。
+    best-effort：mappings 未挂载或任何异常一律吞掉——注册绝不能因映射失败而失败。
+    """
+    rel = (getattr(ref, "rel", None) or "").strip()
+    serial = (ref.serial or "").strip()
+    if not rel or not serial or ref.kind not in ("param", "data"):
+        return
+    st = get_state()
+    mappings = getattr(st, "mappings", None)
+    if mappings is None:
+        return
+    entry = {
+        "anchor": serial,
+        "rel": rel,
+        "kind": ref.kind,
+        "adapter": ref.adapter,
+        "type": getattr(ref, "type", None) or "float",
+        "label": ref.label or rel,
+    }
+    try:
+        for project in st.projects.list():
+            pid = project.get("projectSerial") or ""
+            if not pid:
+                continue
+            if any((m or {}).get("serial") == serial for m in project.get("members") or []):
+                mappings.put_entry(pid, rel, entry)
+    except Exception:  # noqa: BLE001 - 映射同步失败绝不影响注册
+        return
 
 
 @router.get("/api/channels")
@@ -167,6 +204,13 @@ class HeartbeatBody(BaseModel):
     upstreamNodePath: str
     fingerprint: str
     values: dict | None = None  # P5a：可选参数值捎带（旧 HDA 缺省兼容）
+    # 锚点上报（旧 HDA 缺省兼容）：吊牌自报当前位置，nodePath 变化即触发 anchor-moved。
+    hip: str | None = None
+    mode: str | None = None
+    # 存活实证用（旧 HDA 缺省兼容）：吊牌自身 os.getpid() + 已发现的 MCP 端口。
+    # 心跳超时只说明「最近没 cook」，降级前要拿这两项打 mcp.health 核对 pid。
+    pid: int | None = None
+    mcpPort: int | None = None
 
 
 @router.post("/api/hda/{serial}/channels/heartbeat")
@@ -188,7 +232,65 @@ async def heartbeat(serial: str, payload: HeartbeatBody) -> dict:
     # P5a：心跳捎带参数值 -> WS 广播 channel-values（不回写内存、值不落地）
     if payload.values:
         await manager.broadcast(serial, {"type": "channel-values", "values": payload.values})
+    reported = _report_anchor(serial, payload)
+    moved = reported if reported is not None and reported.get("moved") else None
+    if moved is not None:
+        await manager.broadcast(
+            serial,
+            {
+                "type": "anchor-moved",
+                "serial": serial,
+                "oldPath": moved.get("old") or "",
+                "newPath": payload.nodePath,
+                "names": moved.get("names") or [],
+            },
+        )
+        st.trace.add(
+            actor="tag-hda",
+            action="anchor-move",
+            channel=serial,
+            target=payload.nodePath,
+            digest=f"{moved.get('old') or ''} -> {payload.nodePath}",
+        )
+    # pid 变了 = Houdini 重开（同路径下换了另一个进程）。沿用既有 "register" action：
+    # 语义上确实是「这个吊牌在新进程里重新登记了一次」，不新造 action 名。
+    if reported is not None and reported.get("pid_changed"):
+        st.trace.add(
+            actor="tag-hda",
+            action="register",
+            channel=serial,
+            target=payload.nodePath,
+            digest=f"pid {reported.get('old_pid') or 0} -> {payload.pid or 0} (houdini restarted)",
+        )
     return {"ok": True, "serial": serial, "lastSeen": now}
+
+
+def _report_anchor(serial: str, payload: HeartbeatBody) -> dict | None:
+    """吊牌自报位置 + pid/端口 -> mappings.upsert_anchor；moved 或 pid 变化时返回结果。
+
+    心跳是 best-effort：mappings 未挂载（主进程合并时才挂）或内部异常一律吞掉，
+    绝不让锚点上报打断心跳本身。pid/mcpPort 缺省（旧 HDA）传 0，注册表按「0 不覆盖
+    已知好值」处理。
+    """
+    if not payload.nodePath:
+        return None
+    mappings = getattr(get_state(), "mappings", None)
+    if mappings is None:
+        return None
+    try:
+        result = mappings.upsert_anchor(
+            serial,
+            payload.nodePath,
+            payload.hip or "",
+            payload.mode or "parm",
+            pid=int(payload.pid or 0),
+            mcp_port=int(payload.mcpPort or 0),
+        )
+    except Exception:  # noqa: BLE001 - 锚点上报失败不影响心跳
+        return None
+    if isinstance(result, dict) and (result.get("moved") or result.get("pid_changed")):
+        return result
+    return None
 
 
 @router.get("/api/channels/{channelId:path}/probe")

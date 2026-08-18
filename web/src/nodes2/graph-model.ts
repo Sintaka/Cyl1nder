@@ -101,7 +101,32 @@ export interface ReteGraph {
   pushUndoGroup(actions: UndoAction[]): void;
 }
 
+// ---------------------------------------------------------------------------
+// 端口数据类型（socket type）：几何 + 标量/向量共存于同一张图，因此连线必须按类型
+// 校验（graph.ts 的 ConnectionPlugin 预设）并按类型着色（nodeview.css）。
+// 与 protocol/types.ts 的 MappingType（"geo" | "float" | "vec3"）同名同值——
+// 映射系统按逻辑名传标量/向量值，这里只负责图内端口的类型标注。
+// ---------------------------------------------------------------------------
 export const GEO = "geo";
+export const FLOAT = "float";
+export const VEC3 = "vec3";
+
+/** 合法端口类型集合（未知类型一律视为非法，连线被拒）。 */
+export const SOCKET_TYPES: readonly string[] = [GEO, FLOAT, VEC3];
+
+/**
+ * 连线类型校验的**纯谓词**（socket-type.test.ts 直接测它，不驱动 rete 插件）：
+ * 仅当「源输出端口类型 === 目标输入端口类型」且该类型合法时允许连线。
+ * 空串 / 未知类型（历史脏数据、拼错的 type 参数）→ 拒绝，绝不放行。
+ */
+export function canConnectSockets(from: string, to: string): boolean {
+  return SOCKET_TYPES.includes(from) && from === to;
+}
+
+/** 把 type 参数值归一到合法端口类型（非法 / 缺省 → geo，保持旧图行为）。 */
+export function toSocketType(v: unknown): string {
+  return typeof v === "string" && SOCKET_TYPES.includes(v) ? v : GEO;
+}
 
 export const log = (m: string): void => {
   store.pushLog(`[node] ${m}`);
@@ -206,6 +231,10 @@ export class CylNode extends ClassicPreset.Node {
   /** P5b 通道引用绑定：paramName -> 通道 absolutePath（如 tx -> "/obj/geo1/transform1/tx"）。
    *  空/缺省时不序列化该键（旧图字节级兼容）。 */
   bindings?: Record<string, string>;
+  /** schema 4 单端口形态：_input_/_output_ 的**逻辑名/相对地址**（如 "point_1/tx"）。
+   *  绝对 Houdini 路径由桥侧映射系统按逻辑名解析——节点内绝不存绝对路径（移动 tag
+   *  HDA 不再毁图）。与 bindings 同规则：空/缺省时不序列化该键（旧图字节级兼容）。 */
+  address?: string;
   /** 工厂位置提示（makeProjectNode/makeChannelNode 的 x/y 参数）；视图位置仍由
    *  area.translate 落地（serializeGraph 读 area.nodeViews 的位置，不读本字段）。 */
   pos?: { x: number; y: number };
@@ -232,15 +261,73 @@ export class CylNode extends ClassicPreset.Node {
   }
 }
 
-export function makeInputNode(): CylNode {
+/** _input_ / _output_ 的单端口参数（schema 4 形态）：address = 逻辑名/相对地址
+ *  （如 "point_1/tx"，桥侧映射系统据此解析绝对路径）；type = 端口数据类型。 */
+function addressParams(): ParamSpec[] {
+  return [
+    { name: "address", type: "string", value: "", default: "" },
+    { name: "type", type: "menu", value: GEO, default: GEO },
+  ];
+}
+
+/**
+ * _input_ 节点。**默认是旧 4 端口形态**（in0..in3 全 GEO，无参数）——4 端口形状是
+ * dataflow / chain-cache / 快照 / e2e 的承重墙，无参调用必须原样保持。
+ * singlePort=true → schema 4 单端口形态：1 个 in0 + address/type 参数，端口类型跟随
+ * type 参数。只有**新建图**（graph.ts buildGraph）与 schema>=4 的恢复走这条路。
+ */
+export function makeInputNode(singlePort = false): CylNode {
   const n = new CylNode("_input_", "input");
-  for (let i = 0; i < 4; i++) n.addOutput(`in${i}`, new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
+  if (!singlePort) {
+    for (let i = 0; i < 4; i++) n.addOutput(`in${i}`, new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
+    return n;
+  }
+  n.addOutput("in0", new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
+  n.params = addressParams();
   return n;
 }
-export function makeOutputNode(): CylNode {
+/** _output_ 节点：默认旧 out0..out3；singlePort=true → 单端口 out0 + address/type。 */
+export function makeOutputNode(singlePort = false): CylNode {
   const n = new CylNode("_output_", "output");
-  for (let i = 0; i < 4; i++) n.addInput(`out${i}`, new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
+  if (!singlePort) {
+    for (let i = 0; i < 4; i++) n.addInput(`out${i}`, new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
+    return n;
+  }
+  n.addInput("out0", new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
+  n.params = addressParams();
   return n;
+}
+
+/** 读节点参数值（缺省 → undefined）；address/type 的唯一读入口。 */
+function readParam(n: CylNode, name: string): unknown {
+  return n.params?.find((p) => p.name === name)?.value;
+}
+
+/** _input_/_output_ 的单端口类型（读 type 参数；非法/缺省 → geo）。 */
+export function nodeSocketType(n: CylNode): string {
+  return toSocketType(readParam(n, "type"));
+}
+
+/**
+ * 把 _input_/_output_ 单端口的 socket 类型同步到 type 参数（改 type 参数后调用）。
+ * 仅作用于单端口形态（旧 4 端口图不动）；端口不存在 / 类型未变 → false。
+ * rete 的 Socket 只带 name，直接换 socket 实例即可（连线校验读的就是它）。
+ */
+export function syncPortSocketType(n: CylNode): boolean {
+  const want = nodeSocketType(n);
+  if (n.kind === "input") {
+    const port = n.outputs.in0;
+    if (!port || Object.keys(n.outputs).length !== 1 || port.socket.name === want) return false;
+    port.socket = new ClassicPreset.Socket(want);
+    return true;
+  }
+  if (n.kind === "output") {
+    const port = n.inputs.out0;
+    if (!port || Object.keys(n.inputs).length !== 1 || port.socket.name === want) return false;
+    port.socket = new ClassicPreset.Socket(want);
+    return true;
+  }
+  return false;
 }
 /** Houdini-style unique naming: null1, null2… (first node already carries a suffix). */
 let nullSeq = 1;
@@ -303,6 +390,17 @@ export function makeTransformNode(): CylNode {
  *  自动判定）；否则保持 v2，绝不含新字段（round14-autosave / round16-undo 兼容）。 */
 export const PROJECT_GRAPH_SCHEMA = 3;
 
+/**
+ * 单端口 + address 形态的图版本（schema 4）。
+ *
+ * 只在图内**真的用上了** address / 非 geo type 时才输出（buildGraphSnapshot 自动判定）；
+ * 全默认的新图（address="" + type="geo"）序列化后与旧图**字节一致**（无 params 键），
+ * 仍输出 v2/v3。restoreGraph 据此判形状：
+ *   - schemaVersion < 4，或连接里出现 in1..in3 / out1..out3 → 旧 **4 端口形态原样重建**；
+ *   - schemaVersion >= 4 且无旧端口引用 → 单端口 + address 形态。
+ */
+export const ADDRESS_GRAPH_SCHEMA = 4;
+
 /** 项目根节点：**无端口**（不参与任何连线/几何计算；id = 项目 serial P1-…，标签即项目名）。
  *  x/y 仅作位置提示（loadProjectGraph/restoreGraph 仍以 area.translate 落地视图位置）。 */
 export function makeProjectNode(id: string, label: string, x = 24, y = 40): CylNode {
@@ -341,6 +439,40 @@ export function setConnectionBypassFlag(conn: unknown, on: boolean): void {
   else delete c.bypass;
 }
 
+/** 读某节点某端口的 socket 类型名（供连线校验/着色）；端口不存在 → ""（拒绝连线）。 */
+export function socketNameOf(
+  editor: NodeEditor<Schemes>,
+  nodeId: string,
+  side: "input" | "output",
+  key: string,
+): string {
+  const n = editor.getNode(nodeId) as CylNode | undefined;
+  if (!n) return "";
+  const port = side === "output" ? n.outputs[key] : n.inputs[key];
+  return port?.socket?.name ?? "";
+}
+
+/** 按数据类型给连线着色（Houdini VOP 惯例：看颜色即知类型）。geo 保持既有灰白
+ *  （不加类），float/vec3 加对应类；与 bypass 视觉同机制（rAF 重试一次）。 */
+export function applyConnectionTypeVisual(
+  area: AreaPlugin<Schemes, AreaExtra>,
+  id: string,
+  socketType: string,
+): void {
+  const apply = (): boolean => {
+    const path = area.connectionViews.get(id)?.element.querySelector("path");
+    if (!path) return false;
+    path.classList.toggle("cyl-wire-float", socketType === FLOAT);
+    path.classList.toggle("cyl-wire-vec3", socketType === VEC3);
+    return true;
+  };
+  if (!apply()) {
+    requestAnimationFrame(() => {
+      apply();
+    });
+  }
+}
+
 /** Apply (or remove) the bypass visual class on a connection's rendered path.
  *  Right after addConnection the view may not be rendered yet, so retry once on
  *  the next animation frame before giving up. */
@@ -375,6 +507,8 @@ export interface GraphNodeSnapshotData {
   channel?: ChannelRef | null;
   /** P5b：通道引用绑定（paramName -> 通道 absolutePath；空/缺省时序列化省略该键）。 */
   bindings?: Record<string, string>;
+  /** schema 4：_input_/_output_ 的逻辑名（空/缺省时序列化省略该键）。 */
+  address?: string;
 }
 
 /** 序列化用的纯连接描述（serializeGraph 采集后交给 buildGraphSnapshot）。 */
@@ -386,11 +520,29 @@ export interface GraphConnectionSnapshotData {
   bypass?: boolean;
 }
 
+/** 参数是否为「单端口默认值」——address="" 或 type="geo"。这类参数**不序列化**，
+ *  于是全默认的新 _input_/_output_ 与旧 4 端口节点输出字节一致（无 params 键）。 */
+function isDefaultAddressParam(p: ParamSpec): boolean {
+  if (p.name === "address") return p.value === "" || p.value == null;
+  if (p.name === "type") return p.value === GEO || p.value == null;
+  return false;
+}
+
+/** 剔除默认 address/type 后的参数列表（空 → undefined，序列化时无该键）。 */
+function serializableParams(kind: NodeKind, params?: ParamSpec[]): ParamSpec[] | undefined {
+  if (!params || params.length === 0) return undefined;
+  if (kind !== "input" && kind !== "output") return params; // 其它 kind 的参数原样
+  const kept = params.filter((p) => !isDefaultAddressParam(p));
+  return kept.length > 0 ? kept : undefined;
+}
+
 /**
- * 纯序列化（可单测）：图内含任一 project/channel 节点 → 输出 schemaVersion 3
- * （channel 字段仅 channel 节点携带，null 省略——project/旧 kinds 不带该键）；
- * 否则输出 schemaVersion 2 且**绝不含新字段**（保持 round14-autosave / round16-undo
- * 字节兼容）。自动判定（最简实现）：无需调用方传 includeChannels。
+ * 纯序列化（可单测）：
+ * - 图内含任一 project/channel 节点 → schemaVersion 3（channel 字段仅 channel 节点带）；
+ * - _input_/_output_ **真的用上了** address / 非 geo type → schemaVersion 4（单端口形态）；
+ * - 否则 schemaVersion 2 且**绝不含新字段**（round14-autosave / round16-undo 字节兼容）。
+ * address / type 全默认时不输出 params，因此新建图（未填 address）与旧图字节一致。
+ * v3 与 v4 同时成立时取 4——restoreGraph 的形状判定需要看到它。
  */
 export function buildGraphSnapshot(
   nodes: GraphNodeSnapshotData[],
@@ -398,6 +550,7 @@ export function buildGraphSnapshot(
   viewport: { k: number; x: number; y: number },
 ): unknown {
   const isProjectGraph = nodes.some((n) => n.kind === "project" || n.kind === "channel");
+  let usesAddress = false;
   const serializedNodes = nodes.map((n) => {
     const entry: Record<string, unknown> = {
       id: n.id,
@@ -408,13 +561,24 @@ export function buildGraphSnapshot(
       x: n.x,
       y: n.y,
     };
-    if (n.params && n.params.length > 0) entry.params = n.params;
+    const params = serializableParams(n.kind, n.params);
+    if (params) entry.params = params;
     // P5b：bindings 非空才输出该键（空 {} / undefined 省略——旧图字节级兼容）
     if (n.bindings && Object.keys(n.bindings).length > 0) entry.bindings = n.bindings;
+    // schema 4：address 非空才输出该键（与 bindings 同规则）
+    if (n.address) entry.address = n.address;
+    if ((n.kind === "input" || n.kind === "output") && (n.address || params)) {
+      usesAddress = true; // 留下的必是非默认 address/type
+    }
     if (isProjectGraph && n.channel) entry.channel = n.channel; // v2 绝不含新字段；v3 也省略 null
     return entry;
   });
-  return { schemaVersion: isProjectGraph ? PROJECT_GRAPH_SCHEMA : 2, viewport, nodes: serializedNodes, connections };
+  const schemaVersion = usesAddress
+    ? ADDRESS_GRAPH_SCHEMA
+    : isProjectGraph
+      ? PROJECT_GRAPH_SCHEMA
+      : 2;
+  return { schemaVersion, viewport, nodes: serializedNodes, connections };
 }
 
 export function serializeGraph(
@@ -436,6 +600,8 @@ export function serializeGraph(
       channel: c.channel ?? undefined,
       // P5b：bindings 非空才采集（空 {} / undefined → undefined → 序列化无该键）
       bindings: c.bindings && Object.keys(c.bindings).length > 0 ? c.bindings : undefined,
+      // schema 4：address 空串/缺省 → undefined（序列化无该键）
+      address: c.address ? c.address : undefined,
     };
   });
   // Defensive: only serialize connections whose endpoint nodes still exist. Rete can
@@ -464,20 +630,28 @@ export function serializeGraph(
  * 成员通道（需 channel 引用）；**未知 kind → null（跳过该节点不崩）**；channel 缺
  * channel 引用 → null（跳过）。restoreGraph 对 null 直接 continue。
  */
-export function restoreNodeForKind(nd: {
-  kind: NodeKind;
-  id?: string;
-  label?: string;
-  channel?: ChannelRef | null;
-  bindings?: unknown; // P5b：可选通道引用绑定（sanitizeBindings 校验；非法忽略）
-}): CylNode | null {
+export function restoreNodeForKind(
+  nd: {
+    kind: NodeKind;
+    id?: string;
+    label?: string;
+    channel?: ChannelRef | null;
+    bindings?: unknown; // P5b：可选通道引用绑定（sanitizeBindings 校验；非法忽略）
+    address?: unknown; // schema 4：可选逻辑名（sanitizeAddress 校验；非法忽略）
+    params?: ParamSpec[];
+  },
+  /** true → _input_/_output_ 重建为**旧 4 端口形态**（v2/v3 图 / 含 in1..in3 引用的图）。
+   *  restoreGraph 用 detectLegacyPorts 判定后传入；**默认 true = 旧形状**（无参调用
+   *  与改动前完全一致）。 */
+  legacyPorts = true,
+): CylNode | null {
   let n: CylNode | null;
   switch (nd.kind) {
     case "input":
-      n = makeInputNode();
+      n = makeInputNode(!legacyPorts);
       break;
     case "output":
-      n = makeOutputNode();
+      n = makeOutputNode(!legacyPorts);
       break;
     case "null":
       n = makeNullNode();
@@ -501,8 +675,63 @@ export function restoreNodeForKind(nd: {
   if (n) {
     const bindings = sanitizeBindings(nd.bindings);
     if (bindings) n.bindings = bindings;
+    // schema 4：address 落地到字段 + 参数（两处同源，参数面板改的是参数）；
+    // 快照里 address 省略但 params 带 address 时，以 params 为准（下面 restoreGraph 赋 params）。
+    const address = sanitizeAddress(nd.address);
+    if (address) n.address = address;
+    if (!legacyPorts && (n.kind === "input" || n.kind === "output")) {
+      syncAddressParams(n, address, nd.params);
+    }
   }
   return n;
+}
+
+/** 校验反序列化 address：仅接受非空字符串（数组/对象/数字等非法输入 → undefined）。
+ *  与 sanitizeBindings 同防御风格：非法值忽略，绝不抛。 */
+export function sanitizeAddress(v: unknown): string | undefined {
+  return typeof v === "string" && v !== "" ? v : undefined;
+}
+
+/**
+ * 单端口节点的 address/type 参数补全：快照的 params 里可能只剩非默认项（序列化剔除了
+ * 默认值），这里把缺的补回默认值并让 address 字段与参数一致，最后同步 socket 类型。
+ */
+function syncAddressParams(n: CylNode, address: string | undefined, saved?: ParamSpec[]): void {
+  const savedAddress = saved?.find((p) => p.name === "address");
+  const savedType = saved?.find((p) => p.name === "type");
+  const addr = sanitizeAddress(savedAddress?.value) ?? address ?? "";
+  const type = toSocketType(savedType?.value);
+  // 快照里已有的那一项**原样保留**（含有/无 default 键），只补缺的那一项：
+  // 于是 serialize -> restore -> serialize 字节稳定（不会凭空长出 default 键）。
+  n.params = [
+    savedAddress ? { ...savedAddress, value: addr } : { name: "address", type: "string", value: addr, default: "" },
+    savedType ? { ...savedType, value: type } : { name: "type", type: "menu", value: type, default: GEO },
+  ];
+  if (addr) n.address = addr;
+  else delete n.address;
+  syncPortSocketType(n);
+}
+
+/**
+ * 旧 4 端口形态判定（restoreGraph 的兼容开关）：
+ * - schemaVersion < 4（v2/v3 或缺省）→ 旧形态；
+ * - 任一连接引用 _input_ 的 in1..in3 / _output_ 的 out1..out3 → 旧形态
+ *   （即便 schemaVersion 被手改过，也按实际端口引用重建，绝不丢连接）。
+ * 两条都不成立 → 单端口 + address 形态（只有新建图会走到这里）。
+ */
+export function detectLegacyPorts(d: {
+  schemaVersion?: number;
+  nodes?: Array<{ id: string; kind: NodeKind }>;
+  connections?: Array<{ source: string; sourceOutput: string; target: string; targetInput: string }>;
+}): boolean {
+  if ((d.schemaVersion ?? 2) < ADDRESS_GRAPH_SCHEMA) return true;
+  const inputIds = new Set((d.nodes ?? []).filter((n) => n.kind === "input").map((n) => n.id));
+  const outputIds = new Set((d.nodes ?? []).filter((n) => n.kind === "output").map((n) => n.id));
+  return (d.connections ?? []).some(
+    (c) =>
+      (inputIds.has(c.source) && /^in[1-3]$/.test(c.sourceOutput)) ||
+      (outputIds.has(c.target) && /^out[1-3]$/.test(c.targetInput)),
+  );
 }
 
 export async function restoreGraph(
@@ -522,11 +751,15 @@ export async function restoreGraph(
       y: number;
       channel?: ChannelRef | null; // v3：channel 节点携带的成员引用
       bindings?: unknown; // P5b：可选通道引用绑定（restoreNodeForKind 内校验读入）
+      address?: unknown; // schema 4：可选逻辑名（restoreNodeForKind 内校验读入）
     }[];
     connections?: { source: string; sourceOutput: string; target: string; targetInput: string; bypass?: boolean }[];
     viewport?: { k: number; x: number; y: number };
+    schemaVersion?: number;
   };
   if (!d?.nodes) return;
+  // 兼容开关：v2/v3 图（或任何还在用 in1..in3 / out1..out3 的图）→ 旧 4 端口形态原样重建
+  const legacyPorts = detectLegacyPorts(d);
   // Remove every live connection FIRST: rete's removeNode does not reliably drop its
   // connections, so restoring over a stale graph left headless segments behind.
   for (const c of editor.getConnections()) await editor.removeConnection(c.id);
@@ -535,7 +768,7 @@ export async function restoreGraph(
   let displayAssigned = false;
   for (const nd of d.nodes) {
     // v3 项目分支 + 未知 kind 跳过（restoreNodeForKind 返回 null 时 continue）
-    const n = restoreNodeForKind(nd);
+    const n = restoreNodeForKind(nd, legacyPorts);
     if (!n) {
       log(`restore skipped node id=${nd.id} kind=${String(nd.kind)} (unknown kind or missing channel ref)`);
       continue;
@@ -553,7 +786,10 @@ export async function restoreGraph(
     n.label = nd.label ?? n.label;
     if (n.kind === "dot") claimDotLabel(n.label); // restore advances the seq so Ctrl+add never collides
     n.baseLabel = nd.baseLabel ?? n.baseLabel;
-    if (nd.params) n.params = nd.params;
+    // 单端口 _input_/_output_ 的 params 已由 restoreNodeForKind 补全（默认值 + socket
+    // 类型同步），不能被快照里「只剩非默认项」的 params 覆盖回去。
+    const addressForm = !legacyPorts && (n.kind === "input" || n.kind === "output");
+    if (nd.params && !addressForm) n.params = nd.params;
     await editor.addNode(n);
     idMap.set(nd.id, n.id);
     await area.translate(n.id, { x: nd.x ?? 0, y: nd.y ?? 0 });
@@ -662,6 +898,8 @@ export function getNetworkSnapshot(editor: NodeEditor<Schemes>): NetworkSnapshot
       label: n.label,
       params: n.params ?? [],
     })),
+    // 端口数据类型不单独入快照：type 就在 params 里，network.ts 直接读（非 geo 的
+    // _input_/_output_ 端口被排除在几何计算之外）。旧 4 端口图无 type 参数 → 全 geo。
     connections: editor
       .getConnections()
       .filter((c) => nodeIds.has(c.source) && nodeIds.has(c.target))

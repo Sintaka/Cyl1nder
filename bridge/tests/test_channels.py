@@ -288,6 +288,199 @@ def test_heartbeat_invalid_serial_400(tmp_path: Path) -> None:
     assert r.status_code == 400
 
 
+# --- 心跳锚点上报（吊牌自报位置） --------------------------------------------
+
+
+class _FakeManager:
+    """WS 广播替身，照 test_channel_values.py 的做法 monkeypatch cr.manager。"""
+
+    def __init__(self) -> None:
+        self.msgs: list[tuple[str, dict]] = []
+
+    async def broadcast(self, serial: str, message: dict) -> None:
+        self.msgs.append((serial, message))
+
+
+class _FakeMappings:
+    """upsert_anchor 替身：按 serial 记住上次 nodePath，变化即 moved（真表另一路落地）。"""
+
+    def __init__(self, names: list[str] | None = None) -> None:
+        self.names = names or []
+        self.calls: list[tuple[str, str, str, str]] = []
+        self.kw: list[dict] = []
+        self._paths: dict[str, str] = {}
+        self.anchors: dict[str, dict] = {}
+
+    def upsert_anchor(
+        self, serial: str, node_path: str, hip: str = "", mode: str = "parm",
+        pid: int = 0, mcp_port: int = 0,
+    ) -> dict:
+        self.calls.append((serial, node_path, hip, mode))
+        self.kw.append({"pid": pid, "mcp_port": mcp_port})
+        old = self._paths.get(serial, "")
+        self._paths[serial] = node_path
+        moved = bool(old) and old != node_path
+        # 照真表规则：0 不覆盖已知好值；pid 变化 = 换进程
+        rec = self.anchors.setdefault(serial, {"serial": serial, "pid": 0, "mcpPort": 0})
+        old_pid = int(rec.get("pid") or 0)
+        pid_changed = bool(pid) and bool(old_pid) and int(pid) != old_pid
+        if pid:
+            rec["pid"] = int(pid)
+        if mcp_port:
+            rec["mcpPort"] = int(mcp_port)
+        rec.update({"nodePath": node_path, "hip": hip, "mode": mode})
+        return {
+            "anchor": dict(rec),
+            "moved": moved,
+            "old": old,
+            "names": list(self.names) if moved else [],
+            "pid_changed": pid_changed,
+            "old_pid": old_pid,
+        }
+
+
+def _heartbeat_env(tmp_path: Path, monkeypatch, names: list[str] | None = None) -> tuple[TestClient, _FakeManager, _FakeMappings]:
+    import bridge.channel_routes as cr
+
+    fake_ws = _FakeManager()
+    monkeypatch.setattr(cr, "manager", fake_ws)
+    c = _client(tmp_path)
+    fake_maps = _FakeMappings(names)
+    get_state().mappings = fake_maps
+    return c, fake_ws, fake_maps
+
+
+def _post_heartbeat(c: TestClient, serial: str, **extra) -> dict:
+    body = {"serial": serial, "nodePath": "", "upstreamNodePath": "", "fingerprint": "fp"}
+    body.update(extra)
+    r = c.post(f"/api/hda/{serial}/channels/heartbeat", json=body)
+    assert r.status_code == 200
+    return r.json()
+
+
+def test_heartbeat_first_anchor_no_move(tmp_path: Path, monkeypatch) -> None:
+    """首次心跳建锚点（moved=False）：不广播 anchor-moved、无 anchor-move trace。"""
+    c, fake_ws, fake_maps = _heartbeat_env(tmp_path, monkeypatch)
+    serial = generate_serial()
+    body = _post_heartbeat(c, serial, nodePath="/obj/geo1/tag1", hip="D:/x.hip", mode="apex")
+    assert body["ok"] is True
+    assert fake_maps.calls == [(serial, "/obj/geo1/tag1", "D:/x.hip", "apex")]
+    assert fake_ws.msgs == []
+    assert get_state().trace.list(action="anchor-move") == []
+
+
+def test_heartbeat_moved_broadcasts_anchor_moved(tmp_path: Path, monkeypatch) -> None:
+    """nodePath 变化：广播 anchor-moved + 埋 anchor-move trace。"""
+    c, fake_ws, fake_maps = _heartbeat_env(tmp_path, monkeypatch, names=["tx", "ty"])
+    serial = generate_serial()
+    _post_heartbeat(c, serial, nodePath="/obj/geo1/tag1")
+    _post_heartbeat(c, serial, nodePath="/obj/geo2/tag1")
+    assert len(fake_maps.calls) == 2
+    assert len(fake_ws.msgs) == 1
+    s, msg = fake_ws.msgs[0]
+    assert s == serial
+    assert msg == {
+        "type": "anchor-moved",
+        "serial": serial,
+        "oldPath": "/obj/geo1/tag1",
+        "newPath": "/obj/geo2/tag1",
+        "names": ["tx", "ty"],
+    }
+    events = get_state().trace.list(actor="tag-hda", action="anchor-move")
+    assert len(events) == 1
+    assert events[0]["channel"] == serial
+    assert events[0]["target"] == "/obj/geo2/tag1"
+    assert events[0]["digest"] == "/obj/geo1/tag1 -> /obj/geo2/tag1"
+
+
+def test_heartbeat_same_path_no_move(tmp_path: Path, monkeypatch) -> None:
+    """位置不变的重复心跳：上报但不广播。"""
+    c, fake_ws, _ = _heartbeat_env(tmp_path, monkeypatch)
+    serial = generate_serial()
+    _post_heartbeat(c, serial, nodePath="/obj/geo1/tag1")
+    _post_heartbeat(c, serial, nodePath="/obj/geo1/tag1")
+    assert fake_ws.msgs == []
+
+
+def test_heartbeat_no_node_path_skips_anchor(tmp_path: Path, monkeypatch) -> None:
+    """无 nodePath（旧 HDA）：完全不碰锚点系统，行为与从前一致。"""
+    c, fake_ws, fake_maps = _heartbeat_env(tmp_path, monkeypatch)
+    serial = generate_serial()
+    body = _post_heartbeat(c, serial)
+    assert body["ok"] is True and body["serial"] == serial and body["lastSeen"] > 0
+    assert fake_maps.calls == []
+    assert fake_ws.msgs == []
+    assert get_state().trace.list(actor="tag-hda", action="heartbeat")
+
+
+def test_heartbeat_without_mappings_attribute(tmp_path: Path, monkeypatch) -> None:
+    """state 无 mappings 属性：心跳照常 200（best-effort no-op）。"""
+    import bridge.channel_routes as cr
+
+    monkeypatch.setattr(cr, "manager", _FakeManager())
+    c = _client(tmp_path)
+    st = get_state()
+    if hasattr(st, "mappings"):
+        delattr(st, "mappings")
+    assert _post_heartbeat(c, generate_serial(), nodePath="/obj/geo1/tag1")["ok"] is True
+
+
+def test_heartbeat_anchor_error_is_swallowed(tmp_path: Path, monkeypatch) -> None:
+    """upsert_anchor 抛异常：心跳仍 200、不广播。"""
+    import bridge.channel_routes as cr
+
+    fake_ws = _FakeManager()
+    monkeypatch.setattr(cr, "manager", fake_ws)
+    c = _client(tmp_path)
+
+    class Boom:
+        def upsert_anchor(self, *a, **k):
+            raise RuntimeError("boom")
+
+    get_state().mappings = Boom()
+    assert _post_heartbeat(c, generate_serial(), nodePath="/obj/geo1/tag1")["ok"] is True
+    assert fake_ws.msgs == []
+
+
+# --- 心跳携带 pid / mcpPort（存活实证的判据）---------------------------------
+
+
+def test_heartbeat_stores_pid_and_port(tmp_path: Path, monkeypatch) -> None:
+    c, _, fake_maps = _heartbeat_env(tmp_path, monkeypatch)
+    serial = generate_serial()
+    _post_heartbeat(c, serial, nodePath="/obj/geo1/tag1", hip="D:/x.hip", pid=4242, mcpPort=8101)
+    assert fake_maps.kw == [{"pid": 4242, "mcp_port": 8101}]
+    assert fake_maps.anchors[serial]["pid"] == 4242
+    assert fake_maps.anchors[serial]["mcpPort"] == 8101
+
+
+def test_heartbeat_without_pid_leaves_values_intact(tmp_path: Path, monkeypatch) -> None:
+    """旧 HDA 不报这两项：行为与从前完全一致，已知好值不被清零。"""
+    c, fake_ws, fake_maps = _heartbeat_env(tmp_path, monkeypatch)
+    serial = generate_serial()
+    _post_heartbeat(c, serial, nodePath="/obj/geo1/tag1", pid=4242, mcpPort=8101)
+    _post_heartbeat(c, serial, nodePath="/obj/geo1/tag1")        # 缺省心跳
+    assert fake_maps.kw[1] == {"pid": 0, "mcp_port": 0}
+    assert fake_maps.anchors[serial]["pid"] == 4242
+    assert fake_maps.anchors[serial]["mcpPort"] == 8101
+    assert fake_ws.msgs == []
+
+
+def test_heartbeat_pid_change_is_reported(tmp_path: Path, monkeypatch) -> None:
+    """pid 变了 = Houdini 重开：埋 register trace 记下 pid 迁移。"""
+    c, _, fake_maps = _heartbeat_env(tmp_path, monkeypatch)
+    serial = generate_serial()
+    _post_heartbeat(c, serial, nodePath="/obj/geo1/tag1", pid=4242, mcpPort=8101)
+    assert get_state().trace.list(actor="tag-hda", action="register") == []
+
+    _post_heartbeat(c, serial, nodePath="/obj/geo1/tag1", pid=5555, mcpPort=8101)
+    events = get_state().trace.list(actor="tag-hda", action="register")
+    assert len(events) == 1
+    assert events[0]["channel"] == serial
+    assert events[0]["digest"] == "pid 4242 -> 5555 (houdini restarted)"
+    assert fake_maps.anchors[serial]["pid"] == 5555
+
+
 def test_probe_404(tmp_path: Path) -> None:
     c = _client(tmp_path)
     assert c.get("/api/channels/nonexistent/probe").status_code == 404

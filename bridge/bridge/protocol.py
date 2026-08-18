@@ -47,7 +47,7 @@ import time
 
 from pydantic import BaseModel, Field
 
-VERSION = "0.1.00113"
+VERSION = "0.1.00115"
 HOST = "127.0.0.1"
 PORT = 8375
 BASE_URL = f"http://{HOST}:{PORT}"
@@ -147,6 +147,10 @@ class ChannelRef(BaseModel):
     registeredAt: float = 0.0       # 服务端权威：首次注册写 now，重复注册保留
     lastSeen: float = 0.0           # 注册/心跳/探测成功时刷新 now
     adapter: str | None = None      # kind="data"：bridge 侧读写器名（如 "apex-anim"）
+    # 映射系统字段（v0.1.00114）：吊牌注册时带出，桥据此建「逻辑名 -> 相对地址」条目。
+    rel: str | None = None          # 相对**吊牌所在网络**的地址（兄弟节点语义）；逻辑名默认取它
+    type: str = "float"             # MAPPING_TYPES 之一（geo|float|vec3）
+    mode: str | None = None         # 归属吊牌的标记模式（"parm" | "apex"）
 
 
 PROJECT_SERIAL_RE = re.compile(r"^P1-[0-9a-z]{8,}-[0-9a-z]{4}$")
@@ -170,6 +174,96 @@ class ProjectRef(BaseModel):
     createdAt: float = 0.0        # 服务端权威：创建时写 now，不可变
     updatedAt: float = 0.0        # 成员增删时刷 now
     members: list[ChannelRef] = Field(default_factory=list)   # 通道引用快照（live 状态以 /api/channels 大全为准）
+
+
+# ---------------------------------------------------------------------------
+# 映射系统（v0.1.00114，见 devlog/project-mapping-design.md）
+#
+# 目的：node 侧只引用**相对地址（逻辑名）**，绝对 Houdini 路径只存在于映射系统。
+# 锚点 = 吊牌 serial（创建即不可变，移动/改名不变——铁律 1），吊牌每次 cook 上报
+# 自身 nodePath；锚点移动只改 anchors 一处，其下全部 entry 自动跟随。
+#
+# 解析规则：absolutePath = <锚点 nodePath 的所在网络> + "/" + entry.rel
+#   （rel 以吊牌**所在网络**为基准 = 兄弟节点语义，不是吊牌自身路径）
+# ---------------------------------------------------------------------------
+
+# 端口/值类型：geo 走几何数据流；float/vec3 走映射系统按逻辑名读写。
+MAPPING_TYPES = ("geo", "float", "vec3")
+
+
+class AnchorRef(BaseModel):
+    """映射锚点：一个吊牌的当前位置。serial 不可变，nodePath 可变（移动/改名）。
+
+    pid / mcpPort（v0.1.00114）：吊牌 cook 时连自身 `os.getpid()` 与已发现的 MCP 端口
+    一起上报，用于**降级前实证**。心跳只能证明「最近 cook 过」——吊牌长期不 cook 是
+    正常的，所以心跳超时不等于失联。记下 pid+端口后，可直接 `mcp.health` 核对
+    `pid == 记录的 pid`（铁律：pid 是唯一可靠判据），从而区分「只是没 cook」与「实例真没了」。
+    """
+    serial: str
+    nodePath: str = ""
+    hip: str = ""
+    mode: str = "parm"            # 吊牌标记模式："parm" | "apex"
+    lastSeen: float = 0.0         # 吊牌 cook 上报时刷新
+    movedAt: float = 0.0          # nodePath 发生变化的最近时刻（0 = 从未移动）
+    pid: int = 0                  # 该 Houdini 实例的进程号（0 = 未上报）
+    mcpPort: int = 0              # 该实例的 fxhoudinimcp 端口（0 = 吊牌尚未发现）
+    verifiedAt: float = 0.0       # 最近一次 pid 核对成功的时刻（探测刷新，非心跳）
+    verifiedAlive: bool = False   # 最近一次探测结论（配合 verifiedAt 读）
+
+
+class AnchorProbeResult(BaseModel):
+    """锚点存活探测结果（GET /api/projects/{pid}/anchors/{serial}/probe）。
+
+    alive=True 且 pidMatched=True 才是「确认活着」；alive=True 但 pidMatched=False
+    说明该端口现在被**另一个** Houdini 占着（实例换了/重开了），不能当同一个实例用。"""
+    serial: str
+    alive: bool = False
+    pidMatched: bool = False
+    port: int = 0                 # 实际探到的端口（可能与记录的不同：按 hip 重新定位过）
+    expectedPid: int = 0
+    actualPid: int = 0
+    hip: str = ""
+    reason: str = ""
+
+
+class MappingEntry(BaseModel):
+    """一条逻辑名 -> 相对地址的映射（项目内唯一）。"""
+    anchor: str                   # 锚点 serial（吊牌）
+    rel: str                      # 相对锚点所在网络的地址，如 "transform1/tx"
+    kind: str = "param"           # "param" | "data"
+    adapter: str | None = None    # kind="data" 时的读写器名（如 "apex-ctrl"）
+    type: str = "float"           # MAPPING_TYPES 之一
+    label: str = ""
+
+
+class MappingResolved(BaseModel):
+    """解析结果：逻辑名 + 当前绝对路径（锚点缺失时 absolutePath 为空且 ok=False）。"""
+    name: str
+    absolutePath: str = ""
+    kind: str = "param"
+    adapter: str | None = None
+    type: str = "float"
+    anchor: str = ""
+    ok: bool = True
+    error: str = ""
+
+
+class MappingsResponse(BaseModel):
+    """GET /api/projects/{pid}/mappings 响应。"""
+    projectSerial: str
+    entries: dict[str, MappingEntry] = Field(default_factory=dict)
+    anchors: dict[str, AnchorRef] = Field(default_factory=dict)
+    resolved: dict[str, MappingResolved] = Field(default_factory=dict)
+
+
+class AnchorMovedMsg(BaseModel):
+    """WS 广播：锚点（吊牌）位置变化，其下逻辑名的绝对路径已改。
+    web 侧无需改地址——逻辑名不变，仅用于提示与刷新。"""
+    type: str = "anchor-moved"
+    serial: str
+    oldPath: str = ""
+    newPath: str = ""
+    names: list[str] = Field(default_factory=list)
 
 
 class OutputsPut(BaseModel):

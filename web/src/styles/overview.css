@@ -33,7 +33,8 @@ body {
 .ov-link:hover { background: #3a6ea5; }
 .ov-refresh,
 .ov-channels-refresh,
-.ov-projects-refresh {
+.ov-projects-refresh,
+.ov-mappings-refresh {
   background: #2e4f7d;
   color: #fff;
   border: 1px solid #3a6ea5;
@@ -43,13 +44,16 @@ body {
 }
 .ov-refresh:hover,
 .ov-channels-refresh:hover,
-.ov-projects-refresh:hover { background: #3a6ea5; }
+.ov-projects-refresh:hover,
+.ov-mappings-refresh:hover { background: #3a6ea5; }
 .ov-refresh:disabled,
 .ov-channels-refresh:disabled,
-.ov-projects-refresh:disabled { opacity: 0.5; cursor: default; }
+.ov-projects-refresh:disabled,
+.ov-mappings-refresh:disabled { opacity: 0.5; cursor: default; }
 
 /* ---- cleanup ---- */
-.ov-cleanup {
+.ov-cleanup,
+.ov-projects-cleanup {
   background: #7a4a1f;
   color: #fff;
   border: 1px solid #a16207;
@@ -57,19 +61,26 @@ body {
   padding: 4px 12px;
   cursor: pointer;
 }
-.ov-cleanup:hover { background: #92400e; }
-.ov-cleanup:disabled { opacity: 0.5; cursor: default; }
-.ov-cleanup-result {
+.ov-cleanup:hover,
+.ov-projects-cleanup:hover { background: #92400e; }
+.ov-cleanup:disabled,
+.ov-projects-cleanup:disabled { opacity: 0.5; cursor: default; }
+.ov-cleanup-result,
+.ov-projects-cleanup-result {
   max-width: 340px;
   font-size: 11px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.ov-cleanup-result.ok { color: #86efac; }
-.ov-cleanup-result.none { color: #8f959e; }
-.ov-cleanup-result.err { color: #f87171; }
-.ov-cleanup-result.hidden { display: none; }
+.ov-cleanup-result.ok,
+.ov-projects-cleanup-result.ok { color: #86efac; }
+.ov-cleanup-result.none,
+.ov-projects-cleanup-result.none { color: #8f959e; }
+.ov-cleanup-result.err,
+.ov-projects-cleanup-result.err { color: #f87171; }
+.ov-cleanup-result.hidden,
+.ov-projects-cleanup-result.hidden { display: none; }
 
 /* ---- bridge status banner ---- */
 .ov-banner { padding: 8px 16px; font-size: 12px; }
@@ -172,7 +183,8 @@ body {
 
 /* ---- new scene ---- */
 .ov-new { display: flex; gap: 8px; flex-wrap: wrap; }
-.ov-new-input {
+.ov-new-input,
+.ov-project-name-input {
   flex: 1;
   max-width: 320px;
   background: #0f1012;
@@ -196,21 +208,132 @@ body {
 .ov-new-button:disabled,
 .ov-projects-new:disabled { opacity: 0.5; cursor: default; }
 
-/* ---- projects (项目层 P2a：通道引用聚合 + 拖放入项目) ---- */
+/* ---- projects (主入口：项目优先) ---- */
 .ov-projects-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .ov-projects-head .ov-section-heading { margin: 0; flex: 1; }
-/* 通道行可拖（HTML5 DnD 拖入项目行） */
-.ov-row.channels { cursor: grab; }
-.ov-row.projects { grid-template-columns: minmax(150px, 1.3fr) minmax(150px, 1.1fr) 80px 70px; }
-.ov-row.projects.drop-hover {
-  border-color: #7ce3a8;
-  background: rgba(124, 227, 168, 0.08);
-  box-shadow: 0 0 0 1px rgba(124, 227, 168, 0.55) inset;
-}
+/* 状态列放得下「在线（未 cook）」/「无心跳（无法核实）」；操作列多了「检测」按钮 */
+.ov-row.projects { grid-template-columns: minmax(170px, 1.5fr) 74px 132px minmax(300px, auto); }
+.ov-row.projects .ov-cell.ov-action { display: flex; gap: 6px; justify-content: flex-end; }
 .ov-row.projects.focused {
   border-color: #9fd8ff;
   box-shadow: 0 0 0 1px rgba(159, 216, 255, 0.55) inset;
 }
+/* 项目名：人类可读名字打头（序列号只在 title 里） */
+.ov-project-name { font-weight: 600; color: #e5e7eb; }
+.ov-name-input {
+  width: 100%;
+  background: #0f1012;
+  color: #e5e7eb;
+  border: 1px solid #3a6ea5;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font: inherit;
+  font-weight: 600;
+}
+.ov-seen.empty .ov-state { color: #8f959e; }
+
+/* ---- 降级前实证：心跳 × 探测 的状态灯 ----
+ * 项目行的「无心跳」是**未经证实**的（吊牌只在 cook 时心跳），故用灰而非红——
+ * 红留给经探测确证的「失联」。场景行的「离线」语义不同（那里心跳就是判据），
+ * 所以下面的覆盖全部限定在 .ov-row.projects 内，不动诊断区。 */
+.ov-row.projects .ov-seen.offline .ov-state { color: #8f959e; font-weight: 500; }
+/* 检测中：蓝，明确「正在问 Houdini」而不是某个结论 */
+.ov-row.projects .ov-seen.checking .ov-state { color: #9fd8ff; }
+/* 在线（未 cook）：探测确认进程活着 → 绿，但虚线下划线提示「和心跳绿不是一回事」 */
+.ov-row.projects .ov-seen.idle .ov-state {
+  color: #7ce3a8;
+  border-bottom: 1px dashed rgba(124, 227, 168, 0.5);
+}
+/* 失联：唯一经过实证的坏结论 → 做成红色徽章，和灰扑扑的「无心跳」一眼分得开 */
+.ov-row.projects .ov-seen.gone .ov-state {
+  display: inline-block;
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.45);
+  border: 1px solid #b91c1c;
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-weight: 700;
+}
+.ov-row.projects.probe-gone { border-color: #7f1d1d; background: rgba(127, 29, 29, 0.1); }
+
+/* 「检测」按钮：中性蓝灰，不抢「打开」的主色 */
+.ov-probe {
+  background: #1f2430;
+  color: #cfd2d6;
+  border: 1px solid #4a5160;
+  border-radius: 4px;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.ov-probe:hover { background: #2a3040; color: #fff; }
+.ov-probe:disabled { opacity: 0.55; cursor: default; }
+
+/* ---- mappings (逻辑名 → 绝对路径 / 值 / 锚点) ---- */
+.ov-mappings-of { color: #9fd8ff; font-weight: 600; }
+/* vec3 行的值是对象（{ctrl,t,r}），比标量长得多 → 值列给足宽度 */
+/* 锚点列现在还要放 pid/端口证据 → 给它多点宽度，并允许换行成两行小字 */
+.ov-row.mappings {
+  grid-template-columns: minmax(130px, 1.1fr) 64px minmax(150px, 1.1fr) minmax(240px, 1.6fr) minmax(190px, 1.1fr) 62px;
+}
+.ov-row.mappings.broken { border-color: #7f1d1d; background: rgba(127, 29, 29, 0.14); }
+.ov-kind.float { color: #5eead4; border-color: rgba(94, 234, 212, 0.4); }
+.ov-kind.vec3 { color: #fca5a5; border-color: rgba(252, 165, 165, 0.4); }
+.ov-kind.geo { color: #9fd8ff; border-color: rgba(159, 216, 255, 0.4); }
+.ov-map-path { font: 11px/1.4 var(--cyl-font-code); color: #cfd2d6; }
+.ov-map-error { color: #f87171; }
+.ov-map-value { display: flex; align-items: center; gap: 6px; }
+.ov-map-value.err .ov-map-input { border-color: #7f1d1d; }
+.ov-map-input {
+  flex: 1;
+  min-width: 0;
+  background: #0f1012;
+  color: #e5e7eb;
+  border: 1px solid #33363c;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font: 11px/1.4 var(--cyl-font-code);
+}
+.ov-map-input:focus { outline: none; border-color: #3a6ea5; }
+.ov-map-novalue { color: #6b7280; font-style: italic; }
+.ov-anchor { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ov-anchor-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #8f959e; }
+/* pid/端口 = 降级前实证的证据本身，等宽字体便于比对；title 给 hip/心跳/核实全景 */
+.ov-anchor-pid {
+  flex: none;
+  font: 10px/1.3 var(--cyl-font-code);
+  color: #9fd8ff;
+  border: 1px solid rgba(159, 216, 255, 0.35);
+  border-radius: 3px;
+  padding: 1px 5px;
+  cursor: help;
+}
+/* 没上报 pid（旧版吊牌）= 无从核实，用灰点明「这不是结论」 */
+.ov-anchor-pid.nopid { color: #8f959e; border-color: #3a3f47; }
+.ov-badge {
+  flex: none;
+  font: 10px/1.3 var(--cyl-font-ui);
+  border-radius: 3px;
+  padding: 2px 6px;
+}
+/* 已移动 = 正常状态（逻辑名不变，路径自动跟随），用蓝而非红 */
+.ov-badge.moved { color: #9fd8ff; border: 1px solid rgba(159, 216, 255, 0.4); }
+
+/* ---- scenes 诊断区（默认折叠） ---- */
+.ov-diag { padding: 0; }
+.ov-diag-summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7a7f87;
+}
+.ov-diag-summary small { margin-left: 8px; letter-spacing: 0; text-transform: none; color: #5c6169; }
+.ov-diag-summary:hover { color: #cfd2d6; }
+.ov-diag[open] .ov-diag-summary { border-bottom: 1px solid #2a2d33; }
+.ov-diag-body { padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 6px; }
+.ov-diag-body .ov-section-heading { margin: 8px 0 2px; }
 .ov-count { color: #8f959e; font: 11px/1.4 var(--cyl-font-ui); }
 .ov-expand {
   background: #1f2430;

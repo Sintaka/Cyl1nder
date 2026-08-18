@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import compute  # noqa: F401  (registers executors)
 from .channel_routes import router as channel_routes_router
 from .houdini_routes import router as houdini_routes_router
+from .mapping_routes import router as mapping_routes_router
 from .project_routes import router as project_routes_router
 from .protocol import VERSION
 from .routes import router as rest_router
@@ -48,6 +49,9 @@ def create_app() -> FastAPI:
     app.include_router(snapshot_routes_router)
     app.include_router(houdini_routes_router)
     app.include_router(channel_routes_router)
+    # 映射路由先于项目路由挂载：/api/projects/{pid}/mappings/... 段更长更具体，
+    # 先注册避免被 /api/projects/{projectId} 的路径参数吞掉。
+    app.include_router(mapping_routes_router)
     app.include_router(project_routes_router)
     app.include_router(trace_routes_router)
     app.include_router(ws_router)

@@ -20,6 +20,13 @@ import { applyTranslateGrouped } from "../tools/transform";
 import { computeOutputsCached, computeNodeResultCached, type ChainCtx, type ComputeResult } from "./chain-cache";
 export type { ComputeResult, ChainChange, ChainCtx } from "./chain-cache";
 
+/** ComputeResult + 可选的结构性错误（多源喂同一端口）。**纯附加**：仍可赋给
+ *  ComputeResult，既有调用方（core/network.ts 的 NetworkDeps）与测试无需改动。 */
+export interface ComputeResultWithErrors extends ComputeResult {
+  /** 人类可读的错误行；无错误时不带该键。 */
+  errors?: string[];
+}
+
 export interface NetworkNode {
   id: string;
   kind: string; // "input" | "output" | "null" | "transform"
@@ -84,13 +91,73 @@ function toGroupClass(s: string): GroupClass {
   return (GROUP_CLASSES as readonly string[]).includes(s) ? (s as GroupClass) : "autoguess";
 }
 
-/** Connection feeding `targetInput` on `nodeId`, if any. */
+/** Connection feeding `targetInput` on `nodeId`, if any. When SEVERAL connections
+ *  feed the same port this still returns the first (deterministic, keeps the trace
+ *  running); the conflict itself is reported separately by findMultiSourceErrors so
+ *  the user can fix it by hand instead of silently getting one arbitrary source. */
 export function findFeeder(
   snap: NetworkSnapshot,
   nodeId: string,
   targetInput: string,
 ): NetworkConnection | undefined {
   return snap.connections.find((c) => c.target === nodeId && c.targetInput === targetInput);
+}
+
+/** One input port fed by MORE THAN ONE output (illegal: geometry has no implicit
+ *  merge). `sources` lists the competing "<label>.<sourceOutput>" strings. */
+export interface MultiSourceError {
+  nodeId: string;
+  nodeLabel: string;
+  targetInput: string;
+  sources: string[];
+  message: string;
+}
+
+/**
+ * Detect every input port with >1 incoming connection. Returns [] for the normal
+ * single-source and zero-source cases (an unconnected output port keeps falling
+ * back to passthrough - existing intended behaviour). Never throws: the caller
+ * surfaces these as errors and the user fixes the wiring by hand.
+ */
+export function findMultiSourceErrors(snap: NetworkSnapshot): MultiSourceError[] {
+  const byPort = new Map<string, NetworkConnection[]>();
+  for (const c of snap.connections) {
+    const key = `${c.target}\u0000${c.targetInput}`;
+    const list = byPort.get(key);
+    if (list) list.push(c);
+    else byPort.set(key, [c]);
+  }
+  const errors: MultiSourceError[] = [];
+  for (const conns of byPort.values()) {
+    if (conns.length < 2) continue;
+    const target = nodeById(snap, conns[0].target);
+    const nodeLabel = target?.label ?? conns[0].target;
+    const sources = conns.map((c) => `${nodeById(snap, c.source)?.label ?? c.source}.${c.sourceOutput}`);
+    errors.push({
+      nodeId: conns[0].target,
+      nodeLabel,
+      targetInput: conns[0].targetInput,
+      sources,
+      message: `port ${nodeLabel}.${conns[0].targetInput} has ${conns.length} sources (${sources.join(", ")}): only one connection per input is allowed - remove the extras`,
+    });
+  }
+  return errors;
+}
+
+/**
+ * Socket data type of an _input_/_output_ node's single port (schema 4 form):
+ * read from its `type` param. Legacy 4-port nodes have no `type` param -> "geo",
+ * so their geometry behaviour is unchanged.
+ */
+export function portDataType(node: NetworkNode): string {
+  const v = node.params?.find((p) => p.name === "type")?.value;
+  return v === "float" || v === "vec3" ? v : "geo";
+}
+
+/** True when this node's port carries geometry (the only kind the geometry trace
+ *  handles). float/vec3 ports flow through the mapping system by logical name. */
+function isGeoPort(node: NetworkNode): boolean {
+  return portDataType(node) === "geo";
 }
 
 export function nodeById(snap: NetworkSnapshot, id: string): NetworkNode | undefined {
@@ -136,6 +203,9 @@ export function traceChainSpecs(
   visited.add(node.id);
 
   if (node.kind === "input") {
+    // 非 geo 端口（float/vec3）不参与几何计算：按死链处理（调用方回退 passthrough）。
+    // 它们的值经映射系统按逻辑名流转，不进几何 trace。
+    if (!isGeoPort(node)) return null;
     const j = parseInPort(sourceOutput);
     const base = j !== null ? inputs[j] : undefined;
     return base ? { base, specs: [] } : null;
@@ -243,10 +313,15 @@ export function computeOutputsDetailed(
   inputs: InputPayload[],
   snap: NetworkSnapshot,
   ctx?: ChainCtx,
-): ComputeResult {
+): ComputeResultWithErrors {
   if (inputs.length === 0) return { outputs: [], changes: [] };
-  if (ctx) return computeOutputsCached(inputs, snap, ctx);
-  const outNode = snap.nodes.find((n) => n.kind === "output");
+  // 一个输入端口被多个输出喂 → 报错让用户手动改（不抛、不静默取第一条）。
+  const errors = findMultiSourceErrors(snap).map((e) => e.message);
+  const withErrors = (res: ComputeResult): ComputeResultWithErrors =>
+    errors.length > 0 ? { ...res, errors } : res;
+  if (ctx) return withErrors(computeOutputsCached(inputs, snap, ctx));
+  // 非 geo 的 _output_（float/vec3）不参与几何计算：整体回退 passthrough。
+  const outNode = snap.nodes.find((n) => n.kind === "output" && isGeoPort(n));
   const outputs: OutputBuffer[] = [];
   for (let i = 0; i < 4; i++) {
     const feeder = outNode ? findFeeder(snap, outNode.id, `out${i}`) : undefined;
@@ -255,7 +330,7 @@ export function computeOutputsDetailed(
       feeder && src ? traceChain(src, feeder.sourceOutput, inputs, snap, new Set()) : null;
     outputs.push(res ? bufferFromResolved(res, i) : fallbackBuffer(inputs[i], i));
   }
-  return { outputs, changes: outputs.map(() => "topology" as const) };
+  return withErrors({ outputs, changes: outputs.map(() => "topology" as const) });
 }
 
 /** Compute the 4 output buffers (index 0..3); array form kept for existing tests

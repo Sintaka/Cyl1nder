@@ -13,6 +13,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from bridge import snapshot
 from bridge.project_routes import router as project_router
 from bridge.projects import ProjectRegistry
 from bridge.protocol import generate_project_serial, generate_serial, is_valid_project_serial
@@ -320,6 +321,155 @@ def test_ensure_invalid_serial_400(tmp_path: Path) -> None:
     r = c.post("/api/projects/ensure", json={"serial": "zzz"})
     assert r.status_code == 400
     assert r.json()["detail"] == "invalid serial"
+
+
+# --- 改名 / 删除 / 清理（registry 单测） --------------------------------------
+
+
+def test_set_label_and_delete_unit(tmp_path: Path) -> None:
+    reg = ProjectRegistry(tmp_path / "projects.json")
+    p = reg.create(label="old")
+    pid = p["projectSerial"]
+    time.sleep(0.01)
+    renamed = reg.set_label(pid, "new")
+    assert renamed["label"] == "new"
+    assert renamed["updatedAt"] > p["updatedAt"]
+    assert reg.set_label("P1-missing-0000", "x") is None
+    assert reg.delete(pid) is True
+    assert reg.get(pid) is None
+    assert reg.delete(pid) is False
+
+
+def test_list_empty_unit(tmp_path: Path) -> None:
+    reg = ProjectRegistry(tmp_path / "projects.json")
+    empty = reg.create(label="empty")
+    full = reg.create(label="full")
+    reg.add_member(full["projectSerial"], {"kind": "tag", "serial": generate_serial(), "nodePath": "/obj/x", "hip": "", "label": ""})
+    assert reg.list_empty() == [empty["projectSerial"]]
+
+
+def test_delete_persists(tmp_path: Path) -> None:
+    path = tmp_path / "projects.json"
+    reg = ProjectRegistry(path)
+    pid = reg.create(label="Demo")["projectSerial"]
+    reg.delete(pid)
+    assert ProjectRegistry(path).get(pid) is None
+
+
+# --- 改名 / 删除 / 清理（路由） ----------------------------------------------
+
+
+class _FakeMappings:
+    """state.mappings 替身：只暴露级联要用的 drop_project（真表由另一路并行落地）。"""
+
+    def __init__(self) -> None:
+        self.dropped: list[str] = []
+
+    def drop_project(self, project: str) -> bool:
+        self.dropped.append(project)
+        return True
+
+
+def test_patch_project_renames(tmp_path: Path) -> None:
+    c = _client(tmp_path)
+    p = c.post("/api/projects", json={"label": "old"}).json()["project"]
+    pid = p["projectSerial"]
+    time.sleep(0.01)
+    r = c.patch(f"/api/projects/{pid}", json={"label": "new"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    assert body["project"]["label"] == "new"
+    assert body["project"]["updatedAt"] > p["updatedAt"]
+    assert c.get(f"/api/projects/{pid}").json()["project"]["label"] == "new"
+
+
+def test_patch_project_400_and_404(tmp_path: Path) -> None:
+    c = _client(tmp_path)
+    r400 = c.patch("/api/projects/zzz", json={"label": "x"})
+    assert r400.status_code == 400
+    assert r400.json()["detail"] == "invalid project serial"
+    r404 = c.patch(f"/api/projects/{generate_project_serial()}", json={"label": "x"})
+    assert r404.status_code == 404
+    assert r404.json()["detail"] == "project not found"
+
+
+def test_delete_project_removes_record(tmp_path: Path) -> None:
+    c = _client(tmp_path)
+    pid = c.post("/api/projects", json={"label": "Demo"}).json()["project"]["projectSerial"]
+    r = c.delete(f"/api/projects/{pid}")
+    assert r.status_code == 200
+    assert r.json() == {"ok": True, "removed": True}
+    assert c.get(f"/api/projects/{pid}").status_code == 404
+    assert c.get("/api/projects").json()["projects"] == []
+
+
+def test_delete_project_unknown_removed_false(tmp_path: Path) -> None:
+    c = _client(tmp_path)
+    r = c.delete(f"/api/projects/{generate_project_serial()}")
+    assert r.status_code == 200
+    assert r.json()["removed"] is False
+
+
+def test_delete_project_invalid_400(tmp_path: Path) -> None:
+    c = _client(tmp_path)
+    r = c.delete("/api/projects/zzz")
+    assert r.status_code == 400
+    assert r.json()["detail"] == "invalid project serial"
+
+
+def test_delete_project_cascades_graph_and_mappings(tmp_path: Path) -> None:
+    """级联：项目图文件 + 其目录被删，mappings.drop_project 被调用。"""
+    c = _client(tmp_path)
+    st = get_state()
+    st.mappings = _FakeMappings()
+    pid = c.post("/api/projects", json={"label": "Demo"}).json()["project"]["projectSerial"]
+    assert c.put(f"/api/projects/{pid}/graph", json={"graph": {"nodes": []}}).status_code == 200
+    graph_path = snapshot.project_graph_path(st.data_dir, pid)
+    assert graph_path.exists()
+    assert c.delete(f"/api/projects/{pid}").json()["removed"] is True
+    assert not graph_path.exists()
+    assert not graph_path.parent.exists()
+    assert st.mappings.dropped == [pid]
+
+
+def test_delete_project_without_mappings_attribute(tmp_path: Path) -> None:
+    """state 无 mappings 属性（主进程合并时才挂）：删除照常成功。"""
+    c = _client(tmp_path)
+    st = get_state()
+    if hasattr(st, "mappings"):
+        delattr(st, "mappings")
+    pid = c.post("/api/projects", json={}).json()["project"]["projectSerial"]
+    assert c.delete(f"/api/projects/{pid}").json()["removed"] is True
+
+
+def test_cleanup_removes_only_empty_projects(tmp_path: Path) -> None:
+    c = _client(tmp_path)
+    st = get_state()
+    st.mappings = _FakeMappings()
+    empty1 = c.post("/api/projects", json={"label": "e1"}).json()["project"]["projectSerial"]
+    empty2 = c.post("/api/projects", json={"label": "e2"}).json()["project"]["projectSerial"]
+    kept = c.post("/api/projects", json={"label": "kept"}).json()["project"]["projectSerial"]
+    c.post(f"/api/projects/{kept}/members", json={"kind": "tag", "serial": generate_serial(), "nodePath": "/obj/x", "hip": "", "label": ""})
+    c.put(f"/api/projects/{empty1}/graph", json={"graph": {"nodes": []}})
+    graph_path = snapshot.project_graph_path(st.data_dir, empty1)
+    assert graph_path.exists()
+    r = c.post("/api/projects/cleanup")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    assert sorted(body["removed"]) == sorted([empty1, empty2])
+    assert [p["projectSerial"] for p in c.get("/api/projects").json()["projects"]] == [kept]
+    assert not graph_path.exists()
+    assert sorted(st.mappings.dropped) == sorted([empty1, empty2])
+
+
+def test_cleanup_noop_when_all_have_members(tmp_path: Path) -> None:
+    c = _client(tmp_path)
+    pid = c.post("/api/projects", json={"label": "kept"}).json()["project"]["projectSerial"]
+    c.post(f"/api/projects/{pid}/members", json={"kind": "tag", "serial": generate_serial(), "nodePath": "/obj/x", "hip": "", "label": ""})
+    assert c.post("/api/projects/cleanup").json()["removed"] == []
+    assert len(c.get("/api/projects").json()["projects"]) == 1
 
 
 def test_state_projects_and_channels_coexist(tmp_path: Path) -> None:

@@ -11,33 +11,66 @@
     <header class="ov-header">
       <span class="ov-brand">Cyl1nder 总管 <small>/ Overview</small></span>
       <span class="ov-spacer"></span>
-      <a class="ov-link" id="ov-open-app" href="/?serial=" title="打开主应用（自动带上最近活跃的序列号）">打开主应用</a>
-      <button class="ov-cleanup" id="ov-cleanup" type="button">清理无效场景</button>
-      <span class="ov-cleanup-result hidden" id="ov-cleanup-result"></span>
+      <a class="ov-link" id="ov-open-app" href="/?serial=" title="打开主应用（自动带上最近更新的项目）">打开主应用</a>
       <button class="ov-refresh" id="ov-refresh" type="button">刷新</button>
     </header>
     <div id="ov-banner" class="ov-banner hidden"></div>
     <main class="ov-main">
-      <!-- 新建场景置顶（在活跃/历史之上） -->
-      <section class="ov-panel" id="new-panel">
-        <h2 class="ov-section-heading">新建场景</h2>
-        <p class="ov-note">没有 Houdini 也能打开：新建后直接进入可编辑的空工作区。</p>
-        <div class="ov-new">
-          <input class="ov-new-input" id="new-label" type="text" placeholder="可选：场景名称（label）" />
-          <button class="ov-new-button" id="new-button" type="button">新建场景</button>
+      <!-- 1) 项目：主入口，置顶 -->
+      <section class="ov-panel" id="projects-panel">
+        <div class="ov-projects-head">
+          <h2 class="ov-section-heading">项目</h2>
+          <button class="ov-projects-cleanup" id="projects-cleanup" type="button">清理空项目</button>
+          <span class="ov-projects-cleanup-result hidden" id="projects-cleanup-result"></span>
+          <button class="ov-projects-refresh" id="projects-refresh" type="button">刷新</button>
         </div>
-        <p class="ov-error hidden" id="new-error"></p>
+        <div class="ov-new">
+          <input class="ov-project-name-input" id="project-name" type="text" placeholder="可选：项目名称（留空自动命名「项目 N」）" />
+          <button class="ov-projects-new" id="project-new" type="button">新建项目</button>
+        </div>
+        <p class="ov-hint" id="projects-hint">加载中…</p>
+        <p class="ov-error hidden" id="projects-error"></p>
+        <div class="ov-list" id="projects-list"></div>
       </section>
-      <section class="ov-panel" id="active-panel">
-        <h2 class="ov-section-heading">活跃场景</h2>
-        <p class="ov-hint" id="active-hint">加载中…</p>
-        <div class="ov-list" id="active-list"></div>
+
+      <!-- 2) 映射：当前展开项目的逻辑名 → 绝对路径 / 值 / 锚点 -->
+      <section class="ov-panel" id="mappings-panel">
+        <div class="ov-projects-head">
+          <h2 class="ov-section-heading">映射</h2>
+          <span class="ov-mappings-of" id="mappings-of"></span>
+          <button class="ov-mappings-refresh" id="mappings-refresh" type="button">刷新</button>
+        </div>
+        <p class="ov-note">node 侧只引用逻辑名；绝对 Houdini 路径由锚点（吊牌 serial）解析得出。</p>
+        <p class="ov-hint" id="mappings-hint">展开一个项目查看它的映射。</p>
+        <p class="ov-error hidden" id="mappings-error"></p>
+        <div class="ov-list" id="mappings-list"></div>
       </section>
-      <section class="ov-panel" id="history-panel">
-        <h2 class="ov-section-heading">历史场景</h2>
-        <p class="ov-hint" id="history-hint">加载中…</p>
-        <div class="ov-list" id="history-list"></div>
-      </section>
+
+      <!-- 3) 场景：降级为诊断区，默认折叠 -->
+      <details class="ov-panel ov-diag" id="scenes-panel">
+        <summary class="ov-diag-summary">场景（诊断）<small>序列号级别的排障视图，不是日常入口</small></summary>
+        <div class="ov-diag-body">
+          <div class="ov-projects-head">
+            <h3 class="ov-section-heading">新建场景</h3>
+            <button class="ov-cleanup" id="ov-cleanup" type="button">清理无效场景</button>
+            <span class="ov-cleanup-result hidden" id="ov-cleanup-result"></span>
+          </div>
+          <p class="ov-note">没有 Houdini 也能打开：新建后直接进入可编辑的空工作区。</p>
+          <div class="ov-new">
+            <input class="ov-new-input" id="new-label" type="text" placeholder="可选：场景名称（label）" />
+            <button class="ov-new-button" id="new-button" type="button">新建场景</button>
+          </div>
+          <p class="ov-error hidden" id="new-error"></p>
+
+          <h3 class="ov-section-heading">活跃场景</h3>
+          <p class="ov-hint" id="active-hint">加载中…</p>
+          <div class="ov-list" id="active-list"></div>
+
+          <h3 class="ov-section-heading">历史场景</h3>
+          <p class="ov-hint" id="history-hint">加载中…</p>
+          <div class="ov-list" id="history-list"></div>
+        </div>
+      </details>
     </main>
     <script type="module" src="/src/overview.ts"></script>
   </body>

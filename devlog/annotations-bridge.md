@@ -1,5 +1,85 @@
 # 桥子系统改动标注 / Bridge annotations
 
+## v0.1.00115（2026-08-16）· 存活实证（pid + 端口）+ 按 pid 重定位
+
+> 心跳只证明「最近 cook 过」，吊牌长期不 cook 是正常的——详见
+> [project-mapping-design.md](project-mapping-design.md) §5.2 / §5.3。
+
+- **mapping.py**：`upsert_anchor(..., pid, mcp_port)`；`rec["pid"] = new_pid or old_pid`
+  ——**0 不覆盖已知值**（旧 HDA 不报这两项，清成 0 会让后续探测彻底失去判据）。
+  pid 变化 = 同路径换了另一个进程（Houdini 重开）→ 置 `pid_changed` 并清空
+  `verifiedAlive`/`verifiedAt`（旧结论作废）。新增 `mark_verified` 记录探测回执。
+- **mapping_routes.py**：`GET /api/projects/{pid}/anchors/{serial}/probe`。
+  **`alive && pidMatched` 才算活着**；`alive && !pidMatched` = 该端口被另一个 Houdini
+  占着，必须判失联。探测失败返回 `alive:false` + HTTP 200，从不报错。
+- **channel_routes.py**：心跳透传 pid/mcpPort；pid 变化记一条 `register` trace
+  （digest 形如 `pid 4242 -> 5555 (houdini restarted)`）。没用 `anchor-move`——`nodePath` 没变。
+- **【主进程 review 抓出的死代码】按 hip 定位恒为 None**：`mcp.health` 实测只回
+  `{status, pid, houdini_version}`，**不带 hip_file**（dev 规范早有记载）。probe 的重定位与
+  `_resolve_port_for_anchor` 的优先定位两处都据此写过 fallback，全是死代码——单实例下
+  恰好被 `_resolve_port` 兜住，**所以看起来能用**，是最难发现的一类错。改为
+  `_find_port_by_pid` **按 pid 扫 8100..8115**（pid 是铁律唯一可靠判据，且确实在 health 里），
+  附带自愈：实例重开换端口时锚点 `mcpPort` 自动修正。测试同步移除全部 `hip_file` mock
+  （真实响应没这个键，mock 出来只会让测试相信假事），并补「扫描窗口里有别的活
+  Houdini（pid 不同）时绝不误采」用例。
+- **`mark_verified` 不采纳探测到的 pid**：从端口探来的 pid 只能证明「那个端口现在属于这个
+  进程」，不能证明它就是本锚点的实例。pid 的唯一权威来源是吊牌自报（`os.getpid()`）。
+- **hda/cyl1nder_tag.py**：心跳间隔 5s → **60s**（存活由探测负责，心跳不必频繁）；
+  `_instance_identity()` 上报 `os.getpid()` + `known_port()`——**绝不在 cook 主线程扫端口**
+  （同步 HTTP 是死锁红线），只取后台发现线程的缓存结果。
+
+实机验证：锚点端口写错成 8199（真实实例在 8100）→ 按 pid 扫回 8100、`mcpPort` 自愈、
+`pidMatched=True`；期望 pid 改成 999999 → `alive=True` 但 `pidMatched=False`、
+`verifiedAlive` 保持 False。验证：pytest 270。
+
+## v0.1.00114（2026-08-16）· 映射系统（逻辑名/锚点/移动容错）+ 项目增删改
+
+> 设计与踩坑详见 [project-mapping-design.md](project-mapping-design.md)。
+
+### 映射系统（新）
+- **mapping.py（新）**：`MappingRegistry` + 模块级 `resolve_path(anchor_node_path, rel)`。
+  持久化结构照抄 `ChannelRegistry`（Lock / `_dirty` / 1.0s debounce / tmp+replace /
+  可注入 clock / 容错 load），落盘 `bridge/data/mappings.json`（**顶层是 dict**，
+  不同于 channels.json 的 list，`_load` 兼容 legacy-list/空/半损坏）。
+  方法：`upsert_anchor` / `get_anchor` / `list_anchors` / `put_entry` / `del_entry` /
+  `get_entry` / `list_entries` / `resolve` / `resolve_all` / `entries_for_anchor` /
+  `prune_anchor` / `drop_project` / `save_now`。
+- **解析（兄弟节点语义）**：`dirname(anchor.nodePath)` 再 posix-join `rel`，支持 `../`；
+  锚点无所属网络 → `ok=False` 而非抛。
+- **mapping_routes.py（新）**：5 个端点（见 protocol.md）。`/value` 路由**必须先于**裸
+  `{name:path}` 声明，否则被 `:path` 吞掉（`channel_routes.py` 已有同款教训）。
+- **state.py / main.py**：挂 `mappings` + 挂 router。**映射 router 先于项目 router**——
+  `/api/projects/{pid}/mappings/...` 段更长更具体，否则被 `/api/projects/{projectId}` 吞。
+- **channel_routes.py `_sync_mapping_entry`（新）**：注册带 `rel` 的通道 → 在**含该吊牌的
+  每个项目**里建/更新一条 entry。吊牌不认识项目（项目是 web 侧概念），所以由桥按成员关系
+  分发，HDA 保持薄。best-effort：映射同步失败绝不让注册失败。
+- **锚点上报**：心跳 body 新增可选 `hip`/`mode`；`nodePath` 变化 → WS 广播
+  `{type:"anchor-moved", serial, oldPath, newPath, names}` + trace `anchor-move`。
+  三层防护（空 nodePath 早退 / `getattr(state,"mappings",None)` / try-except），
+  旧 HDA 不带这些字段时行为一字不变。
+
+### 端口定位修正（主进程 review 抓出的潜在 bug）
+`mapping_routes._resolve_port_for_anchor`：**不能**直接 `_resolve_port(anchor_serial)`。
+吊牌**不在 registry.json 里**（那是 `put_inputs` 写的，吊牌从不调），于是 `rec=None`、
+`hip=""` → 一路掉到 `discover_first()`，即「拿第一个活口当答案」——单实例碰巧对，
+多开 Houdini 会写错实例，dev 规范明令禁止这么猜。改为优先
+`discover_by_hip(anchor.hip)`（锚点自带 hip），拿不到再退回 `_resolve_port`。
+**实机验证**：锚点 hip 指向 `beginTest-1.hip`，按 hip 定位后读值正常。
+
+### 项目增删改
+- **project_routes.py**：`PATCH /api/projects/{pid}`（改名）、`DELETE /api/projects/{pid}`、
+  `POST /api/projects/cleanup`（删 0 成员项目）。共用 `_cascade_delete(pid)`：
+  `mappings.drop_project` + 经**既有** `snapshot.project_graph_path` 删图文件与 `.tmp`
+  兄弟，空目录才 rmdir，`OSError` 吞掉（锁文件不能挡住记录删除）。
+- **projects.py**：`set_label` / `delete` / `list_empty`，沿用锁 + force-save。
+- 语义不对称（有意，已入文档）：项目 DELETE 未知 pid → **200 + `removed:false`**
+  （照 `remove_member` 的宽容风格，404 会让这个 bool 变成废字段）；映射 DELETE
+  未知逻辑名 → **404**。
+- **protocol.py**：`AnchorRef` / `MappingEntry` / `MappingResolved` / `MappingsResponse` /
+  `AnchorMovedMsg` / `MAPPING_TYPES`；`ChannelRef` 加 `rel`/`type`/`mode`。三处同步。
+
+验证：pytest 250（+44）。
+
 ## v0.1.00113（2026-08-16）· apex-ctrl 数据适配器（APEX 控制器世界位姿读写）
 
 - **data_adapters/apex_ctrl.py（新）**：`apex-ctrl` 适配器，读写 APEX Scene Animate

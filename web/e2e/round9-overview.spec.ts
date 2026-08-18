@@ -48,21 +48,35 @@ test("/?serial=C1-... does NOT redirect (main app connect view loads)", async ({
   await expect(page.locator(".ov-brand")).toHaveCount(0);
 });
 
-test("new-scene block is on top; cleanup button exists; main-app link is /?serial=", async ({ page }) => {
+test("projects block is on top; mappings second; scenes demoted to a collapsed diag section", async ({ page }) => {
   await page.goto(`${BASE}/overview.html`);
-  const sections = page.locator(".ov-main > section");
-  await expect(sections.nth(0)).toHaveId("new-panel");
-  await expect(sections.nth(1)).toHaveId("active-panel");
-  await expect(sections.nth(2)).toHaveId("history-panel");
-  await expect(page.locator("a.ov-link[href='/?serial=']")).toBeVisible();
-  await expect(page.locator("button#ov-cleanup")).toBeVisible();
+  // v0.1.00114 项目优先：项目 -> 映射 -> 场景（诊断，<details> 默认折叠）
+  const panels = page.locator(".ov-main > section, .ov-main > details");
+  await expect(panels.nth(0)).toHaveId("projects-panel");
+  await expect(panels.nth(1)).toHaveId("mappings-panel");
+  await expect(panels.nth(2)).toHaveId("scenes-panel");
+  // 场景诊断区默认折叠 -> 里面的清理按钮初始不可见，但仍在 DOM 上
+  await expect(page.locator("#scenes-panel")).not.toHaveAttribute("open", /.*/);
+  await expect(page.locator("button#ov-cleanup")).toBeAttached();
   await expect(page.locator("span#ov-cleanup-result")).toBeAttached();
+  // 项目区自己的清理入口（独立类名，避免与场景区 .ov-cleanup 撞 strict locator）
+  await expect(page.locator("button#projects-cleanup")).toBeVisible();
+  await expect(page.locator("a.ov-link")).toBeVisible();
 });
 
-test("main-app link opens /?serial= without bouncing back to overview", async ({ page }) => {
+test("scenes diag section expands to reveal the scene controls", async ({ page }) => {
+  await page.goto(`${BASE}/overview.html`);
+  await page.locator("#scenes-panel > summary").click();
+  await expect(page.locator("#scenes-panel")).toHaveAttribute("open", /.*/);
+  await expect(page.locator("button#ov-cleanup")).toBeVisible();
+  await expect(page.locator("input.ov-new-input")).toBeVisible();
+});
+
+test("main-app link opens the app without bouncing back to overview", async ({ page }) => {
   await page.goto(`${BASE}/overview.html`);
   await page.locator("a.ov-link").click();
-  await expect(page).toHaveURL(/\/\?serial=$/, { timeout: 15000 });
+  // 有项目 -> ?project=P1-…；无项目 -> 回退空 ?serial=（index.html 的 has() 守卫都放行）
+  await expect(page).toHaveURL(/\/\?(project=P1-|serial=)/, { timeout: 15000 });
   await expect(page.locator(".cyl-app")).toBeVisible({ timeout: 15000 });
 });
 
@@ -89,6 +103,7 @@ test("active rows render three states: offline / uncooked / online", async ({ pa
     }),
   );
   await page.goto(`${BASE}/overview.html`);
+  await page.locator("#scenes-panel > summary").click(); // 场景区默认折叠
   await waitLoaded(page);
   await expect(page.locator("#active-list .ov-row")).toHaveCount(4);
   await expect(page.locator("#active-list .ov-seen.offline .ov-state")).toHaveText("离线");
@@ -115,6 +130,7 @@ test("cleanup button calls POST /api/scenes/cleanup and re-renders with result",
     }),
   );
   await page.goto(`${BASE}/overview.html`);
+  await page.locator("#scenes-panel > summary").click(); // 场景区默认折叠
   await waitLoaded(page);
   await page.locator("#ov-cleanup").click();
   await expect(page.locator("#ov-cleanup-result")).toHaveText(/已清理 2 个无效场景/);

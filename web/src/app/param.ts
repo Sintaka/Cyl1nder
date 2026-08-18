@@ -84,8 +84,18 @@ function parseColor3(raw: string): [number, number, number] | null {
   return null;
 }
 
+/** 按参数名固定的下拉选项（v0.1.00114）。
+ *
+ *  `type` 是单端口 _input_/_output_ 的端口类型（geo|float|vec3），必须是下拉而不是
+ *  自由文本——手输错值会让端口类型静默回落 geo、连线校验跟着放行错配的线。
+ *  当前值总被并入选项，所以旧图里的意外值不会在打开面板时被悄悄改掉。 */
+const MENU_OPTIONS: Record<string, readonly string[]> = {
+  type: ["geo", "float", "vec3"],
+};
+
 /** Editable control markup for one param row: float/int -> number input, class -> select,
- *  color3 -> swatch button + hex text, other strings -> text input. */
+ *  name-driven menu (see MENU_OPTIONS) -> select, color3 -> swatch button + hex text,
+ *  other strings -> text input. */
 function controlHtml(p: ParamInfo): string {
   const name = attrEscape(p.name);
   if (p.type === "float" || p.type === "int") {
@@ -105,6 +115,14 @@ function controlHtml(p: ParamInfo): string {
   if (p.type === "string" && p.name === "class") {
     const current = String(p.value);
     const opts = Array.from(new Set(["autoguess", "points", "vertices", "prim", "detail", current]))
+      .map((o) => `<option value="${o}"${o === current ? " selected" : ""}>${o}</option>`)
+      .join("");
+    return `<select data-name="${name}">${opts}</select>`;
+  }
+  const menu = MENU_OPTIONS[p.name];
+  if (menu) {
+    const current = String(p.value);
+    const opts = Array.from(new Set([...menu, current]))
       .map((o) => `<option value="${o}"${o === current ? " selected" : ""}>${o}</option>`)
       .join("");
     return `<select data-name="${name}">${opts}</select>`;

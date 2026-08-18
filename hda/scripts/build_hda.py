@@ -140,6 +140,19 @@ def _tag_parm_group() -> hou.ParmTemplateGroup:
         pass
     group.append(bridge)
 
+    # 标记模式（v0.1.00114）：决定条目怎么解析、归哪个 adapter。
+    #   parm = 普通参数（相对上游节点，兼容旧写法）
+    #   apex = scene animate 控制器（自动补 adapter=apex-ctrl）
+    from hou import MenuParmTemplate
+    mode = MenuParmTemplate(
+        "mode",
+        "Mark Mode",
+        ("parm", "apex"),
+        menu_labels=("Parm (plain parameters)", "APEX Scene Animate"),
+        default_value=0,
+    )
+    group.append(mode)
+
     entries = StringParmTemplate("entries", "Entries", 1, default_value=("",))
     try:
         entries.setTags({"editor": "1"})  # multiline string editor
@@ -193,7 +206,7 @@ def build_tag(output_path: str = TAG_OUT) -> hou.Node:
     except Exception:  # noqa: BLE001
         pass
 
-    want = {"cyl1nder_serial", "bridge_url", "entries"}
+    want = {"cyl1nder_serial", "bridge_url", "mode", "entries"}
     existing = {t.name() for t in d.parmTemplateGroup().entries()}
     if not want.issubset(existing):
         d.setParmTemplateGroup(_tag_parm_group())

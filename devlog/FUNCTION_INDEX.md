@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-18），由 `node scripts/gen-index.mjs` 产出。共 **884** 个函数/类。
+> 机器生成（2026-08-18），由 `node scripts/gen-index.mjs` 产出。共 **982** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | `main` | 7 | def |  | 2 |
 
-## bridge/bridge/channel_routes.py（243 行）
+## bridge/bridge/channel_routes.py（345 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -28,11 +28,13 @@
 | `get_channel_value` | 77 | def |  | 1 |
 | `put_channel_value` | 110 | def |  | 1 |
 | `put_channel` | 143 | def |  | 1 |
-| `list_channels` | 160 | def |  | 1 |
-| `HeartbeatBody` | 164 | class |  | 1 |
-| `heartbeat` | 173 | def |  | 1 |
-| `probe` | 195 | def |  | 1 |
-| `_node_type_name` | 230 | def |  | 2 |
+| `_sync_mapping_entry` | 160 | def |  | 2 |
+| `list_channels` | 197 | def |  | 1 |
+| `HeartbeatBody` | 201 | class |  | 1 |
+| `heartbeat` | 217 | def |  | 1 |
+| `_report_anchor` | 268 | def |  | 2 |
+| `probe` | 297 | def |  | 1 |
+| `_node_type_name` | 332 | def |  | 2 |
 
 ## bridge/bridge/channels.py（106 行）
 
@@ -175,12 +177,58 @@
 | `query` | 48 | def |  | 2 |
 | `errors` | 58 | def |  | 1 |
 
-## bridge/bridge/main.py（59 行）
+## bridge/bridge/main.py（63 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `lifespan` | 23 | def |  | 1 |
-| `create_app` | 37 | def |  | 2 |
+| `lifespan` | 24 | def |  | 1 |
+| `create_app` | 38 | def |  | 2 |
+
+## bridge/bridge/mapping_routes.py（324 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `_check_pid` | 38 | def |  | 7 |
+| `_resolved_or_404` | 43 | def |  | 3 |
+| `_split_target` | 50 | def |  | 3 |
+| `_resolve_port_for_anchor` | 58 | def |  | 1 |
+| `_port_for` | 99 | def |  | 5 |
+| `_trace` | 103 | def |  | 3 |
+| `ValuePut` | 113 | class |  | 1 |
+| `_find_port_by_pid` | 135 | def |  | 2 |
+| `_probe_health` | 153 | def |  | 4 |
+| `probe_anchor` | 158 | def |  | 1 |
+| `get_mapping_value` | 217 | def |  | 1 |
+| `put_mapping_value` | 255 | def |  | 1 |
+| `list_mappings` | 292 | def |  | 1 |
+| `put_mapping` | 307 | def |  | 1 |
+| `delete_mapping` | 318 | def |  | 1 |
+
+## bridge/bridge/mapping.py（315 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `resolve_path` | 28 | def |  | 2 |
+| `MappingRegistry` | 36 | class |  | 0 |
+| `__init__` | 37 | def |  | 1 |
+| `upsert_anchor` | 50 | def |  | 1 |
+| `mark_verified` | 114 | def |  | 1 |
+| `get_anchor` | 137 | def |  | 1 |
+| `list_anchors` | 142 | def |  | 1 |
+| `put_entry` | 148 | def |  | 1 |
+| `del_entry` | 164 | def |  | 1 |
+| `get_entry` | 175 | def |  | 1 |
+| `list_entries` | 180 | def |  | 1 |
+| `resolve` | 186 | def |  | 1 |
+| `resolve_all` | 195 | def |  | 1 |
+| `_resolve_one` | 205 | def |  | 3 |
+| `entries_for_anchor` | 236 | def |  | 1 |
+| `_entries_for_anchor` | 240 | def |  | 4 |
+| `prune_anchor` | 249 | def |  | 1 |
+| `drop_project` | 262 | def |  | 1 |
+| `save_now` | 273 | def |  | 1 |
+| `_save` | 277 | def |  | 8 |
+| `_load` | 295 | def |  | 2 |
 
 ## bridge/bridge/mcp_server.py（303 行）
 
@@ -208,24 +256,29 @@
 | `cyl1nder_index_query` | 274 | def |  | 1 |
 | `run_stdio` | 297 | def |  | 2 |
 
-## bridge/bridge/project_routes.py（143 行）
+## bridge/bridge/project_routes.py（205 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_check_project_serial` | 26 | def |  | 6 |
-| `ProjectCreateBody` | 31 | class |  | 1 |
-| `EnsureBody` | 35 | class |  | 1 |
-| `GraphPutBody` | 39 | class |  | 1 |
-| `create_project` | 44 | def |  | 1 |
-| `list_projects` | 50 | def |  | 1 |
-| `get_project` | 55 | def |  | 1 |
-| `add_member` | 64 | def |  | 3 |
-| `remove_member` | 73 | def |  | 2 |
-| `ensure_project` | 84 | def |  | 1 |
-| `get_project_graph` | 117 | def |  | 1 |
-| `put_project_graph` | 135 | def |  | 1 |
+| `_check_project_serial` | 29 | def |  | 8 |
+| `_cascade_delete` | 34 | def |  | 3 |
+| `ProjectCreateBody` | 57 | class |  | 1 |
+| `ProjectPatchBody` | 61 | class |  | 1 |
+| `EnsureBody` | 65 | class |  | 1 |
+| `GraphPutBody` | 69 | class |  | 1 |
+| `create_project` | 74 | def |  | 1 |
+| `list_projects` | 80 | def |  | 1 |
+| `get_project` | 85 | def |  | 1 |
+| `rename_project` | 94 | def |  | 1 |
+| `delete_project` | 104 | def |  | 1 |
+| `cleanup_projects` | 114 | def |  | 1 |
+| `add_member` | 126 | def |  | 3 |
+| `remove_member` | 135 | def |  | 2 |
+| `ensure_project` | 146 | def |  | 1 |
+| `get_project_graph` | 179 | def |  | 1 |
+| `put_project_graph` | 197 | def |  | 1 |
 
-## bridge/bridge/projects.py（130 行）
+## bridge/bridge/projects.py（153 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -233,15 +286,18 @@
 | `__init__` | 22 | def |  | 1 |
 | `_channel_key` | 33 | def |  | 4 |
 | `create` | 38 | def |  | 1 |
-| `get` | 53 | def |  | 9 |
-| `list` | 58 | def |  | 2 |
+| `get` | 53 | def |  | 11 |
+| `list` | 58 | def |  | 4 |
 | `add_member` | 64 | def |  | 1 |
 | `remove_member` | 82 | def |  | 1 |
-| `save_now` | 97 | def |  | 1 |
-| `_save` | 101 | def |  | 5 |
-| `_load` | 119 | def |  | 2 |
+| `set_label` | 97 | def |  | 1 |
+| `delete` | 108 | def |  | 1 |
+| `list_empty` | 116 | def |  | 1 |
+| `save_now` | 120 | def |  | 1 |
+| `_save` | 124 | def |  | 7 |
+| `_load` | 142 | def |  | 2 |
 
-## bridge/bridge/protocol.py（183 行）
+## bridge/bridge/protocol.py（277 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -254,11 +310,17 @@
 | `OutputBuffer` | 118 | class |  | 1 |
 | `InputsPut` | 129 | class |  | 1 |
 | `ChannelRef` | 138 | class |  | 1 |
-| `generate_project_serial` | 155 | def |  | 1 |
-| `is_valid_project_serial` | 162 | def |  | 1 |
-| `ProjectRef` | 166 | class |  | 1 |
-| `OutputsPut` | 175 | class |  | 1 |
-| `SyncEnabledPut` | 180 | class |  | 1 |
+| `generate_project_serial` | 159 | def |  | 1 |
+| `is_valid_project_serial` | 166 | def |  | 1 |
+| `ProjectRef` | 170 | class |  | 1 |
+| `AnchorRef` | 194 | class |  | 1 |
+| `AnchorProbeResult` | 214 | class |  | 1 |
+| `MappingEntry` | 229 | class |  | 1 |
+| `MappingResolved` | 239 | class |  | 1 |
+| `MappingsResponse` | 251 | class |  | 1 |
+| `AnchorMovedMsg` | 259 | class |  | 1 |
+| `OutputsPut` | 269 | class |  | 1 |
+| `SyncEnabledPut` | 274 | class |  | 1 |
 
 ## bridge/bridge/registry.py（218 行）
 
@@ -355,29 +417,29 @@
 | `read_project_graph` | 304 | def |  | 1 |
 | `write_project_graph` | 314 | def |  | 1 |
 
-## bridge/bridge/state.py（252 行）
+## bridge/bridge/state.py（255 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `BridgeState` | 30 | class |  | 2 |
-| `__init__` | 31 | def |  | 1 |
-| `set_sync_fps` | 63 | def |  | 1 |
-| `get_sync_fps` | 74 | def |  | 3 |
-| `set_sync_enabled` | 78 | def |  | 1 |
-| `get_sync_enabled` | 83 | def |  | 1 |
-| `set_kick` | 89 | def |  | 1 |
-| `take_kick` | 94 | def |  | 1 |
-| `try_arm_kick` | 99 | def |  | 1 |
-| `subscribe` | 116 | def |  | 1 |
-| `unsubscribe` | 125 | def |  | 2 |
-| `notify_stream` | 134 | def |  | 1 |
-| `_wake_stream` | 163 | def |  | 1 |
-| `stage_broadcast` | 174 | def |  | 1 |
-| `_arm_broadcast_flush` | 206 | def |  | 1 |
-| `_flush_broadcast` | 213 | def |  | 3 |
-| `default_data_dir` | 233 | def |  | 2 |
-| `get_state` | 240 | def |  | 1 |
-| `reset_state` | 247 | def |  | 1 |
+| `BridgeState` | 31 | class |  | 2 |
+| `__init__` | 32 | def |  | 1 |
+| `set_sync_fps` | 66 | def |  | 1 |
+| `get_sync_fps` | 77 | def |  | 3 |
+| `set_sync_enabled` | 81 | def |  | 1 |
+| `get_sync_enabled` | 86 | def |  | 1 |
+| `set_kick` | 92 | def |  | 1 |
+| `take_kick` | 97 | def |  | 1 |
+| `try_arm_kick` | 102 | def |  | 1 |
+| `subscribe` | 119 | def |  | 1 |
+| `unsubscribe` | 128 | def |  | 2 |
+| `notify_stream` | 137 | def |  | 1 |
+| `_wake_stream` | 166 | def |  | 1 |
+| `stage_broadcast` | 177 | def |  | 1 |
+| `_arm_broadcast_flush` | 209 | def |  | 1 |
+| `_flush_broadcast` | 216 | def |  | 3 |
+| `default_data_dir` | 236 | def |  | 2 |
+| `get_state` | 243 | def |  | 1 |
+| `reset_state` | 250 | def |  | 1 |
 
 ## bridge/bridge/trace_routes.py（53 行）
 
@@ -481,14 +543,14 @@
 | `probe` | 205 | def |  | 1 |
 | `log_result` | 214 | def |  | 2 |
 
-## hda/scripts/build_hda.py（303 行）
+## hda/scripts/build_hda.py（316 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `_parm_group` | 63 | def |  | 3 |
 | `_tag_parm_group` | 122 | def |  | 3 |
-| `build_tag` | 153 | def |  | 2 |
-| `build` | 218 | def |  | 2 |
+| `build_tag` | 166 | def |  | 2 |
+| `build` | 231 | def |  | 2 |
 
 ## hda/scripts/hython_smoke.py（1041 行）
 
@@ -652,19 +714,23 @@
 | `stop_all_sync` | 203 | def |  | 1 |
 | `ensure_sync` | 216 | def |  | 4 |
 
-## hda/src/cyl1nder_tag.py（222 行）
+## hda/src/cyl1nder_tag.py（377 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_set_status` | 31 | def |  | 5 |
-| `_parse_entries` | 40 | def |  | 2 |
-| `_resolve` | 55 | def |  | 2 |
-| `_parse_entry` | 68 | def |  | 2 |
-| `_fingerprint` | 88 | def |  | 2 |
-| `register_channels` | 97 | def |  | 2 |
-| `_read_param_values` | 148 | def |  | 2 |
-| `heartbeat` | 161 | def |  | 2 |
-| `cook` | 182 | def |  | 3 |
+| `_set_status` | 36 | def |  | 5 |
+| `_parse_entries` | 45 | def |  | 2 |
+| `_resolve` | 60 | def |  | 3 |
+| `_read_mode` | 77 | def |  | 2 |
+| `_network_of` | 92 | def |  | 3 |
+| `_rel_to_network` | 103 | def |  | 4 |
+| `_parse_entry` | 114 | def |  | 2 |
+| `_fingerprint` | 179 | def |  | 2 |
+| `register_channels` | 192 | def |  | 2 |
+| `_read_param_values` | 257 | def |  | 2 |
+| `_instance_identity` | 270 | def |  | 2 |
+| `heartbeat` | 293 | def |  | 2 |
+| `cook` | 329 | def |  | 3 |
 
 ## web/src/app/address-bar.ts（310 行）
 
@@ -758,7 +824,7 @@
 |---|---|---|---|---|
 | `formatLog` | 2 | function | export | 1 |
 
-## web/src/app/param.ts（430 行）
+## web/src/app/param.ts（448 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -767,15 +833,15 @@
 | `color3ToRgb` | 55 | function |  | 3 |
 | `color3Hex` | 67 | function |  | 4 |
 | `parseColor3` | 73 | function |  | 3 |
-| `controlHtml` | 89 | function |  | 2 |
-| `applyEdit` | 118 | function |  | 5 |
-| `paramDefault` | 142 | function | export | 3 |
-| `closeLinkPop` | 167 | function |  | 9 |
-| `tailOfPath` | 176 | function |  | 2 |
-| `openLinkPop` | 181 | function |  | 2 |
-| `loadChannelItems` | 216 | function |  | 2 |
-| `renderParams` | 268 | function | export | 1 |
-| `commit` | 315 | arrow |  | 1 |
+| `controlHtml` | 99 | function |  | 2 |
+| `applyEdit` | 136 | function |  | 5 |
+| `paramDefault` | 160 | function | export | 3 |
+| `closeLinkPop` | 185 | function |  | 9 |
+| `tailOfPath` | 194 | function |  | 2 |
+| `openLinkPop` | 199 | function |  | 2 |
+| `loadChannelItems` | 234 | function |  | 2 |
+| `renderParams` | 286 | function | export | 1 |
+| `commit` | 333 | arrow |  | 1 |
 
 ## web/src/app/preference.ts（343 行）
 
@@ -969,7 +1035,7 @@
 |---|---|---|---|---|
 | `createTimelineController` | 43 | function | export | 1 |
 
-## web/src/main.ts（1236 行）
+## web/src/main.ts（1262 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -995,14 +1061,15 @@
 | `projectAddress` | 941 | function |  | 3 |
 | `saveProjectGraph` | 951 | function |  | 5 |
 | `enterProjectMode` | 964 | function |  | 4 |
-| `updateGraphAddress` | 1014 | function |  | 8 |
-| `scheduleNetwork` | 1042 | function |  | 1 |
-| `flushStoreView` | 1045 | function |  | 2 |
-| `loadSnapshotIntoStore` | 1072 | function |  | 3 |
-| `applyLoadedPreference` | 1109 | function |  | 3 |
-| `syncSerialInAddress` | 1149 | function |  | 2 |
-| `connectSerial` | 1161 | arrow |  | 1 |
-| `markGraphDirty` | 1229 | function |  | 2 |
+| `updateGraphAddress` | 1017 | function |  | 8 |
+| `scheduleNetwork` | 1045 | function |  | 1 |
+| `flushStoreView` | 1048 | function |  | 2 |
+| `loadSnapshotIntoStore` | 1075 | function |  | 3 |
+| `applyLoadedPreference` | 1112 | function |  | 3 |
+| `syncSerialInAddress` | 1152 | function |  | 3 |
+| `syncProjectInAddress` | 1168 | function |  | 2 |
+| `connectSerial` | 1180 | arrow |  | 1 |
+| `markGraphDirty` | 1255 | function |  | 2 |
 
 ## web/src/nodes2/chain-cache.ts（358 行）
 
@@ -1082,39 +1149,52 @@
 | `applyReconnect` | 1221 | arrow |  | 2 |
 | `insertDotAt` | 1303 | arrow |  | 1 |
 
-## web/src/nodes2/graph-model.ts（735 行）
+## web/src/nodes2/graph-model.ts（973 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `notifySelection` | 114 | function | export | 2 |
-| `onSelectionChange` | 118 | function | export | 1 |
-| `nodeByKind` | 123 | function | export | 1 |
-| `resolveInputSourcePort` | 134 | function | export | 2 |
-| `nodeFromTarget` | 158 | function | export | 1 |
-| `renderNode` | 174 | function | export | 1 |
-| `portIndexFromTarget` | 189 | function | export | 1 |
-| `CylNode` | 197 | class | export | 7 |
-| `makeInputNode` | 235 | function | export | 2 |
-| `makeOutputNode` | 240 | function | export | 2 |
-| `makeNullNode` | 247 | function | export | 2 |
-| `makeDotNode` | 258 | function | export | 2 |
-| `claimDotLabel` | 269 | function | export | 2 |
-| `makeTransformNode` | 278 | function | export | 2 |
-| `makeProjectNode` | 308 | function | export | 2 |
-| `makeChannelNode` | 317 | function | export | 2 |
-| `getConnectionBypass` | 334 | function | export | 2 |
-| `setConnectionBypassFlag` | 338 | function | export | 2 |
-| `applyConnectionBypassVisual` | 347 | function | export | 2 |
-| `buildGraphSnapshot` | 395 | function | export | 2 |
-| `serializeGraph` | 420 | function | export | 2 |
-| `restoreNodeForKind` | 467 | function | export | 2 |
-| `restoreGraph` | 508 | function | export | 2 |
-| `sanitizeBindings` | 595 | function | export | 2 |
-| `nodeParamBindingsView` | 605 | function | export | 1 |
-| `listNodeParamBindingsView` | 618 | function | export | 1 |
-| `applyNodeBindings` | 634 | function | export | 1 |
-| `getNetworkSnapshot` | 649 | function | export | 2 |
-| `planProjectGraph` | 698 | function | export | 1 |
+| `canConnectSockets` | 122 | function | export | 1 |
+| `toSocketType` | 127 | function | export | 3 |
+| `notifySelection` | 139 | function | export | 2 |
+| `onSelectionChange` | 143 | function | export | 1 |
+| `nodeByKind` | 148 | function | export | 1 |
+| `resolveInputSourcePort` | 159 | function | export | 2 |
+| `nodeFromTarget` | 183 | function | export | 1 |
+| `renderNode` | 199 | function | export | 1 |
+| `portIndexFromTarget` | 214 | function | export | 1 |
+| `CylNode` | 222 | class | export | 7 |
+| `addressParams` | 266 | function |  | 3 |
+| `makeInputNode` | 279 | function | export | 2 |
+| `makeOutputNode` | 290 | function | export | 2 |
+| `readParam` | 302 | function |  | 2 |
+| `nodeSocketType` | 307 | function | export | 2 |
+| `syncPortSocketType` | 316 | function | export | 2 |
+| `makeNullNode` | 334 | function | export | 2 |
+| `makeDotNode` | 345 | function | export | 2 |
+| `claimDotLabel` | 356 | function | export | 2 |
+| `makeTransformNode` | 365 | function | export | 2 |
+| `makeProjectNode` | 406 | function | export | 2 |
+| `makeChannelNode` | 415 | function | export | 2 |
+| `getConnectionBypass` | 432 | function | export | 2 |
+| `setConnectionBypassFlag` | 436 | function | export | 2 |
+| `socketNameOf` | 443 | function | export | 1 |
+| `applyConnectionTypeVisual` | 457 | function | export | 1 |
+| `applyConnectionBypassVisual` | 479 | function | export | 2 |
+| `isDefaultAddressParam` | 525 | function |  | 2 |
+| `serializableParams` | 532 | function |  | 2 |
+| `buildGraphSnapshot` | 547 | function | export | 2 |
+| `serializeGraph` | 584 | function | export | 2 |
+| `restoreNodeForKind` | 633 | function | export | 2 |
+| `sanitizeAddress` | 691 | function | export | 3 |
+| `syncAddressParams` | 699 | function |  | 2 |
+| `detectLegacyPorts` | 722 | function | export | 2 |
+| `restoreGraph` | 737 | function | export | 2 |
+| `sanitizeBindings` | 831 | function | export | 2 |
+| `nodeParamBindingsView` | 841 | function | export | 1 |
+| `listNodeParamBindingsView` | 854 | function | export | 1 |
+| `applyNodeBindings` | 870 | function | export | 1 |
+| `getNetworkSnapshot` | 885 | function | export | 2 |
+| `planProjectGraph` | 936 | function | export | 1 |
 
 ## web/src/nodes2/graph-undo.ts（202 行）
 
@@ -1128,21 +1208,21 @@
 | `lbl` | 52 | arrow |  | 5 |
 | `createGraphUndoManager` | 169 | function | export | 1 |
 
-## web/src/nodes2/graph.ts（601 行）
+## web/src/nodes2/graph.ts（678 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `setChannelDisplayHandler` | 86 | function | export | 2 |
-| `getChannelDisplaySerial` | 91 | function | export | 1 |
-| `isProjectMode` | 96 | function | export | 2 |
-| `loadProjectGraph` | 108 | function | export | 2 |
-| `projectGraphSnapshot` | 145 | function | export | 2 |
-| `getNodeParamBindings` | 159 | function | export | 1 |
-| `listNodeParamBindings` | 166 | function | export | 1 |
-| `setNodeBindings` | 177 | function | export | 1 |
-| `displayChainConnectionIds` | 184 | function |  | 2 |
-| `buildGraph` | 204 | function |  | 2 |
-| `createReteGraph` | 317 | function | export | 1 |
+| `setChannelDisplayHandler` | 90 | function | export | 2 |
+| `getChannelDisplaySerial` | 95 | function | export | 1 |
+| `isProjectMode` | 100 | function | export | 2 |
+| `loadProjectGraph` | 112 | function | export | 2 |
+| `projectGraphSnapshot` | 149 | function | export | 2 |
+| `getNodeParamBindings` | 163 | function | export | 1 |
+| `listNodeParamBindings` | 170 | function | export | 1 |
+| `setNodeBindings` | 181 | function | export | 1 |
+| `displayChainConnectionIds` | 188 | function |  | 2 |
+| `buildGraph` | 208 | function |  | 2 |
+| `createReteGraph` | 367 | function | export | 1 |
 
 ## web/src/nodes2/groups.ts（32 行）
 
@@ -1184,25 +1264,28 @@
 | `stripAttrKey` | 185 | function | export | 2 |
 | `resolveAttribute` | 194 | function | export | 1 |
 
-## web/src/nodes2/network.ts（292 行）
+## web/src/nodes2/network.ts（367 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `paramValue` | 66 | function | export | 6 |
-| `asFiniteNumber` | 77 | function |  | 4 |
-| `toGroupClass` | 83 | function |  | 2 |
-| `findFeeder` | 88 | function | export | 3 |
-| `nodeById` | 96 | function | export | 4 |
-| `parseInPort` | 101 | function |  | 2 |
-| `isPositionDependent` | 113 | function |  | 2 |
-| `traceChainSpecs` | 128 | function | export | 3 |
-| `emptyBuffer` | 171 | function |  | 2 |
-| `fallbackBuffer` | 176 | function |  | 2 |
-| `traceChain` | 203 | function |  | 3 |
-| `bufferFromResolved` | 220 | function |  | 3 |
-| `computeOutputsDetailed` | 242 | function | export | 2 |
-| `computeOutputs` | 263 | function | export | 1 |
-| `computeNodeResult` | 280 | function | export | 1 |
+| `paramValue` | 73 | function | export | 6 |
+| `asFiniteNumber` | 84 | function |  | 4 |
+| `toGroupClass` | 90 | function |  | 2 |
+| `findFeeder` | 98 | function | export | 3 |
+| `findMultiSourceErrors` | 122 | function | export | 2 |
+| `portDataType` | 152 | function | export | 2 |
+| `isGeoPort` | 159 | function |  | 3 |
+| `nodeById` | 163 | function | export | 6 |
+| `parseInPort` | 168 | function |  | 2 |
+| `isPositionDependent` | 180 | function |  | 2 |
+| `traceChainSpecs` | 195 | function | export | 3 |
+| `emptyBuffer` | 241 | function |  | 2 |
+| `fallbackBuffer` | 246 | function |  | 2 |
+| `traceChain` | 273 | function |  | 3 |
+| `bufferFromResolved` | 290 | function |  | 3 |
+| `computeOutputsDetailed` | 312 | function | export | 2 |
+| `computeOutputs` | 338 | function | export | 1 |
+| `computeNodeResult` | 355 | function | export | 1 |
 
 ## web/src/nodes2/undo.ts（135 行）
 
@@ -1210,52 +1293,67 @@
 |---|---|---|---|---|
 | `createUndoManager` | 76 | function | export | 2 |
 
-## web/src/overview.ts（784 行）
+## web/src/overview.ts（1112 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `HttpError` | 42 | class |  | 3 |
-| `epochMs` | 59 | function |  | 8 |
-| `relTime` | 63 | function |  | 8 |
-| `clockTime` | 75 | function |  | 2 |
-| `channelValueString` | 85 | function | export | 3 |
-| `formatChannelValue` | 95 | function | export | 2 |
-| `channelActionButtons` | 102 | function | export | 2 |
-| `$` | 115 | function |  | 0 |
-| `setBanner` | 133 | function |  | 4 |
-| `openSerial` | 138 | function |  | 4 |
-| `activeState` | 143 | function |  | 2 |
-| `activeRowHtml` | 159 | function |  | 1 |
-| `historyRowHtml` | 176 | function |  | 1 |
-| `renderActive` | 185 | function |  | 2 |
-| `renderHistory` | 201 | function |  | 2 |
-| `renderUnavailable` | 207 | function |  | 2 |
-| `fetchScenes` | 216 | function |  | 2 |
-| `failMessage` | 223 | function |  | 3 |
-| `loadScenes` | 232 | function |  | 4 |
-| `cleanupScenes` | 253 | function |  | 2 |
-| `channelLabel` | 329 | function |  | 2 |
-| `channelState` | 339 | function |  | 2 |
-| `channelRowHtml` | 347 | function |  | 1 |
-| `renderChannels` | 391 | function |  | 4 |
-| `findChannelRow` | 397 | function |  | 4 |
-| `setChannelRowState` | 405 | function |  | 2 |
-| `probeChannel` | 412 | function |  | 3 |
-| `setValueCell` | 445 | function |  | 3 |
-| `readChannelValue` | 460 | function |  | 2 |
-| `writeChannelValue` | 471 | function |  | 2 |
-| `loadChannels` | 490 | function |  | 3 |
-| `showProjectsError` | 578 | function |  | 6 |
-| `hideProjectsError` | 582 | function |  | 5 |
-| `projectDisplayName` | 587 | function |  | 2 |
-| `memberDisplayName` | 592 | function |  | 2 |
-| `memberRowHtml` | 597 | function |  | 2 |
-| `projectRowHtml` | 613 | function |  | 1 |
-| `renderProjects` | 635 | function |  | 5 |
-| `loadProjects` | 641 | function |  | 6 |
-| `removeMember` | 670 | function |  | 2 |
-| `addMemberByDrop` | 682 | function |  | 2 |
-| `clearDropHover` | 745 | function |  | 4 |
+| `HttpError` | 68 | class |  | 4 |
+| `epochMs` | 83 | function |  | 10 |
+| `relSince` | 88 | function |  | 3 |
+| `relTime` | 99 | function |  | 5 |
+| `clockTime` | 111 | function |  | 2 |
+| `channelValueString` | 121 | function | export | 3 |
+| `formatChannelValue` | 131 | function | export | 1 |
+| `channelActionButtons` | 138 | function | export | 1 |
+| `isSerialTail` | 157 | function |  | 2 |
+| `memberHint` | 163 | function |  | 2 |
+| `bestMemberLabel` | 172 | function | export | 2 |
+| `projectDisplayName` | 183 | function | export | 4 |
+| `defaultProjectName` | 193 | function | export | 2 |
+| `probeEntryOf` | 213 | function |  | 2 |
+| `probeVerdict` | 226 | function | export | 2 |
+| `anchorSerialsOf` | 233 | function | export | 4 |
+| `projectStatusLight` | 264 | function | export | 2 |
+| `mappingRows` | 363 | function | export | 2 |
+| `valuePlaceholder` | 378 | function | export | 3 |
+| `anchorPidText` | 388 | function | export | 2 |
+| `anchorEvidenceTitle` | 397 | function | export | 2 |
+| `mappingRowHtml` | 419 | function | export | 1 |
+| `parseMappingInput` | 459 | function | export | 2 |
+| `cleanupSummary` | 464 | function | export | 2 |
+| `$` | 472 | function |  | 0 |
+| `setBanner` | 481 | function |  | 5 |
+| `openSerial` | 486 | function |  | 3 |
+| `openProject` | 490 | function |  | 2 |
+| `fetchChannels` | 537 | function |  | 2 |
+| `showProjectsError` | 543 | function |  | 5 |
+| `hideProjectsError` | 547 | function |  | 5 |
+| `probeProject` | 553 | function |  | 3 |
+| `autoProbeOnce` | 571 | function |  | 3 |
+| `projectRowHtml` | 577 | function |  | 1 |
+| `renderProjects` | 603 | function |  | 9 |
+| `loadProjects` | 624 | function |  | 8 |
+| `createProject` | 665 | function |  | 4 |
+| `submitRename` | 683 | function |  | 3 |
+| `removeProject` | 695 | function |  | 2 |
+| `runProjectsCleanup` | 716 | function |  | 2 |
+| `renderMappingsIdle` | 802 | function |  | 4 |
+| `loadMappings` | 810 | function |  | 5 |
+| `mappingInput` | 834 | function |  | 4 |
+| `setMappingResult` | 841 | function |  | 4 |
+| `readMapping` | 860 | function |  | 2 |
+| `writeMapping` | 867 | function |  | 3 |
+| `removeMapping` | 887 | function |  | 2 |
+| `activeState` | 935 | function |  | 2 |
+| `activeRowHtml` | 951 | function |  | 1 |
+| `historyRowHtml` | 968 | function |  | 1 |
+| `renderActive` | 977 | function |  | 2 |
+| `renderHistory` | 983 | function |  | 2 |
+| `renderUnavailable` | 989 | function |  | 2 |
+| `fetchScenes` | 998 | function |  | 2 |
+| `failMessage` | 1005 | function |  | 3 |
+| `loadScenes` | 1014 | function |  | 4 |
+| `cleanupScenes` | 1032 | function |  | 2 |
 
 ## web/src/protocol/compare.ts（24 行）
 
@@ -1264,7 +1362,7 @@
 | `payloadEqual` | 4 | function |  | 2 |
 | `inputsEqual` | 16 | function | export | 1 |
 
-## web/src/protocol/types.ts（196 行）
+## web/src/protocol/types.ts（285 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -1276,11 +1374,21 @@
 | `ChannelsStore` | 10 | class | export | 1 |
 | `channelIdOf` | 58 | function | export | 3 |
 
-## web/src/stores/projects.ts（48 行）
+## web/src/stores/projects.ts（226 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `ProjectsStore` | 8 | class | export | 1 |
+| `encodeMappingName` | 59 | function | export | 2 |
+| `patchProjectLabel` | 84 | function | export | 1 |
+| `deleteProject` | 97 | function | export | 1 |
+| `cleanupProjects` | 105 | function | export | 1 |
+| `fetchMappings` | 113 | function | export | 1 |
+| `deleteMapping` | 125 | function | export | 1 |
+| `getMappingValue` | 134 | function | export | 1 |
+| `putMappingValue` | 142 | function | export | 1 |
+| `mappingValue` | 150 | function |  | 3 |
+| `probeAnchor` | 195 | function | export | 1 |
 
 ## web/src/stores/workspace.ts（152 行）
 

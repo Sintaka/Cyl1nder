@@ -1,5 +1,55 @@
 # Web 子系统改动标注 / Web annotations
 
+## v0.1.00114（2026-08-16）· 项目优先 overview + 类型化端口 + 单端口地址形态
+
+> 设计与踩坑详见 [project-mapping-design.md](project-mapping-design.md)。
+
+### overview 改版（项目优先）
+- **overview.html / overview.ts / overview.css**：版面倒过来——**项目**置顶（行内改名 /
+  删除 / 打开 / 映射 / 聚合状态灯 + 「清理空项目」+ 「新建项目」），**映射**居中
+  （逻辑名/类型/解析出的绝对路径/值/锚点状态，值列**行内 input**，不再是 `window.prompt`），
+  **场景**降级为默认折叠的 `<details>` 诊断区（原新建/活跃/历史/清理无效场景原样保留）。
+- **「序列号尾巴」修复**：`projectDisplayName()` —— label 为空、或整串匹配 `C1-`/`P1-` 正则、
+  或等于任一成员 serial/channelId → 显示 `未命名项目 · <最佳成员名>`，`projectSerial`
+  只进 `title`。正则分支不依赖 members，所以成员被移除后历史坏名仍能识别。
+- **逻辑名 URL 编码**：`encodeMappingName()` **按段** `encodeURIComponent` 再用 `/` 拼回。
+  逻辑名可含 `/`（`point_1/tx`）而桥用 `:path` 捕获：整串 encode 会把 `/` 变 `%2F` → 404，
+  `encodeURI` 又漏 `#`/`?`。按段编码是唯一同时满足两边的写法。
+- **stores/projects.ts**：`patchProjectLabel` / `deleteProject` / `cleanupProjects` /
+  `fetchMappings`（抛错供 UI 显示）+ `getMappingValue` / `putMappingValue`（照
+  `client.channelValue` 语义**不抛**，桥离线/404/`{ok:false}` 归一）。
+
+### nodeview 类型化端口
+- **graph-model.ts**：`FLOAT`/`VEC3` 与 `GEO` 并列 + `SOCKET_TYPES`；导出谓词
+  `canConnectSockets(from,to)`——**仅**两端同为已知类型且相等才放行（`"banana"→"banana"`
+  也拒，脏数据不能蒙混过关）。`address?: string` 照 `bindings` 的「空则不序列化」办。
+- **graph.ts**：`Presets.classic.setup()` 来者不拒 → 改为直接 `new ClassicFlow({ canMakeConnection })`
+  （钩子名在 `_types/flow/builtin/classic/index.d.ts` 里核实，非猜）。`SocketData` 只带
+  `{nodeId,side,key}`，socket 名经新增 `socketNameOf` 从编辑器实时取。拒绝时走既有 `log()`。
+- **单端口形态**：`makeInputNode(true)`/`makeOutputNode(true)` = 1 端口 + `address`/`type`；
+  **无参默认仍是旧 4 端口**（承重墙：dataflow/chain-cache/10+ e2e）。`buildGraph` 传 `true`，
+  所以新图是单端口。新图默认只连 `in0→out0`，**其余输出端口仍回退 passthrough**——
+  主进程用一次性 vitest 实测确认「1 连线 → 仍 4 路输出且逐路对位」，验完即删。
+- **schema**：`PROJECT_GRAPH_SCHEMA` 保持 3（两条冻结断言把它锁死），另加
+  `ADDRESS_GRAPH_SCHEMA = 4`。这比原计划的「3→4」更干净：项目图与地址形态是两根独立轴。
+  v2/v3 输出**字节不变**（默认 `address=""`/`type="geo"` 在序列化期被剔除）。
+- **多 out 报错**：`findMultiSourceErrors()` → `ComputeResultWithErrors extends ComputeResult`
+  的可选 `errors?: string[]`（纯增量，既有调用方零改动）；不抛、不静默取第一条。
+- **非 geo 端口不参与几何**：在 `traceChainSpecs` 单一收口处排除，覆盖纯算与缓存两条路径。
+- **nodeview.css**：float 绿 `#7ce3a8` / vec3 蓝 `#7fb0ff`（对齐 Houdini VOP 按类型着色）。
+
+### 主进程收口
+- **main.ts**：`syncProjectInAddress()` 在**进项目模式时**同步地址栏为 `?project=`。
+  **刻意不改 `?serial=` 分支的地址**——一度改过，是错的：那条分支跑 serial 模式
+  （`currentProjectId=null`），改成 `?project=` 会让地址栏与实际模式不符，刷新后进的是
+  另一个视图。项目优先由 overview 入口实现，老 `?serial=` 书签语义不变。
+- **param.ts**：新增 `MENU_OPTIONS`（按参数名的固定下拉），`type` 参数渲染成 select
+  而不是自由文本——手输错值会让端口类型静默回落 geo、连线校验跟着放行错配的线。
+- **e2e round8/round9**：按新版面更新（场景断言先展开 `#scenes-panel > summary`；
+  版面顺序改断 `projects/mappings/scenes`；主应用链接不再锁死 `/?serial=`）。
+  子智能体已主动用独立类名（`ov-projects-*`）保住 `.ov-cleanup`/`.ov-new-input` 等
+  在页面上唯一，避免 Playwright strict locator 多匹配（延续 round8 类名冲突的教训）。
+
 ## v0.1.00113（2026-08-16）· APEX apex-ctrl 通道 + 两个实机 bug 修复
 
 - **app/channel-value.ts（新）+ tests/channel-value.test.ts（新，9 例）**：data 通道写值解析。

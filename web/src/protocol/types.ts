@@ -88,6 +88,12 @@ export interface ChannelRef {
   label: string;
   registeredAt: number;
   lastSeen: number;
+  /** 映射系统（v0.1.00114）：相对**吊牌所在网络**的地址（兄弟节点语义）；逻辑名默认取它。 */
+  rel?: string | null;
+  /** 值/端口类型（geo|float|vec3）；旧记录缺省按 "float"。 */
+  type?: MappingType | string;
+  /** 归属吊牌的标记模式（"parm" | "apex"）。 */
+  mode?: TagMode | string | null;
 }
 
 // 项目层（P2a）：项目 = 通道引用聚合。项目序列号前缀 P1-，与 HDA serial（C1-）区分。
@@ -101,9 +107,92 @@ export interface ProjectRef {
   members: ChannelRef[]; // 通道引用快照（live 状态以 /api/channels 为准）
 }
 
+// ---------------------------------------------------------------------------
+// 映射系统（v0.1.00114，见 devlog/project-mapping-design.md）
+//
+// node 侧只引用**逻辑名（相对地址）**，绝对 Houdini 路径只存在于映射系统。
+// 锚点 = 吊牌 serial（创建即不可变，移动/改名不变）；吊牌每次 cook 上报自身
+// nodePath，锚点移动只改一处，其下全部 entry 自动跟随。
+// 解析：absolutePath = <锚点 nodePath 所在网络> + "/" + entry.rel（兄弟节点语义）。
+// ---------------------------------------------------------------------------
+
+/** 端口/值类型：geo 走几何数据流；float/vec3 走映射系统按逻辑名读写。 */
+export type MappingType = "geo" | "float" | "vec3";
+export const MAPPING_TYPES: readonly MappingType[] = ["geo", "float", "vec3"];
+
+/** 吊牌标记模式：普通参数 / scene animate（apex-ctrl）。 */
+export type TagMode = "parm" | "apex";
+
+/** 映射锚点。
+ *
+ *  pid / mcpPort（v0.1.00114）：吊牌 cook 时上报，用于**降级前实证**。心跳只证明
+ *  「最近 cook 过」，吊牌长期不 cook 是正常的 —— 所以心跳超时不等于失联。有了
+ *  pid+端口就能直接核对 `mcp.health` 的 pid，区分「只是没 cook」与「实例真没了」。 */
+export interface AnchorRef {
+  serial: string;   // 不可变
+  nodePath: string; // 可变（移动/改名）
+  hip: string;
+  mode: TagMode | string;
+  lastSeen: number;
+  movedAt: number;  // 0 = 从未移动
+  pid: number;      // Houdini 进程号（0 = 未上报）
+  mcpPort: number;  // 该实例的 fxhoudinimcp 端口（0 = 未发现）
+  verifiedAt: number;      // 最近一次 pid 核对成功的时刻（探测刷新，非心跳）
+  verifiedAlive: boolean;  // 最近一次探测结论
+}
+
+/** 锚点存活探测结果。`alive && pidMatched` 才是确认活着；
+ *  alive 但 pid 不匹配 = 该端口现在被另一个 Houdini 占着（实例换了）。 */
+export interface AnchorProbeResult {
+  serial: string;
+  alive: boolean;
+  pidMatched: boolean;
+  port: number;
+  expectedPid: number;
+  actualPid: number;
+  hip: string;
+  reason: string;
+}
+
+export interface MappingEntry {
+  anchor: string;            // 锚点 serial
+  rel: string;               // 相对锚点所在网络，如 "transform1/tx"
+  kind: "param" | "data" | string;
+  adapter?: string | null;   // kind="data" 时的读写器（如 "apex-ctrl"）
+  type: MappingType | string;
+  label: string;
+}
+
+export interface MappingResolved {
+  name: string;
+  absolutePath: string;
+  kind: "param" | "data" | string;
+  adapter?: string | null;
+  type: MappingType | string;
+  anchor: string;
+  ok: boolean;
+  error: string;
+}
+
+export interface MappingsResponse {
+  projectSerial: string;
+  entries: Record<string, MappingEntry>;
+  anchors: Record<string, AnchorRef>;
+  resolved: Record<string, MappingResolved>;
+}
+
+/** WS：锚点（吊牌）位置变化 —— 逻辑名不变，仅提示与刷新。 */
+export interface AnchorMovedMsg {
+  type: "anchor-moved";
+  serial: string;
+  oldPath: string;
+  newPath: string;
+  names: string[];
+}
+
 // 轨迹事件（P3 审计视图：谁动了数据）。协议三处同步（protocol.py / types.ts / protocol.md）。
 export type TraceActor = "web-gizmo" | "web-param" | "runtime-python" | "tag-hda" | "hda-cook" | "bridge";
-export type TraceAction = "param-set" | "expr-set" | "inputs-push" | "outputs-edit" | "register" | "heartbeat" | "python-exec" | "data-get" | "data-set";
+export type TraceAction = "param-set" | "expr-set" | "inputs-push" | "outputs-edit" | "register" | "heartbeat" | "python-exec" | "data-get" | "data-set" | "anchor-move";
 
 export interface TraceEvent {
   ts: number;

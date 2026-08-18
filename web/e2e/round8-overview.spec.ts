@@ -1,4 +1,4 @@
-﻿import { expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 // Round 8: Overview 总管页面（/overview.html）。
 // bridge 的 /api/scenes 由并行 agent 实现中：端点未就绪时跳过场景相关断言。
@@ -20,18 +20,28 @@ async function waitLoaded(page: import("@playwright/test").Page): Promise<void> 
     .not.toBe("加载中…");
 }
 
+/** v0.1.00114：场景区降级为默认折叠的 <details>（项目才是主入口）。
+ *  场景相关断言必须先展开它，否则控件不可见。 */
+async function openScenesDiag(page: import("@playwright/test").Page): Promise<void> {
+  await page.locator("#scenes-panel > summary").click();
+  await expect(page.locator("input.ov-new-input")).toBeVisible({ timeout: 15000 });
+}
+
 test("overview page loads with title, refresh and main-app link", async ({ page }) => {
   await page.goto(`${BASE}/overview.html`);
   await expect(page.locator(".ov-brand")).toContainText("Cyl1nder 总管");
-  await expect(page.locator("a.ov-link[href='/?serial=']")).toBeVisible();
+  // 顶栏链接改指最近更新的项目（无项目时回退空 ?serial=）——只断言存在，不锁 href
+  await expect(page.locator("a.ov-link")).toBeVisible();
   await expect(page.locator("button.ov-refresh")).toBeVisible();
-  await expect(page.locator("input.ov-new-input")).toBeVisible();
+  // 新建场景控件搬进折叠的诊断区
+  await openScenesDiag(page);
   await expect(page.locator("button.ov-new-button")).toBeVisible();
 });
 
 test("overview renders scene lists and creates a new scene", async ({ page }) => {
   test.skip(!(await scenesAvailable()), "bridge /api/scenes not ready");
   await page.goto(`${BASE}/overview.html`);
+  await openScenesDiag(page);
   await expect(page.locator(".ov-section-heading", { hasText: "活跃场景" })).toBeVisible();
   await expect(page.locator(".ov-section-heading", { hasText: "历史场景" })).toBeVisible();
   await waitLoaded(page);
@@ -46,6 +56,7 @@ test("overview renders scene lists and creates a new scene", async ({ page }) =>
 test("overview open buttons navigate to the main app", async ({ page }) => {
   test.skip(!(await scenesAvailable()), "bridge /api/scenes not ready");
   await page.goto(`${BASE}/overview.html`);
+  await openScenesDiag(page);
   await waitLoaded(page);
   const openBtn = page.locator("#active-list .ov-open, #history-list .ov-open").first();
   test.skip((await openBtn.count()) === 0, "no scenes listed");

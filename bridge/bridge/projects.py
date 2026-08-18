@@ -94,6 +94,29 @@ class ProjectRegistry:
                     return True
             return False
 
+    def set_label(self, pid: str, label: str) -> dict | None:
+        """改名：刷 updatedAt 并立即落盘；项目不存在返回 None。"""
+        with self._lock:
+            rec = self._records.get(pid)
+            if rec is None:
+                return None
+            rec["label"] = label
+            rec["updatedAt"] = time.time()
+            self._save(force=True)
+            return dict(rec)
+
+    def delete(self, pid: str) -> bool:
+        """删项目记录（不存在 -> False）；删除成功立即落盘。"""
+        with self._lock:
+            if self._records.pop(pid, None) is None:
+                return False
+            self._save(force=True)
+            return True
+
+    def list_empty(self) -> list[str]:
+        """0 成员项目的 projectSerial 列表（按 createdAt 升序，与 list() 同序）。"""
+        return [p["projectSerial"] for p in self.list() if not p.get("members")]
+
     def save_now(self) -> None:
         with self._lock:
             self._save(force=True)

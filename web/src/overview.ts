@@ -1,17 +1,43 @@
-import { BRIDGE_URL, ChannelRef, ProjectRef } from "./protocol/types";
+import {
+  AnchorProbeResult,
+  AnchorRef,
+  BRIDGE_URL,
+  ChannelRef,
+  MappingEntry,
+  MappingResolved,
+  MappingsResponse,
+  PROJECT_SERIAL_RE,
+  ProjectRef,
+  SERIAL_RE,
+} from "./protocol/types";
 import { BridgeClient } from "./bridge/client";
-import { channelsStore, channelIdOf } from "./stores/channels";
-import { projectsStore } from "./stores/projects";
+import { channelIdOf } from "./stores/channels";
+import {
+  cleanupProjects,
+  deleteMapping,
+  deleteProject,
+  fetchMappings,
+  getMappingValue,
+  patchProjectLabel,
+  probeAnchor,
+  projectsStore,
+  putMappingValue,
+} from "./stores/projects";
 import { INVALID_CHANNEL_VALUE, parseChannelValue } from "./app/channel-value";
 
-// Overview 总管页面：新建场景（置顶）/ 活跃场景 / 历史场景 / 关联注册大全 / 项目。
-// 契约（bridge scenes.py，并行实现中）：
-//   GET  /api/scenes -> { active:[{serial,label,nodePath,lastSeen,lastActivity?,inputRev,outputRev}], history:[{serial,savedAt}] }
-//   POST /api/scenes -> body {label?} -> {serial}
-//   POST /api/scenes/cleanup -> {ok, removed:[serial...]}   （并行实现中，可能 404）
-// data 通道（P4）行交互契约：GET/PUT /api/channels/{channelId}/value（bridge 并行实现中）。
-// 结构照 trace.ts 惯例：纯函数（formatChannelValue / channelActionButtons / channelValueString）
-// 顶部导出供单测（web/tests/data-channels.test.ts；vitest 为 node 环境，无 document 时页面块整体跳过）。
+// Overview 总管页面（项目优先）：项目（主入口）→ 映射（展开项目的逻辑名视图）→ 场景（诊断，默认折叠）。
+// 为什么这个顺序：用户按「项目」开工，序列号（C1-…）是排障细节，不该当门面。
+// 契约（bridge，部分并行实现中）：
+//   GET    /api/projects                        -> {projects:[ProjectRef]}
+//   POST   /api/projects            {label}     -> {ok, project}
+//   PATCH  /api/projects/{pid}      {label}     -> {ok, project}
+//   DELETE /api/projects/{pid}                  -> {ok, removed}
+//   POST   /api/projects/cleanup                -> {ok, removed:[pid…]}
+//   GET    /api/projects/{pid}/mappings         -> MappingsResponse
+//   GET|PUT /api/projects/{pid}/mappings/{name}/value -> {ok, value} / {ok:false, error}
+//   GET  /api/scenes / POST /api/scenes / POST /api/scenes/cleanup（诊断区沿用原契约）
+// 结构照 trace.ts 惯例：纯函数顶部导出供单测（web/tests/overview-projects.test.ts、
+// data-channels.test.ts；vitest 为 node 环境，无 document 时页面块整体跳过）。
 
 interface ActiveScene {
   serial: string;
@@ -53,11 +79,21 @@ type ActiveState = "offline" | "uncooked" | "online";
 const ESC: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ESC[c] ?? c);
 
-
-
 /** 兼容秒级时间戳；正常为毫秒。 */
 function epochMs(ts: number): number {
   return ts < 1e12 ? ts * 1000 : ts;
+}
+
+/** 相对时间文案（纯：差值由调用方给，便于单测固定时钟）。 */
+function relSince(diff: number): string {
+  if (diff < 5_000) return "刚刚";
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return `${s} 秒前`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} 分钟前`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} 小时前`;
+  return `${Math.floor(h / 24)} 天前`;
 }
 
 function relTime(ts: number): string {
@@ -110,6 +146,327 @@ export function channelActionButtons(ref: ChannelRef): string {
   return `<button class="ov-open" type="button" data-channel-id="${esc(id)}">探测</button>`;
 }
 
+// ============ 纯函数（供单测：web/tests/overview-projects.test.ts） ============
+
+export const UNNAMED_PROJECT = "未命名项目";
+
+/** 该 label 是否只是个「序列号尾巴」——项目自动按成员 serial 命名留下的无意义名字。
+ *  判定：整体就是一个序列号（C1- 场景 / P1- 项目自身），或等于任一成员的
+ *  serial / channelId。成员可能已被移除，但名字里的 serial 一样没有意义，
+ *  所以正则判定不依赖 members。 */
+function isSerialTail(label: string, members: ChannelRef[]): boolean {
+  if (SERIAL_RE.test(label) || PROJECT_SERIAL_RE.test(label)) return true;
+  return members.some((m) => label === (m.serial ?? "") || label === channelIdOf(m));
+}
+
+/** 成员的人类可读线索：优先非序列号 label，其次绝对路径/节点路径尾段。 */
+function memberHint(m: ChannelRef): string {
+  const label = (m.label ?? "").trim();
+  if (label && !SERIAL_RE.test(label)) return label;
+  const path = (m.absolutePath ?? m.nodePath ?? "").trim();
+  const tail = path.slice(path.lastIndexOf("/") + 1);
+  return tail;
+}
+
+/** 项目里最能说明「这是什么」的成员名（供单测）；全无线索时返回空串。 */
+export function bestMemberLabel(members: ChannelRef[]): string {
+  for (const m of members) {
+    const hint = memberHint(m);
+    if (hint) return hint;
+  }
+  return "";
+}
+
+/** 项目行可见名（供单测）——序列号尾巴的修复点。
+ *  label 有意义 → 原样用；label 空 / 只是成员 serial → 「未命名项目 · <最佳成员名>」，
+ *  无成员则只写「未命名项目」。**任何情况下都不以序列号开头**；projectSerial 只进 title。 */
+export function projectDisplayName(p: ProjectRef): string {
+  const members = Array.isArray(p.members) ? p.members : [];
+  const label = (p.label ?? "").trim();
+  if (label && !isSerialTail(label, members)) return label;
+  const hint = bestMemberLabel(members);
+  return hint ? `${UNNAMED_PROJECT} · ${hint}` : UNNAMED_PROJECT;
+}
+
+/** 新建项目的默认名（供单测）：留空时用「项目 N」（N = 现有项目数 + 1），
+ *  保证新项目永远不会被按成员 serial 命名。 */
+export function defaultProjectName(count: number): string {
+  const n = Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+  return `项目 ${n + 1}`;
+}
+
+// ---- 降级前实证（心跳 × 探测） ----
+//
+// 吊牌**只在 cook 时心跳**，坐着不 cook 一小时是正常的：单看心跳年龄就降级是「猜测
+// 冒充事实」（实测线上一个健康吊牌心跳已 2938s）。所以心跳超时只是**触发探测的条件**，
+// 结论由 `GET /api/projects/{pid}/anchors/{serial}/probe`（核对 mcp.health 的 pid）给出。
+
+/** 一个锚点的探测缓存条目：in-flight / 有结论 / 探不动。 */
+export type AnchorProbeEntry =
+  | { status: "checking" }
+  | { status: "done"; result: AnchorProbeResult }
+  | { status: "error"; error: string };
+
+/** 探测结果查表：serial -> 条目。Map 与普通对象都收（页面用 Map，单测用字面量）。 */
+export type ProbeLookup = Map<string, AnchorProbeEntry> | Record<string, AnchorProbeEntry>;
+
+function probeEntryOf(probes: ProbeLookup | undefined, serial: string): AnchorProbeEntry | undefined {
+  if (!probes || !serial) return undefined;
+  return probes instanceof Map ? probes.get(serial) : probes[serial];
+}
+
+/** 单个探测结论的语义判定（供单测）——**契约里最容易搞错的一格在这里**。
+ *
+ *  - `alive && pidMatched` → `"alive"`：同一个 Houdini 实例确认活着（只是没 cook）。
+ *  - `alive && !pidMatched` → `"replaced"`：端口有人应答，但**已经是另一个进程**
+ *    （Houdini 重启/被替换）。吊牌所属实例已经没了，**绝不能算健康**。
+ *  - `!alive` → `"dead"`：没人应答，确认不可达。
+ *  - `expectedPid === 0` → `"unverifiable"`：吊牌从没上报过 pid（旧版 HDA），
+ *    无从核对，只能照实说「无法核实」而不是给个假结论。 */
+export function probeVerdict(r: AnchorProbeResult): "alive" | "replaced" | "dead" | "unverifiable" {
+  if (r.expectedPid === 0) return "unverifiable";
+  if (!r.alive) return "dead";
+  return r.pidMatched ? "alive" : "replaced";
+}
+
+/** 项目里出现过的锚点 serial（去重保序）：探测按锚点做，故状态灯按成员 serial 查表。 */
+export function anchorSerialsOf(p: ProjectRef): string[] {
+  const members = Array.isArray(p.members) ? p.members : [];
+  const out: string[] = [];
+  for (const m of members) {
+    const s = (m.serial ?? "").trim();
+    if (s && !out.includes(s)) out.push(s);
+  }
+  return out;
+}
+
+/** 项目聚合状态灯（供单测）。
+ *
+ *  **必须传 liveSeen**：`project.members` 是加入项目时的**引用快照**，其 `lastSeen`
+ *  自那一刻起就不再更新（`projects.py` 明确写了「live 状态以 /api/channels 大全为准」）。
+ *  只看快照会把活着的成员判成离线——实测快照 13081s vs live 2938s。
+ *  liveSeen = 通道 key -> 该通道的 live lastSeen（由 /api/channels 大全构建）。
+ *
+ *  第 4 参 `probes`（可选，**追加不改序**：既有 3 参调用与单测原样有效）= 按锚点
+ *  serial 缓存的探测结论。心跳新鲜时**根本不看** probes（省一次 Houdini 往返）；
+ *  只有心跳超时——本会降级的那一刻——才拿探测结论说话：
+ *
+ *  | 心跳 | 探测 | 状态 | 文案 |
+ *  |---|---|---|---|
+ *  | 新鲜 | 不看 | online | `在线 n/m` |
+ *  | 超时 | 无（未探） | offline | `无心跳`（可能只是没 cook） |
+ *  | 超时 | in-flight | checking | `检测中…` |
+ *  | 超时 | alive+pid 匹配 | idle | `在线（未 cook）` |
+ *  | 超时 | alive 但 pid 不匹配 / 不 alive | gone | `失联` |
+ *  | 超时 | expectedPid=0 | offline | `无心跳（无法核实）` |
+ *
+ *  注意 `无心跳` 不是 `离线`：心跳年龄证不了「不在了」，这层诚实要留着。 */
+export function projectStatusLight(
+  p: ProjectRef,
+  now: number = Date.now(),
+  liveSeen?: Record<string, number>,
+  probes?: ProbeLookup,
+): { state: "online" | "offline" | "empty" | "idle" | "checking" | "gone"; text: string; title: string } {
+  const members = Array.isArray(p.members) ? p.members : [];
+  if (members.length === 0) return { state: "empty", text: "空", title: "项目还没有成员" };
+  const seenOf = (m: ChannelRef): number => {
+    const key = channelIdOf(m);
+    const live = liveSeen?.[key];
+    // live 值优先；缺失时退回快照（比什么都不显示好，但可能偏旧）
+    return typeof live === "number" && live > 0 ? live : m.lastSeen;
+  };
+  const live = members.filter((m) => now - epochMs(seenOf(m)) <= OFFLINE_MS).length;
+  if (live > 0) {
+    return { state: "online", text: `在线 ${live}/${members.length}`, title: `${live} 个成员心跳正常` };
+  }
+
+  // 心跳全超时：本该降级——先看有没有实证，再决定说什么。
+  const serials = anchorSerialsOf(p);
+  const entries = serials.map((s) => ({ serial: s, entry: probeEntryOf(probes, s) }));
+  const verdicts = entries
+    .filter((e) => e.entry?.status === "done")
+    .map((e) => ({ serial: e.serial, r: (e.entry as { status: "done"; result: AnchorProbeResult }).result }))
+    .map((e) => ({ ...e, v: probeVerdict(e.r) }));
+
+  // 有任何一个锚点被证实活着 → 进程在，只是没 cook。这是真话，不是降级。
+  const aliveOnes = verdicts.filter((e) => e.v === "alive");
+  if (aliveOnes.length > 0) {
+    const hips = aliveOnes.map((e) => `${e.serial} pid ${e.r.actualPid}${e.r.hip ? ` · ${e.r.hip}` : ""}`);
+    return {
+      state: "idle",
+      text: "在线（未 cook）",
+      title: `探测确认实例存活，只是最近没 cook：${hips.join("；")}`,
+    };
+  }
+
+  // 没有活着的，但有确证「没了」的 → 失联（含 pid 不匹配 = 实例被换掉）。
+  const goneOnes = verdicts.filter((e) => e.v === "dead" || e.v === "replaced");
+  if (goneOnes.length > 0) {
+    const replaced = goneOnes.filter((e) => e.v === "replaced");
+    const why = goneOnes
+      .map((e) =>
+        e.v === "replaced"
+          ? `${e.serial}：端口 ${e.r.port} 上是另一个进程（期望 pid ${e.r.expectedPid}，实际 ${e.r.actualPid}）`
+          : `${e.serial}：无人应答${e.r.reason ? `（${e.r.reason}）` : ""}`,
+      )
+      .join("；");
+    return {
+      state: "gone",
+      text: replaced.length > 0 && replaced.length === goneOnes.length ? "失联（实例已换）" : "失联",
+      title: `探测确认吊牌所属 Houdini 实例已不在：${why}`,
+    };
+  }
+
+  // 探测中（还没有任何结论）→ 别急着下判断。
+  if (entries.some((e) => e.entry?.status === "checking")) {
+    return { state: "checking", text: "检测中…", title: "正在核对 Houdini 实例（mcp.health + pid）…" };
+  }
+
+  // 有结论但全是「无法核实」（旧版吊牌没上报 pid）→ 照实说，不给假判决。
+  if (verdicts.length > 0 && verdicts.every((e) => e.v === "unverifiable")) {
+    return {
+      state: "offline",
+      text: "无心跳（无法核实）",
+      title: "吊牌没上报 pid（旧版 HDA），无法核对实例存活；心跳超时只说明最近没 cook",
+    };
+  }
+
+  // 探不动（桥离线 / 接口未就绪）→ 退回诚实的「无心跳」，并把原因写进 title。
+  const errs = entries
+    .filter((e) => e.entry?.status === "error")
+    .map((e) => `${e.serial}：${(e.entry as { status: "error"; error: string }).error}`);
+  if (errs.length > 0) {
+    return {
+      state: "offline",
+      text: "无心跳",
+      title: `心跳超时且探测失败（吊牌只在 cook 时心跳，未必不在）：${errs.join("；")}`,
+    };
+  }
+
+  // 从未探测：保持原有诚实文案 —— 不断言节点已死。
+  return {
+    state: "offline",
+    text: "无心跳",
+    title: `${members.length} 个成员最近都没有心跳（吊牌只在 cook 时心跳，可能只是没 cook；点「检测」核实存活）`,
+  };
+}
+
+/** 一条映射行的全部渲染输入（entries + resolved + anchors 按逻辑名对齐）。 */
+export interface MappingRow {
+  name: string;
+  entry: MappingEntry;
+  resolved?: MappingResolved;
+  anchor?: AnchorRef;
+}
+
+/** MappingsResponse → 按逻辑名排序的行列表（供单测）。 */
+export function mappingRows(res: MappingsResponse): MappingRow[] {
+  const entries = res.entries ?? {};
+  return Object.keys(entries)
+    .sort()
+    .map((name) => ({
+      name,
+      entry: entries[name],
+      resolved: res.resolved?.[name],
+      anchor: res.anchors?.[entries[name].anchor],
+    }));
+}
+
+/** 值输入框的占位提示（供单测）：按类型给出该行**实际**的值形状。
+ *  实测（live Houdini）：float 行是裸数字 `0.18`；vec3 行是**对象**
+ *  `{"ctrl":"…","t":[…],"r":[…]}`——不是三元数组，也不是标量，故分开提示。 */
+export function valuePlaceholder(type: string): string {
+  if (type === "vec3") return '对象，如 {"t":[0,1,0],"r":[0,0,0]}';
+  if (type === "float") return "数字，如 .2 / 0.18";
+  return "值（JSON 或裸数字）";
+}
+
+/** 锚点 pid/端口的可见文案（供单测）——这是「降级前实证」要用的证据本身，
+ *  所以摆在映射面板里给人看，而不是只写进日志。
+ *  `pid === 0` = 吊牌从没上报过（旧版 HDA），明说「未上报 pid（旧版吊牌）」，
+ *  而不是干巴巴显示一个 `0` 让人误以为进程号真是 0。 */
+export function anchorPidText(anchor?: AnchorRef): string {
+  if (!anchor) return "";
+  if (!anchor.pid) return "未上报 pid（旧版吊牌）";
+  const port = anchor.mcpPort ? `:${anchor.mcpPort}` : ":未发现端口";
+  return `pid ${anchor.pid}${port}`;
+}
+
+/** 锚点证据的 title 全景（供单测）：hip / 最近心跳 / 最近核实。
+ *  `now` 可注入，单测才能固定时钟。 */
+export function anchorEvidenceTitle(anchor: AnchorRef, now: number = Date.now()): string {
+  const bits = [`锚点 ${anchor.serial}`];
+  if (anchor.hip) bits.push(`hip ${anchor.hip}`);
+  bits.push(anchor.pid ? `pid ${anchor.pid}` : "pid 未上报（旧版吊牌，无法核实存活）");
+  bits.push(anchor.mcpPort ? `MCP 端口 ${anchor.mcpPort}` : "MCP 端口未发现");
+  bits.push(anchor.lastSeen ? `最近心跳 ${relSince(now - epochMs(anchor.lastSeen))}（吊牌只在 cook 时心跳）` : "从未心跳");
+  if (anchor.verifiedAt) {
+    // 旧的核实结论只是**参考**，不当当前判决：所以文案写「（仅供参考）」。
+    bits.push(
+      `最近核实 ${relSince(now - epochMs(anchor.verifiedAt))}：${anchor.verifiedAlive ? "存活" : "未确认存活"}（仅供参考，非当前结论）`,
+    );
+  } else {
+    bits.push("尚未核实过存活");
+  }
+  return bits.join(" · ");
+}
+
+/** 映射行 HTML（供单测）：逻辑名 / 类型 / 绝对路径 / 值 / 锚点状态 / 解绑。
+ *  - resolved.ok === false → 行加 .broken 并显示 error（解析不出绝对路径，值也没法读写）
+ *  - anchor.movedAt > 0 → 「已移动」徽标 + 当前路径（正常状态，不是错误）
+ *  - type=geo → 值列不给输入框（几何走数据流，不经映射读写）
+ *  - 解绑按钮恒给（断裂/几何行同样需要能清掉） */
+export function mappingRowHtml(row: MappingRow): string {
+  const { name, entry, resolved, anchor } = row;
+  const ok = resolved?.ok !== false;
+  const path = resolved?.absolutePath ?? "";
+  const editable = entry.type !== "geo" && ok;
+  const valueCell = editable
+    ? `<input class="ov-map-input" type="text" data-map-name="${esc(name)}" data-map-type="${esc(entry.type)}" placeholder="${esc(valuePlaceholder(entry.type))}" />` +
+      `<button class="ov-open" type="button" data-map-read="${esc(name)}">读值</button>` +
+      `<button class="ov-open" type="button" data-map-write="${esc(name)}">写值</button>`
+    : `<span class="ov-map-novalue">${entry.type === "geo" ? "几何流" : "不可读写"}</span>`;
+
+  const anchorBits: string[] = [];
+  if (anchor && anchor.movedAt > 0) {
+    anchorBits.push(`<span class="ov-badge moved" title="锚点已移动（正常：逻辑名不变，路径自动跟随）">已移动</span>`);
+  }
+  anchorBits.push(
+    `<small class="ov-anchor-path" title="${esc(anchor?.nodePath ?? entry.anchor)}">${esc(anchor?.nodePath ?? entry.anchor)}</small>`,
+  );
+  // pid/端口证据：用户要求记录的东西，就得看得见。
+  if (anchor) {
+    const pidText = anchorPidText(anchor);
+    const cls = anchor.pid ? "ov-anchor-pid" : "ov-anchor-pid nopid";
+    anchorBits.push(`<small class="${cls}" title="${esc(anchorEvidenceTitle(anchor))}">${esc(pidText)}</small>`);
+  }
+
+  return `
+    <div class="ov-row mappings${ok ? "" : " broken"}" data-map-row="${esc(name)}">
+      <div class="ov-cell ov-label" title="${esc(name)}">${esc(name)}</div>
+      <div class="ov-cell"><span class="ov-kind ${esc(entry.type)}">${esc(entry.type)}</span></div>
+      <div class="ov-cell ov-map-path" title="${esc(ok ? path : (resolved?.error ?? ""))}">${
+        ok ? esc(path) : `<span class="ov-map-error">${esc(resolved?.error ?? "解析失败")}</span>`
+      }</div>
+      <div class="ov-cell ov-map-value" data-map-value="${esc(name)}">${valueCell}</div>
+      <div class="ov-cell ov-anchor">${anchorBits.join("")}</div>
+      <div class="ov-cell ov-action"><button class="ov-remove" type="button" data-map-delete="${esc(name)}">解绑</button></div>
+    </div>`;
+}
+
+/** 映射值输入解析（供单测）：**直接委托** parseChannelValue，
+ *  故 `.2` / `{"t":[0,1,0]}` 照旧可用（禁止在此重写解析或用 JSON.parse）。 */
+export function parseMappingInput(raw: string): unknown {
+  return parseChannelValue(raw);
+}
+
+/** 清理结果文案（供单测）：removed 为空说明没有空项目。 */
+export function cleanupSummary(removed: string[]): string {
+  if (removed.length === 0) return "没有空项目";
+  const preview = removed.slice(0, 5).join("、") + (removed.length > 5 ? "…" : "");
+  return `已清理 ${removed.length} 个空项目：${preview}`;
+}
+
 // ============ 页面（DOM）。单测 node 环境无 document 时整块跳过，纯函数照常可导入。 ============
 if (typeof document !== "undefined") {
   function $(sel: string): HTMLElement {
@@ -120,15 +477,6 @@ if (typeof document !== "undefined") {
 
   const banner = $("#ov-banner");
   const refreshBtn = $("#ov-refresh") as HTMLButtonElement;
-  const cleanupBtn = $("#ov-cleanup") as HTMLButtonElement;
-  const cleanupResult = $("#ov-cleanup-result");
-  const activeHint = $("#active-hint");
-  const activeList = $("#active-list");
-  const historyHint = $("#history-hint");
-  const historyList = $("#history-list");
-  const newLabel = $("#new-label") as HTMLInputElement;
-  const newButton = $("#new-button") as HTMLButtonElement;
-  const newError = $("#new-error");
 
   function setBanner(kind: "offline" | "error" | "ok", text: string): void {
     banner.textContent = text;
@@ -138,6 +486,450 @@ if (typeof document !== "undefined") {
   function openSerial(serial: string): void {
     location.href = `/?serial=${encodeURIComponent(serial)}`;
   }
+
+  function openProject(pid: string): void {
+    location.href = `/?project=${encodeURIComponent(pid)}`;
+  }
+
+  const errText = (err: unknown): string => (err instanceof Error ? err.message : String(err));
+
+  /** 按 dataset 值查元素：逻辑名/serial 可含引号，直接拼进属性选择器会炸，
+   *  故用 selector 粗筛 + dataset 精确比对。 */
+  function findByData<T extends HTMLElement>(
+    root: HTMLElement,
+    selector: string,
+    key: string,
+    value: string,
+  ): T | null {
+    for (const el of Array.from(root.querySelectorAll<HTMLElement>(selector))) {
+      if (el.dataset[key] === value) return el as T;
+    }
+    return null;
+  }
+
+  // ---------------- 1) 项目（主入口） ----------------
+  const projectsClient = new BridgeClient();
+  const projectsHint = $("#projects-hint");
+  const projectsError = $("#projects-error");
+  const projectsList = $("#projects-list");
+  const projectsRefresh = $("#projects-refresh") as HTMLButtonElement;
+  const projectsCleanup = $("#projects-cleanup") as HTMLButtonElement;
+  const projectsCleanupResult = $("#projects-cleanup-result");
+  const projectName = $("#project-name") as HTMLInputElement;
+  const projectNew = $("#project-new") as HTMLButtonElement;
+
+  /** 展开中的项目 serial（映射区跟随它；单选，展开即成为「聚焦项目」）。 */
+  let expandedProject: string | null = new URLSearchParams(location.search).get("project");
+  /** 正在改名的项目 serial（渲染成行内 input）。 */
+  let editingProject: string | null = null;
+  /** 通道 key -> live lastSeen（每次 loadProjects 从 /api/channels 大全重建）。
+   *  成员快照的 lastSeen 是冻结值，状态灯必须看这张表，见 projectStatusLight 注释。 */
+  let liveSeenByChannel: Record<string, number> = {};
+  /** 锚点 serial -> 探测缓存。**按需**填充，绝不在渲染/轮询路径上探：
+   *  一次探测 = 一次 Houdini 往返，放进 render 就等于每帧都问 Houdini。
+   *  刷新（loadProjects）故意**不清**这张表：结论比心跳年龄有价值得多，
+   *  留着显示（陈旧与否由用户再点「检测」决定）。 */
+  const probeByAnchor = new Map<string, AnchorProbeEntry>();
+  /** 已自动探过一次的项目（展开时自动探一次，之后只认手动点「检测」）。 */
+  const autoProbed = new Set<string>();
+
+  /** 拉通道大全（只为取 live lastSeen；失败由调用方退回快照）。 */
+  async function fetchChannels(): Promise<{ channels: ChannelRef[] }> {
+    const res = await fetch(`${BRIDGE_URL}/api/channels`, { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new HttpError(res.status);
+    return (await res.json()) as { channels: ChannelRef[] };
+  }
+
+  function showProjectsError(msg: string): void {
+    projectsError.textContent = msg;
+    projectsError.classList.remove("hidden");
+  }
+  function hideProjectsError(): void {
+    projectsError.classList.add("hidden");
+  }
+
+  /** 按需探测一个项目的全部锚点（并发），结束后只重渲染项目列表。
+   *  同一锚点已在 in-flight 时跳过，避免连点打出一串往返。 */
+  async function probeProject(pid: string): Promise<void> {
+    const p = projectsStore.projects.find((x) => x.projectSerial === pid);
+    if (!p) return;
+    const serials = anchorSerialsOf(p).filter((s) => probeByAnchor.get(s)?.status !== "checking");
+    if (serials.length === 0) return;
+    for (const s of serials) probeByAnchor.set(s, { status: "checking" });
+    renderProjects(projectsStore.projects);
+    await Promise.all(
+      serials.map(async (s) => {
+        const r = await probeAnchor(pid, s); // 不抛：失败也是普通结果
+        probeByAnchor.set(s, "ok" in r ? { status: "error", error: r.error } : { status: "done", result: r });
+      }),
+    );
+    renderProjects(projectsStore.projects);
+  }
+
+  /** 展开时自动探一次：**只一次**（记在 autoProbed 里），之后要新结论就手动点「检测」。
+   *  刻意不在这里做定时/轮询——一次探测就是一次 Houdini 往返。 */
+  async function autoProbeOnce(pid: string): Promise<void> {
+    if (autoProbed.has(pid)) return;
+    autoProbed.add(pid);
+    await probeProject(pid);
+  }
+
+  function projectRowHtml(p: ProjectRef): string {
+    const members = Array.isArray(p.members) ? p.members : [];
+    const pid = p.projectSerial;
+    const light = projectStatusLight(p, Date.now(), liveSeenByChannel, probeByAnchor);
+    const expanded = expandedProject === pid;
+    const checking = anchorSerialsOf(p).some((s) => probeByAnchor.get(s)?.status === "checking");
+    // 名字列：改名中 → 行内 input（回车提交 / Esc 取消）；否则纯文本，序列号只进 title。
+    const nameCell =
+      editingProject === pid
+        ? `<input class="ov-name-input" type="text" data-rename-input="${esc(pid)}" value="${esc(p.label ?? "")}" placeholder="项目名称" />`
+        : `<span class="ov-project-name" title="${esc(pid)}">${esc(projectDisplayName(p))}</span>`;
+    return `
+    <div class="ov-row projects${expanded ? " focused" : ""}${light.state === "gone" ? " probe-gone" : ""}" data-project-serial="${esc(pid)}">
+      <div class="ov-cell ov-label">${nameCell}</div>
+      <div class="ov-cell ov-count">${members.length} 成员</div>
+      <div class="ov-cell ov-seen ${light.state}"><span class="ov-state" title="${esc(light.title)}">${esc(light.text)}</span></div>
+      <div class="ov-cell ov-action">
+        <button class="ov-open" type="button" data-open-project="${esc(pid)}">打开</button>
+        <button class="ov-probe" type="button" data-probe="${esc(pid)}"${checking ? " disabled" : ""} title="核对该项目锚点所属 Houdini 实例（mcp.health + pid）；心跳超时未必失联">${checking ? "检测中…" : "检测"}</button>
+        <button class="ov-expand" type="button" data-expand="${esc(pid)}">${expanded ? "收起映射" : "映射"}</button>
+        <button class="ov-expand" type="button" data-rename="${esc(pid)}">改名</button>
+        <button class="ov-remove" type="button" data-delete-project="${esc(pid)}">删除</button>
+      </div>
+    </div>`;
+  }
+
+  function renderProjects(list: ProjectRef[]): void {
+    projectsList.innerHTML = list.map(projectRowHtml).join("");
+    projectsHint.classList.toggle("hidden", list.length > 0);
+    projectsHint.textContent = list.length ? "" : "暂无项目（点「新建项目」开始）";
+    // 顶部「打开主应用」指向最近更新的项目；完全没有项目时才回退空 ?serial=
+    // （index.html 的入口守卫用 has() 判定，空值仍会加载主应用而不重定向回本页）。
+    const openApp = document.getElementById("ov-open-app") as HTMLAnchorElement | null;
+    if (openApp) {
+      const newest = list.reduce<ProjectRef | null>(
+        (best, p) => (best === null || epochMs(p.updatedAt) > epochMs(best.updatedAt) ? p : best),
+        null,
+      );
+      openApp.href = newest ? `/?project=${encodeURIComponent(newest.projectSerial)}` : "/?serial=";
+    }
+    if (editingProject) {
+      const input = findByData<HTMLInputElement>(projectsList, "input[data-rename-input]", "renameInput", editingProject);
+      input?.focus();
+      input?.select();
+    }
+  }
+
+  async function loadProjects(): Promise<void> {
+    projectsRefresh.disabled = true;
+    hideProjectsError();
+    projectsHint.classList.remove("hidden");
+    projectsHint.textContent = "加载中…";
+    projectsList.innerHTML = "";
+    try {
+      const { projects } = await projectsClient.listProjects();
+      projectsStore.setProjects(projects);
+      // 同时拉通道大全构建 live lastSeen 表：成员快照的 lastSeen 是加入时的冻结值，
+      // 只看它会把活着的成员判成离线（实测快照 13081s vs live 2938s）。
+      // 拉不到就退回快照（状态灯偏旧但页面照常可用）。
+      try {
+        const { channels } = await fetchChannels();
+        liveSeenByChannel = Object.fromEntries(
+          channels.map((c) => [channelIdOf(c), typeof c.lastSeen === "number" ? c.lastSeen : 0]),
+        );
+      } catch {
+        liveSeenByChannel = {};
+      }
+      // ?project= / 展开态在列表里已不存在时清掉，避免映射区指向幽灵项目。
+      if (expandedProject && !projects.some((p) => p.projectSerial === expandedProject)) expandedProject = null;
+      renderProjects(projects);
+      if (expandedProject) {
+        void loadMappings(expandedProject);
+        void autoProbeOnce(expandedProject); // ?project= 直达时也核实一次（仍是每项目一次）
+      } else renderMappingsIdle();
+    } catch (err) {
+      projectsStore.setProjects([]);
+      renderProjects([]);
+      showProjectsError(
+        err instanceof HttpError
+          ? `桥返回 HTTP ${err.status}：/api/projects 未就绪？`
+          : "桥离线：无法连接 127.0.0.1:8375，项目列表不可用。",
+      );
+      setBanner("offline", "桥离线：无法连接 127.0.0.1:8375，项目与场景列表不可用；新建也需要桥在线。");
+    } finally {
+      projectsRefresh.disabled = false;
+    }
+  }
+
+  async function createProject(): Promise<void> {
+    hideProjectsError();
+    projectNew.disabled = true;
+    projectNew.textContent = "创建中…";
+    // 留空 → 「项目 N」；绝不让桥按成员 serial 自动命名。
+    const label = projectName.value.trim() || defaultProjectName(projectsStore.projects.length);
+    try {
+      await projectsClient.createProject(label);
+      projectName.value = "";
+      await loadProjects();
+    } catch (err) {
+      showProjectsError(`新建项目失败：${errText(err)}`);
+    } finally {
+      projectNew.disabled = false;
+      projectNew.textContent = "新建项目";
+    }
+  }
+
+  async function submitRename(pid: string, label: string): Promise<void> {
+    hideProjectsError();
+    editingProject = null;
+    try {
+      await patchProjectLabel(pid, label);
+      await loadProjects();
+    } catch (err) {
+      showProjectsError(`改名失败：${errText(err)}`);
+      renderProjects(projectsStore.projects);
+    }
+  }
+
+  async function removeProject(pid: string): Promise<void> {
+    const p = projectsStore.projects.find((x) => x.projectSerial === pid);
+    const name = p ? projectDisplayName(p) : pid;
+    if (!window.confirm(`删除项目「${name}」？\n（${pid}）\n项目本身会被移除，场景/序列号不受影响。`)) return;
+    hideProjectsError();
+    try {
+      const { removed } = await deleteProject(pid);
+      if (expandedProject === pid) expandedProject = null;
+      // removed:false = 桥说这个 pid 本来就不存在（200 而非 404，刻意的宽松语义）。
+      // 结果与用户诉求一致（它没了），所以只给灰字提示 + 刷新，不报错。
+      if (!removed) {
+        projectsCleanupResult.textContent = "该项目已不存在（列表已刷新）";
+        projectsCleanupResult.title = pid;
+        projectsCleanupResult.className = "ov-projects-cleanup-result none";
+      }
+      await loadProjects();
+    } catch (err) {
+      showProjectsError(`删除失败：${errText(err)}`);
+    }
+  }
+
+  async function runProjectsCleanup(): Promise<void> {
+    projectsCleanup.disabled = true;
+    projectsCleanup.textContent = "清理中…";
+    projectsCleanupResult.classList.add("hidden");
+    try {
+      const { removed } = await cleanupProjects();
+      projectsCleanupResult.textContent = cleanupSummary(removed);
+      projectsCleanupResult.title = removed.join("\n");
+      projectsCleanupResult.className = `ov-projects-cleanup-result ${removed.length ? "ok" : "none"}`;
+      await loadProjects();
+    } catch (err) {
+      projectsCleanupResult.textContent = `清理失败：${errText(err)}`;
+      projectsCleanupResult.title = "";
+      projectsCleanupResult.className = "ov-projects-cleanup-result err";
+    } finally {
+      projectsCleanup.disabled = false;
+      projectsCleanup.textContent = "清理空项目";
+    }
+  }
+
+  projectsRefresh.addEventListener("click", () => void loadProjects());
+  projectsCleanup.addEventListener("click", () => void runProjectsCleanup());
+  projectNew.addEventListener("click", () => void createProject());
+  projectName.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") void createProject();
+  });
+
+  projectsList.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    const open = target.closest?.("button[data-open-project]") as HTMLElement | null;
+    if (open) {
+      openProject(open.dataset.openProject ?? "");
+      return;
+    }
+    const probe = target.closest?.("button[data-probe]") as HTMLElement | null;
+    if (probe) {
+      void probeProject(probe.dataset.probe ?? "");
+      return;
+    }
+    const expand = target.closest?.("button[data-expand]") as HTMLElement | null;
+    if (expand) {
+      const pid = expand.dataset.expand ?? "";
+      expandedProject = expandedProject === pid ? null : pid;
+      renderProjects(projectsStore.projects);
+      if (expandedProject) {
+        void loadMappings(expandedProject);
+        void autoProbeOnce(expandedProject); // 展开时自动核实一次（每项目仅一次）
+      } else renderMappingsIdle();
+      return;
+    }
+    const rename = target.closest?.("button[data-rename]") as HTMLElement | null;
+    if (rename) {
+      editingProject = rename.dataset.rename ?? null;
+      renderProjects(projectsStore.projects);
+      return;
+    }
+    const del = target.closest?.("button[data-delete-project]") as HTMLElement | null;
+    if (del) void removeProject(del.dataset.deleteProject ?? "");
+  });
+
+  // 行内改名：回车提交 / Esc 取消 / 失焦提交（失焦提交是为了少一次点击）。
+  projectsList.addEventListener("keydown", (e) => {
+    const input = (e.target as HTMLElement).closest?.("input[data-rename-input]") as HTMLInputElement | null;
+    if (!input) return;
+    if (e.key === "Enter") void submitRename(input.dataset.renameInput ?? "", input.value.trim());
+    else if (e.key === "Escape") {
+      editingProject = null;
+      renderProjects(projectsStore.projects);
+    }
+  });
+  projectsList.addEventListener(
+    "blur",
+    (e) => {
+      const input = (e.target as HTMLElement).closest?.("input[data-rename-input]") as HTMLInputElement | null;
+      if (input && editingProject) void submitRename(input.dataset.renameInput ?? "", input.value.trim());
+    },
+    true,
+  );
+
+  // ---------------- 2) 映射（跟随展开的项目） ----------------
+  const mappingsHint = $("#mappings-hint");
+  const mappingsError = $("#mappings-error");
+  const mappingsList = $("#mappings-list");
+  const mappingsOf = $("#mappings-of");
+  const mappingsRefresh = $("#mappings-refresh") as HTMLButtonElement;
+
+  function renderMappingsIdle(): void {
+    mappingsList.innerHTML = "";
+    mappingsError.classList.add("hidden");
+    mappingsOf.textContent = "";
+    mappingsHint.classList.remove("hidden");
+    mappingsHint.textContent = "展开一个项目（点项目行的「映射」）查看它的映射。";
+  }
+
+  async function loadMappings(pid: string): Promise<void> {
+    mappingsRefresh.disabled = true;
+    mappingsError.classList.add("hidden");
+    mappingsList.innerHTML = "";
+    mappingsHint.classList.remove("hidden");
+    mappingsHint.textContent = "加载中…";
+    const p = projectsStore.projects.find((x) => x.projectSerial === pid);
+    mappingsOf.textContent = p ? projectDisplayName(p) : pid;
+    mappingsOf.title = pid;
+    try {
+      const res = await fetchMappings(pid);
+      const rows = mappingRows(res);
+      mappingsList.innerHTML = rows.map(mappingRowHtml).join("");
+      mappingsHint.classList.toggle("hidden", rows.length > 0);
+      mappingsHint.textContent = rows.length ? "" : "该项目还没有映射（吊牌标记参数后出现）。";
+    } catch (err) {
+      mappingsHint.classList.add("hidden");
+      mappingsError.textContent = `映射不可用：${errText(err)}（桥 127.0.0.1:8375 是否在运行 / 接口是否就绪？）`;
+      mappingsError.classList.remove("hidden");
+    } finally {
+      mappingsRefresh.disabled = false;
+    }
+  }
+
+  function mappingInput(name: string): HTMLInputElement | null {
+    return findByData<HTMLInputElement>(mappingsList, "input[data-map-name]", "mapName", name);
+  }
+
+  /** 读/写结果回填该行。成功时 input.value = 值的 JSON 全文——float 行是裸数字
+   *  `0.18`，vec3 行是整个对象 `{"ctrl":…,"t":[…],"r":[…]}`，原样可再写回（改 t 不丢 ctrl）。
+   *  失败**不动 input.value**（别把用户刚敲的东西吞掉），只标红 + 恢复占位提示 + 顶部显错。 */
+  function setMappingResult(name: string, r: { ok: boolean; value: unknown; error?: string }): void {
+    const input = mappingInput(name);
+    const cell = findByData<HTMLElement>(mappingsList, "[data-map-value]", "mapValue", name);
+    if (input) input.placeholder = valuePlaceholder(input.dataset.mapType ?? "");
+    if (r.ok) {
+      const full = channelValueString(r.value);
+      if (input) input.value = full;
+      cell?.classList.remove("err");
+      if (cell) cell.title = full;
+      mappingsError.classList.add("hidden");
+    } else {
+      const err = r.error ?? "unknown";
+      cell?.classList.add("err");
+      if (cell) cell.title = err;
+      mappingsError.textContent = `${name}：${err}`;
+      mappingsError.classList.remove("hidden");
+    }
+  }
+
+  async function readMapping(name: string): Promise<void> {
+    if (!expandedProject) return;
+    const input = mappingInput(name);
+    if (input) input.placeholder = "读取中…";
+    setMappingResult(name, await getMappingValue(expandedProject, name));
+  }
+
+  async function writeMapping(name: string): Promise<void> {
+    if (!expandedProject) return;
+    const input = mappingInput(name);
+    if (!input) return;
+    const parsed = parseMappingInput(input.value);
+    if (parsed === INVALID_CHANNEL_VALUE) {
+      setMappingResult(name, { ok: false, value: undefined, error: "无效值（JSON 或裸数字，如 .2 / {\"t\":[0,1,0]}）" });
+      return;
+    }
+    input.placeholder = "写入中…";
+    setMappingResult(name, await putMappingValue(expandedProject, name, parsed));
+  }
+
+  mappingsRefresh.addEventListener("click", () => {
+    if (expandedProject) void loadMappings(expandedProject);
+    else renderMappingsIdle();
+  });
+
+  /** 解绑逻辑名：确认 → DELETE → 刷新。未知逻辑名桥返回 404，store 已归一为
+   *  {ok:true, removed:false}，此处按「本来就没了」处理：照常刷新，不弹错。 */
+  async function removeMapping(name: string): Promise<void> {
+    if (!expandedProject) return;
+    if (!window.confirm(`解绑逻辑名「${name}」？\n只移除映射，Houdini 节点与参数不受影响。`)) return;
+    mappingsError.classList.add("hidden");
+    try {
+      await deleteMapping(expandedProject, name);
+      await loadMappings(expandedProject);
+    } catch (err) {
+      mappingsError.textContent = `解绑失败：${errText(err)}`;
+      mappingsError.classList.remove("hidden");
+    }
+  }
+
+  mappingsList.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    const read = target.closest?.("button[data-map-read]") as HTMLElement | null;
+    if (read) {
+      void readMapping(read.dataset.mapRead ?? "");
+      return;
+    }
+    const write = target.closest?.("button[data-map-write]") as HTMLElement | null;
+    if (write) {
+      void writeMapping(write.dataset.mapWrite ?? "");
+      return;
+    }
+    const del = target.closest?.("button[data-map-delete]") as HTMLElement | null;
+    if (del) void removeMapping(del.dataset.mapDelete ?? "");
+  });
+
+  // 值 input 回车即写（省一次点击）。
+  mappingsList.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    const input = (e.target as HTMLElement).closest?.("input[data-map-name]") as HTMLInputElement | null;
+    if (input) void writeMapping(input.dataset.mapName ?? "");
+  });
+
+  // ---------------- 3) 场景（诊断区，默认折叠） ----------------
+  const cleanupBtn = $("#ov-cleanup") as HTMLButtonElement;
+  const cleanupResult = $("#ov-cleanup-result");
+  const activeHint = $("#active-hint");
+  const activeList = $("#active-list");
+  const historyHint = $("#history-hint");
+  const historyList = $("#history-list");
+  const newLabel = $("#new-label") as HTMLInputElement;
+  const newButton = $("#new-button") as HTMLButtonElement;
+  const newError = $("#new-error");
 
   /** 三态判定：离线 / 未cook / 在线，离线优先。 */
   function activeState(s: ActiveScene): { state: ActiveState; text: string; title: string } {
@@ -186,16 +978,6 @@ if (typeof document !== "undefined") {
     activeList.innerHTML = list.map(activeRowHtml).join("");
     activeHint.classList.toggle("hidden", list.length > 0);
     activeHint.textContent = list.length ? "" : "暂无活跃场景";
-    // 顶部「打开主应用」带上最近活跃的 serial（无活跃场景时保留空 ?serial=，
-    // index.html 的入口守卫用 has() 判定，空值仍会加载主应用而不重定向回本页）。
-    const openApp = document.getElementById("ov-open-app") as HTMLAnchorElement | null;
-    if (openApp) {
-      const newest = list.reduce<ActiveScene | null>(
-        (best, s) => (best === null || epochMs(s.lastSeen) > epochMs(best.lastSeen) ? s : best),
-        null,
-      );
-      openApp.href = newest ? `/?serial=${encodeURIComponent(newest.serial)}` : "/?serial=";
-    }
   }
 
   function renderHistory(list: HistoryScene[]): void {
@@ -230,7 +1012,6 @@ if (typeof document !== "undefined") {
   }
 
   async function loadScenes(): Promise<void> {
-    refreshBtn.disabled = true;
     activeHint.classList.remove("hidden");
     activeHint.textContent = "加载中…";
     activeList.innerHTML = "";
@@ -244,8 +1025,6 @@ if (typeof document !== "undefined") {
       renderHistory(scenes.history);
     } catch (err) {
       renderUnavailable(failMessage(err));
-    } finally {
-      refreshBtn.disabled = false;
     }
   }
 
@@ -284,7 +1063,6 @@ if (typeof document !== "undefined") {
     }
   }
 
-  refreshBtn.addEventListener("click", () => void loadScenes());
   cleanupBtn.addEventListener("click", () => void cleanupScenes());
 
   // 打开按钮：事件委托（active + history 共用）
@@ -320,464 +1098,14 @@ if (typeof document !== "undefined") {
     }
   });
 
-  // ============ 关联注册大全（吊牌 HDA 通道；P4 起含 data 非 geo 数据源通道） ============
-  const channelsClient = new BridgeClient();
-
-  type ChannelRowState = "offline" | "online" | "lost";
-
-  /** param/data 通道显示 absolutePath 尾段（回退 label），tag/hda 显示 label（回退 serial）。 */
-  function channelLabel(ref: ChannelRef): string {
-    if (ref.kind === "param" || ref.kind === "data") {
-      const p = ref.absolutePath ?? "";
-      const tail = p.lastIndexOf("/") >= 0 ? p.slice(p.lastIndexOf("/") + 1) : p;
-      return tail || ref.label || p;
-    }
-    return ref.label || ref.serial || "";
-  }
-
-  /** 探测前仅凭心跳判定：lastSeen 距今 >150s → 离线，否则在线（「失联」由探测得出）。 */
-  function channelState(ref: ChannelRef): { state: ChannelRowState; text: string; title: string } {
-    const seenDiff = Date.now() - epochMs(ref.lastSeen);
-    if (seenDiff > OFFLINE_MS) {
-      return { state: "offline", text: "离线", title: `心跳断开（lastSeen ${relTime(ref.lastSeen)}）` };
-    }
-    return { state: "online", text: "在线", title: `在线（lastSeen ${relTime(ref.lastSeen)}）` };
-  }
-
-  function channelRowHtml(ref: ChannelRef): string {
-    const { state, text, title } = channelState(ref);
-    const id = channelIdOf(ref);
-    const label = channelLabel(ref);
-    // data 行：多一列 value cell（初始 "—"，读/写后显示值），操作列换成读值/写值两个按钮（channelActionButtons）。
-    const valueCell = ref.kind === "data" ? `<div class="ov-cell ov-value-cell" title="—">—</div>` : "";
-    return `
-    <div class="ov-row channels${ref.kind === "data" ? " data" : ""}" data-channel-id="${esc(id)}" draggable="true">
-      <div class="ov-cell ov-label" title="${esc(label)}">${esc(label)}</div>
-      <div class="ov-cell"><span class="ov-kind ${esc(ref.kind)}">${esc(ref.kind)}</span></div>
-      <div class="ov-cell ov-serial" title="${esc(id)}">${esc(id)}</div>
-      <div class="ov-cell ov-seen ${state}">
-        <span class="ov-state" title="${esc(title)}">${text}</span>
-        <small class="ov-seen-at">${relTime(ref.lastSeen)}</small>
-      </div>
-      ${valueCell}
-      <div class="ov-cell ov-action">${channelActionButtons(ref)}</div>
-    </div>`;
-  }
-
-  // 动态构建「关联注册大全」区块（overview.html 不在本写集，故用 DOM 创建，样式复用 ov-* 类）。
-  const channelsPanel = document.createElement("section");
-  channelsPanel.className = "ov-panel";
-  channelsPanel.id = "channels-panel";
-  const channelsHead = document.createElement("div");
-  channelsHead.className = "ov-channels-head";
-  const channelsHeading = document.createElement("h2");
-  channelsHeading.className = "ov-section-heading";
-  channelsHeading.textContent = "关联注册大全";
-  const channelsRefresh = document.createElement("button");
-  channelsRefresh.type = "button";
-  channelsRefresh.className = "ov-channels-refresh"; // 独立类名：round8 的 strict locator 依赖 .ov-refresh 唯一（类冲突回归修复）
-  channelsRefresh.textContent = "刷新";
-  channelsHead.append(channelsHeading, channelsRefresh);
-  const channelsHint = document.createElement("p");
-  channelsHint.className = "ov-hint";
-  channelsHint.textContent = "加载中…";
-  const channelsError = document.createElement("p");
-  channelsError.className = "ov-error hidden";
-  const channelsList = document.createElement("div");
-  channelsList.className = "ov-list";
-  channelsPanel.append(channelsHead, channelsHint, channelsError, channelsList);
-  $(".ov-main").appendChild(channelsPanel);
-
-  function renderChannels(list: ChannelRef[]): void {
-    channelsList.innerHTML = list.map(channelRowHtml).join("");
-    channelsHint.classList.toggle("hidden", list.length > 0);
-    channelsHint.textContent = list.length ? "" : "暂无关联注册（吊牌 HDA cook 后会出现）";
-  }
-
-  function findChannelRow(id: string): HTMLElement | null {
-    for (const child of Array.from(channelsList.children)) {
-      const el = child as HTMLElement;
-      if (el.dataset.channelId === id) return el;
-    }
-    return null;
-  }
-
-  function setChannelRowState(row: HTMLElement, state: ChannelRowState, text: string, title: string, seenAt: string): void {
-    const cell = row.querySelector(".ov-seen");
-    if (!cell) return;
-    cell.className = `ov-cell ov-seen ${state}`;
-    cell.innerHTML = `<span class="ov-state" title="${esc(title)}">${esc(text)}</span><small class="ov-seen-at">${esc(seenAt)}</small>`;
-  }
-
-  async function probeChannel(id: string): Promise<void> {
-    const row = findChannelRow(id);
-    const btn = row?.querySelector("button[data-channel-id]") as HTMLButtonElement | null;
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = "探测中…";
-    }
-    const set = (state: ChannelRowState, text: string, title: string, seenAt = "已探测"): void => {
-      if (row) setChannelRowState(row, state, text, title, seenAt);
-    };
-    try {
-      const r = await channelsClient.probeChannel(id);
-      if (!r.alive) {
-        set("offline", "离线", `节点未存活${r.reason ? `：${r.reason}` : ""}`);
-        channelsStore.setStatus(id, "offline");
-      } else if (!r.matched) {
-        set("lost", "失联", `节点存活但通道不匹配${r.reason ? `：${r.reason}` : ""}`);
-        channelsStore.setStatus(id, "online");
-      } else {
-        set("online", "在线", `探测确认存活且匹配（${r.nodePath || r.serial || ""}）`);
-        channelsStore.setStatus(id, "online");
-      }
-    } catch (err) {
-      set("offline", "离线", `探测失败：${err instanceof Error ? err.message : String(err)}`, "探测失败");
-    } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = "探测";
-      }
-    }
-  }
-
-  /** 把 data 通道读/写结果渲染进该行 value cell：ok → 值文本（>40 截断显示，title 全量）；失败 → error 截断（title 全量）。 */
-  function setValueCell(cell: HTMLElement, r: { ok: boolean; value: unknown; error?: string }): void {
-    if (r.ok) {
-      const full = channelValueString(r.value);
-      cell.dataset.full = full;
-      cell.textContent = formatChannelValue(r.value);
-      cell.title = full;
-    } else {
-      const err = r.error ?? "unknown";
-      cell.dataset.full = "";
-      cell.title = err;
-      cell.textContent = err.length > 40 ? `${err.slice(0, 40)}…` : err;
-    }
-  }
-
-  /** data 通道「读值」：GET value → 该行 value cell 显示 JSON.stringify（截断，title 全量）。 */
-  async function readChannelValue(id: string): Promise<void> {
-    const row = findChannelRow(id);
-    const cell = row?.querySelector<HTMLElement>(".ov-value-cell") ?? null;
-    if (!cell) return; // 非 data 行没有 value cell（读值按钮只存在于 data 行）
-    cell.textContent = "读取中…";
-    cell.title = "";
-    setValueCell(cell, await channelsClient.getChannelValue(id));
-  }
-
-  /** data 通道「写值」：prompt 输入 JSON / 裸数字 → PUT value → 回显。
-   *  取消直接返回；解析失败本地提示。 */
-  async function writeChannelValue(id: string): Promise<void> {
-    const row = findChannelRow(id);
-    const cell = row?.querySelector<HTMLElement>(".ov-value-cell") ?? null;
-    if (!cell) return;
-    const current = cell.dataset.full ?? cell.textContent ?? "";
-    const input = window.prompt("写入值（JSON 或裸数字，如 .2 / 0.2 / {\"t\":[0,1,0]}）：", current);
-    if (input === null) return; // 取消
-    const parsed = parseChannelValue(input);
-    if (parsed === INVALID_CHANNEL_VALUE) {
-      cell.textContent = "invalid value";
-      cell.title = "";
-      cell.dataset.full = "";
-      return;
-    }
-    cell.textContent = "写入中…";
-    cell.title = "";
-    setValueCell(cell, await channelsClient.putChannelValue(id, parsed));
-  }
-
-  async function loadChannels(): Promise<void> {
-    channelsRefresh.disabled = true;
-    channelsError.classList.add("hidden");
-    channelsHint.classList.remove("hidden");
-    channelsHint.textContent = "加载中…";
-    channelsList.innerHTML = "";
-    try {
-      const { channels } = await channelsClient.listChannels();
-      channelsStore.setChannels(channels);
-      renderChannels(channels);
-    } catch (err) {
-      channelsStore.setChannels([]);
-      renderChannels([]);
-      channelsError.textContent =
-        err instanceof HttpError
-          ? `桥返回 HTTP ${err.status}：/api/channels 未就绪？`
-          : "桥离线：无法连接 127.0.0.1:8375，关联注册大全不可用。";
-      channelsError.classList.remove("hidden");
-    } finally {
-      channelsRefresh.disabled = false;
-    }
-  }
-
-  channelsRefresh.addEventListener("click", () => void loadChannels());
-  channelsList.addEventListener("click", (e) => {
-    const target = e.target as HTMLElement;
-    // data 行：读值 / 写值（按钮 data-read-channel / data-write-channel）
-    const readBtn = target.closest?.("button[data-read-channel]");
-    if (readBtn) {
-      void readChannelValue((readBtn as HTMLElement).dataset.readChannel ?? "");
-      return;
-    }
-    const writeBtn = target.closest?.("button[data-write-channel]");
-    if (writeBtn) {
-      void writeChannelValue((writeBtn as HTMLElement).dataset.writeChannel ?? "");
-      return;
-    }
-    // 其余 kind：探测（事件委托原逻辑）
-    const btn = target.closest?.("button[data-channel-id]");
-    if (!btn) return;
-    void probeChannel((btn as HTMLElement).dataset.channelId ?? "");
+  // 顶部「刷新」：项目 + 场景一起刷（映射跟随项目）。
+  refreshBtn.addEventListener("click", () => {
+    refreshBtn.disabled = true;
+    void Promise.all([loadProjects(), loadScenes()]).finally(() => {
+      refreshBtn.disabled = false;
+    });
   });
 
-  // 拖拽入项目（HTML5 DnD）：通道行可拖，dragstart 写入通道 id；不影响行内点击/探测。
-  channelsList.addEventListener("dragstart", (e) => {
-    const row = (e.target as HTMLElement).closest?.("[data-channel-id]") as HTMLElement | null;
-    if (!row) return;
-    const id = row.dataset.channelId ?? "";
-    if (!id || !e.dataTransfer) return;
-    e.dataTransfer.effectAllowed = "copy";
-    e.dataTransfer.setData("text/cyl-channel-id", id);
-  });
-
-  // ============ 项目（P2a：通道引用聚合；项目行做拖放目标） ============
-  const projectsClient = new BridgeClient();
-
-  const projectsPanel = document.createElement("section");
-  projectsPanel.className = "ov-panel";
-  projectsPanel.id = "projects-panel";
-  const projectsHead = document.createElement("div");
-  projectsHead.className = "ov-projects-head";
-  const projectsHeading = document.createElement("h2");
-  projectsHeading.className = "ov-section-heading";
-  projectsHeading.textContent = "项目";
-  const projectsNew = document.createElement("button");
-  projectsNew.type = "button";
-  projectsNew.className = "ov-projects-new"; // 独立类名：round8 依赖 .ov-new-button 唯一（类冲突回归修复）
-  projectsNew.textContent = "新建项目";
-  const projectsRefresh = document.createElement("button");
-  projectsRefresh.type = "button";
-  projectsRefresh.className = "ov-projects-refresh";
-  projectsRefresh.textContent = "刷新";
-  projectsHead.append(projectsHeading, projectsNew, projectsRefresh);
-  const projectsHint = document.createElement("p");
-  projectsHint.className = "ov-hint";
-  projectsHint.textContent = "加载中…";
-  const projectsError = document.createElement("p");
-  projectsError.className = "ov-error hidden";
-  const projectsList = document.createElement("div");
-  projectsList.className = "ov-list";
-  projectsPanel.append(projectsHead, projectsHint, projectsError, projectsList);
-  $(".ov-main").appendChild(projectsPanel);
-
-  /** 展开中的项目 serial（刷新后保留展开态）。 */
-  const expandedProjects = new Set<string>();
-  /** ?project= 落地标记：命中且展开时给对应项目行加 .focused。 */
-  const focusProject: string | null = new URLSearchParams(location.search).get("project");
-
-  function showProjectsError(msg: string): void {
-    projectsError.textContent = msg;
-    projectsError.classList.remove("hidden");
-  }
-  function hideProjectsError(): void {
-    projectsError.classList.add("hidden");
-  }
-
-  /** 项目行显示名：label 空回退 projectSerial。 */
-  function projectDisplayName(p: ProjectRef): string {
-    return p.label || p.projectSerial;
-  }
-
-  /** 成员显示名：param/data 显示 absolutePath 全文，tag/hda 显示 label（回退 serial/id）。 */
-  function memberDisplayName(m: ChannelRef): string {
-    if (m.kind === "param" || m.kind === "data") return m.absolutePath ?? channelIdOf(m);
-    return m.label || m.serial || channelIdOf(m);
-  }
-
-  function memberRowHtml(p: ProjectRef, m: ChannelRef): string {
-    const id = channelIdOf(m);
-    const display = memberDisplayName(m);
-    // tag/hda 成员可打开工作区；param/data 成员给移除（成员是引用快照，live 状态以 /api/channels 为准）。
-    const action =
-      m.kind === "param" || m.kind === "data"
-        ? `<button class="ov-remove" type="button" data-remove-project="${esc(p.projectSerial)}" data-remove-channel="${esc(id)}">移除</button>`
-        : `<button class="ov-open" type="button" data-open-serial="${esc(m.serial ?? "")}">打开</button>`;
-    return `
-    <div class="ov-member" data-member-id="${esc(id)}">
-      <span class="ov-kind ${esc(m.kind)}">${esc(m.kind)}</span>
-      <span class="ov-member-label" title="${esc(display)}">${esc(display)}</span>
-      <span class="ov-cell ov-action">${action}</span>
-    </div>`;
-  }
-
-  function projectRowHtml(p: ProjectRef): string {
-    const members = Array.isArray(p.members) ? p.members : [];
-    const expanded = expandedProjects.has(p.projectSerial);
-    const focused = focusProject === p.projectSerial && expanded;
-    const membersHtml = expanded
-      ? `<div class="ov-members" data-members="${esc(p.projectSerial)}">${
-          members.map((m) => memberRowHtml(p, m)).join("") ||
-          '<p class="ov-hint">（空项目：把下方通道行拖到本项目行加入）</p>'
-        }</div>`
-      : "";
-    return `
-    <div class="ov-project" data-project-serial="${esc(p.projectSerial)}">
-      <div class="ov-row projects${focused ? " focused" : ""}" data-project-serial="${esc(p.projectSerial)}">
-        <div class="ov-cell ov-label" title="${esc(p.label || p.projectSerial)}">${esc(projectDisplayName(p))}</div>
-        <div class="ov-cell ov-serial" title="${esc(p.projectSerial)}">${esc(p.projectSerial)}</div>
-        <div class="ov-cell ov-count">${members.length} 成员</div>
-        <div class="ov-cell ov-action"><button class="ov-expand" type="button" data-expand="${esc(p.projectSerial)}">${expanded ? "收起" : "展开"}</button></div>
-      </div>
-      ${membersHtml}
-    </div>`;
-  }
-
-  function renderProjects(list: ProjectRef[]): void {
-    projectsList.innerHTML = list.map(projectRowHtml).join("");
-    projectsHint.classList.toggle("hidden", list.length > 0);
-    projectsHint.textContent = list.length ? "" : "暂无项目（点「新建项目」，或把下方通道行拖到项目行）";
-  }
-
-  async function loadProjects(): Promise<void> {
-    projectsRefresh.disabled = true;
-    hideProjectsError();
-    projectsHint.classList.remove("hidden");
-    projectsHint.textContent = "加载中…";
-    projectsList.innerHTML = "";
-    try {
-      const { projects } = await projectsClient.listProjects();
-      projectsStore.setProjects(projects);
-      renderProjects(projects);
-      // ?project= 落地：列表加载后存在该项目 → 自动展开 + .focused 高亮。
-      if (focusProject && projects.some((p) => p.projectSerial === focusProject)) {
-        expandedProjects.add(focusProject);
-        renderProjects(projects);
-      }
-    } catch (err) {
-      projectsStore.setProjects([]);
-      renderProjects([]);
-      projectsError.textContent =
-        err instanceof HttpError
-          ? `桥返回 HTTP ${err.status}：/api/projects 未就绪？`
-          : "桥离线：无法连接 127.0.0.1:8375，项目列表不可用。";
-      projectsError.classList.remove("hidden");
-    } finally {
-      projectsRefresh.disabled = false;
-    }
-  }
-
-  /** 移除项目成员：成员行「移除」→ DELETE /members?channelId= → 刷新。 */
-  async function removeMember(projectId: string, channelId: string): Promise<void> {
-    hideProjectsError();
-    if (!projectId || !channelId) return;
-    try {
-      await projectsClient.removeProjectMember(projectId, channelId);
-      await loadProjects();
-    } catch (err) {
-      showProjectsError(`移除成员失败：${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
-  /** 拖放入项目：channelsStore 找不到该通道 id → .ov-error 提示（拖拽失败）。 */
-  async function addMemberByDrop(projectId: string, channelId: string): Promise<void> {
-    hideProjectsError();
-    if (!projectId || !channelId) {
-      showProjectsError("拖拽数据无效：缺少项目或通道 id");
-      return;
-    }
-    const ref = channelsStore.channels.find((c) => channelIdOf(c) === channelId);
-    if (!ref) {
-      showProjectsError(`找不到通道引用 ${channelId}（先刷新「关联注册大全」再拖）`);
-      return;
-    }
-    try {
-      await projectsClient.addProjectMember(projectId, ref);
-      // 刷新两区块：成员快照在项目列表里；通道大全本身未变，本地重渲染即可。
-      renderChannels(channelsStore.channels);
-      await loadProjects();
-    } catch (err) {
-      showProjectsError(`添加成员失败：${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
-  projectsNew.addEventListener("click", async () => {
-    hideProjectsError();
-    projectsNew.disabled = true;
-    projectsNew.textContent = "创建中…";
-    try {
-      await projectsClient.createProject("");
-      await loadProjects();
-    } catch (err) {
-      showProjectsError(`新建项目失败：${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      projectsNew.disabled = false;
-      projectsNew.textContent = "新建项目";
-    }
-  });
-
-  projectsRefresh.addEventListener("click", () => void loadProjects());
-
-  // 项目行交互：展开/收起、成员「打开」、成员「移除」。
-  projectsList.addEventListener("click", (e) => {
-    const expandBtn = (e.target as HTMLElement).closest?.("button[data-expand]");
-    if (expandBtn) {
-      const pid = (expandBtn as HTMLElement).dataset.expand ?? "";
-      if (expandedProjects.has(pid)) expandedProjects.delete(pid);
-      else expandedProjects.add(pid);
-      renderProjects(projectsStore.projects);
-      return;
-    }
-    const openBtn = (e.target as HTMLElement).closest?.("button[data-open-serial]");
-    if (openBtn) {
-      const serial = (openBtn as HTMLElement).dataset.openSerial ?? "";
-      if (serial) openSerial(serial);
-      return;
-    }
-    const removeBtn = (e.target as HTMLElement).closest?.("button[data-remove-project]");
-    if (removeBtn) {
-      const b = removeBtn as HTMLElement;
-      void removeMember(b.dataset.removeProject ?? "", b.dataset.removeChannel ?? "");
-    }
-  });
-
-  // 项目行 = 拖放目标：dragover 放行 + 高亮，drop 读通道 id 加入成员。
-  let dropHoverRow: HTMLElement | null = null;
-  function clearDropHover(): void {
-    dropHoverRow?.classList.remove("drop-hover");
-    dropHoverRow = null;
-  }
-
-  projectsList.addEventListener("dragover", (e) => {
-    const row = (e.target as HTMLElement).closest?.(".ov-row.projects") as HTMLElement | null;
-    if (!row) return;
-    e.preventDefault();
-    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
-    if (row !== dropHoverRow) {
-      clearDropHover();
-      dropHoverRow = row;
-      row.classList.add("drop-hover");
-    }
-  });
-
-  projectsList.addEventListener("dragleave", (e) => {
-    const t = e.target as HTMLElement;
-    if (!t.contains(e.relatedTarget as Node | null)) clearDropHover();
-  });
-
-  projectsList.addEventListener("drop", (e) => {
-    clearDropHover();
-    const row = (e.target as HTMLElement).closest?.(".ov-row.projects") as HTMLElement | null;
-    if (!row) return;
-    e.preventDefault();
-    const projectId = row.dataset.projectSerial ?? "";
-    const channelId = e.dataTransfer?.getData("text/cyl-channel-id") ?? "";
-    void addMemberByDrop(projectId, channelId);
-  });
-
-  // 拖拽在通道列表结束时清残留高亮（兜底：drop 未触发的情况）。
-  channelsList.addEventListener("dragend", clearDropHover);
-
-  void loadScenes();
-  void loadChannels();
   void loadProjects();
+  void loadScenes();
 }

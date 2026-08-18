@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .channels import ChannelRegistry
 from .logs import LogRing
+from .mapping import MappingRegistry
 from .projects import ProjectRegistry
 from .protocol import (
     SYNC_FPS_DEFAULT,
@@ -33,6 +34,8 @@ class BridgeState:
         self.registry = SerialRegistry(data_dir / "registry.json")
         self.channels = ChannelRegistry(data_dir / "channels.json")
         self.projects = ProjectRegistry(data_dir / "projects.json")
+        # 映射系统（v0.1.00114）：逻辑名 -> 相对地址，锚点 = 吊牌 serial（移动容错）
+        self.mappings = MappingRegistry(data_dir / "mappings.json")
         self.trace = TraceStore()
         self.workspaces = WorkspaceStore()
         self.logs = LogRing()

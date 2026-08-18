@@ -3,6 +3,9 @@
 - POST   /api/projects                         建项目（body {label?}）-> {ok, project}
 - GET    /api/projects                         项目列表（按 createdAt 升序）
 - GET    /api/projects/{projectId}             单项目
+- PATCH  /api/projects/{projectId}             改名（body {label}）-> {ok, project}
+- DELETE /api/projects/{projectId}             删项目（级联映射分区 + 项目图）-> {ok, removed}
+- POST   /api/projects/cleanup                 删所有 0 成员项目 -> {ok, removed:[pid…]}
 - POST   /api/projects/{projectId}/members     加成员（body = channelRef，按通道 key 去重）
 - DELETE /api/projects/{projectId}/members     ?channelId= 移成员（query 而非 path，param 通道 key 含 "/"）
 - POST   /api/projects/ensure                  body {serial}：隐式项目（无含该 serial 的项目则自动建）
@@ -28,8 +31,35 @@ def _check_project_serial(pid: str) -> None:
         raise HTTPException(status_code=400, detail="invalid project serial")
 
 
+def _cascade_delete(pid: str) -> None:
+    """删项目的附属物：映射分区 + 项目图文件及其目录。
+
+    mappings 由主进程在合并时挂到 state 上，未挂载时 no-op；
+    删附属物失败不应阻断项目记录本身的删除。
+    """
+    st = get_state()
+    mappings = getattr(st, "mappings", None)
+    if mappings is not None and hasattr(mappings, "drop_project"):
+        try:
+            mappings.drop_project(pid)
+        except Exception:  # noqa: BLE001 - 清理失败不阻断删除
+            pass
+    graph = snapshot.project_graph_path(st.data_dir, pid)
+    try:
+        graph.unlink(missing_ok=True)
+        graph.with_suffix(".json.tmp").unlink(missing_ok=True)
+        if graph.parent.exists() and not any(graph.parent.iterdir()):
+            graph.parent.rmdir()
+    except OSError:
+        pass
+
+
 class ProjectCreateBody(BaseModel):
     label: str = ""
+
+
+class ProjectPatchBody(BaseModel):
+    label: str
 
 
 class EnsureBody(BaseModel):
@@ -58,6 +88,38 @@ async def get_project(projectId: str) -> dict:
     if project is None:
         raise HTTPException(status_code=404, detail="project not found")
     return {"ok": True, "project": project}
+
+
+@router.patch("/api/projects/{projectId}")
+async def rename_project(projectId: str, body: ProjectPatchBody) -> dict:
+    """改项目名（刷 updatedAt）。"""
+    _check_project_serial(projectId)
+    project = get_state().projects.set_label(projectId, body.label)
+    if project is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    return {"ok": True, "project": project}
+
+
+@router.delete("/api/projects/{projectId}")
+async def delete_project(projectId: str) -> dict:
+    """删项目（级联：映射分区 + 项目图文件）；项目不存在 -> removed False。"""
+    _check_project_serial(projectId)
+    removed = get_state().projects.delete(projectId)
+    if removed:
+        _cascade_delete(projectId)
+    return {"ok": True, "removed": removed}
+
+
+@router.post("/api/projects/cleanup")
+async def cleanup_projects() -> dict:
+    """清空壳项目：删掉所有 0 成员项目（有成员的一律保留），级联同 DELETE。"""
+    st = get_state()
+    removed: list[str] = []
+    for pid in st.projects.list_empty():
+        if st.projects.delete(pid):
+            _cascade_delete(pid)
+            removed.append(pid)
+    return {"ok": True, "removed": removed}
 
 
 @router.post("/api/projects/{projectId}/members")
