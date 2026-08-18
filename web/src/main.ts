@@ -36,6 +36,12 @@ import { createTimelineController } from "./core/timeline";
 import { createTimelineUI } from "./app/timeline-ui";
 import { createAddressBar } from "./app/address-bar";
 import { buildGraphAddress } from "./app/graph-address";
+import {
+  addressOf,
+  canWriteProjectGraph,
+  snapshotSerialOf,
+  type GraphScope,
+} from "./app/graph-scope";
 
 /** Log categories: geo data / viewport / ui / bridge(python runtime). */
 let logFilter = "all";
@@ -123,8 +129,14 @@ let sessionCtl: SessionManager | null = null; // late-bound（sessionMgr 声明�
 let bindMgr: ReturnType<typeof createChannelBindManager> | null = null;
 let lastAddress = "";
 /** P2b 项目模式状态（模块级）：currentProjectId 由 enterProjectMode 设置、?serial= boot /
- *  Connect / 1 段 C1- 导航清空；getAddress / navigate / 保存路径据此分流。 */
+ *  Connect / 1 段 C1- 导航清空；getAddress / navigate / 保存路径据此分流。
+ *
+ *  注意：**它只表示「归属哪个项目」，不表示「当前图就是项目根图」**。进入成员工作区后
+ *  它依然非空。判定"图是谁的"一律用 `graphScope`（见 app/graph-scope.ts）——
+ *  混用这两件事曾把成员图写进项目槽位、覆盖掉项目根结构（v0.1.00117 修）。 */
 let currentProjectId: string | null = null;
+/** 当前图的归属（保存/读取/地址栏的唯一事实来源，见 app/graph-scope.ts）。 */
+let graphScope: GraphScope = { kind: "none" };
 /** 当前项目详情缓存（成员列表供地址栏项目模式第二段补全）。 */
 let currentProject: ProjectRef | null = null;
 /** graph 在 setupDock 之后才创建（createReteGraph）：项目模式查询必须等它就绪（TDZ 保护）。 */
@@ -141,10 +153,12 @@ const addressBar = createAddressBar(graphAddr, {
       if (currentProjectId === segs[0] && isProjectModeActive()) {
         // 已在目标项目：直接激活成员（避免重载图覆盖未保存编辑）。
         sessionCtl?.activateSession(segs[1]);
+        graphScope = { kind: "member", projectId: segs[0], serial: segs[1] };
         updateGraphAddress();
       } else {
         void enterProjectMode(segs[0]).then(() => {
           sessionCtl?.activateSession(segs[1]);
+          graphScope = { kind: "member", projectId: segs[0], serial: segs[1] };
           updateGraphAddress();
         });
       }
@@ -159,6 +173,7 @@ const addressBar = createAddressBar(graphAddr, {
       if (sessionCtl) {
         layout.serialInput.value = segs[0];
         currentProjectId = null; // 1 段 C1- 导航 = 退出项目模式（serial 模式）
+        graphScope = { kind: "serial", serial: segs[0] };
         sessionCtl.activateSession(segs[0]); // 跳转到另一个 serial（页面级导航）
         return true;
       }
@@ -823,6 +838,12 @@ function refreshSelectionPanels(): void {
       focus = { kind: null, index: null, label: null };
       payloads = store.outputs;
       source = "outputs";
+    } else if (sel.kind === "project" || sel.kind === "channel") {
+      // 项目根节点：本身不携带几何。Spreadsheet 给空表而不是沿用上一次的输入数据——
+      // 显示别的节点的几何会让人以为这是当前选中项的数据（比空表更糟）。
+      focus = { kind: null, index: null, label: null };
+      payloads = [];
+      source = "inputs";
     } else {
       focus = { kind: null, index: null, label: null }; // _input_ -> all source inputs
       payloads = store.inputs;
@@ -937,8 +958,10 @@ function isProjectModeActive(): boolean {
   return graphReady && currentProjectId !== null && graph.isProjectMode();
 }
 
-/** 当前地址（纯逻辑在 app/graph-address.ts，那里有 bug 说明与单测）。 */
+/** 当前地址。以 `graphScope` 为准（与保存共用同一状态，两者不可能再对不上）；
+ *  scope 尚未建立时退回 buildGraphAddress（纯逻辑与单测在 app/graph-address.ts）。 */
 function projectAddress(): string {
+  if (graphScope.kind !== "none") return addressOf(graphScope);
   return buildGraphAddress(currentProjectId, store.serial);
 }
 
@@ -947,6 +970,26 @@ function projectAddress(): string {
  *  项目模式下跳过 —— 布局沿用全局 ui-layout 文件与 localStorage，偏好沿用 localStorage。 */
 function saveProjectGraph(): void {
   if (!currentProjectId) return;
+  // 只有当前图**确实是项目根图**才允许写项目槽位。
+  // 事故根因：进入成员后 currentProjectId 仍非空、图已换成成员图，旧代码据此把成员图
+  // 写进 projects/<pid>/graph.json，项目根（project + channel 节点）被覆盖成 2 节点
+  // v2 默认图，且因为图里已无 project 节点，projectGraphSnapshot() 还"优雅降级"到 v2、
+  // 连报错都没有。用户看到的是「save 后 load 变默认场景」——load 是无辜的。
+  if (!canWriteProjectGraph(graphScope)) {
+    store.pushLog(
+      `[file] 拒绝写项目图：当前图不是项目根（scope=${graphScope.kind}）——` +
+        `成员图写进项目槽位会覆盖项目根结构`,
+    );
+    const serial = snapshotSerialOf(graphScope);
+    if (serial) {
+      // 成员工作区：写它自己的 snapshot 才是正确归属
+      void client
+        .putSnapshot(serial, { graph: graph.serializeGraph(), docking: getDockJson(), preference: prefs })
+        .then(() => store.pushLog(`[file] 已保存成员图 ${serial}`))
+        .catch((e) => store.pushLog(`[file] 成员图保存失败: ${String(e)}`));
+    }
+    return;
+  }
   void client
     .putProjectGraph(currentProjectId, graph.projectGraphSnapshot())
     .then((r) => store.pushLog(r.ok ? "[file] project graph saved" : "[file] project graph save failed"))
@@ -961,6 +1004,9 @@ function saveProjectGraph(): void {
 async function enterProjectMode(projectId: string): Promise<void> {
   if (currentProjectId === projectId && graphReady && graph.isProjectMode()) {
     store.setSerial("");
+    // 回到项目根：图确实是项目根图（isProjectMode 已确认），scope 必须跟着回来，
+    // 否则残留的 member scope 会让 Save 一直拒写项目图。
+    graphScope = { kind: "project", projectId };
     store.pushLog(`[project] 项目模式 ${projectId}（已在，回到项目根）`);
     updateGraphAddress();
     return;
@@ -981,6 +1027,7 @@ async function enterProjectMode(projectId: string): Promise<void> {
   }
   currentProjectId = projectId;
   currentProject = project;
+  graphScope = { kind: "project", projectId }; // 图即将被换成项目根图
   // 进项目模式时地址栏同步成 ?project=（此处模式与地址一致，改写是诚实的；
   // 对比 ?serial= 分支：那条不改地址，见该处注释）。
   syncProjectInAddress(projectId);
@@ -1002,6 +1049,9 @@ async function enterProjectMode(projectId: string): Promise<void> {
   }
   graph.setChannelDisplayHandler((serial: string) => {
     sessionMgr.activateSession(serial); // channel display 点击 = 激活成员
+    // 图即将被换成该成员自己的图 —— 记住"归属项目 + 当前是成员"，
+    // 这样 Save 不会再把成员图写进项目槽位（事故根因），地址栏仍显示两段。
+    graphScope = { kind: "member", projectId, serial };
     updateGraphAddress();
   });
   updateGraphAddress();
@@ -1178,6 +1228,7 @@ const connectSerial = () => {
   currentProjectId = null; // Connect = serial 模式动作（退出项目模式）
   const v = layout.serialInput.value.trim();
   if (!v) return;
+  graphScope = { kind: "serial", serial: v };
   // 显式重连语义（对齐旧 connect()：先拆旧 WS 再开新 WS）——round10 依赖每次
   // Connect 点击都产生一条新 WebSocket（kick 速率限流断言）。
   sessionMgr.closeSession(v);
@@ -1194,6 +1245,7 @@ const qp = new URLSearchParams(location.search).get("project");
 if (qs) {
   layout.serialInput.value = qs;
   currentProjectId = null; // ?serial= 路径 = serial 模式（退出项目模式）
+  graphScope = { kind: "serial", serial: qs };
   sessionMgr.activateSession(qs); // 原 session.connect(qs) 语义（ensure + activate + loadSnapshot）
   syncSerialInAddress(qs);
   // P2a 隐式项目：后台 ensure（无含该 serial 通道的项目则自动建 P1- 单成员项目）。

@@ -216,11 +216,21 @@ export function shortHipPath(hip: string, keep = 3): string {
   return `…${sep}${parts.slice(-n).join(sep)}`;
 }
 
-/** 另存为迁移徽标（供单测）：`migratedAt > 0` 才有；previousHip 进 title。
+/** `已换绑` 徽标的时效窗口：超过这个时长就不再显示（瞬时信息不该永久占位）。
+ *  取 10 分钟——比证据新鲜窗口（3 分钟）宽，因为"刚换绑过"值得多看一会儿，
+ *  但远短于永久。 */
+export const MIGRATED_BADGE_MS = 600_000;
+
+/** 另存为迁移徽标（供单测）：`migratedAt` 在时效窗口内才有；previousHip 进 title。
  *  语气刻意平淡——迁移是正常操作（换绑文件），不是错误。 */
 export function migratedBadgeHtml(p: ProjectRef, now: number = Date.now()): string {
   const at = p.migratedAt ?? 0;
   if (!at) return "";
+  // 时效窗口（v0.1.00117 修）：`migratedAt` 是永久字段、没有任何东西会清它，
+  // 所以原来这枚徽标一旦出现就**永久驻留**在文件名旁边（用户报的 bug）。
+  // 「刚刚换绑过」是**瞬时**信息，过期就不该再占视觉位置；想追溯的话
+  // hip 小字的 title 里始终有完整的 previousHip → hip。
+  if (now - epochMs(at) > MIGRATED_BADGE_MS) return "";
   const prev = (p.previousHip ?? "").trim();
   const when = relSince(now - epochMs(at));
   const title = prev

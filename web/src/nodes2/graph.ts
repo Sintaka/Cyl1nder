@@ -22,6 +22,8 @@ import { store } from "../stores/workspace";
 import type { UndoAction } from "./undo";
 import {
   applyNodeBindings,
+  applyNodeErrors,
+  nodeErrorsOf,
   CylNode,
   DEFAULT_FLAGS,
   applyConnectionBypassVisual,
@@ -49,7 +51,7 @@ import {
   setConnectionBypassFlag,
   log,
 } from "./graph-model";
-import type { AreaExtra, NodeKind, ParamSpec, ProjectGraphInput, ReteGraphHandlers, ReteGraph, Schemes } from "./graph-model";
+import type { AreaExtra, NodeError, NodeErrorMap, NodeKind, ParamSpec, ProjectGraphInput, ReteGraphHandlers, ReteGraph, Schemes } from "./graph-model";
 import {
   attachConnectionSelect,
   attachCutMode,
@@ -72,7 +74,16 @@ import { createGraphUndoManager } from "./graph-undo";
 
 export type { NodeKind, NodeFlags, ParamSpec, SelectedNodeInfo, ReteGraphHandlers, ReteGraph } from "./graph-model";
 export type { ProjectGraphInput } from "./graph-model";
+export type { NodeError, NodeErrorMap, NodeErrorSeverity } from "./graph-model";
 export { DEFAULT_FLAGS, CylNode, makeNullNode, makeTransformNode } from "./graph-model";
+// 节点错误系统 / 端口类型着色：NodeView 与错误产生方（network 运行器）的取用入口。
+export {
+  mergeNodeErrorMaps,
+  multiSourceErrorsToNodeErrors,
+  socketTypeClass,
+  toNodeErrors,
+  worstSeverity,
+} from "./graph-model";
 export { setNodeStateHandler, fireNodeState, setRenameHandler, fireRename, initTooltip, showTooltip, hideTooltip } from "./graph-interact";
 
 // ---------------------------------------------------------------------------
@@ -180,6 +191,30 @@ export function listNodeParamBindings(): {
  *  不触发 network.run；序列化快照保存走既有机制（store 变化防抖 / autosave）。 */
 export function setNodeBindings(id: string, bindings: Record<string, string>): void {
   if (activeGraph) applyNodeBindings(activeGraph.editor, id, bindings);
+}
+
+// ---------------------------------------------------------------------------
+// 节点错误系统薄壳（数据层逻辑在 graph-model 的 applyNodeErrors/nodeErrorsOf）
+// ---------------------------------------------------------------------------
+
+/**
+ * 全量覆盖节点错误；返回是否真的有变化。
+ *
+ * churn 门闩：applyNodeErrors 逐节点比对错误指纹，**只有**真的变了才
+ * notifyNodeChanged()（NodeView 全量重渲染的唯一入口）。于是每秒一次的 cook 只要
+ * 错误集合不变就是零重渲染；错误刚出现/刚修好/文案变了才刷一次。
+ * 错误是运行期态：不触发 onNetworkChanged、不入快照、不入 undo。
+ */
+export function setNodeErrors(errors: NodeErrorMap): boolean {
+  if (!activeGraph) return false;
+  const changed = applyNodeErrors(activeGraph.editor, errors);
+  if (changed) notifyNodeChanged();
+  return changed;
+}
+
+/** 读某节点错误的只读拷贝（无图 / 节点不存在 / 无错误 → []）。 */
+export function getNodeErrors(id: string): NodeError[] {
+  return activeGraph ? nodeErrorsOf(activeGraph.editor, id) : [];
 }
 
 /** Connection ids on the display node's upstream in0 chain (input -> ... -> display),
@@ -613,9 +648,11 @@ export async function createReteGraph(
     getSelectedNode: () => {
       const sel = (g.editor.getNodes() as CylNode[]).find((n) => (n as ClassicPreset.Node).selected);
       if (!sel) return null;
-      // P2b：project/channel 选中不驱动 Spreadsheet/Param 面板刷新——它们无 params，
-      // 标题与 serial 解耦；返回 null（面板保持上次内容，与「选中驱动刷新」语义一致）。
-      if (sel.kind === "project" || sel.kind === "channel") return null;
+      // project/channel 也要返回（v0.1.00117 修）：此前返回 null，导致在项目根里选中
+      // 节点时面板拿不到选中项、只能沿用 display flag 的内容——用户看到的就是
+      // 「根目录下面板跟着 display 变而不是跟着选中变」。它们确实没有 params，
+      // 但「无参数」是**面板该渲染的事实**，不是「不该刷新」的理由。
+      // 进入 sop 层后本就没这个问题（那里没有 project/channel 节点）。
       let port: number | null = null;
       if (sel.kind === "null" || sel.kind === "transform") port = resolveInputSourcePort(g.editor, sel.id);
       return { kind: sel.kind, id: sel.id, label: sel.label, port, params: sel.params ?? [] };
@@ -671,6 +708,13 @@ export async function createReteGraph(
       notifyNodeChanged();
       return true;
     },
+    // 节点错误系统：绑到**本图**的编辑器（不经模块态 activeGraph，多图场景也正确）。
+    setNodeErrors: (errors) => {
+      const changed = applyNodeErrors(g.editor, errors);
+      if (changed) notifyNodeChanged();
+      return changed;
+    },
+    getNodeErrors: (nodeId) => nodeErrorsOf(g.editor, nodeId),
     toggleSelectedConnectionBypass,
     setConnectionBypass,
     markRuntimeActivity,

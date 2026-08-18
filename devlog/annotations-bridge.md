@@ -12,9 +12,19 @@
   `ensure_for_hip` 在**同一次持锁**内完成 find+create —— 并发心跳产生两个项目的竞态
   正是重复 bug 的成因。空 hip **永不**命中，否则所有未绑定项目会塌成一个。
 - **project_routes.py**：`ensure` 收 `{serial, hip?}` 按 hip 归拢；新
-  `POST /api/projects/migrate` -> `SaveAsMigra
-...[1027 chars omitted]...
-`mapping.py`**：`lastSeen`/`verifiedAt` 改用注入的 `self._clock()`，不再混用
+  `POST /api/projects/migrate` -> `SaveAsMigration`。共用实现 `migrate_project_hip`
+  只有一份；`bind_serial_to_hip` **先查另存为再 ensure**（顺序是载荷的：先把旧项目换绑
+  过来，随后的 `ensure_for_hip` 才会命中同一个项目而不是再建一个）。
+- **成员核对三态**：`_verify_member_in_hip` 返回 `True`/`False`/`None`，
+  **只有 `False`（Houdini 明确答「节点不在」或 `cyl1nder_serial` 不符）才移出**；
+  端口未解析 / 传输异常 / 响应异形一律 `None` = 保留，`reason` 里报
+  `N member(s) kept unverified (houdini unreachable)`。宁可留一条过期登记，
+  也不能因为一次探测失败就删掉用户的真实关系。
+- **崩溃恢复守卫 `is_transient_hip`**：`*_recovered.hip` / `untitled.hip` / `*_bak.hip`
+  / 空路径**既不触发换绑、也不建项目**。崩溃后 Houdini 会先报
+  `<名字>_recovered.hip`，形态与另存为一模一样（同进程、hip 变了），
+  实测因此把项目悄悄绑到用户从未选择的恢复文件上。
+- **`mapping.py`**：`lastSeen`/`verifiedAt` 改用注入的 `self._clock()`，不再混用
   `time.time()`。原先 debounce 走假时钟、`lastSeen` 走真实时钟，两根时间轴不同步；
   Windows 时钟分辨率 15.625ms，相邻两次 `time.time()` 绝大多数返回同值，
   于是「越过 debounce 后 lastSeen 应变大」的严格 `>` 间歇性失败（实测 8 次挂 1 次）。

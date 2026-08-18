@@ -80,6 +80,11 @@ export interface ReteGraph {
   getGraphVersion(): number;
   getNetworkSnapshot(): NetworkSnapshot;
   setNodeParams(nodeId: string, params: ParamSpec[]): boolean;
+  /** 节点错误系统：**全量**覆盖每节点错误（表里没有的节点被清空）。仅当真的有
+   *  变化时才触发一次 NodeView 重渲染，返回是否发生了变化。 */
+  setNodeErrors(errors: NodeErrorMap): boolean;
+  /** 读某节点错误的只读拷贝（节点不存在 / 无错误 → []）。 */
+  getNodeErrors(nodeId: string): NodeError[];
   /** P2b 项目模式：以项目根 + 成员 channel 节点重建图（saved = 项目图快照 v3）。 */
   loadProjectGraph(input: ProjectGraphInput, saved: unknown): void;
   /** 项目图快照（serializeGraph 的 v3 输出；项目模式下供保存）。 */
@@ -126,6 +131,176 @@ export function canConnectSockets(from: string, to: string): boolean {
 /** 把 type 参数值归一到合法端口类型（非法 / 缺省 → geo，保持旧图行为）。 */
 export function toSocketType(v: unknown): string {
   return typeof v === "string" && SOCKET_TYPES.includes(v) ? v : GEO;
+}
+
+/**
+ * 端口 dot 的类型着色类名（Houdini VOP 惯例：看颜色即知类型）。
+ *
+ * 与连线着色 applyConnectionTypeVisual 同一套配色约定（cyl-wire-float /
+ * cyl-wire-vec3），但作用在**端口**上：`geo` 与任何非法/未知类型都返回 ""
+ * ——即**不加类**，沿用既有灰白端口样式，因此旧 4 端口图外观零变化。
+ * NodeView（另一写集）把它拼到 `cyl-rp-port` 的 className 上，CSS 里定义
+ * `.cyl-port-float` / `.cyl-port-vec3` 的颜色。放在这里是因为「类型 → 类名」
+ * 是数据层规则，可无 DOM 单测。
+ */
+export function socketTypeClass(socketType: unknown): string {
+  if (socketType === FLOAT) return "cyl-port-float";
+  if (socketType === VEC3) return "cyl-port-vec3";
+  return "";
+}
+
+// ---------------------------------------------------------------------------
+// 节点错误系统（node error system）
+//
+// 「谁产生错误」与「谁显示错误」解耦：产生方（network.ts 的结构性错误 /
+// computeOutputs 的 errors / 桥侧 mapping 解析失败）各有自己的载荷形状，统一经
+// toNodeErrors 归一成 NodeError 后交给 setNodeErrors 落到节点上；NodeView 只读
+// node.errors 渲染角标，不认识任何产生方。
+//
+// 错误是**运行期瞬时态**：不进 serializeGraph、不进 getNetworkSnapshot、不进
+// undo——重建图/重算后由下一次 setNodeErrors 全量覆盖（旧图字节级兼容不受影响）。
+// ---------------------------------------------------------------------------
+
+/** 错误等级：error（红，计算已不可信）/ warning（黄，可继续但需注意）。 */
+export type NodeErrorSeverity = "error" | "warning";
+
+/**
+ * 一条节点错误。挂在 CylNode.errors 上，由 NodeView 渲染成标题角标 + 端口高亮。
+ * - `severity` 决定配色与角标取值（worstSeverity 取最坏）。
+ * - `message` 人类可读的一整句（含节点名/端口名，直接可展示在 tooltip 里）。
+ * - `port` 非空时表示错误归属某个具体端口（如 in0 / out2）；NodeView 据此高亮
+ *   那一个端口 dot，为空则只在标题上出角标。
+ * - `source` 产生方标签（"multi-source" / "compute" / "mapping" / "bridge"…），
+ *   仅用于去重与排错日志，不参与展示。
+ */
+export interface NodeError {
+  severity: NodeErrorSeverity;
+  message: string;
+  port?: string;
+  source?: string;
+}
+
+/** 每节点错误表（nodeId -> 该节点的错误列表）；setNodeErrors 的入参形状。 */
+export type NodeErrorMap = Record<string, NodeError[]>;
+
+/** 归一 severity：仅接受 "warning"，其余（含缺省/非法/大小写不符）→ "error"。
+ *  取「未知即 error」而非「未知即 warning」：宁可把问题显眼化，不可静默降级。 */
+export function toNodeErrorSeverity(v: unknown): NodeErrorSeverity {
+  return v === "warning" ? "warning" : "error";
+}
+
+/**
+ * 把**任意**产生方载荷归一成 NodeError 列表（防御式，风格同 sanitizeBindings：
+ * 非法输入一律忽略，绝不抛）。接受的形状：
+ *   1. 字符串                     → { severity:"error", message }
+ *   2. { message | error | text } → 取第一个非空字符串字段作 message
+ *   3. 上述两者的数组             → 逐项转换，非法项跳过
+ *   4. 其它（null/数字/对象无消息字段）→ 跳过
+ * severity 经 toNodeErrorSeverity 归一；port / source 仅接受非空字符串，
+ * 否则不带该键（保持 NodeError 载荷最小）。
+ */
+export function toNodeErrors(v: unknown): NodeError[] {
+  const items = Array.isArray(v) ? v : [v];
+  const out: NodeError[] = [];
+  for (const item of items) {
+    if (typeof item === "string") {
+      if (item !== "") out.push({ severity: "error", message: item });
+      continue;
+    }
+    if (typeof item !== "object" || item === null) continue;
+    const o = item as Record<string, unknown>;
+    const message = [o.message, o.error, o.text].find((x): x is string => typeof x === "string" && x !== "");
+    if (message === undefined) continue;
+    const e: NodeError = { severity: toNodeErrorSeverity(o.severity), message };
+    if (typeof o.port === "string" && o.port !== "") e.port = o.port;
+    if (typeof o.source === "string" && o.source !== "") e.source = o.source;
+    out.push(e);
+  }
+  return out;
+}
+
+/**
+ * network.ts 的 MultiSourceError[] → NodeErrorMap（结构性错误的标准转换）。
+ * 一个输入端口被多源喂 = error 等级，且**归属该输入端口**（port = targetInput），
+ * 于是 NodeView 能精确高亮出错的那个端口。按结构类型接收（不 import network.ts
+ * 的具体类型）以免数据层反向依赖计算层。
+ */
+export function multiSourceErrorsToNodeErrors(
+  errors: ReadonlyArray<{ nodeId: string; targetInput?: string; message: string }>,
+): NodeErrorMap {
+  const map: NodeErrorMap = {};
+  for (const e of errors) {
+    if (!e?.nodeId || typeof e.message !== "string" || e.message === "") continue;
+    const entry: NodeError = { severity: "error", message: e.message, source: "multi-source" };
+    if (typeof e.targetInput === "string" && e.targetInput !== "") entry.port = e.targetInput;
+    (map[e.nodeId] ??= []).push(entry);
+  }
+  return map;
+}
+
+/** 合并多个来源的错误表（后者追加到前者之后，同 nodeId 不覆盖而是拼接）。
+ *  产生方各自独立上报（结构性 + compute + mapping），合并后一次性 setNodeErrors。 */
+export function mergeNodeErrorMaps(...maps: Array<NodeErrorMap | null | undefined>): NodeErrorMap {
+  const out: NodeErrorMap = {};
+  for (const m of maps) {
+    if (!m) continue;
+    for (const [id, list] of Object.entries(m)) {
+      if (!Array.isArray(list) || list.length === 0) continue;
+      (out[id] ??= []).push(...list);
+    }
+  }
+  return out;
+}
+
+/** 一组错误里最坏的等级（有任一 error → "error"；全 warning → "warning"；空 → null）。
+ *  NodeView 的标题角标取值用它（一个节点只出一个角标，取最坏）。 */
+export function worstSeverity(errors: readonly NodeError[] | undefined): NodeErrorSeverity | null {
+  if (!errors || errors.length === 0) return null;
+  return errors.some((e) => e.severity === "error") ? "error" : "warning";
+}
+
+/** 错误列表的稳定指纹（severity|port|message 顺序敏感）：churn 判定用。
+ *  message 也进指纹——同端口同等级但文案变了（如多源从 2 个变 3 个）仍要刷新。 */
+function errorsSignature(errors: readonly NodeError[]): string {
+  return errors.map((e) => `${e.severity}\u0000${e.port ?? ""}\u0000${e.message}`).join("\u0001");
+}
+
+/** 两组错误是否等价（用于跳过无变化的重渲染）。 */
+export function sameNodeErrors(
+  a: readonly NodeError[] | undefined,
+  b: readonly NodeError[] | undefined,
+): boolean {
+  const la = a ?? [];
+  const lb = b ?? [];
+  if (la.length !== lb.length) return false;
+  return errorsSignature(la) === errorsSignature(lb);
+}
+
+/**
+ * 把错误表**全量**落到编辑器里的节点上，返回是否真的有变化（churn 门闩）。
+ *
+ * 全量语义：表里没有的节点会被**清空**错误（errors 键删除，而非留空数组）——
+ * 于是「上一轮报错、这一轮修好了」无需产生方显式清除。逐节点用 sameNodeErrors
+ * 比对指纹：一个都没变 → 返回 false，调用方据此**不触发** notifyNodeChanged
+ * （NodeView 全量重渲染的唯一入口），这就是避免 churn 的地方——每秒 cook 若错误
+ * 不变则零重渲染。表里指向不存在节点的条目被忽略（图已重建/节点已删）。
+ */
+export function applyNodeErrors(editor: NodeEditor<Schemes>, errors: NodeErrorMap): boolean {
+  let changed = false;
+  for (const n of editor.getNodes() as CylNode[]) {
+    const next = errors[n.id] ?? [];
+    if (sameNodeErrors(n.errors, next)) continue;
+    if (next.length === 0) delete n.errors;
+    else n.errors = next.map((e) => ({ ...e }));
+    changed = true;
+  }
+  return changed;
+}
+
+/** 读某节点错误的只读拷贝（节点不存在 / 无错误 → []）。 */
+export function nodeErrorsOf(editor: NodeEditor<Schemes>, id: string): NodeError[] {
+  const n = editor.getNode(id) as CylNode | undefined;
+  return (n?.errors ?? []).map((e) => ({ ...e }));
 }
 
 export const log = (m: string): void => {
@@ -238,6 +413,9 @@ export class CylNode extends ClassicPreset.Node {
   /** 工厂位置提示（makeProjectNode/makeChannelNode 的 x/y 参数）；视图位置仍由
    *  area.translate 落地（serializeGraph 读 area.nodeViews 的位置，不读本字段）。 */
   pos?: { x: number; y: number };
+  /** 节点错误系统：**运行期瞬时态**（不序列化、不进 compute 快照、不进 undo）。
+   *  由 setNodeErrors 全量覆盖；无错误时该键被删除（不留空数组）。 */
+  errors?: NodeError[];
   constructor(label: string, kind: NodeKind) {
     super(label);
     this.kind = kind;

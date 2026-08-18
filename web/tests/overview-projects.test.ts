@@ -22,6 +22,7 @@ import {
   isStaleEvidence,
   mappingRowHtml,
   mappingRows,
+  MIGRATED_BADGE_MS,
   migratedBadgeHtml,
   parseMappingInput,
   probeProgressLabel,
@@ -228,6 +229,18 @@ describe("migratedBadgeHtml（另存为迁移徽标）", () => {
   it("previousHip 缺失时照实说「未记录原文件」", () => {
     const html = migratedBadgeHtml(project({ migratedAt: now / 1000 - 60, previousHip: "" }), now);
     expect(html).toContain("未记录原文件");
+  });
+
+  // 用户报的 bug：徽标永久驻留在文件名旁。`migratedAt` 是永久字段、没人清它，
+  // 所以必须靠时效窗口自然消失。
+  it("超过时效窗口后徽标消失（不再永久驻留）", () => {
+    const old = (now - MIGRATED_BADGE_MS - 1000) / 1000;
+    expect(migratedBadgeHtml(project({ migratedAt: old }), now)).toBe("");
+  });
+
+  it("窗口内仍显示（边界：刚好未过期）", () => {
+    const justInside = (now - MIGRATED_BADGE_MS + 5_000) / 1000;
+    expect(migratedBadgeHtml(project({ migratedAt: justInside }), now)).toContain("已换绑");
   });
 
   it("title 里的引号/尖括号被转义", () => {

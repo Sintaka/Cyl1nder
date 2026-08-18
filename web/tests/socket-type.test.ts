@@ -18,6 +18,7 @@ import {
   sanitizeAddress,
   serializeGraph,
   socketNameOf,
+  socketTypeClass,
   syncPortSocketType,
   toSocketType,
 } from "../src/nodes2/graph-model";
@@ -160,6 +161,35 @@ describe("端口类型 × 连线校验（socketNameOf + canConnectSockets 联合
     expect(socketNameOf(editor, input.id, "output", "in3")).toBe(""); // 单端口无 in3
     expect(socketNameOf(editor, "nope", "output", "in0")).toBe("");
     expect(canConnectSockets(socketNameOf(editor, "nope", "output", "in0"), GEO)).toBe(false);
+  });
+});
+
+describe("socketTypeClass（端口类型着色类名）", () => {
+  it("float / vec3 各有类名；geo 与任何非法值 → \"\"（不加类，沿用灰白端口）", () => {
+    expect(socketTypeClass(FLOAT)).toBe("cyl-port-float");
+    expect(socketTypeClass(VEC3)).toBe("cyl-port-vec3");
+    expect(socketTypeClass(GEO)).toBe(""); // geo 保持既有外观
+    expect(socketTypeClass("banana")).toBe("");
+    expect(socketTypeClass("")).toBe("");
+    expect(socketTypeClass(undefined)).toBe("");
+    expect(socketTypeClass(null)).toBe("");
+    expect(socketTypeClass(42)).toBe("");
+    expect(socketTypeClass("Float")).toBe(""); // 大小写敏感
+  });
+
+  it("跟随节点的真实 socket 名：改 type 参数后端口类名随之变化", () => {
+    const input = makeInputNode(true);
+    expect(socketTypeClass(input.outputs.in0?.socket.name)).toBe(""); // 默认 geo
+    input.params = [{ name: "type", type: "menu", value: VEC3 }];
+    syncPortSocketType(input);
+    expect(socketTypeClass(input.outputs.in0?.socket.name)).toBe("cyl-port-vec3");
+  });
+
+  it("旧 4 端口图全 geo → 每个端口都不加类（外观零变化）", () => {
+    const legacy = makeInputNode();
+    for (const key of ["in0", "in1", "in2", "in3"]) {
+      expect(socketTypeClass(legacy.outputs[key]?.socket.name)).toBe("");
+    }
   });
 });
 

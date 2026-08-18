@@ -121,9 +121,9 @@
 
 ## 最近版本
 - **v0.1.00116**：**项目 = hip 文件 + 另存为迁移 + 残留根治**——身份模型：**key 仍是 `projectSerial`**（创建即不可变），`hip` 只是当前绑定的文件。不能用文件名当 key（`a/scene.hip` 与 `b/scene.hip` 会撞，已加测试钉住），也不能用路径（另存为就变）。同一 hip 只有一个项目，节点 cook 上报 hip 时自动归拢成员——这消除了「两个项目共享同一成员、状态永远同步」（实测 `P2a-demo` 与 `未命名项目 · cyl1ndertag` 都持有 `C1-mst8wa94-8uz8`）。**另存为迁移**：`POST /api/projects/migrate`，换绑文件 + 按**新 hip** 逐一核对成员（在的留、确认不在的移出），pid/端口不变，快照跟项目 serial 走所以不搬。三态探测 `True/False/None`，**只有 Houdini 明确答"节点不在/serial 不符"才移出**，不可达一律保留。
-  **崩溃恢复陷阱（用户重启 Houdini 才暴露）**：崩溃后 `hou.hipFile.path()` 先报 `<
-...[551 chars omitted]...
-项目并入一个 `beginTest-1.hip`（6 条映射条目全部保留、6/6 resolved ok），随后按成员核对自动移出已删节点的那一条。
+  **崩溃恢复陷阱（用户重启 Houdini 才暴露，测试不可能发现）**：崩溃后 `hou.hipFile.path()` 先报 `<名字>_recovered.hip`，形态与另存为完全一致（同进程、hip 变了），于是项目被悄悄换绑到用户从未选择的恢复文件上，此后全部映射解析都指向它。新增 `is_transient_hip()` 守卫：`*_recovered.hip` / `untitled.hip` / `*_bak.hip` / 空路径**既不触发换绑、也不建项目**（后半条同样重要——否则每次崩溃重启都多出一个垃圾 `_recovered` 项目）。8 条断言钉住，含「合法的 `-saveas-test.hip` 仍要迁移」与「`my_recovered_scene.hip` 不被子串误伤」。
+  **测试污染根治**：`bridge/data/snapshots` 下 958 个目录**全部**是测试产物，无一对应活节点，其中 241 个的时间戳正是某次 pytest 结束的那一秒——`snapshot.DEFAULT_ROOT` 是 import 期常量，指向真实数据目录，任何不带 hip 的快照写入都落在那里，与 `tmp_path` 无关。新增 `bridge/tests/conftest.py` 用 `monkeypatch.setattr` 隔离（**不用** `CYL1NDER_SNAPSHOT_ROOT` 环境变量：env 优先级高于 `DEFAULT_ROOT`，会让专门验证「双根回退」的 2 个用例再也走不到回退分支）。先修根因再清扫，否则下一次 pytest 又长回来。
+  **残留清理**：registry serials 22→1、history 970→0、projects 4→1；4 个项目并入一个 `beginTest-1.hip`（6 条映射条目全部保留、6/6 resolved ok），随后按成员核对自动移出已删节点的那一条。
   **nodeview 进入路径**：`/C1-…/` → `/P1-…/C1-…/`（根因：`isProjectModeActive()` 要求图里有 project 根，但进入成员后图已换掉；`currentProjectId` 才是事实来源）。逻辑抽到 `app/graph-address.ts` 并加 5 例——原先是 main.ts 闭包，测试碰不到。可进入操作按要求保留、暂未禁用。
   验证：pytest 310、tsc 0、vitest 472、实机（另存为迁移 `previousHip` 正确/3 保留 0 移出/重复迁移 no-op；崩溃重启后 pid 不匹配被正确判失联并移出已删成员）。
 - v0.1.00114 → **v0.1.00115**：**项目化重构（项目优先 + 映射系统 + 类型化端口 + 存活实证）**——一轮跨两个版本号，权威说明见 [project-mapping-design.md](project-mapping-design.md)。

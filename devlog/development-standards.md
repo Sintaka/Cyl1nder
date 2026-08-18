@@ -55,6 +55,22 @@
   - **多关注用户的浏览器**：需要读用户 UI 状态时走**共享通道**——本项目已把 dockview 布局经 `PUT /api/ui/layout` 存到 bridge 文件（`bridge/data/ui-layout.json`），agent 读该文件即拿到用户布局；布局变化也会在 Log 面板输出 `[layout]` 边界摘要。
   - **测试时再自己开**：验证/回归用自己的 Playwright headless 实例（独立 profile），不要假设它等于用户环境；测试中写 localStorage/文件的副作用要清理（如布局测试前备份 `ui-layout.json`，测完恢复）。
 
+## 过长标识串一律「中间省略」/ Middle-elide long identifiers（2026-08-19 起，铁律）
+
+**任何可能过长的标识串（路径 / 序列号 / 逻辑名 / 节点名）在 UI 上截断时，一律保头保尾、中间用 `…`，禁止砍尾。** 实现见 `web/src/app/elide.ts`（`elideMiddle` / `elidePath`）。
+
+**理由（不是审美，是信息论）**：这类字符串的辨识信息集中在**两端**——
+- 路径：头部是盘符/项目（`D:/Animation_Project/…`），尾部是文件名（`beginTest-1.hip`）。中段目录层级恰恰是最不需要看的部分。
+- 序列号：`C1-msm6dsp7-ob6t`，前缀表类型、后 4 位是唯一区分位。砍尾等于砍掉唯一能区分两个序列号的部分——两个不同 serial 会显示成同一个字符串，这比截断更糟：**它制造了看起来相同的不同东西**。
+- 映射逻辑名：`sandbox_sceneanimate/point_1/tx`，尾段（`tx` vs `ty`）才是区分点。
+
+策略照 Windows Explorer / VS Code 的路径显示。
+
+**配套要求**：
+- 完整值**必须**进 `title`（省略是显示层行为，不能丢信息）。
+- 比较/去重/存储一律用完整值，**绝不**拿省略后的字符串当 key。
+- 适用位置（全量）：overview 通道行与项目 hip 小字、nodeview 项目根节点、面板标题、映射表逻辑名、地址栏分段。
+
 ## 编码与 Git 卫生 / Encoding & git hygiene（2026-08-11 起）
 - **禁止用 `@'...'@ | python -` 管道传中文/非 ASCII 内容**：PowerShell 把 here-string 按 `$OutputEncoding`（默认 ASCII）编码写进 python stdin，所有中文会变成字面 `?`（已踩坑：5 个 devlog 文件被写坏）。写含中文的文件用：
   - PowerShell here-string + `[System.IO.File]::WriteAllText($path, $text, [System.Text.UTF8Encoding]::new($false))`（UTF-8 无 BOM）；或

@@ -13,9 +13,21 @@
   （`PROBE_CONCURRENCY = 5`），结果按下标对齐；单个任务抛错只结算自己那一格，
   **不会中断整池**。`probeAllProjects()` 收集全部锚点 serial 去重后统一探测，
   按钮显示 `检测中 3/9…` 并在期间禁用。顶栏与面板两个刷新都走 `loadProjects(true)`；
-  首次
-...[599 chars omitted]...
-   `graph.isProjectMode()`（图里要有 project 根节点），但**进入成员后图已换成该成员自己的
+  首次进页面走无探测的 `loadProjects()`，不做无谓的 Houdini 往返。**全程无定时器**
+  （探测只在显式刷新 / 展开 / `?project=` 到达时发生）。
+
+### 刷新页面不再掉状态
+- 状态从桥侧持久化的 `verifiedAt`/`verifiedAlive` 播种（新 `seeded` 变体，
+  与本次实测的 `done` **结构上分离**）。`verifiedAt === 0` 一律不播种——
+  没有时间戳就是没有证据，绝不凭 `verifiedAlive` 编一个结论出来。
+- 陈旧证据不许伪装成新鲜：窗口内的记录在**可见文案**里带「据记录」、title 里带
+  「非本次实测」；超过 3 分钟降级为独立的 `stale` 态（灰斜体），title 首句
+  「仅供参考，非当前结论」。优先级：新鲜心跳 > 本次实测 > 检测中 > 无法核实 > 记录 > 探测错误 > 无心跳。
+
+### nodeview 进入路径（#3 修复）
+- **app/graph-address.ts（新）+ tests/graph-address.test.ts（新，5 例）**：
+  地址拼装抽成纯函数。根因是 `isProjectModeActive()` 要求
+  `graph.isProjectMode()`（图里要有 project 根节点），但**进入成员后图已换成该成员自己的
   图**，project 根不在了 → 判定为非项目模式，地址退化成 `/C1-…/`，丢掉「从哪个项目进来的」
   （用户实测：进入 `C1-msm6dsp7-ob6t` 得到 `/C1-msm6dsp7-ob6t/`，而非
   `/P1-…/C1-msm6dsp7-ob6t`）。`currentProjectId` 才是归属项目的事实来源，成员工作区里依然有效。
