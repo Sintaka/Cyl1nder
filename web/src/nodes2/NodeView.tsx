@@ -13,8 +13,32 @@ import { Presets } from "rete-react-plugin";
 import type { ClassicScheme, ReactArea2D, RenderEmit } from "rete-react-plugin";
 import { fireNodeState, showTooltip, hideTooltip, fireRename, getChannelDisplaySerial } from "./graph";
 import type { CylNode } from "./graph";
+import { FLOAT, GEO, VEC3 } from "./graph-model";
+import { elide } from "../app/elide";
 
 const { RefSocket } = Presets.classic;
+
+/** 序列号/长标签在 tooltip 与副标题里的省略预算（中段省略，两端都留）。 */
+const LABEL_MAX = 48;
+const SERIAL_MAX = 28;
+
+/**
+ * 端口数据类型 -> dot 环颜色类（Houdini VOP 惯例：看颜色即知类型）。
+ *
+ * 用**与连线完全相同的色板**（nodeview.css）：geo #ff6b6b（默认规则，无类）、
+ * float #7ce3a8（.type-float）、vec3 #7fb0ff（.type-vec3）——于是环色与在环内交汇的
+ * 那两根线同色。未知/缺省一律按 geo（与 graph-model 的 toSocketType 兜底一致）。
+ */
+export function dotTypeClass(socketName: string): string {
+  if (socketName === FLOAT) return "type-float";
+  if (socketName === VEC3) return "type-vec3";
+  return ""; // GEO 及未知：默认环色
+}
+
+/** dot 的端口类型：以 out0 为准（junction 两端同型；缺则退 in0，再退 geo）。 */
+function dotSocketName(node: CylNode): string {
+  return node.outputs.out0?.socket?.name ?? node.inputs.in0?.socket?.name ?? GEO;
+}
 
 /** Module-level display handler registered by createReteGraph. */
 let displayHandler: ((nodeId: string) => void) | null = null;
@@ -80,17 +104,57 @@ export function NodeView({ data, emit }: Props) {
     };
   }, [editing]);
 
-  // _dot_ junction node: a pure circle (no head/chips/ports/stats). Still hit by
-  // nodeFromTarget so it can be selected / dragged / deleted; tooltip shows the
-  // full label. No rename (double-click does nothing).
+  // _dot_ junction node: visually a pure circle (no head/chips/labels/stats), but it
+  // MUST still hand rete two real socket anchors or its wires have nowhere to land.
+  //
+  // Why the anchors exist at all: rete only learns a socket position from a
+  // `rendered`/`socket` event carrying the socket ELEMENT (BaseSocketPosition ->
+  // SocketsPositionsStorage). The old dot rendered no RefSocket, so
+  // sockets.getPosition() returned null for in0/out0, the connection listener never
+  // fired a position update, and every wire touching a dot kept a stale/zero endpoint.
+  //
+  // Why the circle still looks like a circle: the anchors are 4x4 fully transparent
+  // spans, absolutely positioned OUT of flow, so they contribute nothing to the 10x10
+  // circle's box. They are NOT display:none - getElementCenter() spins on a null
+  // offsetParent (`while (!child.offsetParent) await ...`), so a hidden anchor would
+  // hang that loop. Transparent + pointer-events:none keeps them measurable and inert.
+  //
+  // Why the sides look swapped in CSS: DOMSocketPosition adds a FIXED ±12px to the
+  // measured centre (-12 input / +12 output). To make both wire ends meet at the
+  // circle's centre - the whole point of a Houdini junction dot - each anchor is
+  // pre-offset by the opposite 12px, so the ±12 cancels out. See nodeview.css.
   if (node.kind === "dot") {
+    const socketName = dotSocketName(node);
+    const flags = node.flags ?? { display: false, bypass: false, freeze: false, reference: false };
+    const tip = `${elide(node.label, LABEL_MAX)} · junction (${socketName})`;
+    // Pass the port's OWN socket instance (never a freshly built one - a new object each
+    // render would churn the socket render path for no reason).
+    const anchor = (side: "input" | "output", key: string, socket: ClassicPreset.Socket) => (
+      <div className={`cyl-rp-dot-port ${side}`} key={key} data-port-id={key}>
+        <RefSocket
+          name={side}
+          side={side}
+          emit={emit}
+          nodeId={node.id as string as never}
+          socketKey={key}
+          payload={socket}
+        />
+      </div>
+    );
     return (
       <div
-        className={`cyl-rp-dot ${node.selected ? "selected" : ""}`}
-        onMouseEnter={(e) => showTooltip(e.clientX, e.clientY, node.label)}
-        onMouseMove={(e) => showTooltip(e.clientX, e.clientY, node.label)}
+        className={`cyl-rp-dot ${dotTypeClass(socketName)} ${flags.bypass ? "bypass" : ""} ${
+          flags.freeze ? "freeze" : ""
+        } ${flags.reference ? "reference" : ""} ${flags.display ? "displayed" : ""} ${
+          node.selected ? "selected" : ""
+        }`}
+        onMouseEnter={(e) => showTooltip(e.clientX, e.clientY, tip)}
+        onMouseMove={(e) => showTooltip(e.clientX, e.clientY, tip)}
         onMouseLeave={() => hideTooltip()}
-      />
+      >
+        {node.inputs.in0 ? anchor("input", "in0", node.inputs.in0.socket) : null}
+        {node.outputs.out0 ? anchor("output", "out0", node.outputs.out0.socket) : null}
+      </div>
     );
   }
 
@@ -207,7 +271,11 @@ export function NodeView({ data, emit }: Props) {
             />
           </div>
         </div>
-        <div className="cyl-rp-channel-sub">{serial}</div>
+        {/* serial 中段省略：CSS 的 text-overflow 只砍尾巴，而 C1-… 的尾段才是区分位
+            （C1-msm6dsp7-ob6t 与 C1-msm6dsp7-zq9x 砍尾后长得一样）。title 给全量。 */}
+        <div className="cyl-rp-channel-sub" title={serial}>
+          {elide(serial, SERIAL_MAX)}
+        </div>
         <div className="cyl-rp-ports">
           <div className="cyl-rp-col">{inputs.map(([k, i]) => (i ? port("input", node.id as string, k, i.socket, i.label ?? k) : null))}</div>
           <div className="cyl-rp-col">{outputs.map(([k, o]) => (o ? port("output", node.id as string, k, o.socket, o.label ?? k) : null))}</div>

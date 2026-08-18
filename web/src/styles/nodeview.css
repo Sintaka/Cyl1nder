@@ -184,21 +184,82 @@
   z-index: 30; pointer-events: none;
 }
 .cyl-rect-select.hidden { display: none; }
-/* ---- _dot_ junction node (NodeView.tsx): pure circle, no head/chips/ports ---- */
+/* ---- _dot_ junction node (NodeView.tsx): pure circle + 2 invisible socket anchors ----
+   GEOMETRY CONTRACT (do not "tidy" the magic numbers - the wire endpoints depend on them):
+
+   rete measures a socket as getElementCenter(socketSpan, nodeElement) and then adds a
+   FIXED offset of -12px (input) / +12px (output) on x (DOMSocketPosition). It walks
+   offsetParent from the span up to the node element, accumulating offsetLeft + clientLeft.
+
+   We want BOTH wire ends to land on the circle's centre (5, 5) so a junction dot reads as
+   a single point, like Houdini's. So each anchor is pre-offset by the OPPOSITE 12px and
+   the ±12 cancels out:
+     input  span: left 15px, width 4px -> centre x = 15 + 2 = 17 -> 17 - 12 = 5  ✔
+     output span: left -9px, width 4px -> centre x = -9 + 2 = -7 -> -7 + 12 = 5  ✔
+     both:        top   3px, height 4px -> centre y = 3 + 2 = 5                  ✔
+   That is why `.input` sits on the RIGHT and `.output` on the LEFT here - it is deliberate,
+   not a typo.
+
+   The ring is an inset box-shadow, NOT a border, on purpose: clientLeft would add the
+   border width (1.5px -> rounded 1 or 2) into the accumulated offset above and push both
+   endpoints off-centre. With no border, clientLeft is 0 and the arithmetic is exact. */
 .cyl-graph .cyl-rp-dot {
+  position: relative; /* containing block + offsetParent for the two anchors */
   width: 10px; height: 10px; border-radius: 50%;
-  background: #1b1e24;
-  border: 1.5px solid #7ce3a8;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 2px 8px rgba(0,0,0,.45);
+  background: #2b0b0b; /* same dark red-tinted fill as the normal port sockets */
+  /* ring via inset shadow (keeps clientLeft = 0; see contract above).
+     Default = geo = #ff6b6b, matching the geo wire/socket colour the dot sits on. */
+  box-shadow: inset 0 0 0 1.5px #ff6b6b, inset 0 0 0 2.5px rgba(255,255,255,.06), 0 2px 8px rgba(0,0,0,.45);
   cursor: pointer;
 }
+/* socket anchors: measurable by rete, invisible to the user, inert to the pointer.
+   NEVER use display:none/visibility:hidden here - getElementCenter() awaits a non-null
+   offsetParent in a loop, so a hidden anchor makes that loop spin forever. */
+.cyl-graph .cyl-rp-dot .cyl-rp-dot-port {
+  position: absolute; width: 0; height: 0; pointer-events: none;
+}
+.cyl-graph .cyl-rp-dot .cyl-rp-dot-port > span.input,
+.cyl-graph .cyl-rp-dot .cyl-rp-dot-port > span.output {
+  position: absolute; display: block; width: 4px; height: 4px; top: 3px;
+  opacity: 0; pointer-events: none; /* transparent but still laid out => still measurable */
+}
+.cyl-graph .cyl-rp-dot .cyl-rp-dot-port > span.input { left: 15px; }   /* +12 pre-offset, -12 applied => x=5 */
+.cyl-graph .cyl-rp-dot .cyl-rp-dot-port > span.output { left: -9px; }  /* -12 pre-offset, +12 applied => x=5 */
+/* the classic socket preset paints a circle inside the span - kill it, the dot IS the circle */
+.cyl-graph .cyl-rp-dot .cyl-rp-dot-port > span.input > div,
+.cyl-graph .cyl-rp-dot .cyl-rp-dot-port > span.output > div {
+  width: 4px; height: 4px; background: transparent; border: none; box-shadow: none;
+}
+/* ---- dot ring colour by port data type: EXACTLY the wire palette, so the ring and the
+   wires meeting inside it are the same colour (a dot spliced into a float wire reads as
+   float at a glance):
+     geo   #ff6b6b  <- default rule above, matches [data-testid=connection] path
+     float #7ce3a8  <- matches path.cyl-wire-float
+     vec3  #7fb0ff  <- matches path.cyl-wire-vec3
+   State rings (below) intentionally outrank type: display blue > selected yellow > hover. */
+.cyl-graph .cyl-rp-dot.type-float {
+  background: #0f1f17;
+  box-shadow: inset 0 0 0 1.5px #7ce3a8, inset 0 0 0 2.5px rgba(255,255,255,.06), 0 2px 8px rgba(0,0,0,.45);
+}
+.cyl-graph .cyl-rp-dot.type-vec3 {
+  background: #0d1622;
+  box-shadow: inset 0 0 0 1.5px #7fb0ff, inset 0 0 0 2.5px rgba(255,255,255,.06), 0 2px 8px rgba(0,0,0,.45);
+}
+/* state visuals mirror .cyl-rp-node: display blue > selected yellow > hover pale yellow */
+.cyl-graph .cyl-rp-dot.bypass { opacity: .75; }
+.cyl-graph .cyl-rp-dot.freeze { opacity: .6; }
+.cyl-graph .cyl-rp-dot.reference { box-shadow: inset 0 0 0 1.5px #ec4899, 0 2px 8px rgba(0,0,0,.45); }
 .cyl-graph .cyl-rp-dot:hover {
-  border-color: #fde68a;
-  box-shadow: 0 0 0 1px rgba(253,224,71,.5), 0 2px 8px rgba(0,0,0,.45);
+  box-shadow: inset 0 0 0 1.5px #fde68a, 0 0 0 1px rgba(253,224,71,.5), 0 2px 8px rgba(0,0,0,.45);
 }
 .cyl-graph .cyl-rp-dot.selected {
-  border-color: #fde047;
-  box-shadow: 0 0 0 1px rgba(253,224,71,.55), 0 2px 8px rgba(0,0,0,.3);
+  box-shadow: inset 0 0 0 1.5px #fde047, 0 0 0 1px rgba(253,224,71,.55), 0 2px 8px rgba(0,0,0,.3);
+}
+.cyl-graph .cyl-rp-dot.displayed {
+  box-shadow: inset 0 0 0 1.5px #60a5fa, 0 0 0 1px #60a5fa, 0 2px 8px rgba(0,0,0,.45);
+}
+.cyl-graph .cyl-rp-dot.displayed.selected {
+  box-shadow: inset 0 0 0 1.5px #60a5fa, 0 0 0 1px #60a5fa, 0 0 0 3px rgba(253,224,71,.4), 0 2px 8px rgba(0,0,0,.45);
 }
 /* ---- connection reconnect (attachReconnect) ---- */
 /* grabbed original line: kept in place, dimmed while the dashed preview shows the reroute */
