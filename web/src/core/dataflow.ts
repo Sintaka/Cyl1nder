@@ -5,7 +5,8 @@
  * the graph needs `handlers` at construction time (chicken-and-egg).
  */
 import { store } from "../stores/workspace";
-import { computeNodeResult, type NetworkSnapshot } from "../nodes2/network";
+import { computeNodeResult, findMultiSourceErrors, type NetworkSnapshot } from "../nodes2/network";
+import { multiSourceErrorsToNodeErrors } from "../nodes2/graph-model";
 import type { ReteGraph, ReteGraphHandlers } from "../nodes2/graph";
 import type { ReferenceItem, Viewport } from "../viewport/renderer";
 import type { ParamLike } from "./params";
@@ -199,6 +200,21 @@ export function createDataflow(deps: DataflowDeps): Dataflow {
   };
 
   function flush(): void {
+    // 结构性错误上报（v0.1.00117）：每次 cook 后把「一个输入端口被多个源连入」
+    // 转成节点错误，红三角与 info 原因由 NodeView 渲染。
+    // 放在 flush 里是因为它每次 cook 都跑且手里已有 snapshot；setNodeErrors 是
+    // 全量覆盖 + 变化门（错误集没变则零重绘），所以每帧调用不会产生 churn。
+    // 注意：不抛、不阻断计算——findFeeder 仍取第一条连接，图照常出结果，
+    // 只是把冲突显式告诉用户，而不是静默挑一个。
+    try {
+      const g = deps.getGraph();
+      if (g.setNodeErrors) {
+        const snap = g.getNetworkSnapshot();
+        g.setNodeErrors(multiSourceErrorsToNodeErrors(findMultiSourceErrors(snap)));
+      }
+    } catch {
+      /* 错误上报本身绝不能打断 cook */
+    }
     // P1 dedup: resolve the displayed null/transform buffer ONCE per flush. When
     // the display's out0 feeds an _output_ port directly, the node result is
     // byte-identical to the already-computed store.outputs[i] -> reuse it (zero

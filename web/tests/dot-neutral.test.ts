@@ -3,9 +3,10 @@ import { computeOutputs } from "../src/nodes2/network";
 import type { NetworkSnapshot } from "../src/nodes2/network";
 import type { InputPayload } from "../src/protocol/types";
 
-// 临时验证（验完即删）：dot 必须是纯装饰——插入前后输出逐字节一致。
+// dot 必须是纯装饰：插入前后 computeOutputs 输出逐字节一致，且不贡献 transform spec
+// （chain-cache 的签名由 specs 构成，所以 dot 不影响缓存身份）。
 const mk = (i: number, pts: number[][]): InputPayload => ({
-  index: i, rev: 1, pointCount: pts.length, primCount: 0,
+  index: i, name: `in${i}`, pointCount: pts.length, primCount: 0,
   points: pts, curves: [], faces: [], attributes: {},
 });
 const inputs = [mk(0, [[1, 2, 3], [4, 5, 6]]), mk(1, []), mk(2, []), mk(3, [])];
