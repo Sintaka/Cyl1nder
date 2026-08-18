@@ -1,6 +1,27 @@
 # 桥子系统改动标注 / Bridge annotations
 
-## v0.1.00103（2026-08-14）· 时间轴常驻轮询 + WS 推送 + Sync Max FPS 速率派生
+## v0.1.00113（2026-08-16）· apex-ctrl 数据适配器（APEX 控制器世界位姿读写）
+
+- **data_adapters/apex_ctrl.py（新）**：`apex-ctrl` 适配器，读写 APEX Scene Animate
+  **控制器的世界位姿**。与 `apex-anim` 的本质区别：`apex-anim` 操作一个 Data parm
+  （`asData`/`setFromData` 直通），**控制器不是 parm**，必须经 apex runtime 求值，
+  所以 `target_parm` 复用为控制器名。原理与实测见 `apex-runtime-knowledge.md`。
+- **两种寻址**（bridge 的 `_resolve_data_target` 按最后一个 `/` 切分，**路由零改动**）：
+  | 形式 | 通道路径 | 读 | 写 |
+  |---|---|---|---|
+  | 整体 | `<sceneanimate>/<ctrl>` | `{t,r,ctrl}` | `{t:[…]}` / `{r:[…]}` |
+  | 分量 | `<sceneanimate>/<ctrl>/<tx…rz>` | 标量 | 标量 |
+  分量形式的意义：web 侧既有「通道引用绑定」经 `putChannelValues` 传**标量**，
+  分量通道让 transform 节点的 `tx/ty/tz` 直接驱动控制器，**web 绑定链路零改动**。
+  分量写内部 = 读当前世界位姿 → 只改该分量 → 整体写回。
+- **data_adapters/__init__.py**：`ADAPTERS` 注册 `ApexCtrlDataAdapter`。
+- **踩坑**：适配器内部为分量写复用 `read()` 时，必须传 `(node_path, ctrl_name)`；
+  传 `(node_path + '/' + ctrl_name, ctrl_name)` 会让 `_split` 把控制器名当成节点路径，
+  `hou.node()` 拿到非节点 → Houdini 侧 traceback。
+- **注意**：新增适配器后**必须重启桥**（`ADAPTERS` 在进程启动时构建，
+  否则 `/value` 一直报 `unknown adapter`）。重启走 Houdini shelf `cyl1nder::reload_bridge`，
+  不按 PID 杀进程。
+- 验证：pytest 206（无回归）；HTTP 直调实测读写零误差、根骨骼旋转下子控制器世界坐标零漂移。
 - **houdini_routes.py**：`ensure_poller` 幂等常驻轮询器（interval=`max(66ms,1000/sync_fps)`、single-flight、3 连败暂歇 2s、10s 无 GET idle-stop、帧/fps 变化>0.001 才 WS 广播）；GET /timeline 兼作喂食（首屏缓存陈旧时内联刷新秒出）；PUT /timeline `max(33ms,1000/sync_fps)` 节流 + latest-wins pending + call_later 边界补发 + single-flight，成功后广播 source="web"；`_resolve_port` 失败 2s 短缓存（防 Houdini 未起时扫 16 端口风暴）。
 - **tests/test_houdini_mcp.py**：+4 例（轮询器/idle-stop/节流/latest-wins），39 例。pytest 110 passed。
 - 实测（scripts/bench_mcp_latency.py / verify_ws_timeline.py）：get_frame ~52ms、set_frame ~78ms、health ~8ms；H→C WS 推送只在变化时广播、跟随变化节奏；通道合计上限 ~19Hz（hdefereval 队列约束）。详见 devlog/timeline-sync-lag-analysis.md。

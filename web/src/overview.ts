@@ -2,6 +2,7 @@ import { BRIDGE_URL, ChannelRef, ProjectRef } from "./protocol/types";
 import { BridgeClient } from "./bridge/client";
 import { channelsStore, channelIdOf } from "./stores/channels";
 import { projectsStore } from "./stores/projects";
+import { INVALID_CHANNEL_VALUE, parseChannelValue } from "./app/channel-value";
 
 // Overview 总管页面：新建场景（置顶）/ 活跃场景 / 历史场景 / 关联注册大全 / 项目。
 // 契约（bridge scenes.py，并行实现中）：
@@ -51,6 +52,8 @@ type ActiveState = "offline" | "uncooked" | "online";
 
 const ESC: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ESC[c] ?? c);
+
+
 
 /** 兼容秒级时间戳；正常为毫秒。 */
 function epochMs(ts: number): number {
@@ -183,6 +186,16 @@ if (typeof document !== "undefined") {
     activeList.innerHTML = list.map(activeRowHtml).join("");
     activeHint.classList.toggle("hidden", list.length > 0);
     activeHint.textContent = list.length ? "" : "暂无活跃场景";
+    // 顶部「打开主应用」带上最近活跃的 serial（无活跃场景时保留空 ?serial=，
+    // index.html 的入口守卫用 has() 判定，空值仍会加载主应用而不重定向回本页）。
+    const openApp = document.getElementById("ov-open-app") as HTMLAnchorElement | null;
+    if (openApp) {
+      const newest = list.reduce<ActiveScene | null>(
+        (best, s) => (best === null || epochMs(s.lastSeen) > epochMs(best.lastSeen) ? s : best),
+        null,
+      );
+      openApp.href = newest ? `/?serial=${encodeURIComponent(newest.serial)}` : "/?serial=";
+    }
   }
 
   function renderHistory(list: HistoryScene[]): void {
@@ -453,19 +466,18 @@ if (typeof document !== "undefined") {
     setValueCell(cell, await channelsClient.getChannelValue(id));
   }
 
-  /** data 通道「写值」：prompt 输入 JSON → PUT value → 回显。取消直接返回；JSON.parse 失败本地提示。 */
+  /** data 通道「写值」：prompt 输入 JSON / 裸数字 → PUT value → 回显。
+   *  取消直接返回；解析失败本地提示。 */
   async function writeChannelValue(id: string): Promise<void> {
     const row = findChannelRow(id);
     const cell = row?.querySelector<HTMLElement>(".ov-value-cell") ?? null;
     if (!cell) return;
     const current = cell.dataset.full ?? cell.textContent ?? "";
-    const input = window.prompt("写入 JSON 值：", current);
+    const input = window.prompt("写入值（JSON 或裸数字，如 .2 / 0.2 / {\"t\":[0,1,0]}）：", current);
     if (input === null) return; // 取消
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(input);
-    } catch {
-      cell.textContent = "invalid json";
+    const parsed = parseChannelValue(input);
+    if (parsed === INVALID_CHANNEL_VALUE) {
+      cell.textContent = "invalid value";
       cell.title = "";
       cell.dataset.full = "";
       return;

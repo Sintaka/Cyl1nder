@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 from .apex_anim import ApexAnimDataAdapter
+from .apex_ctrl import ApexCtrlDataAdapter
 
-ADAPTERS: dict[str, object] = {a.name: a for a in (ApexAnimDataAdapter(),)}
+ADAPTERS: dict[str, object] = {
+    a.name: a for a in (ApexAnimDataAdapter(), ApexCtrlDataAdapter())
+}
 
 
 def get_adapter(name: str):   # -> adapter | None

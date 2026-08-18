@@ -1,6 +1,6 @@
 # 模块依赖图 / MODULE GRAPH (web/src)
 
-> 机器生成（2026-08-15），由 `node scripts/gen-graph.mjs` 产出。
+> 机器生成（2026-08-18），由 `node scripts/gen-graph.mjs` 产出。
 
 - `app/address-bar.ts`
 - `app/app-config.ts`
@@ -9,6 +9,7 @@
   - bridge/client
   - protocol/types
   - styles/channel-panel.css
+- `app/channel-value.ts`
 - `app/color.ts`
   - color/color-math
   - color/picker
@@ -170,6 +171,7 @@
   - tools/transform
 - `nodes2/undo.ts`
 - `overview.ts`
+  - app/channel-value
   - bridge/client
   - protocol/types
   - stores/channels

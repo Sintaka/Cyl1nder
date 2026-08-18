@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-15），由 `node scripts/gen-index.mjs` 产出。共 **874** 个函数/类。
+> 机器生成（2026-08-18），由 `node scripts/gen-index.mjs` 产出。共 **884** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -76,11 +76,11 @@
 | `PassthroughExecutor` | 8 | class |  | 1 |
 | `run` | 11 | def |  | 1 |
 
-## bridge/bridge/data_adapters/__init__.py（11 行）
+## bridge/bridge/data_adapters/__init__.py（14 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `get_adapter` | 9 | def |  | 1 |
+| `get_adapter` | 12 | def |  | 1 |
 
 ## bridge/bridge/data_adapters/apex_anim.py（54 行）
 
@@ -90,6 +90,19 @@
 | `read` | 14 | def |  | 1 |
 | `write` | 28 | def |  | 1 |
 | `_rpc` | 44 | def |  | 3 |
+
+## bridge/bridge/data_adapters/apex_ctrl.py（188 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `_load` | 28 | def |  | 4 |
+| `_commit` | 41 | def |  | 2 |
+| `ApexCtrlDataAdapter` | 64 | class |  | 0 |
+| `_split` | 81 | def |  | 3 |
+| `read` | 89 | def |  | 2 |
+| `write` | 110 | def |  | 1 |
+| `_unwrap` | 169 | def |  | 3 |
+| `_rpc` | 180 | def |  | 3 |
 
 ## bridge/bridge/houdini_mcp.py（185 行）
 
@@ -685,6 +698,12 @@
 | `applyValues` | 255 | function |  | 4 |
 | `flushPending` | 267 | function |  | 2 |
 
+## web/src/app/channel-value.ts（33 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `parseChannelValue` | 20 | function | export | 1 |
+
 ## web/src/app/color.ts（3 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
@@ -950,7 +969,7 @@
 |---|---|---|---|---|
 | `createTimelineController` | 43 | function | export | 1 |
 
-## web/src/main.ts（1220 行）
+## web/src/main.ts（1236 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -981,8 +1000,9 @@
 | `flushStoreView` | 1045 | function |  | 2 |
 | `loadSnapshotIntoStore` | 1072 | function |  | 3 |
 | `applyLoadedPreference` | 1109 | function |  | 3 |
-| `connectSerial` | 1146 | arrow |  | 1 |
-| `markGraphDirty` | 1213 | function |  | 2 |
+| `syncSerialInAddress` | 1149 | function |  | 2 |
+| `connectSerial` | 1161 | arrow |  | 1 |
+| `markGraphDirty` | 1229 | function |  | 2 |
 
 ## web/src/nodes2/chain-cache.ts（358 行）
 
@@ -1190,52 +1210,52 @@
 |---|---|---|---|---|
 | `createUndoManager` | 76 | function | export | 2 |
 
-## web/src/overview.ts（772 行）
+## web/src/overview.ts（784 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `HttpError` | 41 | class |  | 3 |
-| `epochMs` | 56 | function |  | 6 |
-| `relTime` | 60 | function |  | 8 |
-| `clockTime` | 72 | function |  | 2 |
-| `channelValueString` | 82 | function | export | 3 |
-| `formatChannelValue` | 92 | function | export | 2 |
-| `channelActionButtons` | 99 | function | export | 2 |
-| `$` | 112 | function |  | 0 |
-| `setBanner` | 130 | function |  | 4 |
-| `openSerial` | 135 | function |  | 4 |
-| `activeState` | 140 | function |  | 2 |
-| `activeRowHtml` | 156 | function |  | 1 |
-| `historyRowHtml` | 173 | function |  | 1 |
-| `renderActive` | 182 | function |  | 2 |
-| `renderHistory` | 188 | function |  | 2 |
-| `renderUnavailable` | 194 | function |  | 2 |
-| `fetchScenes` | 203 | function |  | 2 |
-| `failMessage` | 210 | function |  | 3 |
-| `loadScenes` | 219 | function |  | 4 |
-| `cleanupScenes` | 240 | function |  | 2 |
-| `channelLabel` | 316 | function |  | 2 |
-| `channelState` | 326 | function |  | 2 |
-| `channelRowHtml` | 334 | function |  | 1 |
-| `renderChannels` | 378 | function |  | 4 |
-| `findChannelRow` | 384 | function |  | 4 |
-| `setChannelRowState` | 392 | function |  | 2 |
-| `probeChannel` | 399 | function |  | 3 |
-| `setValueCell` | 432 | function |  | 3 |
-| `readChannelValue` | 447 | function |  | 2 |
-| `writeChannelValue` | 457 | function |  | 2 |
-| `loadChannels` | 478 | function |  | 3 |
-| `showProjectsError` | 566 | function |  | 6 |
-| `hideProjectsError` | 570 | function |  | 5 |
-| `projectDisplayName` | 575 | function |  | 2 |
-| `memberDisplayName` | 580 | function |  | 2 |
-| `memberRowHtml` | 585 | function |  | 2 |
-| `projectRowHtml` | 601 | function |  | 1 |
-| `renderProjects` | 623 | function |  | 5 |
-| `loadProjects` | 629 | function |  | 6 |
-| `removeMember` | 658 | function |  | 2 |
-| `addMemberByDrop` | 670 | function |  | 2 |
-| `clearDropHover` | 733 | function |  | 4 |
+| `HttpError` | 42 | class |  | 3 |
+| `epochMs` | 59 | function |  | 8 |
+| `relTime` | 63 | function |  | 8 |
+| `clockTime` | 75 | function |  | 2 |
+| `channelValueString` | 85 | function | export | 3 |
+| `formatChannelValue` | 95 | function | export | 2 |
+| `channelActionButtons` | 102 | function | export | 2 |
+| `$` | 115 | function |  | 0 |
+| `setBanner` | 133 | function |  | 4 |
+| `openSerial` | 138 | function |  | 4 |
+| `activeState` | 143 | function |  | 2 |
+| `activeRowHtml` | 159 | function |  | 1 |
+| `historyRowHtml` | 176 | function |  | 1 |
+| `renderActive` | 185 | function |  | 2 |
+| `renderHistory` | 201 | function |  | 2 |
+| `renderUnavailable` | 207 | function |  | 2 |
+| `fetchScenes` | 216 | function |  | 2 |
+| `failMessage` | 223 | function |  | 3 |
+| `loadScenes` | 232 | function |  | 4 |
+| `cleanupScenes` | 253 | function |  | 2 |
+| `channelLabel` | 329 | function |  | 2 |
+| `channelState` | 339 | function |  | 2 |
+| `channelRowHtml` | 347 | function |  | 1 |
+| `renderChannels` | 391 | function |  | 4 |
+| `findChannelRow` | 397 | function |  | 4 |
+| `setChannelRowState` | 405 | function |  | 2 |
+| `probeChannel` | 412 | function |  | 3 |
+| `setValueCell` | 445 | function |  | 3 |
+| `readChannelValue` | 460 | function |  | 2 |
+| `writeChannelValue` | 471 | function |  | 2 |
+| `loadChannels` | 490 | function |  | 3 |
+| `showProjectsError` | 578 | function |  | 6 |
+| `hideProjectsError` | 582 | function |  | 5 |
+| `projectDisplayName` | 587 | function |  | 2 |
+| `memberDisplayName` | 592 | function |  | 2 |
+| `memberRowHtml` | 597 | function |  | 2 |
+| `projectRowHtml` | 613 | function |  | 1 |
+| `renderProjects` | 635 | function |  | 5 |
+| `loadProjects` | 641 | function |  | 6 |
+| `removeMember` | 670 | function |  | 2 |
+| `addMemberByDrop` | 682 | function |  | 2 |
+| `clearDropHover` | 745 | function |  | 4 |
 
 ## web/src/protocol/compare.ts（24 行）
 

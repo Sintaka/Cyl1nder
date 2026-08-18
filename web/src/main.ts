@@ -1143,6 +1143,21 @@ function applyLoadedPreference(json: unknown): void {
 }
 
 
+/** 把地址栏的 ?serial= 同步成当前连接的 serial（不重载、不新增历史条目）。
+ *  Connect 是原地换会话（无跳转），此前地址栏会一直留着旧的 / 空的 ?serial=，
+ *  刷新或复制链接就回到错的目标。project 参数在 serial 模式下一并清掉。 */
+function syncSerialInAddress(serial: string): void {
+  try {
+    const url = new URL(location.href);
+    if (url.searchParams.get("serial") === serial) return;
+    url.searchParams.delete("project");
+    url.searchParams.set("serial", serial);
+    history.replaceState(history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  } catch {
+    /* 地址同步失败不影响连接本身 */
+  }
+}
+
 const connectSerial = () => {
   currentProjectId = null; // Connect = serial 模式动作（退出项目模式）
   const v = layout.serialInput.value.trim();
@@ -1151,6 +1166,7 @@ const connectSerial = () => {
   // Connect 点击都产生一条新 WebSocket（kick 速率限流断言）。
   sessionMgr.closeSession(v);
   sessionMgr.activateSession(v);
+  syncSerialInAddress(v);
 };
 layout.connectBtn.addEventListener("click", connectSerial);
 layout.serialInput.addEventListener("keydown", (e) => {

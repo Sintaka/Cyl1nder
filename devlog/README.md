@@ -84,6 +84,8 @@
 | 吊牌 HDA + 项目绑定 + 轨迹页 架构设计提案（待拍板） | [tag-hda-project-design.md](tag-hda-project-design.md) |
 | **吊牌 HDA + 项目绑定 + 轨迹页 实施计划（下一阶段主计划，先读）** | [tag-hda-plan.md](tag-hda-plan.md) |
 | no geometry 诊断与 HDA 热重载恢复 | [no-geometry-diagnosis.md](no-geometry-diagnosis.md) |
+| **APEX runtime 知识库（权威，做 APEX 工作先读这个；已吸收 spaceMouse3 原文）** | [apex-runtime-knowledge.md](apex-runtime-knowledge.md) |
+| APEX Scene Animate 世界坐标解析 + `apex-ctrl` 通道落地（本轮） | [apex-scene-animate-runtime.md](apex-scene-animate-runtime.md) |
 
 ## 关键词 → 专题文件（快速跳读）
 
@@ -111,11 +113,13 @@
 | 并行修改规范（子智能体） | devlog/development-standards.md（「并行修改规范」章节） |
 | 编码规范 / 中文乱码 / git 历史清理 | devlog/development-standards.md（「编码与 Git 卫生」章节） |
 | Spreadsheet / 层级持久 / 列宽 | web/src/app/spreadsheet.ts · web/src/styles/spreadsheet.css · devlog/annotations-web.md |
+| APEX / Scene Animate / 动画层 / 控制器世界坐标 | devlog/apex-scene-animate-runtime.md · research/apex_world_xform.py |
 | 选中节点 / Spreadsheet·Param 跟随 | web/src/main.ts（refreshSelectionPanels）· web/src/app/spreadsheet.ts · web/src/app/param.ts · web/src/nodes2/graph.ts（getSelectedNode） |
 | 显示模式默认 / displaySettings | web/src/viewport/renderer.ts · web/src/app/layouts/Default.json · web/src/app/main.ts（getDockJson） |
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+- v0.1.00113：**APEX Scene Animate 世界坐标接入（apex-ctrl 通道）+ 两个实机 bug 修复**——研究：apex runtime 可在纯 Python 里从 SOP 几何体加载求值，**无需视口 Animate state**；世界位姿 = `ControlManager.getControlData(ctrl).xform`（`.local` 不含 `restlocal`，这是「一读就是 000」的真因）；`graph_parms` 是叠加在 `restlocal` 上的 delta（`delta = world × parentxform⁻¹ × restlocal⁻¹`），只写它会被动画层覆盖、必须 `setKeysFromDict` 提交；活动节点状态在 `animation` **Data parm**（base85）；回写**无损**（此前判定「有损」是提取 bug——parm 顶层有 catalog.data/default.clip/animation 三个 prim，只留 animation 就丢姿态）；父子链必须**两趟**（父级先提交并重载，否则 parentxform 旧、世界坐标漂 0.16~0.36）。bridge：`data_adapters/apex_ctrl.py`（整体形式 `{t,r}` + 分量形式标量，分量让 web 既有绑定链路零改动即可驱动控制器）。web bug 修复：① overview 写值 prompt 原直接 `JSON.parse`，输 `.2` 报错 → 新 `app/channel-value.ts`（JSON 优先 + 裸数字兜底 + 整串正则防 `1.2.3` 被截成 `1.2`，失败哨兵用 Symbol）② Connect 后地址栏 `?serial=` 不更新 → `history.replaceState` 同步。**教训（已入铁律）**：对 `animation` Data parm 调 `revertToDefaults()` 会清空整个 APEX 场景（本轮因此弄坏用户活动节点、自行恢复失败）——写入实验一律在一次性副本节点上做。文档：新 `apex-runtime-knowledge.md`（1170 行，吸收并取代 spaceMouse3 的 APEX_RUNTIME_KNOWLEDGE.md，三级可信度标注 + 10 处源冲突裁决）。验证：pytest 206、tsc 0、vitest 307、HTTP 直调实测读写零误差 + 根骨骼旋转下零漂移。**下一轮：项目管理与 channel 前端重写**（overview 残留测试项目无删除入口、项目名全是序列号尾巴、`?serial=` 进主应用显示 HDA 离线）。
 - v0.1.00112：**P5b 通道引用绑定（设计参考 Houdini ch()）**——web：CylNode +bindings（paramName→通道 absolutePath，空不序列化字节兼容）+ Param 面板 ⛓ 链接按钮（通道列表弹层/绿徽标/解除）+ core/channel-bind.ts 绑定管理器（编辑经 setNodeParams 两路径节流 latest-wins 直写 Houdini；H→C 回显值对比防回环应用到绑定节点并 runNetwork 跟手）+ dock 值 sink + main.ts 粘合（gizmo/param 两路径接入、bindCtx 装配）；协议零改动（复用 channel-values）；2 子智能体并行+主进程合并（ParamSpec 视图契约锚点修正）；验证：tsc 0、vitest 298、实机 8100 绑定双向（C→H 9.5 落地 / H→C 3.25 回显 / Ctrl+S 重载绑定恢复）。P5b.2 候选：绑定随 autosave 触发图保存确认、数据通道正式 UI、轨迹 ndjson。
 - v0.1.00111：**P5a 参数同步极致化（transform translate 试点）+ 收尾**——bridge：心跳捎带 values → WS 广播 channel-values；GET/PUT /api/hda/{serial}/channel-values（0.25s 缓存批量读 / Sync Max FPS 节流 latest-wins single-flight 批量写 + param-set 埋点）；hda：吊牌 cook 心跳捎带注册参数当前值（节流后读值零轮询开销）；web：主应用「通道参数」dock 面板（scrub 节流提交 / WS 即时刷新 + 250ms 轮询兜底 / 编辑行不覆盖）+ Default.json 布局加面板；协议三处同步；3 子智能体并行+主进程合并（main.ts 粘合 applyChannelValues）；**收尾清理**：删 hda/otls/backup 79 个历史 .hda 备份；AGENT_QUICKSTART 焦点更新（主计划 P1~P5a 状态 + 能力底线清单）；验证：pytest 206、tsc 0、vitest 272、hython SMOKE、实机 8100 translate 双向同步（PUT→Houdini 落地→Houdini 改参→心跳捎带→GET 读回→浏览器面板 tx=7.75/ty=1.5 与实值一致）。P5b（gizmo 绑定/ndjson 落盘）下轮候选；P4v2 apex 搁置。
 - v0.1.00110：**P4v1 非 geo 数据源通道（打通）**——bridge：ChannelRef +adapter 字段 + data_adapters 包（apex-anim 读写器经 code.execute_python 读写数据参数 asData/setFromData，信封 return_value 实机解包）+ GET/PUT /api/channels/{id}/value + data-get/data-set 埋点 + channels/projects 键控规则 param|data→absolutePath；hda：吊牌 entries `@<adapter>:<nodePath>:<parm>` 语法注册 data 通道（指纹按条目文本）；web：types/client 镜像 + 大全面板 data 行读值/写值（prompt+JSON 校验）；协议三处同步；3 子智能体并行+主进程合并（data_adapters 定名消除包遮蔽 + 信封解包修正）；验证：pytest 194、tsc 0、vitest 255、hython SMOKE、实机 8100 打通（apex::sceneanimate 注册→读值→写值→Houdini asData 确认→轨迹审计，非法值被 apex 拒绝=数据语义在目标端）。P4v2：animstack Animation Layer 读写器 + 时间轴互补通道。

@@ -1,5 +1,26 @@
 # Web 子系统改动标注 / Web annotations
 
+## v0.1.00113（2026-08-16）· APEX apex-ctrl 通道 + 两个实机 bug 修复
+
+- **app/channel-value.ts（新）+ tests/channel-value.test.ts（新，9 例）**：data 通道写值解析。
+  **修的 bug**：overview 写值 prompt 原来直接 `JSON.parse`，而 JSON **不接受省略整数位的小数**——
+  输 `.2` 报错、必须输 `0.2`（实机反馈）。现在先按 JSON 解（结构化值照旧），失败再按
+  「裸数字」兜底（`.2` / `1.` / `+.5` / `1e-3` 都收）。刻意**不用** `parseFloat` 直接兜：
+  `parseFloat("1.2.3")` 会截成 `1.2`，静默把错值写进绑定的骨骼控制器；改用整串正则先判形，
+  `1.2.3` / `.` / `0x10` / `Infinity` / `NaN` 一律 INVALID。
+  失败哨兵用 `Symbol` 而非 null/undefined——`null` / `0` / `""` 都是合法写入值，不能混。
+- **overview.ts**：写值走 `parseChannelValue`（提示语改「JSON 或裸数字」，错误文案 `invalid json` → `invalid value`）；
+  `renderActive` 顺带把顶部「打开主应用」的 href 指向**最近活跃的 serial**（按 lastSeen 取最大），
+  无活跃场景时保留空 `?serial=`（index.html 入口守卫用 `has()` 判定，空值仍加载主应用而不重定向回本页）。
+- **overview.html**：`打开主应用` 链接加 `id="ov-open-app"`（供上面动态改 href）。
+- **main.ts**：新增 `syncSerialInAddress(serial)`，Connect 后用 `history.replaceState` 把地址栏
+  `?serial=` 同步成当前连接的 serial（不重载、不新增历史条目，顺带清 `project` 参数）。
+  **修的 bug**：Connect 是原地换会话（无跳转），此前地址栏一直留着旧的 / 空的 `?serial=`，
+  刷新或复制链接就回到错的目标。
+- 验证：tsc 0 / vitest 307（+9）。
+- **未做（下一轮重写）**：项目管理与 channel 前端整体重设计——overview 残留测试项目无删除入口、
+  项目名全是序列号尾巴、`?serial=` 进主应用时 HDA 显示离线。用户已拍板下一轮重写这块。
+
 ## v0.1.00103（2026-08-14）· 优化轮：时间轴两行/地址栏/线段 bypass+运行时流动/顺滑化
 - **app/layout.ts + styles/base.css**：底部栏纵向两行（行1=时间轴满宽；行2=Sync Max FPS+Sync 开关+Update Mode 靠右 `margin-left:auto`）；两个模板同步；ID 全部保留。
 - **app/address-bar.ts（新）+ tests/address-bar.test.ts（新，16 例）**：explorer 式地址栏（分段按钮点击跳转/复制；点击空白处或双击变输入框；Enter 跳转/Esc 取消/blur 回分段；Tab 补全 preventDefault+stopPropagation，多候选循环；纯内联样式零 CSS）；main.ts 粘合（navigate=serial 校验跳转/当前图 frame，getCompletions=listSerials 前缀过滤，updateGraphAddress 改 setAddress + 变更才刷新）。

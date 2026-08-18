@@ -36,7 +36,8 @@ pytest（channels 注册/心跳/探测 + 路由）/ tsc+vitest（store/面板）
 
 ## P2 — 项目层（多 HDA 绑定）
 
-> **拆分（2026-08-15，主进程拆结构）**：P2a（已完成 v0.1.00107）= 项目注册表/端点 + `?project=` + 隐式项目兼容 + overview 项目面板与拖拽入项目；P2b（当前）= nodeview 项目根 + 多 serial WS + 图快照按 project 存（web 核心手术）。P2b 再按调研契约拆子写集（session 多开 / nodeview 项目根 / project 图快照），单 serial 场景行为保持。
+> **拆分（2026-08-15，主进程拆结构）**：P2a（已完成 v0.1.00107）= 项目注册表/端点 + `?project=` + 隐式项目兼容 + overview 项目面板与拖拽入项目；P2b（已完成 v0.1.00108）= nodeview 项目根 + 多 serial WS + 图快照按 project 存（web 核心手术）。
+> **待重做（v0.1.00113 用户拍板）**：项目管理与 channel 前端整体重写——残留测试项目无删除入口、项目名全是序列号尾巴、`?serial=` 进主应用显示 HDA 离线、data 值 UI 仍是 prompt 版。P2b 再按调研契约拆子写集（session 多开 / nodeview 项目根 / project 图快照），单 serial 场景行为保持。
 
 ### P2a
 - `bridge/data/projects.json`（`P1-…` serial + label + members: channelRef[]）；端点：`POST /api/projects`（建）、`GET /api/projects`（列表）、`GET /api/projects/{id}`、`POST /api/projects/{id}/members`（加成员，按通道 key 去重）、`DELETE /api/projects/{id}/members?channelId=`（移成员）、`POST /api/projects/ensure`（body {serial}：无含该 serial 通道的项目则自动建 `P1-…` 单成员隐式项目 → 返回 {project, created}）。
@@ -55,7 +56,17 @@ pytest（channels 注册/心跳/探测 + 路由）/ tsc+vitest（store/面板）
 
 ## P4 — 延伸（非 geo 数据源通道 + apex 读写器）
 
-> **拆分（2026-08-15，主进程）**：P4v1（已完成 v0.1.00110，打通）= 新通道 kind `"data"` + `data_adapters/` 包（apex-anim 读写器）+ value 端点 + 埋点 + web 读/写值 + 吊牌 `@adapter:node:parm` 语法。**P4v2 搁置（用户拍板，2026-08-15）**：apex.animstack Animation Layer 读写器、时间轴互补通道（吊牌 cook 主线程捎带 frame）、data 值面板正式 UI——恢复时从本清单继续。
+> **拆分（2026-08-15，主进程）**：P4v1（已完成 v0.1.00110，打通）= 新通道 kind `"data"` + `data_adapters/` 包（apex-anim 读写器）+ value 端点 + 埋点 + web 读/写值 + 吊牌 `@adapter:node:parm` 语法。
+>
+> **P4v2 状态更新（v0.1.00113，2026-08-16）**：原「搁置」清单里的 **APEX 读写器已落地，不再搁置**——
+> `bridge/bridge/data_adapters/apex_ctrl.py` 提供控制器**世界位姿**读写（整体 `{t,r}` + 分量标量
+> 两种寻址；分量形式使 web 既有通道引用绑定链路零改动即可驱动控制器）。原理与实测见
+> `apex-runtime-knowledge.md`（权威）与 `apex-scene-animate-runtime.md`。
+> **注意范围差异**：落地的是「控制器世界位姿」通道，**不是**本行原先表述的
+> 「`apex.animstack` Animation Layer 读写器」——多层 additive / 层权重 / `flattenedLayers()`
+> 合成仍未验证，那部分仍属未做。
+> **仍搁置**：时间轴互补通道（吊牌 cook 主线程捎带 frame）；data 值面板正式 UI
+> （现为 overview prompt 版，已并入下一轮「项目管理 + channel 前端重写」）。
 
 ## P5 — 参数同步极致化（transform translate，当前）
 
