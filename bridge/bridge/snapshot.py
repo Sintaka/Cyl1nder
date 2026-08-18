@@ -43,15 +43,50 @@ _PARTS: dict[str, tuple[str, str]] = {
 }
 
 
+def scene_dir_name(hip: str, serial: str) -> str:
+    """快照目录名：`<场景名>_<serial>`（v0.1.00117）。
+
+    为什么带场景名：原来只有 `<serial>`，用户在文件管理器里看到一排
+    `C1-msm6dsp7-ob6t` / `C1-msm006pg-8fz7`，无法分辨哪个属于哪个场景，也就无法
+    安全地手工清理。加上 hip 名即可一眼归属。
+
+    **serial 仍是唯一身份**，场景名只是给人看的前缀：hip 改名/另存为后目录名会变，
+    但读取按 serial 兜底（见 `_legacy_roots`），所以旧目录仍然找得到。
+    拿不到 hip 名时退回纯 serial（与旧格式一致）。
+    """
+    stem = _sanitize_dir_part(Path(hip).stem if hip else "")
+    return f"{stem}_{serial}" if stem else serial
+
+
+_UNSAFE_DIR_CHARS = '<>:"/\\|?*'
+
+
+def _sanitize_dir_part(name: str) -> str:
+    """把 hip 名清成可安全做目录名的片段。
+
+    只保留可打印字符，替换 Windows 非法字符与控制字符为 `_`，去掉首尾空白与点
+    （Windows 不允许目录名以点/空格结尾），并限长 64 以免路径超长。
+    清理后为空则返回空串，由调用方退回纯 serial。
+    """
+    out = []
+    for ch in (name or "").strip():
+        out.append("_" if (ch in _UNSAFE_DIR_CHARS or ord(ch) < 32) else ch)
+    return "".join(out).strip(" .")[:64]
+
+
 def snapshot_root(hip: str, serial: str) -> Path:
-    """Derive the snapshot directory for a serial from its hip file."""
+    """Derive the snapshot directory for a serial from its hip file.
+
+    目录名自 v0.1.00117 起是 `<场景名>_<serial>`（见 scene_dir_name）。
+    环境变量覆盖仍只用 serial —— 测试隔离目录不需要人眼分辨。
+    """
     env = os.environ.get("CYL1NDER_SNAPSHOT_ROOT")
     if env:
         return Path(env) / serial
     if hip:
         hip_dir = Path(hip).parent
         if hip_dir.is_absolute():
-            return hip_dir / "Cyl1nder" / serial
+            return hip_dir / "Cyl1nder" / scene_dir_name(hip, serial)
     return DEFAULT_ROOT / serial
 
 
@@ -93,11 +128,71 @@ def read_snapshot(hip: str, serial: str) -> dict[str, Any] | None:
     """
     primary = snapshot_root(hip, serial)
     merged = _read_root(primary, serial)
-    fallback = DEFAULT_ROOT / serial
-    if fallback != primary:
-        for part, value in _read_root(fallback, serial).items():
+    # 旧目录兜底：v0.1.00117 把目录名从 `<serial>` 改成 `<场景名>_<serial>`，
+    # 不兜底的话所有既有快照会在改名当天全部读不到（等于凭空造一次数据丢失）。
+    # 另存为后场景名变了、旧名目录仍在，同样靠这条找回。
+    for legacy in _legacy_roots(hip, serial):
+        if legacy == primary:
+            continue
+        for part, value in _read_root(legacy, serial).items():
             merged.setdefault(part, value)
     return merged if merged else None
+
+
+def migrate_snapshot_dir(hip: str, serial: str) -> str:
+    """把该 serial 的旧命名目录**就地改名**成 `<场景名>_<serial>`。
+
+    返回值仅供日志/测试：`""` 无事可做、`"renamed"` 已迁移、`"skipped:<原因>"`。
+
+    纪律：
+    - 目标已存在 → 不动（`skipped:target-exists`）。不合并、不覆盖——两边都可能有
+      用户数据，合并语义得由人来定。
+    - 改名失败（占用/权限）→ 吞掉返回 `skipped:oserror`。**绝不因此阻断写入**：
+      新目录照常创建，读取那侧有 `_legacy_roots` 兜底，最坏情况只是多一个旧目录。
+    - 只改名 hip 同侧的目录；`bridge/data/snapshots` 回退根不动（那是无 hip 时的落点，
+      本就没有场景名可用）。
+    """
+    if not hip:
+        return ""
+    hip_dir = Path(hip).parent
+    if not hip_dir.is_absolute():
+        return ""
+    target = snapshot_root(hip, serial)
+    legacy = hip_dir / "Cyl1nder" / serial
+    if target == legacy or not legacy.is_dir():
+        return ""
+    if target.exists():
+        return "skipped:target-exists"
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        legacy.rename(target)
+        return "renamed"
+    except OSError:
+        return "skipped:oserror"
+
+
+def _legacy_roots(hip: str, serial: str) -> list[Path]:
+    """该 serial 可能存在的历史快照目录（按优先级）。
+
+    ① hip 同侧的纯 `<serial>` 目录（v0.1.00116 及更早的命名）
+    ② hip 同侧任何以 `_<serial>` 结尾的目录（另存为改名前的场景名前缀）
+    ③ bridge/data/snapshots/<serial>（hip 为空时写入的回退根）
+    """
+    roots: list[Path] = []
+    if hip:
+        hip_dir = Path(hip).parent
+        if hip_dir.is_absolute():
+            base = hip_dir / "Cyl1nder"
+            roots.append(base / serial)
+            try:
+                suffix = f"_{serial}"
+                roots.extend(
+                    d for d in base.iterdir() if d.is_dir() and d.name.endswith(suffix)
+                )
+            except OSError:
+                pass
+    roots.append(DEFAULT_ROOT / serial)
+    return roots
 
 
 def write_snapshot(
@@ -115,6 +210,7 @@ def write_snapshot(
     """Atomically write snapshot parts under io/ scene/ + docking-layout.json + Preference.json.
     Returns True if anything changed on disk."""
     root = snapshot_root(hip, serial)
+    migrate_snapshot_dir(hip, serial)  # 旧目录就地改名到新命名（best-effort）
     try:
         root.mkdir(parents=True, exist_ok=True)
         (root / "io").mkdir(exist_ok=True)
