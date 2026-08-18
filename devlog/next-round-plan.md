@@ -189,3 +189,68 @@ float↔vec3 自动转换；桥接与映射两套系统统一。
   不按 PID 杀进程）。
 - pwsh 命令首个 token 必须是受信前缀（`git` / `node` / `.venv\scripts\python` 等），
   前面加赋值或 `Remove-Item` 会被沙箱拒。PowerShell **没有** heredoc。
+
+## 5 现有限制（已知未解决，别当 bug 重新调查）
+
+以下每条都是**已确认的现状**，不是待查问题。动手前先看这里，省一轮排查。
+
+### 5.1 交互 / UI
+
+| 限制 | 细节 | 状态 |
+|---|---|---|
+| dot 无法从自身拖出连线 | 锚点是 `pointer-events:none`（为保住 10×10 圆整体可拖，并避开 ±12px 反向命中区）。改接线仍可用几何 reconnect 层 | 待用户拍板；要支持需在 `graph.ts` 给 `getDOMSocketPosition` 自定义 `offset` |
+| 可进入节点未禁用 | 用户要求「修好但暂不启用」，现仍启用 | 按要求保留 |
+| 项目根节点无 hip 地址 | 任务 #6 | 未做 |
+| 面板跟随选中已修，但 project/channel 无参数 | 选中它们时 Spreadsheet 给**空表**（刻意——显示别的节点几何更糟） | 已完成，符合预期 |
+
+### 5.2 实时性
+
+**`apex-ctrl` 没有推送通道。** 值的流动全靠：吊牌心跳（**60s** 节流）+ 用户显式
+探测 + 分量写入时的 read-modify-write（每次都过 Houdini 主线程）。
+
+后果：连续拖动 gizmo 驱动 APEX 控制器时的时序**从未验证过**——这是整条链上
+唯一没在浏览器里跑过的部分。要做实时拖动得先设计推送，不是调参数能解决的。
+
+### 5.3 清理
+
+- `清理空项目` **只删 0 成员项目**。线上那批残留各持 1 个失效成员，够不着，
+  只能逐行点删除。要一键清完需要新的「清理失效项目」（按成员通道是否还在
+  `/api/channels` 判定）——这是**按启发式删用户数据**，我没擅自加。
+- `POST /api/scenes/cleanup` 只删「无效」快照目录（空/缺件/meta 损坏）。
+  测试产物有完整 `meta.json`，所以它一个都删不掉——本轮 970 个是手工清的。
+
+### 5.4 被冻结测试锁住的两处设计妥协
+
+这两处**不是随手写的**，改之前先读原因，否则会打破既有断言：
+
+1. **`PROJECT_GRAPH_SCHEMA` 仍是 3，另加 `ADDRESS_GRAPH_SCHEMA = 4`。**
+   `project-graph.test.ts` 有两条断言互相夹死：一条要求 project+channel 图等于该常量，
+   另一条要求 null+channel 图字面等于 `3`，两者分类相同 → 任何 bump 都会破其中一条。
+   最终语义是对的（v3=项目图、v4=单端口 address 形态），**别去合并这两个常量**。
+2. **`makeInputNode()` / `makeOutputNode()` 默认仍是 4 端口**，单端口靠传 `true` 开启。
+   有冻结测试直接连 `output.out1`，rete 会抛
+   `target node doesn't have input with a key out1`。`buildGraph` 已传 `true`，
+   所以**新图就是单端口**，语义达标；默认值是为兼容而反过来的。
+
+### 5.5 数据现状（部分不可恢复）
+
+- **`P1-msyiasx0-a2gf/graph.json` 的项目根结构已被覆盖**（成员图写进了项目槽位，
+  根因已修）。原内容**不可知、无备份**，我没有伪造恢复——需要重建。
+- `beginTest-1_recovered.hip` **保留未删**：与 `beginTest-1.hip` 的 SHA256 **不同**，
+  所以不能断言它是冗余的。是否删由你定。
+  （我一度说过两者「字节一致」，那句是错的——当时只比了几个节点名的出现次数。）
+- 本轮的破坏性操作都留了备份，**都在 `bridge/data/` 下且已被 gitignore**：
+  `snapshots-residue-backup-*.zip`（0.64 MB）、`registry.json.bak-*`、
+  `projects.json.bak-*`、`mappings.json.bak-*`。确认无用后自行删。
+- `sandbox_sceneanimate` 与 `apex_ctrl_tag` 是我重建的（新 serial
+  `C1-msz03wf5-u0ym`）。它们是**测试用副本**，不是你的资产；
+  你原来的 `sceneanimate1` 从未被碰过。
+
+### 5.6 未验证 / 不要当已完成
+
+- **多层 additive 动画层合成、层权重、`flattenedLayers()`** —— 历史遗留未验证项。
+- **`Scene.writeToGeometry()` / 节点 `editanimation` 机制** —— 回写活动节点的替代路径，
+  未单独验证（现行 `saveToGeometry` + 保留全部顶层 prim 的路径已验证零误差）。
+- **web 端到端**：错误角标、类型化端口、waypoint 都只有单测与构建验证，
+  **没有在浏览器里点过**。e2e 覆盖的是旧版面。
+- 你节点上仍有我早期失败写入留下的**结构残留**（历史记录里提过），未清理。
