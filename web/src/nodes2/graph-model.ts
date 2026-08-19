@@ -743,8 +743,17 @@ export function socketNameOf(
   return port?.socket?.name ?? "";
 }
 
-/** 按数据类型给连线着色（Houdini VOP 惯例：看颜色即知类型）。geo 保持既有灰白
- *  （不加类），float/vec3 加对应类；与 bypass 视觉同机制（rAF 重试一次）。 */
+/** 按数据类型给连线着色（Houdini VOP 惯例：看颜色即知类型）。
+ *
+ *  geo **不加类**，沿用 CSS 默认线色 = 朱红 `#ff6b6b`（此处原写作"灰白"，是错的，
+ *  同 socketTypeClass 那处）；float 加 `cyl-wire-float` = 浅蓝 `#7fb0ff`，
+ *  vec3 加 `cyl-wire-vec3` = 深绿 `#2f9e63`。三处必须逐字一致：线色（本函数的类）、
+ *  端口色（socketTypeClass 的类）、waypoint 圆点（CSS 兄弟选择器继承线的类）——
+ *  **配色单源在 `nodeview.css` 的配色块**，改色只改那里，这里只负责挂类。
+ *  （v0.1.00119 纠正：float/vec3 此前在线色与圆点上写反了，而注释里只写颜色名
+ *   不写色值，正是它长期没被发现的原因，所以这里把色值写出来。）
+ *
+ *  与 bypass 视觉同机制（rAF 重试一次）。 */
 export function applyConnectionTypeVisual(
   area: AreaPlugin<Schemes, AreaExtra>,
   id: string,
