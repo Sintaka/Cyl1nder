@@ -4,6 +4,37 @@
 > 并删除（用户要求：不塞多个文件，以免浪费 token）。每条结论都标注了**验证方式**：
 > 写「已验证」的都在代码/浏览器/磁盘上实证过，没验的一律写「未验证」。
 
+## -2 v0.1.00124 三个自伤教训（**同类改动前先读这节**）
+
+一天内我用三种方式把同一件事做错，都是「删掉一个概念时顺手删多了」。
+
+**1. 删「按 serial 寻址」时把「按 serial 取数据」也删了 → 76 个 e2e 全挂。**
+把 `?project=&member=` 分支改成只进项目根、不激活会话，于是没有 `hello`、
+`session.ts` 永不 `setStatus("ok")`、几何永远不来。
+**判据**：serial 有两种身份 —— 页面地址（该删）与 WS 数据通道（本来就该按 serial 走，
+`client.ts` 的 `ws?serial=` 从来没动过，正是同一个道理）。
+
+**2. 自己拼步骤绕开既有入口函数 → 只做了一半。**
+用 `enterProjectMode + activateSession` 代替 `enterMemberWorkspace`，结果
+`#cyl-serial` 是空的（探针实录 `input="" store="C1-…"`）：会话对、store 对，
+但**画输入框那一步在 enterMemberWorkspace 里**。
+**判据**：已有一个函数干这件事时，复用它再覆盖差异那一步，别重拼一遍。
+
+**3. 拿 `graphScope` 去实现「地址显示」→ Ctrl+S 不再保存。**
+把 scope 改成 `project` 让地址变短，`canWriteProjectGraph` 随之变真，
+Ctrl+S 走进「保存项目图」分支、**再也不发 snapshot PUT**（5 个 e2e）。
+**判据**：`scope` 回答「该写哪个槽位」，`address` 回答「给人看什么」。
+这正是 `graph-scope.ts` 头部那场事故的形状，我又踩了一次。
+
+**排查方法上值得留的**：两个听起来很像的假设都被实测证伪 ——
+「e2e 残留 serial 太多」（清到只剩 1 个真的 + 重新 cook，仍然失败）、
+「lifecycle 150s staleness 判离线」（读代码确认只控横幅）。
+真因靠探针拿到：零 JS 错误 + store 日志里没有 `hello`。**别在两次猜测之后继续猜。**
+
+**清理纪律**：桥**关闭时会把内存里的 registry 写回磁盘**，所以桥在跑的时候改
+`registry.json` 必被覆盖（实测 prune 到 1 条、重启后又变回 16 条）。
+要清就走桥的端点，或在 restart 的停机窗口里改。
+
 ## -1 项目定位与下一阶段目标（用户 2026-08-20 口述，**新会话从这里读起**）
 
 **Cyl1nder 最强的地方是 python runtime edit**，不是几何程序化。用户原话：
