@@ -16,8 +16,8 @@
 
 **不需要退回 Ctrl+dot。** 两个 bug 都在真实浏览器里验证通过，不是"单测过了就宣布完成"。
 
-**本轮验证基线**：tsc 0 / vitest **582**（34 文件，原 579，+3 来自改写后的
-`waypoint-neutral.test.ts`）/ `vite build` 通过 /
+**本轮验证基线**：tsc 0 / vitest **582**（34 文件；原 579 − 旧 `dot-neutral` 的 2 条
++ 新 `waypoint-neutral` 的 5 条 = 582，文件数不变因为是重命名）/ `vite build` 通过 /
 `waypoint-verify.spec.ts` **4 passed** / `round18-reconnect.spec.ts` **5 passed**
 （后两项在 Edge 真实浏览器里跑，桥 8375 + vite 8376 均在线）。
 
