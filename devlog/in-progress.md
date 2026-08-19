@@ -157,6 +157,23 @@ geo 线上的点**取白色**而非 `#ff6b6b`：同色点压在同色线上只�
 
 **教训**：清桥侧状态不能只动文件，要么走桥的端点，要么改完重启。
 
+### v0.1.00120 清掉 3 个孤儿项目图
+
+项目图搬到 hip 旁之后，`bridge/data/projects/` 里剩下 3 个**孤儿**（项目记录已不存在，
+因此永远不会被读、也永远不会被迁移——迁移要靠活记录提供 hip 才触发）：
+
+| 目录 | 内容 | 判断 |
+|---|---|---|
+| `P1-msu9mqna-8e8s` | schema 3，project「P2a-demo」+ channel「cyl1ndertag」 | 早期演示项目，记录已删 |
+| `P1-msyiasx0-a2gf` | **schema 2，只有裸 `_input_`/`_output_`** | 正是 v0.1.00117 那次「成员图覆盖项目根」的**受损产物**，不是可恢复数据 |
+| `P1-msyqxnfg-ct3c` | schema 2，同上形态 | 同上 |
+
+已归档到 `bridge/data/orphan-project-graphs-*`（gitignore）后移除，`projects/` 现为空。
+活项目 `P1-mszw0wfu-d3u3` 读取正常（schema 5、hip 旁）。
+
+**留着的坏处**：它们会让「项目图在哪」这个问题永远有两个答案，下一轮 agent 看到
+`bridge/data/projects/` 有货就会以为搬迁没做完。
+
 ### 重建后的干净基线（实机实证）
 
 ```
