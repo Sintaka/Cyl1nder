@@ -4,8 +4,9 @@ import {
   ANY,
   FLOAT,
   GEO,
+  VEC3,
   buildGraphSnapshot,
-  channelTypeOf,
+  canConnectIntoSlot,
   legacyRefParamName,
   makeInputNode,
   makeNullNode,
@@ -15,6 +16,7 @@ import {
   slotPortViews,
   slotRefParamName,
   slotRefScope,
+  slotTypeOf,
   slotTypesConsistent,
   syncDynamicInputs,
   syncPortSocketType,
@@ -99,11 +101,15 @@ describe("引用参数的作用域：只有已接线的槽才有参数", () => {
 });
 
 describe("一个槽一个引用：in/out 不再各存一份", () => {
-  it("槽 0 的 in0 与 out0 归一到**同一个槽序号**", () => {
+  it("槽 k 的 in{k} 与 out{k} 归一到**同一个槽序号**", () => {
     const n = makeNullNode();
     expect(slotIndexOfPort(n, "in0")).toBe(0);
     expect(slotIndexOfPort(n, "out0")).toBe(0); // 输出视图 → 同一个槽
     expect(slotIndexOfPort(n, "nope")).toBe(null);
+    syncDynamicInputs(n, ["in0", "in1"]);
+    expect(slotIndexOfPort(n, "in2")).toBe(2);
+    expect(slotIndexOfPort(n, "out2")).toBe(2); // out2 是槽 2 的输出视图，**不是**槽 0
+    expect(slotIndexOfPort(n, "out9")).toBe(null); // 端口不存在
   });
 
   it("参数名**不带 in/out**：一个槽只有 ref_slot{k}，改一次就改了整条通道", () => {
@@ -115,12 +121,12 @@ describe("一个槽一个引用：in/out 不再各存一份", () => {
     expect(paramNames(n)).not.toContain(legacyRefParamName("out0"));
   });
 
-  it("槽 0 的视图含 out0；其余槽只有输入视图（多头汇入单通道）", () => {
+  it("每个槽都是一进一出：槽 k 的视图是 in{k} + out{k}（N 条独立直通通道）", () => {
     const n = makeNullNode();
     syncDynamicInputs(n, ["in0"]);
     const slots = nodeSlots(n, ["in0"]);
     expect(slotPortViews(slots[0])).toEqual(["in0", "out0"]);
-    expect(slotPortViews(slots[1])).toEqual(["in1"]);
+    expect(slotPortViews(slots[1])).toEqual(["in1", "out1"]);
   });
 
   it("旧快照的 ref_in0 被**迁移**到 ref_slot0（填过的引用不丢）", () => {
@@ -131,20 +137,22 @@ describe("一个槽一个引用：in/out 不再各存一份", () => {
     expect(n.params?.[0].value).toBe("point_1.x"); // 值跟着迁移过来
   });
 
-  it("类型只有一处可读：nodeSlots 的每个槽都报同一个通道类型", async () => {
+  it("类型每槽一处可读：接了线的槽报它自己的类型，spare 仍是 ANY", async () => {
     const editor = new NodeEditor<Schemes>();
     const nul = makeNullNode();
     await editor.addNode(nul);
     await wireInto(editor, FLOAT, nul, "in0");
     propagateDynamicTypes(editor);
-    expect(channelTypeOf(nul)).toBe(FLOAT);
-    expect(nodeSlots(nul, ["in0"]).map((s) => s.type)).toEqual([FLOAT, FLOAT]);
-    expect(slotTypesConsistent(nul)).toBe(true); // 镜像无漂移
+    expect(slotTypeOf(nul, 0)).toBe(FLOAT);
+    // 槽 1 **不跟随**槽 0（v0.1.00125）：它没接线，就该待定，于是 geo 还能接进去。
+    expect(nodeSlots(nul, ["in0"]).map((s) => s.type)).toEqual([FLOAT, ANY]);
+    expect(slotTypesConsistent(nul)).toBe(true); // 镜像逐槽无漂移
   });
 
-  it("未接线的 null：通道 ANY，镜像一致", () => {
+  it("未接线的 null：槽 0 是 ANY，镜像一致", () => {
     const n = makeNullNode();
-    expect(channelTypeOf(n)).toBe(ANY);
+    expect(slotTypeOf(n, 0)).toBe(ANY);
+    expect(slotTypeOf(n, 7)).toBe(ANY); // 越界读成 ANY，不抛
     expect(slotTypesConsistent(n)).toBe(true);
   });
 });
@@ -198,17 +206,45 @@ describe("序列化：空引用不进快照（v2 字节兼容承重墙）", () =
   });
 });
 
-describe("几何体槽拒绝浮点输入（用户要求）", () => {
-  it("geo 定型的 null：float 源连不进 spare，vec3 也连不进", async () => {
+describe("几何体槽拒绝浮点输入（用户要求）——但只拒**那一个槽**", () => {
+  it("geo 定型的槽：float / vec3 都连不进它自己", async () => {
     const editor = new NodeEditor<Schemes>();
     const nul = makeNullNode();
     await editor.addNode(nul);
     await wireInto(editor, GEO, nul, "in0");
     propagateDynamicTypes(editor);
-    expect(channelTypeOf(nul)).toBe(GEO);
     const slots = nodeSlots(nul, ["in0"]);
-    // spare 已被定型为 geo → 浮点接不上（几何体数据不是浮点）
-    expect(slots[1].type).toBe(GEO);
+    expect(slots[0].type).toBe(GEO);
+    // 「几何体数据不是浮点」：读**该槽**的类型做校验
+    expect(canConnectIntoSlot(FLOAT, slots[0].type)).toBe(false);
+    expect(canConnectIntoSlot(VEC3, slots[0].type)).toBe(false);
+    expect(canConnectIntoSlot(GEO, slots[0].type)).toBe(true);
+  });
+
+  it("而**另一个槽**照旧待定：float 接得进去（用户要的那件事）", async () => {
+    const editor = new NodeEditor<Schemes>();
+    const nul = makeNullNode();
+    await editor.addNode(nul);
+    await wireInto(editor, GEO, nul, "in0");
+    propagateDynamicTypes(editor);
+    const slots = nodeSlots(nul, ["in0"]);
+    expect(slots[1].type).toBe(ANY);
+    expect(canConnectIntoSlot(FLOAT, slots[1].type)).toBe(true);
+  });
+
+  it("两个槽定型之后互不影响：槽 0 = geo 拒 float，槽 1 = float 拒 geo", async () => {
+    const editor = new NodeEditor<Schemes>();
+    const nul = makeNullNode();
+    await editor.addNode(nul);
+    await wireInto(editor, GEO, nul, "in0");
+    propagateDynamicTypes(editor);
+    await wireInto(editor, FLOAT, nul, "in1");
+    propagateDynamicTypes(editor);
+    const slots = nodeSlots(nul, ["in0", "in1"]);
+    expect(slots.map((s) => s.type)).toEqual([GEO, FLOAT, ANY]);
+    expect(canConnectIntoSlot(FLOAT, slots[0].type)).toBe(false); // 几何槽拒浮点
+    expect(canConnectIntoSlot(GEO, slots[1].type)).toBe(false); // 数值槽拒几何
+    expect(slotTypesConsistent(nul)).toBe(true);
   });
 });
 

@@ -1749,14 +1749,19 @@ const bootParams = new URLSearchParams(location.search);
 const qp = bootParams.get("project");
 const qm = bootParams.get("member");
 if (qp && PROJECT_SERIAL_RE.test(qp) && qm && SERIAL_RE.test(qm)) {
-  // **`&member=` 已废弃（v0.1.00122）**：忽略它，只进项目根。
+  // `&member=` 的**地址语义**已废弃（v0.1.00122），但**会话仍要激活**（v0.1.00124 修回）。
   //
-  // 用户要求 cook 之后只出现 `/P1-…`，里面一个黄色高亮提示，由用户手动建 geo 并进入
-  // sop 层级建 input。成员工作区这个概念本身就是「按 serial 当地址」的残余：
-  // 成员的内容属于项目图里那个 geo 的子网络，不是一个平行的顶层图。
-  // 老书签因此优雅降级成「进它所属的项目」，而不是报错或跳 Overview。
-  store.pushLog(`[nav] member= 已废弃：忽略 ${qm}，进入项目根 ${qp}（成员内容请在项目里的 geo 子网络中查看）`);
-  void enterProjectMode(qp);
+  // 用户要求的是「cook 之后地址只出现 `/P1-…`、图里只有项目根 + 黄色提示」——那是
+  // **地址栏与节点图**的要求，不是「不要连这个成员的数据」。
+  //
+  // 上一版把整条分支改成只 `enterProjectMode(qp)`、完全不激活会话，结果**没有 hello**
+  // → `session.ts` 永不 `setStatus("ok")` → `.cyl-status` 停在 connecting，
+  // 76 个 e2e 全挂（几何也永远不来）。教训：删「按 serial 寻址」时别把
+  // 「按 serial 取数据」一起删了——后者是 WS 数据通道，本来就该按 serial 走。
+  //
+  // 现在：进项目根（地址就是 `/P1-…/`，符合要求），**同时**激活该成员会话拿几何。
+  store.pushLog(`[nav] member= 仅作数据通道：地址进项目根 ${qp}，会话激活 ${qm}`);
+  void enterProjectMode(qp).then(() => sessionCtl?.activateSession(qm));
 } else if (qp && PROJECT_SERIAL_RE.test(qp)) {
   // P2b 项目模式：?project=P1-… 直接进入项目根（index.html 已放行，不重定向 overview）。
   void enterProjectMode(qp);

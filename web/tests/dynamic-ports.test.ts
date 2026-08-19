@@ -7,15 +7,20 @@ import {
   GEO,
   VEC3,
   applyDerivedPortType,
-  applyDynamicType,
+  applyDynamicTypes,
   canConnectIntoSlot,
   canConnectSockets,
-  channelTypeOf,
   derivePortType,
+  slotTypeOf,
   slotTypesConsistent,
   socketNameOf,
   dynamicInputIndex,
   dynamicInputKey,
+  dynamicOutputIndex,
+  dynamicOutputKey,
+  planDynamicOutputs,
+  planDynamicSlotCount,
+  resolveSlotTypes,
   findPortTypeConflicts,
   hasDynamicInputs,
   isConnectableSocket,
@@ -27,7 +32,6 @@ import {
   planDynamicInputs,
   portTypeConflictsToNodeErrors,
   propagateDynamicTypes,
-  resolveDynamicType,
   restoreGraph,
   serializeGraph,
   socketFamily,
@@ -187,11 +191,43 @@ describe("syncDynamicInputs（长出来 / 收回去）", () => {
     expect(syncDynamicInputs(n, ["in0"])).toBe(false);
   });
 
-  it("新端口带指定类型；**已存在的端口不被这里改类型**（那是推导的职责）", () => {
+  it("新端口一律 ANY（待定）：没接线的槽**不许**被预先定型", () => {
     const n = makeNullNode();
-    syncDynamicInputs(n, ["in0"], FLOAT);
-    expect(socketOf(n, "in1")).toBe(FLOAT); // 新长出来的
-    expect(socketOf(n, "in0")).toBe(ANY); // 既有的原样
+    syncDynamicInputs(n, ["in0"]);
+    expect(socketOf(n, "in1")).toBe(ANY); // 新长出来的 spare 留在待定
+    expect(socketOf(n, "in0")).toBe(ANY); // 既有的原样（类型是 applyDynamicTypes 的职责）
+  });
+
+  it("**输出侧逐槽成对长出来**：in{k} 有几个，out{k} 就有几个（槽 0 恒 out0）", () => {
+    const n = makeNullNode();
+    syncDynamicInputs(n, ["in0", "in1"]);
+    expect(inKeys(n)).toEqual(["in0", "in1", "in2"]);
+    expect(Object.keys(n.outputs)).toEqual(["out0", "out1", "out2"]);
+  });
+
+  it("下游还接着的 out{k} **不会被回收**（端口 key 就是连接身份）", () => {
+    const n = makeNullNode();
+    // 上游一根线都没接，但下游接走了 out2 → 槽数被输出侧撑到 4
+    syncDynamicInputs(n, [], ["out2"]);
+    expect(Object.keys(n.outputs)).toEqual(["out0", "out1", "out2", "out3"]);
+    expect(inKeys(n)).toEqual(["in0", "in1", "in2", "in3"]); // 两侧成对，不许瘸腿
+  });
+
+  it("planDynamicSlotCount / planDynamicOutputs：两侧取 max 后 +1 个 spare", () => {
+    expect(planDynamicSlotCount([], [])).toBe(1);
+    expect(planDynamicSlotCount(["in0"], [])).toBe(2);
+    expect(planDynamicSlotCount([], ["out3"])).toBe(5); // 输出侧也参与计数
+    expect(planDynamicSlotCount(["in1"], ["out0"])).toBe(3); // 取两侧最大
+    expect(planDynamicOutputs(["in0"])).toEqual(["out0", "out1"]);
+    expect(planDynamicOutputs([], ["out1"])).toEqual(["out0", "out1", "out2"]);
+  });
+
+  it("dynamicOutputKey / dynamicOutputIndex 互逆；非该形状 → null", () => {
+    expect(dynamicOutputKey(0)).toBe("out0"); // 槽 0 逐字仍是 out0（冻结契约）
+    expect(dynamicOutputKey(2)).toBe("out2");
+    expect(dynamicOutputIndex("out2")).toBe(2);
+    expect(dynamicOutputIndex("in0")).toBe(null);
+    expect(dynamicOutputIndex("outx")).toBe(null);
   });
 });
 
@@ -213,29 +249,50 @@ async function wireInto(
 }
 
 describe("propagateDynamicTypes（类型从上游流下来）", () => {
-  it("喂 float 进 in0 → in0 变 float，out0 跟随，spare 也变 float", async () => {
+  it("喂 float 进 in0 → 槽 0 变 float（in0 + out0），**spare 留在 ANY**", async () => {
     const editor = new NodeEditor<Schemes>();
     const nul = makeNullNode();
     await editor.addNode(nul);
     await wireInto(editor, FLOAT, nul, "in0");
     propagateDynamicTypes(editor);
     expect(socketOf(nul, "in0")).toBe(FLOAT);
-    expect(nul.outputs.out0?.socket.name).toBe(FLOAT); // 输出跟随 → 下游继续推导
+    expect(nul.outputs.out0?.socket.name).toBe(FLOAT); // 同槽输出跟随 → 下游继续推导
     expect(inKeys(nul)).toEqual(["in0", "in1"]); // 接满长一个
-    expect(socketOf(nul, "in1")).toBe(FLOAT); // **spare 也被定型**：见下一条
+    // **槽 1 不被槽 0 定型**（v0.1.00125 的核心）：这就是用户要的"连了 float 之后
+    // 还能连 geo 进同一个 null"。改造前这里是 FLOAT，于是 geo 永远接不进来。
+    expect(socketOf(nul, "in1")).toBe(ANY);
+    expect(nul.outputs.out1?.socket.name).toBe(ANY);
   });
 
-  it("**第二根异族线被挡在连线之前**：spare 已是 float，geo 源连不上（谓词拒绝）", async () => {
+  it("**用户的原案**：geo 进槽 0、float 进槽 1，同一个 null，两者互不干扰", async () => {
     const editor = new NodeEditor<Schemes>();
     const nul = makeNullNode();
     await editor.addNode(nul);
-    await wireInto(editor, FLOAT, nul, "in0");
+    await wireInto(editor, GEO, nul, "in0");
+    propagateDynamicTypes(editor); // 长出 in1/out1
+    await wireInto(editor, FLOAT, nul, "in1");
     propagateDynamicTypes(editor);
-    // 这是设计决策：冲突被**挡住**而不是先接上再删（删线是破坏性的，连不上才是
-    // 用户能立刻理解的反馈）。spare 已定型为 float，于是 geo → in1 直接不合法。
-    expect(canConnectSockets(GEO, socketOf(nul, "in1") as string)).toBe(false);
-    // 同族（float ↔ vec3）仍放行——隐式转换是既有语义。
-    expect(canConnectSockets(VEC3, socketOf(nul, "in1") as string)).toBe(true);
+    expect(slotTypeOf(nul, 0)).toBe(GEO);
+    expect(slotTypeOf(nul, 1)).toBe(FLOAT);
+    expect(socketOf(nul, "in0")).toBe(GEO);
+    expect(socketOf(nul, "in1")).toBe(FLOAT);
+    expect(nul.outputs.out0?.socket.name).toBe(GEO); // 槽 0 的输出是几何
+    expect(nul.outputs.out1?.socket.name).toBe(FLOAT); // 槽 1 的输出是浮点
+    expect(slotTypesConsistent(nul)).toBe(true); // 镜像逐槽无漂移
+    expect(findPortTypeConflicts(editor)).toEqual([]); // 这**不是**冲突
+  });
+
+  it("**同一个槽内仍然严格**：槽 0 已是 geo → float 接不进 in0，但可接空的 in1", async () => {
+    const editor = new NodeEditor<Schemes>();
+    const nul = makeNullNode();
+    await editor.addNode(nul);
+    await wireInto(editor, GEO, nul, "in0");
+    propagateDynamicTypes(editor);
+    // 用户：「null 的几何体端口应该拒绝浮点输入」——读的是**那个槽**的类型。
+    expect(canConnectIntoSlot(FLOAT, socketNameOf(editor, nul.id, "input", "in0"))).toBe(false);
+    expect(canConnectIntoSlot(VEC3, socketNameOf(editor, nul.id, "input", "in0"))).toBe(false);
+    // 而另一个（还空着的）槽照旧待定 → 数值可以进去。
+    expect(canConnectIntoSlot(FLOAT, socketNameOf(editor, nul.id, "input", "in1"))).toBe(true);
   });
 
   it("类型沿链传递（float → null1 → null2，迭代到不动点）", async () => {
@@ -261,22 +318,26 @@ describe("propagateDynamicTypes（类型从上游流下来）", () => {
     for (const c of editor.getConnections()) await editor.removeConnection(c.id);
     propagateDynamicTypes(editor);
     expect(inKeys(nul)).toEqual(["in0"]);
+    expect(Object.keys(nul.outputs)).toEqual(["out0"]); // 输出侧一并收回
     expect(socketOf(nul, "in0")).toBe(ANY);
     expect(nul.outputs.out0?.socket.name).toBe(ANY);
   });
 
-  it("推导结果与连线创建顺序无关（按 key 序号取第一根，不按插入序）", async () => {
+  it("resolveSlotTypes：**逐槽**给类型，与连线创建顺序无关", async () => {
     const editor = new NodeEditor<Schemes>();
     const nul = makeNullNode();
     await editor.addNode(nul);
     syncDynamicInputs(nul, ["in0", "in1"]); // 先把端口备好，才能往 in1 接
-    await wireInto(editor, FLOAT, nul, "in1"); // 后建的先接进 in1
+    await wireInto(editor, VEC3, nul, "in1"); // 后建的先接进 in1
     await wireInto(editor, FLOAT, nul, "in0");
     const conns = editor.getConnections();
-    expect(resolveDynamicType(nul, conns, (id, key) => {
+    const types = resolveSlotTypes(nul, conns, (id: string, key: string) => {
       const src = editor.getNode(id) as CylNode | undefined;
       return src?.outputs[key]?.socket.name ?? "";
-    })).toBe(FLOAT);
+    });
+    // 槽 0 拿槽 0 的线、槽 1 拿槽 1 的线——**绝不跨槽借类型**
+    expect(types[0]).toBe(FLOAT);
+    expect(types[1]).toBe(VEC3);
   });
 
   it("图里没有动态节点 → 空集合（零开销，不碰任何端口）", async () => {
@@ -287,19 +348,30 @@ describe("propagateDynamicTypes（类型从上游流下来）", () => {
 });
 
 describe("findPortTypeConflicts（绕过校验的那两条路：只报不删）", () => {
-  it("跨族冲突（geo + float 喂同一个 null）→ 报错，**线不被删**", async () => {
+  it("**不同槽的跨族类型不再是冲突**：geo 进 in0、float 进 in1 完全合法", async () => {
     const editor = new NodeEditor<Schemes>();
     const nul = makeNullNode();
     await editor.addNode(nul);
     syncDynamicInputs(nul, ["in0", "in1"]);
-    // 直接 addConnection = 恢复旧图 / undo 重放那条路（绕过连线插件的类型校验）
     await wireInto(editor, GEO, nul, "in0");
     await wireInto(editor, FLOAT, nul, "in1");
+    // v0.1.00125 起这是用户明确要的形态（N 条独立通道），不是错误。
+    expect(findPortTypeConflicts(editor)).toEqual([]);
+    expect(editor.getConnections()).toHaveLength(2);
+  });
+
+  it("**同一个槽**被跨族多源喂 → 仍然报错，且**线不被删**", async () => {
+    const editor = new NodeEditor<Schemes>();
+    const nul = makeNullNode();
+    await editor.addNode(nul);
+    // 直接 addConnection = 恢复旧图 / undo 重放那条路（绕过连线插件的类型校验）：
+    // 两根线都落在 in0 上（非法拓扑），类型还跨族 → 冲突归属那**一个**槽。
+    await wireInto(editor, GEO, nul, "in0");
+    await wireInto(editor, FLOAT, nul, "in0");
     const conflicts = findPortTypeConflicts(editor);
     expect(conflicts).toHaveLength(1);
-    expect(conflicts[0].port).toBe("in1");
-    expect(conflicts[0].nodeType).toBe(GEO); // 第一根线（in0）定的调
-    expect(conflicts[0].incomingType).toBe(FLOAT);
+    expect(conflicts[0].port).toBe("in0");
+    expect(conflicts[0].message).toContain("slot 0");
     expect(editor.getConnections()).toHaveLength(2); // **一根都没被删**
   });
 
@@ -569,47 +641,78 @@ describe("canConnectIntoSlot 与 canConnectSockets 不得漂移", () => {
   });
 });
 
-describe("类型单源：socketNameOf 读通道，不读 socket 镜像", () => {
-  it("动态节点的 in/out 从校验通路读到**同一个**值", async () => {
+describe("类型单源：socketNameOf 读所属槽，不读 socket 镜像", () => {
+  it("**同一个槽**的 in/out 从校验通路读到同一个值；别的槽各读各的", async () => {
     const editor = new NodeEditor<Schemes>();
     const nul = makeNullNode();
     await editor.addNode(nul);
     await wireInto(editor, FLOAT, nul, "in0");
     propagateDynamicTypes(editor);
     expect(socketNameOf(editor, nul.id, "input", "in0")).toBe(FLOAT);
-    expect(socketNameOf(editor, nul.id, "output", "out0")).toBe(FLOAT); // 同一个通道
-    expect(socketNameOf(editor, nul.id, "input", "in1")).toBe(FLOAT); // spare 也是
+    expect(socketNameOf(editor, nul.id, "output", "out0")).toBe(FLOAT); // 同一个槽
+    // spare（槽 1）**不跟随**槽 0：它还没接线，就该是待定。
+    expect(socketNameOf(editor, nul.id, "input", "in1")).toBe(ANY);
+    expect(socketNameOf(editor, nul.id, "output", "out1")).toBe(ANY);
   });
 
-  it("端口不存在仍返回 \"\"（不可回落到通道类型，否则连不存在的端口都能连）", async () => {
+  it("key → 槽的解析：`in2`/`out2` 都归到槽 2，读到槽 2 自己的类型", async () => {
+    const editor = new NodeEditor<Schemes>();
+    const nul = makeNullNode();
+    await editor.addNode(nul);
+    syncDynamicInputs(nul, ["in0", "in2"]); // 中间留洞：in1 空着
+    await wireInto(editor, GEO, nul, "in0");
+    await wireInto(editor, VEC3, nul, "in2");
+    propagateDynamicTypes(editor);
+    expect(socketNameOf(editor, nul.id, "input", "in2")).toBe(VEC3);
+    expect(socketNameOf(editor, nul.id, "output", "out2")).toBe(VEC3);
+    expect(socketNameOf(editor, nul.id, "input", "in1")).toBe(ANY); // 空洞仍待定
+    expect(socketNameOf(editor, nul.id, "output", "out0")).toBe(GEO);
+  });
+
+  it("端口不存在仍返回 \"\"（不可回落到槽类型，否则连不存在的端口都能连）", async () => {
     const editor = new NodeEditor<Schemes>();
     const nul = makeNullNode();
     await editor.addNode(nul);
     expect(socketNameOf(editor, nul.id, "input", "in9")).toBe("");
-    expect(socketNameOf(editor, nul.id, "output", "out1")).toBe("");
+    expect(socketNameOf(editor, nul.id, "output", "out1")).toBe(""); // 起手只有 out0
   });
 
   it("镜像漂移时校验仍读单源（socket 被外力改坏也不放行错配的线）", async () => {
     const editor = new NodeEditor<Schemes>();
     const nul = makeNullNode();
     await editor.addNode(nul);
-    applyDynamicType(nul, GEO);
+    applyDynamicTypes(nul, [GEO]);
     expect(slotTypesConsistent(nul)).toBe(true);
     // 人为把一个 socket 镜像改成 float（模拟漂移）
     nul.inputs.in0!.socket = new ClassicPreset.Socket(FLOAT);
     expect(slotTypesConsistent(nul)).toBe(false); // 不变式抓到了
-    expect(socketNameOf(editor, nul.id, "input", "in0")).toBe(GEO); // 校验仍认通道
+    expect(socketNameOf(editor, nul.id, "input", "in0")).toBe(GEO); // 校验仍认槽
     expect(canConnectIntoSlot(FLOAT, socketNameOf(editor, nul.id, "input", "in0"))).toBe(false);
   });
 
-  it("applyDynamicType 同时写单源与镜像（非动态 kind 一个字节都不动）", () => {
+  it("applyDynamicTypes 同时写单源与镜像（非动态 kind 一个字节都不动）", () => {
     const nul = makeNullNode();
-    expect(applyDynamicType(nul, VEC3)).toBe(true);
-    expect(channelTypeOf(nul)).toBe(VEC3);
+    expect(applyDynamicTypes(nul, [VEC3])).toBe(true);
+    expect(slotTypeOf(nul, 0)).toBe(VEC3);
     expect(slotTypesConsistent(nul)).toBe(true);
-    expect(applyDynamicType(nul, VEC3)).toBe(false); // 幂等
+    expect(applyDynamicTypes(nul, [VEC3])).toBe(false); // 幂等
     const t = makeTransformNode();
-    expect(applyDynamicType(t, FLOAT)).toBe(false);
+    expect(applyDynamicTypes(t, [FLOAT])).toBe(false);
     expect(t.inputs.in0?.socket.name).toBe(GEO);
+  });
+
+  it("applyDynamicTypes：数组里没有的槽落 ANY（不许替下一根线预先决定）", () => {
+    const n = makeNullNode();
+    syncDynamicInputs(n, ["in0"]);
+    expect(applyDynamicTypes(n, [FLOAT])).toBe(true); // 只给槽 0
+    expect(slotTypeOf(n, 0)).toBe(FLOAT);
+    expect(slotTypeOf(n, 1)).toBe(ANY); // 槽 1 没给 → 待定
+    expect(slotTypesConsistent(n)).toBe(true);
+  });
+
+  it("脏值（非法类型）落 ANY 而不是被采信", () => {
+    const n = makeNullNode();
+    applyDynamicTypes(n, ["banana"]);
+    expect(slotTypeOf(n, 0)).toBe(ANY);
   });
 });

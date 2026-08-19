@@ -576,11 +576,12 @@ export function resolveInputSourcePort(
   editor: NodeEditor<Schemes>,
   nodeId: string,
   visited: Set<string> = new Set(),
+  inputKey = "in0",
 ): number | null {
   if (visited.has(nodeId)) return null;
   visited.add(nodeId);
   const conn = editor.getConnections().find(
-    (c) => c.target === nodeId && c.targetInput === "in0",
+    (c) => c.target === nodeId && c.targetInput === inputKey,
   ) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
   if (!conn) return null;
   const src = editor.getNode(conn.source) as CylNode | undefined;
@@ -589,7 +590,14 @@ export function resolveInputSourcePort(
     const m = /^in(\d)$/.exec(out);
     return m ? Number(m[1]) : null;
   }
-  if ((src?.kind === "null" || src?.kind === "transform") && out === "out0") {
+  // null 是 N 条**独立**直通通道：从 `out{k}` 下来就要回到它自己的 `in{k}`，而不是恒回
+  // `in0`。恒回 in0 会让"槽 1 的显示焦点"报出槽 0 的来源端口——看着有值、指错通道。
+  if (src?.kind === "null") {
+    const k = dynamicOutputIndex(out);
+    if (k === null) return null;
+    return resolveInputSourcePort(editor, src.id, visited, dynamicInputKey(k));
+  }
+  if (src?.kind === "transform" && out === "out0") {
     return resolveInputSourcePort(editor, src.id, visited);
   }
   return null;
@@ -642,18 +650,30 @@ export class CylNode extends ClassicPreset.Node {
   baseLabel = "";
   params?: ParamSpec[];
   /**
-   * 动态节点（`null`）的**通道类型单源**（v0.1.00122）。
+   * 动态节点（`null`）的**每槽类型单源**（v0.1.00125）。
    *
    * 在此之前"这个节点是什么类型"只存在于每个 rete socket 上，于是同一个节点的
    * in 与 out 各存一份、可以各自漂移——用户批评的「in 和 out 不应该分开看」在存储
-   * 层面就是这件事。现在类型只存这里一份，`in{k}` 与 `out0` 都只是它的**视图**：
-   * `applyDynamicType` 写这里再机械镜像到 socket（rete 的连线校验与着色只认 socket，
+   * 层面就是这件事。现在类型只存这里一份，`in{k}` 与 `out{k}` 都只是它的**视图**：
+   * `applyDynamicTypes` 写这里再机械镜像到 socket（rete 的连线校验与着色只认 socket，
    * 镜像无法省略），`slotTypesConsistent` 则把「镜像不得漂移」变成可断言的不变式。
+   *
+   * **为什么是数组而不是一个标量**（v0.1.00125 的核心改动）：用户明确要求
+   * 「现在如果我连入一个 float 了, 我是不能连一个 geo 进入同一个 null 的, 优化一下」。
+   * 一个标量类型在语义上宣称"整个节点只有一种类型"，于是槽 0 接了 float 就把槽 1 也
+   * 一并定死。而 `null` 不是 merge（用户已排除：「merge 在 houdini sop 中更多是对几何体
+   * 操作, 先不考虑」），它是 **N 条互不相干的直通通道**——槽 k 的 `out{k}` 只搬运
+   * 槽 k 的 `in{k}`。互不相干的通道必须能各自定型，所以类型天然是"每槽一个"。
+   *
+   * 用**数组按槽序号索引**而不是 `Record<string, string>` 按端口 key：槽序号才是身份
+   * （`in2` 与 `out2` 是同一个槽的两个视图），按 key 存又会退回"in/out 各存一份、可以
+   * 漂移"的老问题。稀疏/越界一律读作 `ANY`（见 `slotTypeOf`），于是"端口长出来了但还
+   * 没推导过"与"这个槽还没定型"是同一件事，不需要额外的初始化步骤。
    *
    * **不序列化**：类型由上游推导而来（propagateDynamicTypes），存进快照只会在下次
    * 加载时与真实上游打脸——与 `projectEmpty` / `hip` 同一条理由。
    */
-  channelType?: string;
+  slotTypes?: string[];
   /** P2b：仅 kind==="channel" 使用——成员通道引用（tag/hda 的 serial 即节点 id）。
    *  project/channel 都不参与几何计算，关联线 v1 纯视觉。 */
   channel?: ChannelRef | null;
@@ -1000,19 +1020,23 @@ export function dynamicInputKey(i: number): string {
 // 改坏——而它们描述的本来就是同一件事。
 //
 // 现在的模型只有一个东西：**槽**。一个槽 = 一条数据通道，拥有
-//   - 一个类型（存 `CylNode.channelType`，socket 只是镜像）
+//   - 一个类型（存 `CylNode.slotTypes[k]`，socket 只是镜像）
 //   - 一个引用表达式（存**一个** `ref_slot{k}` 参数，没有 in/out 之分）
-//   - 若干**视图**：输入侧 `in{k}`、输出侧 `out0`（`slotPortViews`）
+//   - 两个**视图**：输入侧 `in{k}`、输出侧 `out{k}`（`slotPortViews`）
 // `slotIndexOfPort` 把任一侧的 key 映射回同一个槽序号，所以「从 in 侧读」与「从 out 侧
 // 读」必然得到同一个对象——这不是靠两处同步维持的，而是只有一处可存。
 //
-// **为什么输出侧只有 out0，而不是每个槽配一个 out{k}**：`network.ts:214` 的几何 trace
-// 对 `null` 一律走 `findFeeder(snap, node.id, "in0")`，**完全无视** sourceOutput。多长
-// 出来的 out{k} 在图上可连、在计算里会被静默当成 out0 的数据——那是"看起来对、算出来错"，
-// 比没有这个端口坏得多。而 network.ts 不在本写集内（用户自己拥有 bridge/**、param.ts、
-// graph.ts、graph-interact.ts；network.ts 谁都没认领），我不能顺手改它的语义。
-// 所以：`null` 是**多头汇入的单通道**（Cyl1nder 的 merge），槽的输出视图共用 out0。
-// 这一点在报告里如实标注为与"每槽一进一出"的字面读法的偏差。
+// **输出侧每槽一个 `out{k}`**（v0.1.00125）。上一版把所有槽的输出视图并到 `out0`，
+// 理由是当时 `network.ts` 对 `null` 一律 `findFeeder(snap, node.id, "in0")`、完全无视
+// sourceOutput，多长的 out{k} 会被静默当成 out0 的数据（"看着对、算出来错"）。
+// 那个前提已经没了：`network.ts` 现在有 `slotFeederFor(snap, node, sourceOutput)`，
+// `out{k}` → `in{k}`，且该槽未接线时返回 undefined（**绝不借别的槽的数据充数**）。
+// 于是每槽一个输出端口才是可寻址的、算得对的形态——`null` 是 N 条独立直通通道，
+// 不是 merge（用户已排除 merge 语义）。
+//
+// **槽 0 的输出键仍逐字是 `out0`**：端口 key 就是连接身份（`sourceOutput`），既有图、
+// 冻结快照、13 个 e2e spec 与 network/dataflow/chain-cache 三批单测全都写着 `out0`。
+// 新增的只有 `out1`、`out2`…，一个既有键都没有改名。
 // ---------------------------------------------------------------------------
 
 /** 槽引用参数名前缀。**保留 `ref_` 前缀**：`isDefaultRefParam` 与旧快照的默认值剔除
@@ -1036,9 +1060,10 @@ export interface PortSlot {
   index: number;
   /** 输入侧视图 key（`in{index}`）。 */
   inputKey: string;
-  /** 输出侧视图 key；**多头汇入单通道**，故所有槽共用 `out0`（见上方论证）。 */
+  /** 输出侧视图 key（`out{index}`）——每槽一个独立输出（见上方论证）。 */
   outputKey: string;
-  /** 该槽的数据类型（未推导出 → ANY）。in/out 两侧读到的**必然**是这一个值。 */
+  /** **该槽**的数据类型（未推导出 → ANY）。同槽的 in/out 两侧读到的必然是这一个值；
+   *  **不同槽互不影响**（槽 0 是 geo 不妨碍槽 1 是 float，这正是本次改动）。 */
   type: string;
   /** 该槽是否已被接线（决定它有没有引用参数——见 slotRefScope）。 */
   wired: boolean;
@@ -1106,14 +1131,12 @@ export function syncRefParams(n: CylNode, wiredKeys: readonly string[] = []): bo
  * 节点的槽列表（**纯模型视图**：无 rete 副作用，可直接单测）。
  *
  * 槽数 = 输入端口数（`planDynamicInputs` 已保证"已接线的最大序号 + 1 个 spare"）。
- * 每个槽的 `type` 一律读**同一个** `channelType`——这就是"in/out 是同一个对象"：
- * 不同视图不可能读出不同类型，因为只有一处可读。
+ * 每个槽的 `type` 读的是**该槽自己**的 `slotTypes[index]`——同一个槽的 in/out 只有一处
+ * 可读（这就是"in/out 是同一个对象"），而不同槽各读各的（这就是"槽之间互不影响"）。
  */
 export function nodeSlots(n: CylNode, wiredKeys: readonly string[] = []): PortSlot[] {
   if (!hasDynamicInputs(n.kind)) return [];
   const wired = new Set(wiredKeys.filter((k) => dynamicInputIndex(k) !== null));
-  const type = channelTypeOf(n);
-  const outputKey = Object.keys(n.outputs)[0] ?? "out0";
   return Object.keys(n.inputs)
     .map((k) => dynamicInputIndex(k))
     .filter((i): i is number => i !== null)
@@ -1125,51 +1148,85 @@ export function nodeSlots(n: CylNode, wiredKeys: readonly string[] = []): PortSl
       return {
         index,
         inputKey,
-        outputKey,
-        type,
+        outputKey: dynamicOutputKey(index),
+        type: slotTypeOf(n, index),
         wired: isWired,
         ref: isWired && typeof refParam?.value === "string" ? refParam.value : "",
       };
     });
 }
 
-/** 任一侧的端口 key → 槽序号。**in 与 out 归一到同一个槽**（`out0` → 槽 0）。
- *  不属于本节点端口体系的 key → null。 */
+/** 任一侧的端口 key → 槽序号。**in{k} 与 out{k} 归一到同一个槽**。
+ *  不属于本节点端口体系的 key（端口不存在 / 形状不对）→ null。 */
 export function slotIndexOfPort(n: CylNode, key: string): number | null {
   if (!hasDynamicInputs(n.kind)) return null;
   const asInput = dynamicInputIndex(key);
   if (asInput !== null && n.inputs[key]) return asInput;
-  if (n.outputs[key]) return 0; // 单通道输出：out0 就是槽 0 的输出视图
+  const asOutput = dynamicOutputIndex(key);
+  if (asOutput !== null && n.outputs[key]) return asOutput;
   return null;
 }
 
-/** 一个槽的全部端口视图（输入侧 + 输出侧）。槽 0 含 out0；其余槽只有输入视图
- *  （多头汇入单通道，见本节顶部论证）。 */
+/** 一个槽的全部端口视图（输入侧 + 输出侧）：`["in{k}", "out{k}"]`。
+ *  每槽一进一出——槽 k 的 `out{k}` 只搬运槽 k 的 `in{k}`（见本节顶部论证）。 */
 export function slotPortViews(slot: PortSlot): string[] {
-  return slot.index === 0 ? [slot.inputKey, slot.outputKey] : [slot.inputKey];
-}
-
-/** 通道类型（单源）：未推导 → ANY。socket 上的值只是它的镜像。 */
-export function channelTypeOf(n: CylNode): string {
-  return isConnectableSocket(n.channelType) ? (n.channelType as string) : ANY;
+  return [slot.inputKey, slot.outputKey];
 }
 
 /**
- * 不变式：**每个 socket 的类型都等于通道类型**（镜像没有漂移）。
+ * **某一个槽**的类型（单源）：未推导 / 越界 / 脏值 → ANY。socket 上的值只是镜像。
+ *
+ * 越界读成 ANY 而不是抛：端口可能刚长出来、`slotTypes` 还没被 `applyDynamicTypes`
+ * 填到那一格。"还没定型"与"这个槽是 ANY"本来就是同一件事，于是不需要初始化步骤。
+ */
+export function slotTypeOf(n: CylNode, index: number): string {
+  const t = n.slotTypes?.[index];
+  return isConnectableSocket(t) ? (t as string) : ANY;
+}
+
+/**
+ * 不变式：**每个 socket 的类型都等于它所属槽的类型**（镜像没有漂移）。
  *
  * 存一份、镜像 N 份是被 rete 逼出来的（连线校验与着色只认 socket），但"存的那份"与
  * "镜像"一旦不等，就又回到了 in/out 各存一份的老问题。所以把它写成可断言的谓词，
- * 由单测在每条改类型的路径后面钉一次。
+ * 由单测在每条改类型的路径后面钉一次。逐槽比对（不是"全端口同一个值"）——那正是
+ * 本次改动：槽 0 与槽 1 允许不同类型，只有**同槽的 in/out** 必须相等。
  */
 export function slotTypesConsistent(n: CylNode): boolean {
   if (!hasDynamicInputs(n.kind)) return true;
-  const want = channelTypeOf(n);
-  return [...Object.values(n.inputs), ...Object.values(n.outputs)].every((p) => p?.socket.name === want);
+  for (const [key, port] of Object.entries(n.inputs)) {
+    const i = dynamicInputIndex(key);
+    if (i === null) continue;
+    if (port?.socket.name !== slotTypeOf(n, i)) return false;
+  }
+  for (const [key, port] of Object.entries(n.outputs)) {
+    const i = dynamicOutputIndex(key);
+    if (i === null) continue;
+    if (port?.socket.name !== slotTypeOf(n, i)) return false;
+  }
+  return true;
 }
 
 /** 动态输入 key → 序号；非该形状（`out0`、`inx`、`in-1`…）→ null。 */
 export function dynamicInputIndex(key: string): number | null {
   const m = /^in(\d+)$/.exec(key);
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** 动态输出端口的 key 前缀。与 `_output_` 的输入端口同名不同侧，互不干扰
+ *  （`socketNameOf` 按 side 取端口表，`slotIndexOfPort` 按端口是否存在判定）。 */
+const DYN_OUT = "out";
+
+/** 槽序号 → 动态输出 key。**槽 0 恒为 `out0`**（既有连接身份，一个字节都不能改）。 */
+export function dynamicOutputKey(i: number): string {
+  return `${DYN_OUT}${i}`;
+}
+
+/** 动态输出 key → 序号；非该形状（`in0`、`outx`、`out-1`…）→ null。 */
+export function dynamicOutputIndex(key: string): number | null {
+  const m = /^out(\d+)$/.exec(key);
   if (!m) return null;
   const n = parseInt(m[1], 10);
   return Number.isFinite(n) ? n : null;
@@ -1183,37 +1240,94 @@ export function dynamicInputIndex(key: string): number | null {
  * 连续输出（含空洞）是刻意的：见上方规则 2。
  */
 export function planDynamicInputs(wiredKeys: readonly string[]): string[] {
-  let maxWired = -1;
-  for (const k of wiredKeys) {
-    const i = dynamicInputIndex(k);
-    if (i !== null && i > maxWired) maxWired = i;
-  }
-  const count = maxWired + 2; // 最后一个已接之后留正好一个空位；无已接 → 1
+  const count = planDynamicSlotCount(wiredKeys, []);
   return Array.from({ length: count }, (_, i) => dynamicInputKey(i));
 }
 
 /**
- * 把节点的输入端口改成 planDynamicInputs 的结果；返回是否真的增删过端口。
+ * 槽数（in/out 两侧共用的**唯一**计数）——grow/shrink 规则的真正单源。
  *
- * `socketType`：新建端口用的类型（缺省 ANY = 待定）。**已存在的端口不在这里换类型**
- * ——那是 propagateDynamicTypes 的职责，两件事分开才不会"加个端口顺手把别人的类型改了"。
+ * = max(最大已接**输入**序号, 最大已接**输出**序号) + 2，即"最后一个用到的槽之后正好
+ * 一个空位"；两侧都没接 → 1。
+ *
+ * **为什么输出侧也要参与计数**：端口 key 就是连接身份。若只按输入侧算，一个"下游接了
+ * `out2`、上游却把 `in2` 拆了"的图会把 `out2` 收掉，那根下游线立刻指向一个不存在的
+ * key（数据里在、画面上没有）——正是 restoreGraph 那处注释警告的形态。让两侧取 max
+ * 之后，任何**已接线的** key 都不可能被回收，与"中间空洞必须保留"是同一条铁律。
+ */
+export function planDynamicSlotCount(
+  wiredInputs: readonly string[],
+  wiredOutputs: readonly string[],
+): number {
+  let max = -1;
+  for (const k of wiredInputs) {
+    const i = dynamicInputIndex(k);
+    if (i !== null && i > max) max = i;
+  }
+  for (const k of wiredOutputs) {
+    const i = dynamicOutputIndex(k);
+    if (i !== null && i > max) max = i;
+  }
+  return max + 2;
+}
+
+/** 「现在应该有哪些输出 key」——`out0..outN`，与输入侧**逐槽一一对应**（同一个计数）。
+ *  槽 0 恒为 `out0`，所以既有图/测试/e2e 引用的那个 key 逐字不变。 */
+export function planDynamicOutputs(
+  wiredInputs: readonly string[],
+  wiredOutputs: readonly string[] = [],
+): string[] {
+  const count = planDynamicSlotCount(wiredInputs, wiredOutputs);
+  return Array.from({ length: count }, (_, i) => dynamicOutputKey(i));
+}
+
+/**
+ * 把节点的端口改成计划的结果（**两侧同时**：`in{k}` 与 `out{k}` 逐槽成对）；
+ * 返回是否真的增删过端口。
+ *
+ * `wiredOutputKeys`：下游已经接走的输出 key。参与槽数计数，于是拆上游不会收掉
+ * 一个**下游还接着**的 `out{k}`（见 planDynamicSlotCount 的论证）。
+ *
+ * 新端口一律建成 **ANY**（待定）：类型是**每槽**的属性，只有真的接上线的槽才有类型，
+ * 而新长出来的端口按定义还没接线。**已存在的端口也不在这里换类型**——那是
+ * `applyDynamicTypes` 的职责，两件事分开才不会"加个端口顺手把别人的类型改了"。
  * 非动态 kind → 直接 false（旧 4 端口图、transform、geo 一个字节都不动）。
  */
-export function syncDynamicInputs(n: CylNode, wiredKeys: readonly string[], socketType = ANY): boolean {
+export function syncDynamicInputs(
+  n: CylNode,
+  wiredKeys: readonly string[],
+  wiredOutputKeys: readonly string[] = [],
+): boolean {
   if (!hasDynamicInputs(n.kind)) return false;
-  const want = planDynamicInputs(wiredKeys);
-  const wantSet = new Set(want);
+  // 两侧从**同一个**槽数派生：槽是一进一出的，端口数瘸腿就意味着某个槽只有半边视图，
+  // 而 `slotPortViews` 承诺每个槽都有 in{k} 与 out{k}。
+  const count = planDynamicSlotCount(wiredKeys, wiredOutputKeys);
+  const wantIn = Array.from({ length: count }, (_, i) => dynamicInputKey(i));
+  const wantOut = Array.from({ length: count }, (_, i) => dynamicOutputKey(i));
+  const wantInSet = new Set(wantIn);
+  const wantOutSet = new Set(wantOut);
   let changed = false;
   for (const key of Object.keys(n.inputs)) {
     // 非 `in\d+` 的输入端口不属于本规则管辖 → 留着（防御：将来若有别的输入端口）
     if (dynamicInputIndex(key) === null) continue;
-    if (wantSet.has(key)) continue;
+    if (wantInSet.has(key)) continue;
     n.removeInput(key);
     changed = true;
   }
-  for (const key of want) {
+  for (const key of Object.keys(n.outputs)) {
+    if (dynamicOutputIndex(key) === null) continue;
+    if (wantOutSet.has(key)) continue;
+    n.removeOutput(key);
+    changed = true;
+  }
+  for (const key of wantIn) {
     if (n.inputs[key]) continue;
-    n.addInput(key, new ClassicPreset.Input(new ClassicPreset.Socket(socketType)));
+    n.addInput(key, new ClassicPreset.Input(new ClassicPreset.Socket(ANY)));
+    changed = true;
+  }
+  for (const key of wantOut) {
+    if (n.outputs[key]) continue;
+    n.addOutput(key, new ClassicPreset.Output(new ClassicPreset.Socket(ANY)));
     changed = true;
   }
   // 端口变了就同步引用参数：**已接线的槽**要有地方填引用，消失/未接线的槽不该留下
@@ -1240,18 +1354,36 @@ export function wiredInputKeysByNode(
   return map;
 }
 
+/** 同上，**输出侧**：nodeId -> 被下游接走的 sourceOutput key。
+ *  端口回收要看它，否则会收掉一个下游还接着的 `out{k}`（连接身份被打断）。 */
+export function wiredOutputKeysByNode(
+  connections: ReadonlyArray<{ source: string; sourceOutput: string }>,
+): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  for (const c of connections) {
+    if (!c?.source || typeof c.sourceOutput !== "string") continue;
+    const list = map.get(c.source);
+    if (list) list.push(c.sourceOutput);
+    else map.set(c.source, [c.sourceOutput]);
+  }
+  return map;
+}
+
 // ---------------------------------------------------------------------------
 // 动态节点的类型推导（v0.1.00121）：类型**从上游流下来**，用户不再手填
 //
 // 用户要求（#2 的另一半）：端口类型应当由所选参数/上游决定，不该让人再指定一遍。
 // 对 `_input_`/`_output_` 是"由 capabilities 决定"（见 derivePortType）；对 `null`
-// 这种动态节点则是"由**接上来的那根线**决定"：
-//   1. 未接任何线 → 全部端口 ANY（待定，灰白，谁都能接）；
-//   2. 接上第一根线 → 该节点**全部**端口（含尚空的那个 spare 与 out0）换成源类型；
-//   3. 于是第二根线若类型不同，`canConnectSockets` 在**连线发生前**就拒了 —— 冲突
-//      是被**挡住**的，而不是先接上再删。这是刻意的：删线是破坏性操作，而"连不上"
-//      才是用户能立刻理解的反馈（Houdini 也是连不上）。
-//   4. 例外：float ↔ vec3 同族，允许接（隐式转换是既有语义）。
+// 这种动态节点则是"由**接进这个槽的那根线**决定"（v0.1.00125 起**逐槽独立**）：
+//   1. 未接线的槽 → ANY（待定，灰白，谁都能接）；
+//   2. 槽 k 接上线 → **只有**槽 k 的 `in{k}` 与 `out{k}` 换成源类型，其余槽不动；
+//   3. 于是同一个 null 上，槽 0 可以是 geo、槽 1 可以是 float —— 这正是用户要的
+//      「连入一个 float 了, 也要能连一个 geo 进入同一个 null」；
+//   4. 而**同一个槽**内仍然严格：槽 0 已是 geo，float 就接不进 `in0`
+//      （`canConnectIntoSlot` 跨族永不互通 = 用户的「几何体端口应该拒绝浮点输入」）；
+//   5. 冲突被**挡在连线之前**而不是先接上再删：删线是破坏性操作，"连不上"才是用户
+//      能立刻理解的反馈（Houdini 也是连不上）。
+//   6. 例外：float ↔ vec3 同族，允许接（隐式转换是既有语义）。
 //
 // 恢复旧图 / undo 重放这两条路会**绕过**连线插件的校验（直接 editor.addConnection），
 // 所以再补一道**只报不删**的冲突检出（findPortTypeConflicts → 节点红角标）。
@@ -1266,44 +1398,76 @@ export interface TypedConnectionLike {
 }
 
 /**
- * 一个动态节点应当是什么类型：取**第一根已接线的源端口类型**（按 key 序号升序，
- * 于是结果与连线创建顺序无关 —— 同一张图无论怎么重放都推出同一个类型）。
- * 没有已接线、或所有源类型都还待定 → ANY。
+ * **每槽**应当是什么类型 —— 返回按槽序号索引的数组（v0.1.00125 的推导核心）。
+ *
+ * 槽 k 的类型 = 接进 `in{k}` 的那根线的源端口类型；该槽没接线（或源类型还待定）→ ANY。
+ * **绝不跨槽借类型**：槽 1 空着就是 ANY，不会因为槽 0 是 float 而被一并定死——那正是
+ * 用户批评的行为（「连了 float 就不能再连 geo」）。
+ *
+ * 同一个 `in{k}` 被多源喂时（非法拓扑，`findMultiSourceErrors` 另有报错）按**源节点 id
+ * 升序**取第一个：结果与连线创建顺序无关，同一张图无论怎么重放都推出同一套类型。
+ *
+ * 长度取"已接槽的最大序号 + 1"，其余（含尾部 spare）由 `slotTypeOf` 读成 ANY —— 不需要
+ * 把 ANY 显式填进数组，"没有这一格"与"这一格是 ANY"本来就该等价。
  */
-export function resolveDynamicType(
+export function resolveSlotTypes(
   n: CylNode,
   connections: ReadonlyArray<TypedConnectionLike>,
   socketTypeOf: (nodeId: string, key: string) => string,
-): string {
+): string[] {
+  const types: string[] = [];
   const incoming = connections
     .filter((c) => c.target === n.id && dynamicInputIndex(c.targetInput) !== null)
-    .sort((a, b) => (dynamicInputIndex(a.targetInput) ?? 0) - (dynamicInputIndex(b.targetInput) ?? 0));
+    .sort((a, b) => (a.source < b.source ? -1 : a.source > b.source ? 1 : 0));
   for (const c of incoming) {
+    const k = dynamicInputIndex(c.targetInput) as number;
+    if (types[k] !== undefined && types[k] !== ANY) continue; // 已定型：先到者赢（稳定）
     const t = socketTypeOf(c.source, c.sourceOutput);
-    if (t !== "" && t !== ANY && isConnectableSocket(t)) return t;
+    types[k] = t !== "" && t !== ANY && isConnectableSocket(t) ? t : ANY;
   }
-  return ANY;
+  for (let i = 0; i < types.length; i += 1) if (types[i] === undefined) types[i] = ANY;
+  return types;
 }
 
 /**
- * 把推导出的类型落到一个动态节点的**全部**端口（输入 + 输出）；返回是否有变化。
+ * 把**每槽**推导出的类型落到该槽的两个视图（`in{k}` / `out{k}`）；返回是否有变化。
  *
- * 为什么连**空着**的那个 spare 也换：它才是下一根线要接的地方。若 spare 留在 ANY，
- * 第二根异类型线就能接进来，冲突要到"接完之后"才发现 —— 那就只剩删线一条路了。
- * out0 同步换：下游据此继续推导（float 经过一串 null 仍是 float）。
+ * `slotTypes` 里没有的槽（含尾部 spare）落 ANY：一个没接线的槽**必须**留在待定，
+ * 否则它就会替下一根线预先做决定 —— 那正是改造前"连了 float 就不能再连 geo"的根因。
+ * `out{k}` 同步换：下游据此继续推导（float 经过一串 null 的槽 k 仍是 float）。
  */
-export function applyDynamicType(n: CylNode, socketType: string): boolean {
+export function applyDynamicTypes(n: CylNode, slotTypes: readonly string[]): boolean {
   if (!hasDynamicInputs(n.kind)) return false;
   let changed = false;
-  // 先写**单源**（通道类型），再机械镜像到每个 socket。顺序重要：socket 是视图，
+  // 先写**单源**（每槽类型），再机械镜像到 socket。顺序重要：socket 是视图，
   // 视图不该比它的来源更新。镜像不可省略——rete 的连线校验与着色只认 socket。
-  if (n.channelType !== socketType) {
-    n.channelType = socketType;
+  const want = Object.keys(n.inputs)
+    .map((k) => dynamicInputIndex(k))
+    .filter((i): i is number => i !== null);
+  const next: string[] = [];
+  for (const i of want) {
+    const t = slotTypes[i];
+    next[i] = isConnectableSocket(t) ? (t as string) : ANY;
+  }
+  for (let i = 0; i < next.length; i += 1) if (next[i] === undefined) next[i] = ANY;
+  if ((n.slotTypes ?? []).join("\u0000") !== next.join("\u0000")) {
+    n.slotTypes = next;
     changed = true;
   }
-  for (const port of [...Object.values(n.inputs), ...Object.values(n.outputs)]) {
-    if (!port || port.socket.name === socketType) continue;
-    port.socket = new ClassicPreset.Socket(socketType);
+  for (const [key, port] of Object.entries(n.inputs)) {
+    const i = dynamicInputIndex(key);
+    if (i === null || !port) continue;
+    const t = slotTypeOf(n, i);
+    if (port.socket.name === t) continue;
+    port.socket = new ClassicPreset.Socket(t);
+    changed = true;
+  }
+  for (const [key, port] of Object.entries(n.outputs)) {
+    const i = dynamicOutputIndex(key);
+    if (i === null || !port) continue;
+    const t = slotTypeOf(n, i);
+    if (port.socket.name === t) continue;
+    port.socket = new ClassicPreset.Socket(t);
     changed = true;
   }
   return changed;
@@ -1325,12 +1489,14 @@ export function propagateDynamicTypes(editor: NodeEditor<Schemes>): Set<string> 
   for (let round = 0; round <= nodes.length; round += 1) {
     let dirty = false;
     const connections = editor.getConnections() as TypedConnectionLike[];
-    const wired = wiredInputKeysByNode(connections);
+    const wiredIn = wiredInputKeysByNode(connections);
+    const wiredOut = wiredOutputKeysByNode(connections);
     for (const n of nodes) {
-      const type = resolveDynamicType(n, connections, socketTypeOf);
-      // 顺序刻意：先按类型补/收端口（新端口直接带对的类型），再统一压一遍既有端口。
-      if (syncDynamicInputs(n, wired.get(n.id) ?? [], type)) dirty = true;
-      if (applyDynamicType(n, type)) dirty = true;
+      // 顺序刻意：先补/收端口（两侧成对，新端口一律 ANY），再逐槽压类型。
+      // 分开是必须的：端口存在与否是拓扑事实，类型是每槽的推导结果，混在一起就会
+      // 出现"加个端口顺手把别人的槽定型了"。
+      if (syncDynamicInputs(n, wiredIn.get(n.id) ?? [], wiredOut.get(n.id) ?? [])) dirty = true;
+      if (applyDynamicTypes(n, resolveSlotTypes(n, connections, socketTypeOf))) dirty = true;
       if (dirty) touched.add(n.id);
     }
     if (!dirty) break;
@@ -1339,13 +1505,15 @@ export function propagateDynamicTypes(editor: NodeEditor<Schemes>): Set<string> 
 }
 
 /**
- * 一条「同一个动态节点被两种**不同族**类型同时喂」的冲突（v0.1.00121）。
+ * 一条「**同一个槽**被两种不同族类型同时喂」的冲突（v0.1.00121，v0.1.00125 收窄到槽）。
  *
  * 只报**跨族**（geo vs float/vec3）：float ↔ vec3 有既有隐式转换语义，不是冲突。
+ * **不同槽之间不是冲突**（槽 0 是 geo、槽 1 是 float 完全合法，那是本次特性）——
+ * 冲突只可能出现在一个 `in{k}` 被多源喂的非法拓扑里（`findMultiSourceErrors` 另报）。
  */
 export interface PortTypeConflict {
   nodeId: string;
-  /** 该节点已推导出的类型（第一根线定的那个）。 */
+  /** 该**槽**已定型的类型（该槽第一根线定的那个）。 */
   nodeType: string;
   /** 与之冲突的输入端口 key。 */
   port: string;
@@ -1369,21 +1537,24 @@ export function findPortTypeConflicts(
   const socketTypeOf = (nodeId: string, key: string): string => socketNameOf(editor, nodeId, "output", key);
   for (const n of editor.getNodes() as CylNode[]) {
     if (!hasDynamicInputs(n.kind)) continue;
-    const nodeType = resolveDynamicType(n, connections, socketTypeOf);
-    const fam = socketFamily(nodeType);
-    if (fam === null) continue; // 全待定：谈不上冲突
+    const slotTypes = resolveSlotTypes(n, connections, socketTypeOf);
     for (const c of connections) {
-      if (c.target !== n.id || dynamicInputIndex(c.targetInput) === null) continue;
+      const k = dynamicInputIndex(c.targetInput);
+      if (c.target !== n.id || k === null) continue;
+      // **按槽**取已定型的类型：跨槽的类型差异不是冲突（那是每槽独立的正常形态）。
+      const slotType = slotTypes[k] ?? ANY;
+      const fam = socketFamily(slotType);
+      if (fam === null) continue; // 该槽待定：谈不上冲突
       const incoming = socketTypeOf(c.source, c.sourceOutput);
       const incomingFam = socketFamily(incoming);
       if (incomingFam === null || incomingFam === fam) continue;
       const srcLabel = (editor.getNode(c.source) as CylNode | undefined)?.label ?? c.source;
       out.push({
         nodeId: n.id,
-        nodeType,
+        nodeType: slotType,
         port: c.targetInput,
         incomingType: incoming,
-        message: `${n.label}.${c.targetInput} is fed ${incoming} by ${srcLabel} but this node resolved to ${nodeType}: geometry and numeric ports never mix - remove one of the wires`,
+        message: `${n.label}.${c.targetInput} is fed ${incoming} by ${srcLabel} but slot ${k} resolved to ${slotType}: geometry and numeric ports never mix - remove one of the wires`,
       });
     }
   }
@@ -1449,9 +1620,10 @@ export function makeNullNode(): CylNode {
   nullSeq += 1;
   const n = new CylNode(name, "null");
   n.baseLabel = "null";
-  n.channelType = ANY; // 通道类型单源（socket 只是镜像）
+  n.slotTypes = [ANY]; // 每槽类型单源（socket 只是镜像）；起手只有槽 0，且待定
   n.addInput(dynamicInputKey(0), new ClassicPreset.Input(new ClassicPreset.Socket(ANY)));
-  n.addOutput("out0", new ClassicPreset.Output(new ClassicPreset.Socket(ANY)));
+  // 槽 0 的输出视图逐字仍是 `out0`（既有连接身份，冻结契约）。
+  n.addOutput(dynamicOutputKey(0), new ClassicPreset.Output(new ClassicPreset.Socket(ANY)));
   // **刻意不生成引用参数**：新建的 null 一根线都没接，没有数据流进来，就没有"覆盖流入值"
   // 这件事可配置（slotRefScope 的论证）。接上第一根线时 syncDynamicInputs 会补上。
   return n;
@@ -1624,11 +1796,19 @@ export function socketNameOf(
   const n = editor.getNode(nodeId) as CylNode | undefined;
   if (!n) return "";
   const port = side === "output" ? n.outputs[key] : n.inputs[key];
-  if (!port) return ""; // 端口不存在 → 拒绝连线（不可回落到通道类型，否则连不存在的端口都能连）
-  // 动态节点：类型的**单源是通道**，socket 只是镜像。这里读单源而不是镜像，于是
-  // 「镜像还没刷到」的窗口期里连线校验也不会放行错配的线——in 与 out 从这条路读到的
-  // 必然是同一个值（用户要求的"in 和 out 是同一个对象"在校验侧的落地）。
-  if (hasDynamicInputs(n.kind)) return channelTypeOf(n);
+  if (!port) return ""; // 端口不存在 → 拒绝连线（不可回落到槽类型，否则连不存在的端口都能连）
+  // 动态节点：类型的**单源是槽**，socket 只是镜像。这里读单源而不是镜像，于是
+  // 「镜像还没刷到」的窗口期里连线校验也不会放行错配的线。
+  //
+  // **按 key 解析到它所属的那个槽**（v0.1.00125）：`in2`/`out2` → 槽 2。这就是为什么
+  // 插件能一边拒绝 geo 进一个已定型 float 的槽、一边放行 geo 进另一个空槽——上一版这里
+  // 返回一个节点级类型，两个槽读到同一个值，于是必然一起放行或一起拒绝。
+  // 解析不出槽（理论上不可能：端口既存在又不是 `in\d+`/`out\d+`）→ 回落 socket 镜像，
+  // 而不是编造一个类型。
+  if (hasDynamicInputs(n.kind)) {
+    const slot = slotIndexOfPort(n, key);
+    if (slot !== null) return slotTypeOf(n, slot);
+  }
   return port.socket?.name ?? "";
 }
 
@@ -2063,6 +2243,9 @@ export async function restoreGraph(
   // 不会报错，只会留下一根**指向不存在 key** 的连接：数据里在、画面上没有。
   // 采集用 wiredInputKeysByNode，与运行期 propagateDynamicTypes 同一处口径。
   const savedWired = wiredInputKeysByNode(d.connections ?? []);
+  // 输出侧同理（v0.1.00125，每槽一个 `out{k}`）：一根接在 `out2` 上的下游线同样需要
+  // 那个端口**在 addConnection 之前**就存在，否则它会指向一个不存在的 key。
+  const savedWiredOut = wiredOutputKeysByNode(d.connections ?? []);
   // Remove every live connection FIRST: rete's removeNode does not reliably drop its
   // connections, so restoring over a stale graph left headless segments behind.
   for (const c of editor.getConnections()) await editor.removeConnection(c.id);
@@ -2094,7 +2277,9 @@ export async function restoreGraph(
     if (nd.params && !addressForm) n.params = nd.params;
     // 动态端口：按**快照里这个节点被接过的 key** 预建端口（含尾部那一个 spare）。
     // 用 nd.id（快照 id）查，而不是 n.id（新建的 id）—— 连接表里写的是前者。
-    if (hasDynamicInputs(n.kind)) syncDynamicInputs(n, savedWired.get(nd.id) ?? []);
+    if (hasDynamicInputs(n.kind)) {
+      syncDynamicInputs(n, savedWired.get(nd.id) ?? [], savedWiredOut.get(nd.id) ?? []);
+    }
     await editor.addNode(n);
     idMap.set(nd.id, n.id);
     await area.translate(n.id, { x: nd.x ?? 0, y: nd.y ?? 0 });
