@@ -1,49 +1,157 @@
 import { describe, expect, it } from "vitest";
+import { ClassicPreset, NodeEditor } from "rete";
 import {
+  ANY,
+  FLOAT,
+  GEO,
   buildGraphSnapshot,
+  channelTypeOf,
+  legacyRefParamName,
+  makeInputNode,
   makeNullNode,
-  refParamName,
+  nodeSlots,
+  propagateDynamicTypes,
+  slotIndexOfPort,
+  slotPortViews,
+  slotRefParamName,
+  slotRefScope,
+  slotTypesConsistent,
   syncDynamicInputs,
+  syncPortSocketType,
   syncRefParams,
 } from "../src/nodes2/graph-model";
+import type { CylNode, Schemes } from "../src/nodes2/graph-model";
 
 /**
- * null 节点的端口引用参数（用户需求 #4）。
+ * 端口槽模型（v0.1.00122）——用户批评的两半：
  *
- * 用户报的 bug 是「null 的 param 中啥都没有, 没地方填引用覆盖地址」——上一轮我只做了
- * 存储字段与右键菜单，**没有真的给 null 生成这些参数**，所以面板确实是空的。
+ *  1. 「in 和 out 应该是同一个对象」→ 一个槽一个类型、一个引用参数；in/out 只是视图。
+ *  2. 「更不应该把那个 in 端的灵活端口看作一个可修改参数(还没接东西呢没数据进来)」
+ *     → 引用参数**只属于已接线的槽**，spare 永远没有参数。
  */
-describe("null 端口引用参数", () => {
-  it("新建 null 就带 in0/out0 两个引用参数（面板不再是空的）", () => {
+
+/** rete addConnection 的泛型连接（同 graph.ts 的 cast 模式）。 */
+function conn(a: CylNode, ao: string, b: CylNode, bi: string): Schemes["Connection"] {
+  return new ClassicPreset.Connection(a, ao, b, bi) as unknown as Schemes["Connection"];
+}
+
+/** 接一根「单端口 _input_（指定类型）→ target.key」的线。 */
+async function wireInto(
+  editor: NodeEditor<Schemes>,
+  type: string,
+  target: CylNode,
+  key: string,
+): Promise<CylNode> {
+  const src = makeInputNode(true);
+  const tp = src.params?.find((p) => p.name === "type");
+  if (tp) tp.value = type;
+  syncPortSocketType(src);
+  await editor.addNode(src);
+  await editor.addConnection(conn(src, "in0", target, key));
+  return src;
+}
+
+const paramNames = (n: CylNode): string[] => (n.params ?? []).map((p) => p.name);
+
+describe("引用参数的作用域：只有已接线的槽才有参数", () => {
+  it("新建 null **没有**引用参数（还没接东西呢，没有数据可覆盖）", () => {
     const n = makeNullNode();
-    expect(n.params?.map((p) => p.name)).toEqual([refParamName("in0"), refParamName("out0")]);
-    expect(n.params?.every((p) => p.type === "string" && p.value === "")).toBe(true);
+    expect(n.params).toBeUndefined();
+    expect(nodeSlots(n)).toHaveLength(1); // 只有那个 spare
+    expect(nodeSlots(n)[0].wired).toBe(false);
+    expect(slotRefScope(nodeSlots(n)[0])).toBe(false);
   });
 
-  it("端口长出来就同步长出参数", () => {
+  it("接上第一根线 → 槽 0 有参数，spare（槽 1）**没有**", () => {
     const n = makeNullNode();
-    syncDynamicInputs(n, ["in0"]); // 接了 in0 → 端口变成 in0,in1
+    syncDynamicInputs(n, ["in0"]);
     expect(Object.keys(n.inputs)).toEqual(["in0", "in1"]);
-    expect(n.params?.map((p) => p.name)).toEqual([
-      refParamName("in0"),
-      refParamName("in1"),
-      refParamName("out0"),
-    ]);
+    expect(paramNames(n)).toEqual([slotRefParamName(0)]); // 只有已接线的那个
+    const slots = nodeSlots(n, ["in0"]);
+    expect(slots.map((s) => s.wired)).toEqual([true, false]);
   });
 
-  it("端口收回去时不丢用户已经填过的引用", () => {
+  it("拆线 → 参数随之消失（不留孤儿），全拆光后 params 键被删除", () => {
     const n = makeNullNode();
     syncDynamicInputs(n, ["in0", "in1"]);
-    const p = n.params?.find((x) => x.name === refParamName("in1"));
-    if (p) p.value = "transform1/tx";
-    syncDynamicInputs(n, ["in0", "in1"]); // 同样的接线 → 不该动
-    expect(n.params?.find((x) => x.name === refParamName("in1"))?.value).toBe("transform1/tx");
+    expect(paramNames(n)).toEqual([slotRefParamName(0), slotRefParamName(1)]);
+    syncDynamicInputs(n, ["in0"]);
+    expect(paramNames(n)).toEqual([slotRefParamName(0)]);
+    syncDynamicInputs(n, []);
+    expect(n.params).toBeUndefined(); // 空数组也不留：与"没有参数"必须等价
   });
 
-  it("空引用不序列化：v2 图里 null 仍然不带 params 键（字节兼容承重墙）", () => {
+  it("端口收回时不丢用户已经填过的引用", () => {
     const n = makeNullNode();
-    expect(n.params?.length).toBeGreaterThan(0); // 内存里有（面板要用）
-    const snap = buildGraphSnapshot(
+    syncDynamicInputs(n, ["in0", "in1"]);
+    const p = n.params?.find((x) => x.name === slotRefParamName(1));
+    if (p) p.value = "transform1/tx";
+    syncDynamicInputs(n, ["in0", "in1"]); // 同样的接线 → 不该动
+    expect(n.params?.find((x) => x.name === slotRefParamName(1))?.value).toBe("transform1/tx");
+  });
+
+  it("syncRefParams 幂等（同样接线反复调不产生变化）", () => {
+    const n = makeNullNode();
+    expect(syncRefParams(n, [])).toBe(false); // 未接线：本来就没有参数
+    syncDynamicInputs(n, ["in0"]);
+    expect(syncRefParams(n, ["in0"])).toBe(false);
+  });
+});
+
+describe("一个槽一个引用：in/out 不再各存一份", () => {
+  it("槽 0 的 in0 与 out0 归一到**同一个槽序号**", () => {
+    const n = makeNullNode();
+    expect(slotIndexOfPort(n, "in0")).toBe(0);
+    expect(slotIndexOfPort(n, "out0")).toBe(0); // 输出视图 → 同一个槽
+    expect(slotIndexOfPort(n, "nope")).toBe(null);
+  });
+
+  it("参数名**不带 in/out**：一个槽只有 ref_slot{k}，改一次就改了整条通道", () => {
+    const n = makeNullNode();
+    syncDynamicInputs(n, ["in0"]);
+    expect(paramNames(n)).toEqual(["ref_slot0"]);
+    // 旧的按端口命名一个都不该再出现（那正是"分开看"的形态）
+    expect(paramNames(n)).not.toContain(legacyRefParamName("in0"));
+    expect(paramNames(n)).not.toContain(legacyRefParamName("out0"));
+  });
+
+  it("槽 0 的视图含 out0；其余槽只有输入视图（多头汇入单通道）", () => {
+    const n = makeNullNode();
+    syncDynamicInputs(n, ["in0"]);
+    const slots = nodeSlots(n, ["in0"]);
+    expect(slotPortViews(slots[0])).toEqual(["in0", "out0"]);
+    expect(slotPortViews(slots[1])).toEqual(["in1"]);
+  });
+
+  it("旧快照的 ref_in0 被**迁移**到 ref_slot0（填过的引用不丢）", () => {
+    const n = makeNullNode();
+    n.params = [{ name: legacyRefParamName("in0"), type: "string", value: "point_1.x", default: "" }];
+    syncDynamicInputs(n, ["in0"]);
+    expect(paramNames(n)).toEqual([slotRefParamName(0)]);
+    expect(n.params?.[0].value).toBe("point_1.x"); // 值跟着迁移过来
+  });
+
+  it("类型只有一处可读：nodeSlots 的每个槽都报同一个通道类型", async () => {
+    const editor = new NodeEditor<Schemes>();
+    const nul = makeNullNode();
+    await editor.addNode(nul);
+    await wireInto(editor, FLOAT, nul, "in0");
+    propagateDynamicTypes(editor);
+    expect(channelTypeOf(nul)).toBe(FLOAT);
+    expect(nodeSlots(nul, ["in0"]).map((s) => s.type)).toEqual([FLOAT, FLOAT]);
+    expect(slotTypesConsistent(nul)).toBe(true); // 镜像无漂移
+  });
+
+  it("未接线的 null：通道 ANY，镜像一致", () => {
+    const n = makeNullNode();
+    expect(channelTypeOf(n)).toBe(ANY);
+    expect(slotTypesConsistent(n)).toBe(true);
+  });
+});
+
+describe("序列化：空引用不进快照（v2 字节兼容承重墙）", () => {
+  const snapOf = (n: CylNode): { schemaVersion: number; nodes: Array<{ params?: unknown }> } =>
+    buildGraphSnapshot(
       [
         {
           id: "n",
@@ -59,35 +167,48 @@ describe("null 端口引用参数", () => {
       [],
       { k: 1, x: 0, y: 0 },
     ) as { schemaVersion: number; nodes: Array<{ params?: unknown }> };
+
+  it("未接线的 null：内存里也没有参数，磁盘上自然没有 params 键", () => {
+    const snap = snapOf(makeNullNode());
     expect(snap.schemaVersion).toBe(2);
-    expect(snap.nodes[0]?.params).toBeUndefined(); // 磁盘上没有 → 旧图字节不变
+    expect(snap.nodes[0]?.params).toBeUndefined();
+  });
+
+  it("接了线但引用是空的：内存里有参数（面板要用），磁盘上仍无 params 键", () => {
+    const n = makeNullNode();
+    syncDynamicInputs(n, ["in0"]);
+    expect(n.params?.length).toBe(1);
+    expect(snapOf(n).nodes[0]?.params).toBeUndefined();
   });
 
   it("填了引用之后才进快照", () => {
     const n = makeNullNode();
-    const p = n.params?.find((x) => x.name === refParamName("in0"));
+    syncDynamicInputs(n, ["in0"]);
+    const p = n.params?.find((x) => x.name === slotRefParamName(0));
     if (p) p.value = "point_1.x";
-    const snap = buildGraphSnapshot(
-      [
-        {
-          id: "n",
-          kind: "null",
-          label: n.label,
-          baseLabel: "null",
-          flags: { display: false, bypass: false, freeze: false, reference: false },
-          x: 0,
-          y: 0,
-          params: n.params,
-        },
-      ],
-      [],
-      { k: 1, x: 0, y: 0 },
-    ) as { nodes: Array<{ params?: Array<{ name: string; value: unknown }> }> };
-    expect(snap.nodes[0]?.params).toEqual([{ name: refParamName("in0"), type: "string", value: "point_1.x", default: "" }]);
+    expect(snapOf(n).nodes[0]?.params).toEqual([
+      { name: slotRefParamName(0), type: "string", value: "point_1.x", default: "" },
+    ]);
   });
 
-  it("syncRefParams 幂等（同样端口反复调不产生变化）", () => {
+  it("旧的 ref_in* 命名即便漏进来也照样被剔除（前缀规则未变）", () => {
     const n = makeNullNode();
-    expect(syncRefParams(n)).toBe(false);
+    n.params = [{ name: legacyRefParamName("in0"), type: "string", value: "", default: "" }];
+    expect(snapOf(n).nodes[0]?.params).toBeUndefined();
   });
 });
+
+describe("几何体槽拒绝浮点输入（用户要求）", () => {
+  it("geo 定型的 null：float 源连不进 spare，vec3 也连不进", async () => {
+    const editor = new NodeEditor<Schemes>();
+    const nul = makeNullNode();
+    await editor.addNode(nul);
+    await wireInto(editor, GEO, nul, "in0");
+    propagateDynamicTypes(editor);
+    expect(channelTypeOf(nul)).toBe(GEO);
+    const slots = nodeSlots(nul, ["in0"]);
+    // spare 已被定型为 geo → 浮点接不上（几何体数据不是浮点）
+    expect(slots[1].type).toBe(GEO);
+  });
+});
+

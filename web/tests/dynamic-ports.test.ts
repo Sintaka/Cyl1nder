@@ -7,8 +7,13 @@ import {
   GEO,
   VEC3,
   applyDerivedPortType,
+  applyDynamicType,
+  canConnectIntoSlot,
   canConnectSockets,
+  channelTypeOf,
   derivePortType,
+  slotTypesConsistent,
+  socketNameOf,
   dynamicInputIndex,
   dynamicInputKey,
   findPortTypeConflicts,
@@ -520,5 +525,91 @@ describe("applyDerivedPortType / isDerivedParam（type 对用户只读）", () =
     const tp = n.params?.find((p) => p.name === "type");
     expect(tp).toBeDefined();
     expect(tp?.value).toBe(GEO); // 默认 geo → isDefaultAddressParam 会把它剔掉
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 用户要求：「null 的几何体端口应该拒绝浮点输入, 毕竟几何体数据不是浮点」
+// ---------------------------------------------------------------------------
+
+describe("canConnectIntoSlot（几何 vs 数值：跨族永不互通）", () => {
+  it("geo 槽拒绝 float 与 vec3", () => {
+    expect(canConnectIntoSlot(FLOAT, GEO)).toBe(false);
+    expect(canConnectIntoSlot(VEC3, GEO)).toBe(false);
+    expect(canConnectIntoSlot(GEO, GEO)).toBe(true);
+  });
+
+  it("数值槽拒绝 geo；float ↔ vec3 同族放行（隐式转换是既有语义）", () => {
+    expect(canConnectIntoSlot(GEO, FLOAT)).toBe(false);
+    expect(canConnectIntoSlot(GEO, VEC3)).toBe(false);
+    expect(canConnectIntoSlot(FLOAT, VEC3)).toBe(true);
+    expect(canConnectIntoSlot(VEC3, FLOAT)).toBe(true);
+  });
+
+  it("待定槽放行（由第一根线定型）；非法/未知类型一律拒", () => {
+    expect(canConnectIntoSlot(GEO, ANY)).toBe(true);
+    expect(canConnectIntoSlot(ANY, GEO)).toBe(true);
+    expect(canConnectIntoSlot("banana", GEO)).toBe(false);
+    expect(canConnectIntoSlot(GEO, "")).toBe(false);
+  });
+});
+
+describe("canConnectIntoSlot 与 canConnectSockets 不得漂移", () => {
+  it("全类型矩阵上两者答案逐一相同（连线插件走后者，槽模型走前者）", () => {
+    // graph.ts 的 ClassicFlow 用的是 canConnectSockets；本文件的槽校验用 canConnectIntoSlot。
+    // 两条路必须给同一个答案，否则"拖不动的线"与"报冲突的线"会是两批不同的线。
+    const all = [GEO, FLOAT, VEC3, ANY, "banana", ""];
+    for (const from of all) {
+      for (const to of all) {
+        expect(canConnectIntoSlot(from, to), `${from || "<empty>"} -> ${to || "<empty>"}`).toBe(
+          canConnectSockets(from, to),
+        );
+      }
+    }
+  });
+});
+
+describe("类型单源：socketNameOf 读通道，不读 socket 镜像", () => {
+  it("动态节点的 in/out 从校验通路读到**同一个**值", async () => {
+    const editor = new NodeEditor<Schemes>();
+    const nul = makeNullNode();
+    await editor.addNode(nul);
+    await wireInto(editor, FLOAT, nul, "in0");
+    propagateDynamicTypes(editor);
+    expect(socketNameOf(editor, nul.id, "input", "in0")).toBe(FLOAT);
+    expect(socketNameOf(editor, nul.id, "output", "out0")).toBe(FLOAT); // 同一个通道
+    expect(socketNameOf(editor, nul.id, "input", "in1")).toBe(FLOAT); // spare 也是
+  });
+
+  it("端口不存在仍返回 \"\"（不可回落到通道类型，否则连不存在的端口都能连）", async () => {
+    const editor = new NodeEditor<Schemes>();
+    const nul = makeNullNode();
+    await editor.addNode(nul);
+    expect(socketNameOf(editor, nul.id, "input", "in9")).toBe("");
+    expect(socketNameOf(editor, nul.id, "output", "out1")).toBe("");
+  });
+
+  it("镜像漂移时校验仍读单源（socket 被外力改坏也不放行错配的线）", async () => {
+    const editor = new NodeEditor<Schemes>();
+    const nul = makeNullNode();
+    await editor.addNode(nul);
+    applyDynamicType(nul, GEO);
+    expect(slotTypesConsistent(nul)).toBe(true);
+    // 人为把一个 socket 镜像改成 float（模拟漂移）
+    nul.inputs.in0!.socket = new ClassicPreset.Socket(FLOAT);
+    expect(slotTypesConsistent(nul)).toBe(false); // 不变式抓到了
+    expect(socketNameOf(editor, nul.id, "input", "in0")).toBe(GEO); // 校验仍认通道
+    expect(canConnectIntoSlot(FLOAT, socketNameOf(editor, nul.id, "input", "in0"))).toBe(false);
+  });
+
+  it("applyDynamicType 同时写单源与镜像（非动态 kind 一个字节都不动）", () => {
+    const nul = makeNullNode();
+    expect(applyDynamicType(nul, VEC3)).toBe(true);
+    expect(channelTypeOf(nul)).toBe(VEC3);
+    expect(slotTypesConsistent(nul)).toBe(true);
+    expect(applyDynamicType(nul, VEC3)).toBe(false); // 幂等
+    const t = makeTransformNode();
+    expect(applyDynamicType(t, FLOAT)).toBe(false);
+    expect(t.inputs.in0?.socket.name).toBe(GEO);
   });
 });

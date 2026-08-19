@@ -213,6 +213,28 @@ export function canConnectSockets(from: string, to: string): boolean {
 }
 
 /**
+ * 「往一个**槽**里接线」的类型校验 —— 用户要求「null 的几何体端口应该拒绝浮点输入,
+ * 毕竟几何体数据不是浮点」的**具名落地点**。
+ *
+ * 与 `canConnectSockets` 的区别只在**读哪个类型**：这里读的是槽的类型（通道单源），
+ * 而不是某一个 socket 的镜像值。于是：
+ *  - 槽已定型为 geo → float / vec3 一律拒（几何不是数值，跨族永不互通）；
+ *  - 槽已定型为 float/vec3 → geo 一律拒（反向同理）；
+ *  - 槽仍待定（ANY）→ 放行，并由第一根线给它定型（推导的起点）。
+ *
+ * 抽成具名谓词而不是让调用方各自拼 `socketFamily` 比较：这条规则被三处依赖（连线校验、
+ * 冲突检出、单测），散写迟早有一处把 `null`（无族）当成"兼容"而放行。
+ */
+export function canConnectIntoSlot(incoming: string, slotType: string): boolean {
+  if (!isConnectableSocket(incoming) || !isConnectableSocket(slotType)) return false;
+  if (slotType === ANY || incoming === ANY) return true; // 待定：由第一根线定型
+  const a = socketFamily(incoming);
+  const b = socketFamily(slotType);
+  if (a === null || b === null) return false; // 无族 = 未知，宁拒不放
+  return a === b; // 族内互通（float ↔ vec3），跨族（geo ↔ 数值）永不互通
+}
+
+/**
  * 按端口类型转换一个值（float ↔ vec3）——连线放行之后的**数值**语义单源。
  *
  * - `float -> vec3`：三个分量都取该值（用户要求「三个值都是这个 float」）
@@ -619,6 +641,19 @@ export class CylNode extends ClassicPreset.Node {
   kind: NodeKind = "null";
   baseLabel = "";
   params?: ParamSpec[];
+  /**
+   * 动态节点（`null`）的**通道类型单源**（v0.1.00122）。
+   *
+   * 在此之前"这个节点是什么类型"只存在于每个 rete socket 上，于是同一个节点的
+   * in 与 out 各存一份、可以各自漂移——用户批评的「in 和 out 不应该分开看」在存储
+   * 层面就是这件事。现在类型只存这里一份，`in{k}` 与 `out0` 都只是它的**视图**：
+   * `applyDynamicType` 写这里再机械镜像到 socket（rete 的连线校验与着色只认 socket，
+   * 镜像无法省略），`slotTypesConsistent` 则把「镜像不得漂移」变成可断言的不变式。
+   *
+   * **不序列化**：类型由上游推导而来（propagateDynamicTypes），存进快照只会在下次
+   * 加载时与真实上游打脸——与 `projectEmpty` / `hip` 同一条理由。
+   */
+  channelType?: string;
   /** P2b：仅 kind==="channel" 使用——成员通道引用（tag/hda 的 serial 即节点 id）。
    *  project/channel 都不参与几何计算，关联线 v1 纯视觉。 */
   channel?: ChannelRef | null;
@@ -954,40 +989,182 @@ export function dynamicInputKey(i: number): string {
   return `${DYN_IN}${i}`;
 }
 
-/** 端口引用参数名前缀：`ref_in0` / `ref_out0`。 */
+// ---------------------------------------------------------------------------
+// 端口槽（PortSlot）：**in 与 out 是同一个对象的两个视图**（v0.1.00122）
+//
+// 用户的批评（逐字）：「null 不应该以 in 和 out 分开看, 更不应该把那个 in 端的灵活端口
+// 看作一个可修改参数(还没接东西呢没数据进来), in 和 out 应该是同一个对象」。
+//
+// 改造前的模型确实是"分开看"的：`ref_in0` 与 `ref_out0` 是**两个**参数，类型也是每个
+// socket 各存一份。于是同一条数据通道在存储上有 2~N 份互相独立的副本，谁都可以单独被
+// 改坏——而它们描述的本来就是同一件事。
+//
+// 现在的模型只有一个东西：**槽**。一个槽 = 一条数据通道，拥有
+//   - 一个类型（存 `CylNode.channelType`，socket 只是镜像）
+//   - 一个引用表达式（存**一个** `ref_slot{k}` 参数，没有 in/out 之分）
+//   - 若干**视图**：输入侧 `in{k}`、输出侧 `out0`（`slotPortViews`）
+// `slotIndexOfPort` 把任一侧的 key 映射回同一个槽序号，所以「从 in 侧读」与「从 out 侧
+// 读」必然得到同一个对象——这不是靠两处同步维持的，而是只有一处可存。
+//
+// **为什么输出侧只有 out0，而不是每个槽配一个 out{k}**：`network.ts:214` 的几何 trace
+// 对 `null` 一律走 `findFeeder(snap, node.id, "in0")`，**完全无视** sourceOutput。多长
+// 出来的 out{k} 在图上可连、在计算里会被静默当成 out0 的数据——那是"看起来对、算出来错"，
+// 比没有这个端口坏得多。而 network.ts 不在本写集内（用户自己拥有 bridge/**、param.ts、
+// graph.ts、graph-interact.ts；network.ts 谁都没认领），我不能顺手改它的语义。
+// 所以：`null` 是**多头汇入的单通道**（Cyl1nder 的 merge），槽的输出视图共用 out0。
+// 这一点在报告里如实标注为与"每槽一进一出"的字面读法的偏差。
+// ---------------------------------------------------------------------------
+
+/** 槽引用参数名前缀。**保留 `ref_` 前缀**：`isDefaultRefParam` 与旧快照的默认值剔除
+ *  规则都按前缀判定，换前缀会让历史 `ref_in*` 参数不再被剔除，v2 图凭空长出 params。 */
 export const REF_PARAM_PREFIX = "ref_";
 
-/** 端口 key → 该端口的引用参数名。 */
-export function refParamName(portKey: string): string {
+/** 槽序号 → 该槽的引用参数名（`ref_slot0`）。**无 in/out 之分**：一个槽一个引用。 */
+export function slotRefParamName(slot: number): string {
+  return `${REF_PARAM_PREFIX}slot${slot}`;
+}
+
+/** 旧的按端口命名（`ref_in0` / `ref_out0`）——**仅供读取旧快照做迁移**。
+ *  新代码一律用 slotRefParamName；保留导出是为了让迁移规则可被单测直接钉住。 */
+export function legacyRefParamName(portKey: string): string {
   return `${REF_PARAM_PREFIX}${portKey}`;
 }
 
+/** 一个槽的完整模型（纯数据；不含 rete 对象）。 */
+export interface PortSlot {
+  /** 槽序号（= 输入视图的序号）。 */
+  index: number;
+  /** 输入侧视图 key（`in{index}`）。 */
+  inputKey: string;
+  /** 输出侧视图 key；**多头汇入单通道**，故所有槽共用 `out0`（见上方论证）。 */
+  outputKey: string;
+  /** 该槽的数据类型（未推导出 → ANY）。in/out 两侧读到的**必然**是这一个值。 */
+  type: string;
+  /** 该槽是否已被接线（决定它有没有引用参数——见 slotRefScope）。 */
+  wired: boolean;
+  /** 该槽的引用表达式（未接线的槽恒为 ""，因为它连参数都不存在）。 */
+  ref: string;
+}
+
 /**
- * 按当前端口重建 null 节点的引用参数列表（用户需求 #4）。
+ * **引用参数的作用域规则**（用户批评的第二半）：
+ * 「更不应该把那个 in 端的灵活端口看作一个可修改参数(还没接东西呢没数据进来)」。
  *
- * 每个输入端口 + 每个输出端口各一个 string 参数，用户在里面填相对地址
- * （`transform1/tx`、`point_1.x`），由取值侧解析后**覆盖**该端口的值——前提是类型对得上
- * （目前只有 float 走通）。
+ * 规则：**只有已接线的槽才有引用参数**。尾部那个 spare（永远空着、等下一根线的那个）
+ * 一律**没有**参数。理由正是用户说的那句：引用是"用这个地址的值**覆盖**流进来的值"，
+ * 而没接线的槽根本没有值可覆盖——给它一个可填的框，等于请用户去配置一条不存在的数据流。
  *
- * **保留已有值**：端口增减时不能把用户填过的引用擦掉。所以按 name 从旧列表里捞回来，
- * 只补齐缺的、丢掉端口已经不存在的那些。
- *
- * 空值参数**照样生成**（面板要有地方填），序列化时由 `isDefaultRefParam` 剔除，
- * 所以磁盘上的 v2 快照仍然不带 params 键。
+ * 推论（刻意的）：一个**全新、未接线**的 null 的 `params` 是 `undefined`，参数面板里
+ * 引用区是空的。这与 v0.1.00121 那轮「面板里啥都没有」的 bug **形状相同但语义相反**：
+ * 那时是接了线也没有参数（漏了生成），现在是没接线才没有参数（接上就有）。
  */
-export function syncRefParams(n: CylNode): boolean {
+export function slotRefScope(slot: PortSlot): boolean {
+  return slot.wired;
+}
+
+/**
+ * 按**已接线的槽**重建 null 节点的引用参数列表；返回是否有变化。
+ *
+ * 一个槽**一个**参数（`ref_slot0`），不再是 in/out 各一个——这是"in 与 out 是同一个
+ * 对象"在参数层的落地：改一次就改了整条通道，不存在"in 侧填了 out 侧没填"的状态。
+ *
+ * **保留已有值**：接线增减时不能把用户填过的引用擦掉，按参数名从旧列表里捞回来。
+ * 旧快照的 `ref_in{k}` 也在这里被认领（`legacyRefParamName`），于是老图里填过的引用
+ * 迁移到新命名而不是被静默丢弃。
+ *
+ * 空值参数序列化时由 `isDefaultRefParam` 剔除，磁盘上的 v2 快照仍不带 params 键。
+ *
+ * `wiredKeys` 缺省 `[]` = **一根线都没接**（于是参数全清）。这个缺省是刻意的：接线信息
+ * 只能来自连接表，节点自己回答不了；把"没告诉我"当成"没接线"，最坏结果是参数被清空后
+ * 由下一次 syncDynamicInputs 按真实连接补回，而反过来（当成"都接着"）会给不存在的数据流
+ * 留下一堆可填的框——正是用户批评的那件事。
+ */
+export function syncRefParams(n: CylNode, wiredKeys: readonly string[] = []): boolean {
   if (!hasDynamicInputs(n.kind)) return false;
-  const want = [...Object.keys(n.inputs), ...Object.keys(n.outputs)].map(refParamName);
   const prev = new Map((n.params ?? []).map((p) => [p.name, p]));
-  const next: ParamSpec[] = want.map(
-    (name) => prev.get(name) ?? { name, type: "string", value: "", default: "" },
-  );
+  const next: ParamSpec[] = [];
+  for (const slot of nodeSlots(n, wiredKeys)) {
+    if (!slotRefScope(slot)) continue;
+    const name = slotRefParamName(slot.index);
+    // 迁移：新名没有就认领旧的按端口命名（in 侧优先——它才是"数据流进来的那一侧"）
+    const legacy = prev.get(legacyRefParamName(slot.inputKey)) ?? prev.get(legacyRefParamName(slot.outputKey));
+    const kept = prev.get(name) ?? (legacy ? { ...legacy, name } : undefined);
+    next.push(kept ?? { name, type: "string", value: "", default: "" });
+  }
+  const cur = n.params ?? [];
   const same =
-    (n.params?.length ?? 0) === next.length &&
-    (n.params ?? []).every((p, i) => p.name === next[i]?.name && p.value === next[i]?.value);
+    cur.length === next.length && cur.every((p, i) => p.name === next[i]?.name && p.value === next[i]?.value);
   if (same) return false;
-  n.params = next;
+  // 一个都不剩 → 删键而不是留空数组：`params: []` 与"没有参数"在面板/序列化里都该等价，
+  // 留个空数组只会让下游多写一处 `length === 0` 分支。
+  if (next.length === 0) delete n.params;
+  else n.params = next;
   return true;
+}
+
+/**
+ * 节点的槽列表（**纯模型视图**：无 rete 副作用，可直接单测）。
+ *
+ * 槽数 = 输入端口数（`planDynamicInputs` 已保证"已接线的最大序号 + 1 个 spare"）。
+ * 每个槽的 `type` 一律读**同一个** `channelType`——这就是"in/out 是同一个对象"：
+ * 不同视图不可能读出不同类型，因为只有一处可读。
+ */
+export function nodeSlots(n: CylNode, wiredKeys: readonly string[] = []): PortSlot[] {
+  if (!hasDynamicInputs(n.kind)) return [];
+  const wired = new Set(wiredKeys.filter((k) => dynamicInputIndex(k) !== null));
+  const type = channelTypeOf(n);
+  const outputKey = Object.keys(n.outputs)[0] ?? "out0";
+  return Object.keys(n.inputs)
+    .map((k) => dynamicInputIndex(k))
+    .filter((i): i is number => i !== null)
+    .sort((a, b) => a - b)
+    .map((index) => {
+      const inputKey = dynamicInputKey(index);
+      const isWired = wired.has(inputKey);
+      const refParam = n.params?.find((p) => p.name === slotRefParamName(index));
+      return {
+        index,
+        inputKey,
+        outputKey,
+        type,
+        wired: isWired,
+        ref: isWired && typeof refParam?.value === "string" ? refParam.value : "",
+      };
+    });
+}
+
+/** 任一侧的端口 key → 槽序号。**in 与 out 归一到同一个槽**（`out0` → 槽 0）。
+ *  不属于本节点端口体系的 key → null。 */
+export function slotIndexOfPort(n: CylNode, key: string): number | null {
+  if (!hasDynamicInputs(n.kind)) return null;
+  const asInput = dynamicInputIndex(key);
+  if (asInput !== null && n.inputs[key]) return asInput;
+  if (n.outputs[key]) return 0; // 单通道输出：out0 就是槽 0 的输出视图
+  return null;
+}
+
+/** 一个槽的全部端口视图（输入侧 + 输出侧）。槽 0 含 out0；其余槽只有输入视图
+ *  （多头汇入单通道，见本节顶部论证）。 */
+export function slotPortViews(slot: PortSlot): string[] {
+  return slot.index === 0 ? [slot.inputKey, slot.outputKey] : [slot.inputKey];
+}
+
+/** 通道类型（单源）：未推导 → ANY。socket 上的值只是它的镜像。 */
+export function channelTypeOf(n: CylNode): string {
+  return isConnectableSocket(n.channelType) ? (n.channelType as string) : ANY;
+}
+
+/**
+ * 不变式：**每个 socket 的类型都等于通道类型**（镜像没有漂移）。
+ *
+ * 存一份、镜像 N 份是被 rete 逼出来的（连线校验与着色只认 socket），但"存的那份"与
+ * "镜像"一旦不等，就又回到了 in/out 各存一份的老问题。所以把它写成可断言的谓词，
+ * 由单测在每条改类型的路径后面钉一次。
+ */
+export function slotTypesConsistent(n: CylNode): boolean {
+  if (!hasDynamicInputs(n.kind)) return true;
+  const want = channelTypeOf(n);
+  return [...Object.values(n.inputs), ...Object.values(n.outputs)].every((p) => p?.socket.name === want);
 }
 
 /** 动态输入 key → 序号；非该形状（`out0`、`inx`、`in-1`…）→ null。 */
@@ -1039,9 +1216,10 @@ export function syncDynamicInputs(n: CylNode, wiredKeys: readonly string[], sock
     n.addInput(key, new ClassicPreset.Input(new ClassicPreset.Socket(socketType)));
     changed = true;
   }
-  // 端口变了就同步引用参数（需求 #4）：新端口要有地方填引用，消失的端口不该留下孤儿参数。
-  // 放在这里而不是让调用方各自记得调——端口与参数必须同生同灭，分开就会漂移。
-  if (syncRefParams(n)) changed = true;
+  // 端口变了就同步引用参数：**已接线的槽**要有地方填引用，消失/未接线的槽不该留下
+  // 孤儿参数。放在这里而不是让调用方各自记得调——槽与参数必须同生同灭，分开就会漂移。
+  // 传 wiredKeys 是关键：作用域规则（slotRefScope）判的就是"这个槽接了没有"。
+  if (syncRefParams(n, wiredKeys)) changed = true;
   return changed;
 }
 
@@ -1117,6 +1295,12 @@ export function resolveDynamicType(
 export function applyDynamicType(n: CylNode, socketType: string): boolean {
   if (!hasDynamicInputs(n.kind)) return false;
   let changed = false;
+  // 先写**单源**（通道类型），再机械镜像到每个 socket。顺序重要：socket 是视图，
+  // 视图不该比它的来源更新。镜像不可省略——rete 的连线校验与着色只认 socket。
+  if (n.channelType !== socketType) {
+    n.channelType = socketType;
+    changed = true;
+  }
   for (const port of [...Object.values(n.inputs), ...Object.values(n.outputs)]) {
     if (!port || port.socket.name === socketType) continue;
     port.socket = new ClassicPreset.Socket(socketType);
@@ -1265,9 +1449,11 @@ export function makeNullNode(): CylNode {
   nullSeq += 1;
   const n = new CylNode(name, "null");
   n.baseLabel = "null";
+  n.channelType = ANY; // 通道类型单源（socket 只是镜像）
   n.addInput(dynamicInputKey(0), new ClassicPreset.Input(new ClassicPreset.Socket(ANY)));
   n.addOutput("out0", new ClassicPreset.Output(new ClassicPreset.Socket(ANY)));
-  syncRefParams(n); // 需求 #4：每个端口一个引用 string，否则 param 面板是空的
+  // **刻意不生成引用参数**：新建的 null 一根线都没接，没有数据流进来，就没有"覆盖流入值"
+  // 这件事可配置（slotRefScope 的论证）。接上第一根线时 syncDynamicInputs 会补上。
   return n;
 }
 /** Houdini-style unique naming: transform1, transform2… (independent seq). */
@@ -1438,7 +1624,12 @@ export function socketNameOf(
   const n = editor.getNode(nodeId) as CylNode | undefined;
   if (!n) return "";
   const port = side === "output" ? n.outputs[key] : n.inputs[key];
-  return port?.socket?.name ?? "";
+  if (!port) return ""; // 端口不存在 → 拒绝连线（不可回落到通道类型，否则连不存在的端口都能连）
+  // 动态节点：类型的**单源是通道**，socket 只是镜像。这里读单源而不是镜像，于是
+  // 「镜像还没刷到」的窗口期里连线校验也不会放行错配的线——in 与 out 从这条路读到的
+  // 必然是同一个值（用户要求的"in 和 out 是同一个对象"在校验侧的落地）。
+  if (hasDynamicInputs(n.kind)) return channelTypeOf(n);
+  return port.socket?.name ?? "";
 }
 
 /** 按数据类型给连线着色（Houdini VOP 惯例：看颜色即知类型）。

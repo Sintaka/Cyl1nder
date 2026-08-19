@@ -103,6 +103,25 @@ export function findFeeder(
   return snap.connections.find((c) => c.target === nodeId && c.targetInput === targetInput);
 }
 
+/**
+ * 取该节点**第一个已接线的输入槽**的连接（按 `in<n>` 的数字序，与创建顺序无关）。
+ *
+ * 动态输入槽的存在意味着「哪个槽有线」是运行期的事实：用户完全可以只接 in1。
+ * 按数字序取第一个已接线的，保证同一张图无论怎么重放都得到同一条链
+ * （若按 connections 数组顺序取，撤销重做之后可能换一条上游 —— 那会让缓存签名抖动）。
+ * 非动态 kind（transform）只有 in0，结果与直接 findFeeder(…, "in0") 完全相同。
+ */
+export function firstWiredFeeder(
+  snap: NetworkSnapshot,
+  nodeId: string,
+): NetworkConnection | undefined {
+  const mine = snap.connections.filter((c) => c.target === nodeId && /^in\d+$/.test(c.targetInput));
+  if (mine.length === 0) return undefined;
+  return mine.reduce((best, c) =>
+    Number(c.targetInput.slice(2)) < Number(best.targetInput.slice(2)) ? c : best,
+  );
+}
+
 /** One input port fed by MORE THAN ONE output (illegal: geometry has no implicit
  *  merge). `sources` lists the competing "<label>.<sourceOutput>" strings. */
 export interface MultiSourceError {
@@ -212,7 +231,15 @@ export function traceChainSpecs(
   }
 
   if (node.kind === "null" || node.kind === "transform") {
-    const up = findFeeder(snap, node.id, "in0");
+    // `null` 的输入槽是**动态**的（in0/in1/…，v0.1.00121 起）。这里取**第一个已接线的槽**，
+    // 而不是死盯 `in0`：用户可以只接 in1（in0 空着），死盯 in0 会把那条链判成死链、
+    // 几何凭空消失。`transform` 只有 in0，行为逐字不变。
+    //
+    // 为什么不在这里做"多槽合并"：几何合并需要定义合并顺序、属性冲突、点号重排——
+    // 那是 merge 节点的语义，不是 passthrough 的。当前 null 是**多接入点的单通道**
+    // （多个槽可接入，但只有一条数据出去），这条语义写在 graph-model 的 PortSlot 注释里。
+    // 真要做几何合并，得先有 merge 节点，别把它偷偷塞进 null。
+    const up = firstWiredFeeder(snap, node.id);
     const upNode = up ? nodeById(snap, up.source) : undefined;
     if (!up || !upNode) return null;
     const res = traceChainSpecs(upNode, up.sourceOutput, inputs, snap, visited);
