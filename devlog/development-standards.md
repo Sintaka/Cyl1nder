@@ -71,6 +71,52 @@
 - 比较/去重/存储一律用完整值，**绝不**拿省略后的字符串当 key。
 - 适用位置（全量）：overview 通道行与项目 hip 小字、nodeview 项目根节点、面板标题、映射表逻辑名、地址栏分段。
 
+## 写入长度：分块，且写完必查 / Chunk every write（2026-08-20 起，铁律）
+
+**症状**：单次 `write`/`edit` 的内容超长时会被**静默截断**，在文件里留下一句字面量
+`...[N chars omitted]...`。它不是注释、不是占位符，就是一段非法源码。
+
+**为什么必须当铁律**：截断产生的是**语法错误**，而报出来的往往是别的现象——
+`SyntaxError: invalid syntax`、`Unexpected token`、`'NoneType' object is not iterable`、
+甚至测试"失败"但错误信息与真因毫无关系（2026-08-20 一天内踩 6 次，其中 3 次在排查
+"产品 bug"，实际跑的是被截断的语法错误源码）。
+
+**硬性纪律**：
+- **单次写入 ≤ 50 行且 ≤ 4000 字符**。超了就拆成多次 `edit` 追加，或先写骨架再补内容。
+- **每次写完立刻验**：
+  `node -e "const t=require('fs').readFileSync('<path>','utf8');console.log(t.includes('chars omitted'))"`
+  —— 命中就先修文件，别去跑测试（跑了也只会得到误导性的错误）。
+- **测试文件同样适用**。夹具被截断时，测试会以"产品坏了"的形态失败。
+- **往 e2e 里塞多行 `page.evaluate()` 最容易中招**：那种代码天然又长又密。
+- 与 `??`（编码坏）、`-\uFEFF`（BOM 被吃）一样，属于**写完必查**清单的一项。
+
+## Shell：项目硬性要求 pwsh 7 / pwsh 7 is mandatory（2026-08-20 起）
+
+**要求**：本项目的所有命令必须跑在 **PowerShell 7+（`pwsh`，PSEdition = Core）** 下。
+
+**为什么是硬性的**：Windows 自带的 PowerShell **5.1（`powershell.exe`，PSEdition =
+Desktop）** 的 `Set-Content -Encoding utf8` 等写入路径**默认带 BOM**。一旦 `pwsh` 不可用
+被 `powershell.exe` 兜底，任何经 shell 写文件的操作都会悄悄注入 `EF BB BF`：
+- 源码首行变成 `\uFEFF import ...`，diff 里表现为「明明只删了一行，首行却也变了」；
+- 「纯删除」的提交被污染成看不清的改动；
+- 本仓 `web/src` 本来就是 BOM 混用状态（12 有 / 56 无），更难分辨是谁加的。
+
+**实测对照（2026-08-20）**：
+| 版本 | `Set-Content` 写出的首字节 | BOM |
+|---|---|---|
+| pwsh 7.6.5 Core | `68 65 6C`（直接就是内容 `hel`） | 无 |
+| powershell.exe 5.1 Desktop | `EF BB BF` 开头 | **有** |
+
+（管道符在表格单元格里会被当成列分隔符，所以上表不写 `"x" \| Set-Content` 这种写法；
+实测命令是 `"hello" | Set-Content $p` 之后读 `[System.IO.File]::ReadAllBytes($p)`。）
+
+**开工前自检**：`$PSVersionTable.PSVersion` 与 `$PSVersionTable.PSEdition`
+——不是 `7.x` / `Core` 就**先解决 shell，再写代码**，别一边写一边污染。
+
+**即便在 pwsh 7 下，`edit`/`write` 工具仍可能吃掉已有文件的 BOM**（那是工具行为，与 shell
+无关）：提交前扫一遍
+`foreach($f in (git diff --cached --name-only)){ ... "^-\uFEFF" ... }`，命中就补回。
+
 ## 编码与 Git 卫生 / Encoding & git hygiene（2026-08-11 起）
 - **禁止用 `@'...'@ | python -` 管道传中文/非 ASCII 内容**：PowerShell 把 here-string 按 `$OutputEncoding`（默认 ASCII）编码写进 python stdin，所有中文会变成字面 `?`（已踩坑：5 个 devlog 文件被写坏）。写含中文的文件用：
   - PowerShell here-string + `[System.IO.File]::WriteAllText($path, $text, [System.Text.UTF8Encoding]::new($false))`（UTF-8 无 BOM）；或

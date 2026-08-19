@@ -413,7 +413,9 @@ project P1-msztfncq-1yyn | hip: beginTest-2.hip | members: hda:C1-msm6dsp7-ob6t,
   以 `Set-Content`/`Remove-Item`/赋值开头会被沙箱拒。PowerShell **没有** heredoc。
 - **`npx --prefix web` 在管道下会报 `$LASTEXITCODE` 未设置并吞掉输出**；
   跑 playwright 直接 `cd web ; node node_modules/@playwright/test/cli.js`。
-- 写文件超过 ~50 行会被静默截断成 `...[N chars omitted]...`，分块写完 grep 一遍。
+- **写入长度截断与 BOM 已升为开发规范铁律**，见 `development-standards.md` 的
+  「写入长度：分块，且写完必查」与「Shell：项目硬性要求 pwsh 7」两节。
+  本文件不再重复细则，以免两处漂移。
 - **注释里写 `*/` 会提前终止 JSDoc 块**。本轮实例：在 `/** */` 里写
   `cyl-wire-*/drop-target` 直接产生 33 个解析错误。要列举类名模式时写成
   `cyl-wire-x / drop-target / reconnect-x 等`，别用 glob 星号紧跟斜杠。
@@ -423,10 +425,9 @@ project P1-msztfncq-1yyn | hip: beginTest-2.hip | members: hda:C1-msm6dsp7-ob6t,
 - **`git` 也是受信前缀，但 PowerShell 没有 heredoc**：写多行中文 commit message
   用 `write` 工具落到文件再 `git commit -F <file>`（放 `bridge/data/` 下，已 gitignore，
   提交后删）。`git commit -F - <<'EOF'` 会被 PowerShell 解析器直接拒。
-- **编辑工具会连带吃掉 UTF-8 BOM**。本仓库 `web/src` 是 BOM 混用状态（12 有 / 56 无），
-  改一行版本号却出现 `-\uFEFF...` 的首行 diff 就是它。功能上无害，但会把
-  「纯删除」的 diff 污染成看不清的改动——提交前用
-  `foreach($f in (git diff --cached --name-only)){ ... "^-\uFEFF" ... }` 扫一遍并补回。
+- **BOM 两个来源要分清**（细则见 development-standards.md）：shell 侧靠 pwsh 7 解决
+  （5.1 兜底才会注入）；**`edit`/`write` 工具吃掉已有 BOM 是工具行为，与 shell 无关**，
+  仍需提交前扫 `^-\uFEFF` 并补回。
 - **APEX 写入只在一次性副本节点上做**，绝不碰用户活动节点；绝不对 `animation` Data parm
   调 `revertToDefaults()`（会清空整个场景）。
 - **不要用 `hou.hipFile.load(..., suppress_save_prompt=True)` 清理自己的测试文件**
