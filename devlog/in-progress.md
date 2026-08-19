@@ -82,6 +82,20 @@ geo 线上的点**取白色**而非 `#ff6b6b`：同色点压在同色线上只�
 
 这条只有在真浏览器里拖过才会发现——**「tsc 0 + vitest 全绿」不构成 UI 验证**。
 
+**修法与两处易读错的地方**：手势期间额外在 window 挂一份 capture 阶段 `pointermove`，
+`clearWaypointDrag()` 负责摘掉（置空即幂等，绑定侧也早退，一次手势不可能挂两个）。
+
+1. **没用 `setPointerCapture`**：它会把后续所有 pointer 事件**重定向**到捕获元素，
+   于是 rete 自己的插件与那个仍在喂 `lastGraphMouse`/转接预览的 container 监听器
+   看到的 `e.target` 全变了。window 监听是**纯增量**的：只加投递，不改 targeting、
+   传播与 `preventDefault` 行为。（附带好处：jsdom 没实现 `setPointerCapture`，
+   用它将来写单测会直接抛错。）
+2. **window 与 container 不是「谁先到谁算」的竞争关系**：window 是捕获路径的根，
+   对**每一个** pointermove 都先触发，所以改完之后 container 分支永远不做 waypoint
+   的活，它只是兜底（也是 jsdom 里直接朝 container 派发事件时会走的那条路）。
+   按事件对象身份去重不是在仲裁竞争，而是让**唯一权威路径**确定性地生效——
+   读 `onWaypointMove` 时别理解成两个对等监听器抢同一个事件。
+
 ## 2 dot 收尾（已完成）
 
 `dot` NodeKind 已删干净：`NodeKind` 联合类型、`makeDotNode` / `dotSeq` /
