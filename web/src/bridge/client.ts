@@ -383,6 +383,43 @@ export class BridgeClient {
     return this.channelValue("PUT", channelId, value);
   }
 
+  /**
+   * PUT /api/projects/{pid}/mappings/{name}/value — **把图算出的值写回 Houdini**
+   * （v0.1.00125，非 geo `_output_` 的落地通路）。
+   *
+   * 与 `putChannelValue` 的区别：那条按**通道 id** 写、只覆盖 data 通道；这条按
+   * **项目 + 逻辑名**写，桥会解析成绝对路径再调 `parameters.set_parameter`
+   * 或 data adapter —— 这才是 `_output_` 的 `address`+`port` 所指的东西。
+   *
+   * **409 = cook 会成环**（桥侧硬约束）。这里把它归一成 `ok:false` 并带上桥给的中文
+   * 原因，让调用方可以直接显示；**不重试** —— 环不会因为再发一次就消失。
+   */
+  async putMappingValue(
+    projectId: string,
+    name: string,
+    value: unknown,
+  ): Promise<{ ok: boolean; value?: unknown; error?: string; cycle?: boolean }> {
+    const url = `${this.base}/api/projects/${encodeURIComponent(projectId)}/mappings/${name
+      .split("/")
+      .map(encodeURIComponent)
+      .join("/")}/value`;
+    try {
+      const res = await fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value }),
+      });
+      const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (res.status === 409) {
+        return { ok: false, cycle: true, error: String(body.detail ?? "cook 会成环") };
+      }
+      if (!res.ok) return { ok: false, error: String(body.detail ?? `HTTP ${res.status}`) };
+      return { ok: body.ok !== false, value: body.value, error: body.error ? String(body.error) : undefined };
+    } catch (e) {
+      return { ok: false, error: String(e) };
+    }
+  }
+
   /** data 通道 value 端点共用实现：GET 无 body；PUT body {"value": value}（JSON.stringify）。 */
   private async channelValue(
     method: "GET" | "PUT",

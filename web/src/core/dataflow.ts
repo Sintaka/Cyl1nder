@@ -82,6 +82,85 @@ export function collectAddressEntries(snap: NetworkSnapshot): Array<{ nodeId: st
   return out;
 }
 
+/** 一个待写回的 `_output_`：`<address>` + `<port>` 定位映射条目，`type` 决定值形状。 */
+export interface WritebackTarget {
+  nodeId: string;
+  address: string;
+  port: string;
+  type: string;
+}
+
+/**
+ * 收集**需要写回**的 `_output_` 节点（v0.1.00125）。
+ *
+ * 只收非 geo 的：geo 的 `_output_` 走既有几何计算（`computeOutputs` → 桥的 outputs 推送），
+ * 那条路本来就通；**float/vec3 此前没有任何落地通路** —— `network.ts:379` 明确跳过非 geo
+ * 的 `_output_`，于是用户 output 一个 tx 之后什么也不会发生（这正是他报的现象）。
+ *
+ * `address`/`port` 任一为空 → 不算目标（没填完不是错误，与 collectAddressEntries 同口径）。
+ */
+export function collectWritebackTargets(snap: NetworkSnapshot): WritebackTarget[] {
+  const out: WritebackTarget[] = [];
+  for (const n of snap.nodes) {
+    if (n.kind !== "output") continue;
+    const get = (name: string): string => {
+      const v = n.params?.find((p) => p.name === name)?.value;
+      return typeof v === "string" ? v.trim() : "";
+    };
+    const type = get("type");
+    if (type === "" || type === "geo") continue; // geo 走既有几何通路
+    const address = get("address");
+    const port = get("port");
+    if (address === "" || port === "") continue; // 没填完
+    out.push({ nodeId: n.id, address, port, type });
+  }
+  return out;
+}
+
+/**
+ * 求出一个写回目标该送什么值：沿 `out{k}` 往上找**第一个能给出数值的来源**。
+ *
+ * 当前只认两种来源，其余返回 `undefined`（= 这次不写，而不是写个 0）：
+ * 1. `null` 槽上的引用参数（`ref_slot{k}`）填了**纯数字字面量** → 就写这个数；
+ * 2. `transform` 的 `tx/ty/tz` → 按端口序号取对应分量。
+ *
+ * 为什么不写 0 兜底：`_output_` 没算出值和「值就是 0」是两件事，混同会把用户 Houdini
+ * 里的参数悄悄清零 —— 那是不可逆的破坏，比不写坏得多。
+ *
+ * **不解析相对地址引用**（`transform1/tx` 这种）：那需要向桥读值、是异步的，
+ * 而 flush 是同步热路径。地址引用的落地要单独做（`ref` 的取值通路），
+ * 此处只覆盖"图里已经有数"的情形。
+ */
+export function resolveWritebackValue(
+  snap: NetworkSnapshot,
+  target: WritebackTarget,
+): number | number[] | undefined {
+  const conn = snap.connections.find((c) => c.target === target.nodeId);
+  if (!conn) return undefined; // _output_ 没接线 → 无源
+  const src = snap.nodes.find((n) => n.id === conn.source);
+  if (!src) return undefined;
+  const num = (v: unknown): number | undefined =>
+    typeof v === "number" && Number.isFinite(v) ? v : undefined;
+  const paramNum = (name: string): number | undefined =>
+    num(src.params?.find((p) => p.name === name)?.value);
+
+  if (src.kind === "transform") {
+    const axis = /^out(\d+)$/.exec(conn.sourceOutput || "");
+    const i = axis ? Number(axis[1]) : 0;
+    return paramNum(["tx", "ty", "tz"][Math.min(i, 2)] ?? "tx");
+  }
+  if (src.kind === "null") {
+    const m = /^out(\d+)$/.exec(conn.sourceOutput || "");
+    const slot = m ? Number(m[1]) : 0;
+    const raw = src.params?.find((p) => p.name === `ref_slot${slot}`)?.value;
+    if (typeof raw !== "string") return undefined;
+    const t = raw.trim();
+    if (t === "" || !/^-?\d+(\.\d+)?$/.test(t)) return undefined; // 非字面量（地址引用）→ 不写
+    return Number(t);
+  }
+  return undefined;
+}
+
 export function createDataflow(deps: DataflowDeps): Dataflow {
   /** computeNodeResult through the chain cache (P2): pass the version context
    *  { inputsRev, graphVersion } so a displayed node reuses its cached mutable
