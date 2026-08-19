@@ -6,7 +6,8 @@
  */
 import { store } from "../stores/workspace";
 import { computeNodeResult, findMultiSourceErrors, type NetworkSnapshot } from "../nodes2/network";
-import { multiSourceErrorsToNodeErrors } from "../nodes2/graph-model";
+import { mergeNodeErrorMaps, multiSourceErrorsToNodeErrors, type NodeErrorMap } from "../nodes2/graph-model";
+import { mappingAddressErrors } from "../nodes2/mapping-types";
 import type { ReteGraph, ReteGraphHandlers } from "../nodes2/graph";
 import type { ReferenceItem, Viewport } from "../viewport/renderer";
 import type { ParamLike } from "./params";
@@ -48,6 +49,29 @@ export function displayNodeOutputIndex(snap: NetworkSnapshot, displayNodeId: str
     if (m) return Number(m[1]);
   }
   return null;
+}
+
+/**
+ * 从快照里收集 _input_/_output_ 节点的逻辑名（task #8 映射类型校验的输入）。
+ *
+ * **address 从哪来**：`NetworkSnapshot` 没有顶层 `address` 字段（graph-model 的
+ * getNetworkSnapshot 只带 id/kind/label/params），但单端口 _input_/_output_ 的 address
+ * 就在 `params` 里（addressParams() 造的 `{name:"address"}`，graph.ts 的 setNodeParams
+ * 会把它同步到 CylNode.address）。所以这里读 params——不需要给 network.ts 加字段
+ * （那不是本写集），也不用绕去 editor 拿节点。
+ *
+ * 旧 4 端口图的 _input_/_output_ **没有** address 参数 → 收不到条目 → 零错误，
+ * 与改造前逐字一致（旧图不会因为映射系统而突然满屏红三角）。
+ */
+export function collectAddressEntries(snap: NetworkSnapshot): Array<{ nodeId: string; address: string }> {
+  const out: Array<{ nodeId: string; address: string }> = [];
+  for (const n of snap.nodes) {
+    if (n.kind !== "input" && n.kind !== "output") continue;
+    const v = n.params?.find((p) => p.name === "address")?.value;
+    if (typeof v !== "string" || v.trim() === "") continue; // 未填写不是错误
+    out.push({ nodeId: n.id, address: v });
+  }
+  return out;
 }
 
 export function createDataflow(deps: DataflowDeps): Dataflow {
@@ -206,11 +230,16 @@ export function createDataflow(deps: DataflowDeps): Dataflow {
     // 全量覆盖 + 变化门（错误集没变则零重绘），所以每帧调用不会产生 churn。
     // 注意：不抛、不阻断计算——findFeeder 仍取第一条连接，图照常出结果，
     // 只是把冲突显式告诉用户，而不是静默挑一个。
+    // task #8：映射类型错误**必须并进同一次 setNodeErrors**——它是全量覆盖，
+    // 分两次调用的话后一次会把前一次的错误全抹掉（每帧互相清除）。
     try {
       const g = deps.getGraph();
       if (g.setNodeErrors) {
         const snap = g.getNetworkSnapshot();
-        g.setNodeErrors(multiSourceErrorsToNodeErrors(findMultiSourceErrors(snap)));
+        const structural: NodeErrorMap = multiSourceErrorsToNodeErrors(findMultiSourceErrors(snap));
+        // 同步查缓存（mapping-types 的 fetch 在别处 prime），不 await、不阻塞 cook。
+        const mapping: NodeErrorMap = mappingAddressErrors(collectAddressEntries(snap));
+        g.setNodeErrors(mergeNodeErrorMaps(structural, mapping));
       }
     } catch {
       /* 错误上报本身绝不能打断 cook */

@@ -18,7 +18,33 @@ export type AreaExtra = ReactArea2D<Schemes>;
 
 // P2b 项目模式：project（项目根，无端口）+ channel（成员通道，1 in/1 out，compute 忽略——
 // v1 关联线纯视觉）。两者只在项目图（schemaVersion 3）中出现；?serial= 单 serial 场景保持旧 kinds。
-export type NodeKind = "input" | "output" | "null" | "transform" | "project" | "channel";
+export type NodeKind = "input" | "output" | "null" | "transform" | "project" | "channel" | "geo";
+
+/**
+ * 网络层级（v0.1.00119）：照 Houdini 的 `/obj` 与 obj 内 sop 的关系建模。
+ *
+ * - `obj`：第一层（项目根图）与其中建的 subnet/geo，**不是 sop**。只能创建 geo 类节点。
+ * - `sop`：进入 geo 类节点之后的子网络。`input`/`output`/`null`/`transform` 只在这一层可建。
+ *
+ * 为什么单开一个维度而不是继续往 `NodeKind` 里堆：「这个节点是什么」与「它活在哪一层」
+ * 是两件正交的事。堆进 NodeKind 会让每个既有的 `kind === "..."` 判断都要跟着分裂一次
+ * （dataflow / network / NodeView / undo 全中），而多一个维度只影响真正关心层级的地方。
+ *
+ * 缺省 `"sop"`：旧图的每个节点都没有这个字段，读出来一律是 sop —— 与改造前行为逐字一致。
+ */
+export type NetKind = "obj" | "sop";
+
+/** 该 kind 是否可进入（双击进入其子网络）。目前只有 geo 类。 */
+export function isEnterableKind(kind: NodeKind): boolean {
+  return kind === "geo";
+}
+
+/** 该 kind 允许在哪一层创建。project/channel 不由用户创建，故不出现在任何层的面板里。 */
+export function netKindOfCreatable(kind: NodeKind): NetKind | null {
+  if (kind === "geo") return "obj";
+  if (kind === "input" || kind === "output" || kind === "null" || kind === "transform") return "sop";
+  return null; // project / channel：只能由 loadProjectGraph 建立
+}
 
 export interface NodeFlags {
   display: boolean;
@@ -125,7 +151,34 @@ export const SOCKET_TYPES: readonly string[] = [GEO, FLOAT, VEC3];
  * 空串 / 未知类型（历史脏数据、拼错的 type 参数）→ 拒绝，绝不放行。
  */
 export function canConnectSockets(from: string, to: string): boolean {
-  return SOCKET_TYPES.includes(from) && from === to;
+  if (!SOCKET_TYPES.includes(from) || !SOCKET_TYPES.includes(to)) return false;
+  if (from === to) return true;
+  // 标量/向量之间允许隐式转换（用户要求）：float -> vec3 三分量同值、vec3 -> float 取第一分量。
+  // 转换的**数值语义**由 network.ts 落实（convertSocketValue），这里只放行连线。
+  // geo 与 float/vec3 之间永远不通：几何不是数值，转换没有意义。
+  return (from === FLOAT && to === VEC3) || (from === VEC3 && to === FLOAT);
+}
+
+/**
+ * 按端口类型转换一个值（float ↔ vec3）——连线放行之后的**数值**语义单源。
+ *
+ * - `float -> vec3`：三个分量都取该值（用户要求「三个值都是这个 float」）
+ * - `vec3 -> float`：取第一个通道（用户要求「直接取第一个通道」）
+ * - 同类型 / 任一端是 geo / 非有限数 → 原样返回（绝不编造数值）
+ *
+ * 放在 graph-model 而不是 network.ts：连线校验（canConnectSockets）与取值转换是同一条
+ * 规则的两半，分开放会让「能连但算错」这类不一致有机会出现。
+ */
+export function convertSocketValue(value: unknown, from: string, to: string): unknown {
+  if (from === to) return value;
+  if (from === FLOAT && to === VEC3) {
+    const n = typeof value === "number" && Number.isFinite(value) ? value : null;
+    return n === null ? value : [n, n, n];
+  }
+  if (from === VEC3 && to === FLOAT) {
+    return Array.isArray(value) && value.length > 0 ? value[0] : value;
+  }
+  return value;
 }
 
 /** 把 type 参数值归一到合法端口类型（非法 / 缺省 → geo，保持旧图行为）。 */
@@ -138,7 +191,10 @@ export function toSocketType(v: unknown): string {
  *
  * 与连线着色 applyConnectionTypeVisual 同一套配色约定（cyl-wire-float /
  * cyl-wire-vec3），但作用在**端口**上：`geo` 与任何非法/未知类型都返回 ""
- * ——即**不加类**，沿用既有灰白端口样式，因此旧 4 端口图外观零变化。
+ * ——即**不加类**，沿用 CSS 里的默认端口色（geo = 朱红 `#ff6b6b`，与 geo 线同色），
+ * 因此旧 4 端口图外观零变化。
+ * （此处原写作"灰白"，是错的：不加类的端口渲染出来是朱红。这种含糊描述正是
+ *  float/vec3 配色被写反还长期没被发现的原因之一，故一并纠正。）
  * NodeView（另一写集）把它拼到 `cyl-rp-port` 的 className 上，CSS 里定义
  * `.cyl-port-float` / `.cyl-port-vec3` 的颜色。放在这里是因为「类型 → 类名」
  * 是数据层规则，可无 DOM 单测。
@@ -406,6 +462,18 @@ export class CylNode extends ClassicPreset.Node {
   /** P5b 通道引用绑定：paramName -> 通道 absolutePath（如 tx -> "/obj/geo1/transform1/tx"）。
    *  空/缺省时不序列化该键（旧图字节级兼容）。 */
   bindings?: Record<string, string>;
+  /** 该节点活在哪一层（v0.1.00119）。缺省 `"sop"` —— 旧图无此字段，行为与改造前一致。 */
+  netKind?: NetKind;
+  /** 仅 kind==="project"：当前绑定的 hip 绝对路径（v0.1.00119，task #6）。
+   *  **不序列化**——hip 的权威来源是桥侧 `ProjectRef.hip`，每次 loadProjectGraph 重新注入；
+   *  存进快照只会在另存为之后变成过期数据（比没有更糟）。 */
+  hip?: string;
+  /** 可进入节点（geo 类）的**子网络**，内联存在父节点上。
+   *
+   *  为什么内联而不是每个子网一个文件/桥端点：用户明确要求「不用塞多个文件夹，以免浪费
+   *  token」。子图是父图的一部分，跟着同一份 graph.json 往返，无需新增协议面。
+   *  空/缺省时不序列化该键（旧图字节级兼容）。 */
+  children?: unknown;
   /** schema 4 单端口形态：_input_/_output_ 的**逻辑名/相对地址**（如 "point_1/tx"）。
    *  绝对 Houdini 路径由桥侧映射系统按逻辑名解析——节点内绝不存绝对路径（移动 tag
    *  HDA 不再毁图）。与 bindings 同规则：空/缺省时不序列化该键（旧图字节级兼容）。 */
@@ -507,6 +575,33 @@ export function syncPortSocketType(n: CylNode): boolean {
   }
   return false;
 }
+/**
+ * geo 类节点（obj 层唯一可创建的 kind）：1 in / 1 out，**可进入**，其子网络是 sop 层。
+ *
+ * 端口保留是为了让 obj 层之间能连线（照 Houdini 的 obj 层可以有输入输出关系）；
+ * v1 这条连线**不参与几何计算**（network.ts 不认识 geo kind，等同死链回退 passthrough），
+ * 与 channel 节点的关联线同款语义。
+ */
+let geoSeq = 1;
+export function makeGeoNode(): CylNode {
+  const name = `geo${geoSeq}`;
+  geoSeq += 1;
+  const n = new CylNode(name, "geo");
+  n.baseLabel = "geo";
+  n.netKind = "obj";
+  n.addInput("in0", new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
+  n.addOutput("out0", new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
+  return n;
+}
+
+/** 恢复图时推进 geo 序号，避免 undo/redo 或新建时撞名（照 claimDotLabel 的旧做法）。 */
+export function claimGeoLabel(label: string): void {
+  const m = /^geo(\d+)$/.exec(label);
+  if (!m) return;
+  const n = parseInt(m[1], 10);
+  if (Number.isFinite(n) && geoSeq <= n) geoSeq = n + 1;
+}
+
 /** Houdini-style unique naming: null1, null2… (first node already carries a suffix). */
 let nullSeq = 1;
 export function makeNullNode(): CylNode {
@@ -559,12 +654,30 @@ export const PROJECT_GRAPH_SCHEMA = 3;
  */
 export const ADDRESS_GRAPH_SCHEMA = 4;
 
+/**
+ * obj/sop 层级图版本（schema 5，v0.1.00119）。
+ *
+ * **为什么又是一个新常量，而不是把 3 或 4 往上 bump**：`project-graph.test.ts` 里有两条
+ * 断言互相夹死同一类图——一条要求「含 project/channel 的图 === PROJECT_GRAPH_SCHEMA」，
+ * 另一条对同类图要求字面量 `3`。bump 任何一个都会打破其中一条。语义上这三个数各有其意
+ * （3 = 项目图、4 = 单端口 address 形态、5 = 含层级），**别去合并它们**。
+ *
+ * 只在图内真的用上层级（有 netKind==="obj" 的节点，或有节点带 children）时才输出 5；
+ * 否则沿用既有判定链 → v2/v3/v4 的输出**字节不变**。
+ */
+export const HIER_GRAPH_SCHEMA = 5;
+
 /** 项目根节点：**无端口**（不参与任何连线/几何计算；id = 项目 serial P1-…，标签即项目名）。
- *  x/y 仅作位置提示（loadProjectGraph/restoreGraph 仍以 area.translate 落地视图位置）。 */
-export function makeProjectNode(id: string, label: string, x = 24, y = 40): CylNode {
+ *  x/y 仅作位置提示（loadProjectGraph/restoreGraph 仍以 area.translate 落地视图位置）。
+ *
+ *  `hip`（v0.1.00119，task #6）：当前绑定的 hip 绝对路径，NodeView 在标题下方以**中段省略**
+ *  的小字显示（完整值进 title）。只作显示——项目与 hip 的绑定权威在桥侧 `ProjectRef.hip`，
+ *  这里拿到的是那个值的快照，**不参与任何解析**。 */
+export function makeProjectNode(id: string, label: string, x = 24, y = 40, hip = ""): CylNode {
   const n = new CylNode(label, "project");
   n.id = id;
   n.pos = { x, y };
+  if (hip) n.hip = hip;
   return n;
 }
 
@@ -687,6 +800,10 @@ export interface GraphNodeSnapshotData {
   bindings?: Record<string, string>;
   /** schema 4：_input_/_output_ 的逻辑名（空/缺省时序列化省略该键）。 */
   address?: string;
+  /** schema 5：所在层级（"sop" 是缺省值，序列化省略）。 */
+  netKind?: NetKind;
+  /** schema 5：可进入节点的子图（缺省省略）。形状是 buildGraphSnapshot 的输出本身。 */
+  children?: unknown;
 }
 
 /** 连线上的路径中点（v0.1.00118）：**装饰件，不是节点**。
@@ -733,11 +850,13 @@ function serializableParams(kind: NodeKind, params?: ParamSpec[]): ParamSpec[] |
 
 /**
  * 纯序列化（可单测）：
+ * - 图内**用上了层级**（有 obj 层节点或有子图）→ schemaVersion 5（v0.1.00119）；
  * - 图内含任一 project/channel 节点 → schemaVersion 3（channel 字段仅 channel 节点带）；
  * - _input_/_output_ **真的用上了** address / 非 geo type → schemaVersion 4（单端口形态）；
  * - 否则 schemaVersion 2 且**绝不含新字段**（round14-autosave / round16-undo 字节兼容）。
  * address / type 全默认时不输出 params，因此新建图（未填 address）与旧图字节一致。
- * v3 与 v4 同时成立时取 4——restoreGraph 的形状判定需要看到它。
+ * 多个条件同时成立时取**最大**版本号——restoreGraph 的形状判定需要看到最高的那个。
+ * netKind / children 同样只在非默认时输出，所以 v2/v3/v4 的字节输出不受本次改动影响。
  */
 export function buildGraphSnapshot(
   nodes: GraphNodeSnapshotData[],
@@ -746,6 +865,7 @@ export function buildGraphSnapshot(
 ): unknown {
   const isProjectGraph = nodes.some((n) => n.kind === "project" || n.kind === "channel");
   let usesAddress = false;
+  let usesHierarchy = false;
   const serializedNodes = nodes.map((n) => {
     const entry: Record<string, unknown> = {
       id: n.id,
@@ -766,13 +886,21 @@ export function buildGraphSnapshot(
       usesAddress = true; // 留下的必是非默认 address/type
     }
     if (isProjectGraph && n.channel) entry.channel = n.channel; // v2 绝不含新字段；v3 也省略 null
+    // v0.1.00119 层级：两个键都只在非默认时出现，所以旧图输出字节不变。
+    // netKind 省略 === "sop"（缺省值），children 省略 === 无子图。
+    if (n.netKind && n.netKind !== "sop") entry.netKind = n.netKind;
+    if (n.children != null) entry.children = n.children;
+    if ((n.netKind && n.netKind !== "sop") || n.children != null) usesHierarchy = true;
     return entry;
   });
-  const schemaVersion = usesAddress
-    ? ADDRESS_GRAPH_SCHEMA
-    : isProjectGraph
-      ? PROJECT_GRAPH_SCHEMA
-      : 2;
+  // 多条件同时成立取最大版本号：restoreGraph 靠它选重建形状，看到的必须是最高的那个。
+  const schemaVersion = usesHierarchy
+    ? HIER_GRAPH_SCHEMA
+    : usesAddress
+      ? ADDRESS_GRAPH_SCHEMA
+      : isProjectGraph
+        ? PROJECT_GRAPH_SCHEMA
+        : 2;
   return { schemaVersion, viewport, nodes: serializedNodes, connections };
 }
 
@@ -797,6 +925,9 @@ export function serializeGraph(
       bindings: c.bindings && Object.keys(c.bindings).length > 0 ? c.bindings : undefined,
       // schema 4：address 空串/缺省 → undefined（序列化无该键）
       address: c.address ? c.address : undefined,
+      // schema 5 层级：缺省 sop / 无子图 → undefined（buildGraphSnapshot 据此省略键）
+      netKind: c.netKind,
+      children: c.children,
     };
   });
   // Defensive: only serialize connections whose endpoint nodes still exist. Rete can
@@ -836,6 +967,8 @@ export function restoreNodeForKind(
     channel?: ChannelRef | null;
     bindings?: unknown; // P5b：可选通道引用绑定（sanitizeBindings 校验；非法忽略）
     address?: unknown; // schema 4：可选逻辑名（sanitizeAddress 校验；非法忽略）
+    netKind?: unknown; // schema 5：所在层级（仅接受 "obj"/"sop"，其它忽略 → 缺省 sop）
+    children?: unknown; // schema 5：子图（原样带回，形状由 buildGraphSnapshot 定义）
     params?: ParamSpec[];
   },
   /** true → _input_/_output_ 重建为**旧 4 端口形态**（v2/v3 图 / 含 in1..in3 引用的图）。
@@ -863,8 +996,17 @@ export function restoreNodeForKind(
     case "channel":
       n = nd.channel ? makeChannelNode(nd.id ?? "", nd.channel, nd.label ?? nd.channel.serial ?? "channel") : null;
       break;
+    case "geo":
+      n = makeGeoNode();
+      break;
     default:
       return null; // 未知 kind：跳过，不崩
+  }
+  // schema 5 层级：netKind / children 原样带回，并推进 geo 序号防撞名。
+  if (n && n.kind === "geo") claimGeoLabel(nd.label ?? "");
+  if (n) {
+    if (nd.netKind === "obj" || nd.netKind === "sop") n.netKind = nd.netKind;
+    if (nd.children != null) n.children = nd.children;
   }
   // P5b：bindings 可选读入（非法忽略）——restoreGraph 的节点重建经此一处落地绑定
   if (n) {

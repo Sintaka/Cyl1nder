@@ -11,14 +11,17 @@ import { notifyNodeChanged } from "./NodeView";
 import type { ConnectionRef, UndoManager } from "./undo";
 import type { CylNode, NodeFlags } from "./graph-model";
 import {
+  isEnterableKind,
   log,
+  makeGeoNode,
   makeNullNode,
   makeTransformNode,
+  netKindOfCreatable,
   nodeFromTarget,
   notifySelection,
   setConnectionWaypoint,
 } from "./graph-model";
-import type { AreaExtra, NodeKind, ReteGraphHandlers, Schemes } from "./graph-model";
+import type { AreaExtra, NetKind, NodeKind, ReteGraphHandlers, Schemes } from "./graph-model";
 
 interface PaletteEntry {
   kind: NodeKind;
@@ -28,6 +31,7 @@ interface PaletteEntry {
 }
 
 const PALETTE: PaletteEntry[] = [
+  { kind: "geo", label: "geo", desc: "geometry container 可进入", keywords: "geo geometry object subnet 几何 容器 进入" },
   { kind: "input", label: "_input_", desc: "4-output source", keywords: "source input 输入 起点" },
   { kind: "output", label: "_output_", desc: "4-input sink", keywords: "sink output 输出 终点" },
   { kind: "null", label: "null", desc: "passthrough 1+1", keywords: "null passthrough 直通" },
@@ -47,6 +51,30 @@ const fuse = new Fuse(PALETTE, {
   threshold: 0.4,
   ignoreLocation: true,
 });
+
+/**
+ * 当前层级提供方（v0.1.00119）：graph.ts 在 createReteGraph 里注册，Tab 面板据此过滤。
+ *
+ * 为什么是回调而不是参数：`attachTabSearch` 只在建图时调用**一次**，而层级会随
+ * 进入/退出子网络变化——传值会永久冻结在建图那一刻的层级上。缺省 `"sop"`：
+ * 未注册时（单测直接调 attachTabSearch / ?serial= 单 serial 路径）面板内容与改造前
+ * 逐字一致（input/output/null/transform），geo 不出现。
+ */
+let netKindProvider: (() => NetKind) | null = null;
+export function setNetKindProvider(fn: (() => NetKind) | null): void {
+  netKindProvider = fn;
+}
+
+function currentNetKind(): NetKind {
+  return netKindProvider?.() ?? "sop";
+}
+
+/** 本层可创建的面板条目：`netKindOfCreatable(kind) === 当前层`。
+ *  project/channel 返回 null → 永不入选（它们只能由 loadProjectGraph 建立）。 */
+function paletteForCurrentLayer(): PaletteEntry[] {
+  const layer = currentNetKind();
+  return PALETTE.filter((e) => netKindOfCreatable(e.kind) === layer);
+}
 
 let lastGraphMouse = { x: 0, y: 0 };
 
@@ -121,8 +149,11 @@ export function attachTabSearch(
         y: (lastGraphMouse.y - rect.top - t.y) / t.k,
       };
     }
-    if (entry.kind === "null" || entry.kind === "transform") {
-      const make = entry.kind === "transform" ? makeTransformNode : makeNullNode;
+    // geo 与 null/transform 同属「每次 Tab 都新建一个」的工厂类节点（各有独立序号），
+    // 因此共用同一条 dedup-by-label 循环；_input_/_output_ 仍是「每图唯一、移过去」。
+    if (entry.kind === "null" || entry.kind === "transform" || entry.kind === "geo") {
+      const make =
+        entry.kind === "transform" ? makeTransformNode : entry.kind === "geo" ? makeGeoNode : makeNullNode;
       let n = make();
       while (editor.getNodes().some((x) => (x as CylNode).label === n.label)) n = make();
       await editor.addNode(n);
@@ -144,7 +175,11 @@ export function attachTabSearch(
   registerInteractionCanceller(close);
 
   const update = (q: string) => {
-    results = q.trim() ? fuse.search(q).map((r) => r.item) : PALETTE;
+    // 先按当前层级过滤，再让 fuse 在**全表**上搜索后取交集：fuse 索引建于模块加载时、
+    // 无法随层级重建，所以过滤放在结果侧（层级集合很小，代价可忽略）。
+    const allowed = paletteForCurrentLayer();
+    const inLayer = new Set(allowed.map((e) => e.kind));
+    results = q.trim() ? fuse.search(q).map((r) => r.item).filter((e) => inLayer.has(e.kind)) : allowed;
     index = 0;
     render();
   };
@@ -450,6 +485,92 @@ export function setRenameHandler(fn: ((nodeId: string, desired: string) => strin
 
 export function fireRename(nodeId: string, desired: string): string {
   return renameHandler ? renameHandler(nodeId, desired) : desired;
+}
+
+// ---------------------------------------------------------------------------
+// 双击进入子网络（v0.1.00119，task #4）
+//
+// **为什么是 pointerdown 计时而不是 ondblclick**：rete 的节点 pointerdown 链
+// （Drag -> nodepicked -> simpleNodesOrder）会把节点元素在 DOM 里**重新排序**，
+// 浏览器据此认为"按下的那个元素没了"，于是 click/dblclick 在节点子元素上根本不触发。
+// NodeView.tsx 的重命名（约 278 行）早就踩过同一个坑并用手写计时解决——这里照抄那条
+// 结论，两处互不干扰：本检测器**排除** .cyl-rp-title，所以标题上的双击仍然只改名。
+//
+// 与"双击缩放"的关系：rete Zoom 自带的 dblclick 缩放已在 graph.ts 用 area.addPipe
+// 拦掉（只挡 source === "dblclick"）。那个 guard 是本手势可用的前提，别删。
+// ---------------------------------------------------------------------------
+
+/** 两次 pointerdown 判定为双击的时间窗（ms）。取 350ms：略紧于重命名的 400ms，
+ *  于是"标题双击改名"与"节点体双击进入"即便手速接近也不会互相抢。 */
+const ENTER_DBLCLICK_MS = 350;
+/** 双击允许的位移（px）：超过即认为是两次独立点击（可能夹着一次拖动）。 */
+const ENTER_DBLCLICK_PX = 8;
+
+/** 进入节点的处理器（graph.ts 注册；返回是否真的进入了）。 */
+let enterNodeHandler: ((nodeId: string) => boolean) | null = null;
+export function setEnterNodeHandler(fn: ((nodeId: string) => boolean) | null): void {
+  enterNodeHandler = fn;
+}
+
+/**
+ * 双击可进入节点 -> 进入其子网络。容器级 capture 监听，理由同其它手势：
+ * rete 的节点 drag 会 stopPropagation，冒泡阶段收不到。
+ *
+ * 刻意**不**进入的落点（各有其因，删任何一条都会毁掉一个既有手势）：
+ *   - `.cyl-rp-title` / `.cyl-rp-rename` / input：那是重命名的双击（NodeView 自己的检测器）
+ *   - `.cyl-rp-port`：端口是 ConnectionPlugin 的地盘，双击端口不该跳层
+ *   - `.cyl-ns`：状态 chip（display/bypass/…），channel 的进入成员走的就是 display chip
+ *   - button：flag 菜单等 DOM 控件
+ */
+export function attachEnterNode(
+  editor: NodeEditor<Schemes>,
+  area: AreaPlugin<Schemes, AreaExtra>,
+  container: HTMLElement,
+): void {
+  let last: { id: string; t: number; x: number; y: number } | null = null;
+  container.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (e.button !== 0) return;
+      const target = e.target as Element;
+      if (
+        target.closest?.(".cyl-rp-title") ||
+        target.closest?.(".cyl-rp-rename") ||
+        target.closest?.(".cyl-rp-port") ||
+        target.closest?.(".cyl-ns") ||
+        target.closest?.("button") ||
+        target instanceof HTMLInputElement
+      ) {
+        last = null; // 落在排除区：本次不参与计时，也把上一次清掉（避免跨元素凑成双击）
+        return;
+      }
+      const hit = nodeFromTarget(editor, area, target);
+      if (!hit) {
+        last = null;
+        return;
+      }
+      const now = performance.now();
+      const prev = last;
+      if (
+        prev &&
+        prev.id === hit.id &&
+        now - prev.t < ENTER_DBLCLICK_MS &&
+        Math.abs(e.clientX - prev.x) < ENTER_DBLCLICK_PX &&
+        Math.abs(e.clientY - prev.y) < ENTER_DBLCLICK_PX
+      ) {
+        last = null;
+        // 只有可进入的 kind 才拦事件：不可进入的节点双击必须保持原样（选中/拖动照旧），
+        // 否则"双击一个 transform"会莫名其妙地吃掉一次 pointerdown。
+        if (!isEnterableKind(hit.node.kind)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        enterNodeHandler?.(hit.id);
+        return;
+      }
+      last = { id: hit.id, t: now, x: e.clientX, y: e.clientY };
+    },
+    true,
+  );
 }
 
 /** Custom floating tooltip (dark rounded chip) replacing the native title tooltip. */

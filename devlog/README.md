@@ -19,6 +19,7 @@
 | 主题 | 文件 |
 |---|---|
 | 新 agent 快速入口（先读） | [AGENT_QUICKSTART.md](AGENT_QUICKSTART.md) |
+| **进度与计划（唯一真相，先读）** | [in-progress.md](in-progress.md) |
 | 开发规范 / 分支 / 版本号 | [development-standards.md](development-standards.md) |
 | 关键决策（含端口 grill 纠正） | [decisions.md](decisions.md) |
 | 通信协议（REST/WS/MCP） | [protocol.md](protocol.md) |

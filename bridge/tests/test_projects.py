@@ -491,6 +491,38 @@ def test_ensure_with_hip_creates_and_stores_hip(tmp_path: Path) -> None:
     assert [m["serial"] for m in p["members"]] == [s]
 
 
+def test_ensure_without_hip_falls_back_to_registry_hip(tmp_path: Path) -> None:
+    """调用方不带 hip 时回退到 registry 里那条的 hip（v0.1.00119）。
+
+    根因：web 侧 `ensureProject(serial)` 从来不带 hip（它手上只有 serial），于是
+    `?serial=` 启动会建出一个 **hip 为空** 的项目，而项目 hip **没有任何回填路径**
+    —— 成员之后 push 刷的是 registry，不补项目那一栏。实测重建后的项目 hip 一直是
+    空串，nodeview 项目根因此无地址可显（task #6 直接没有数据来源）。
+    """
+    c = _client(tmp_path)
+    s = generate_serial()
+    # HDA cook 过一次 → registry 里有该 serial 的 hip（put_inputs 带 hip）
+    get_state().registry.register(s, hip="D:/proj/fromRegistry.hip", nodePath="/obj/geo1/Cyl1nder1", label="Cyl1nder")
+    body = c.post("/api/projects/ensure", json={"serial": s}).json()
+    assert body["ok"] is True
+    p = body["project"]
+    assert p["hip"] == "D:/proj/fromRegistry.hip", "项目必须绑上 registry 里的 hip"
+    assert p["hipName"] == "fromRegistry.hip"
+    assert [m["serial"] for m in p["members"]] == [s]
+
+
+def test_ensure_without_hip_and_no_registry_keeps_old_behaviour(tmp_path: Path) -> None:
+    """registry 里也没有 hip 时保持旧语义（建 label=serial 的无 hip 项目），
+    不因为回退逻辑而报错或凭空编造 hip。"""
+    c = _client(tmp_path)
+    s = generate_serial()
+    body = c.post("/api/projects/ensure", json={"serial": s}).json()
+    assert body["ok"] is True and body["created"] is True
+    p = body["project"]
+    assert p["hip"] == ""
+    assert p["label"] == s
+
+
 def test_ensure_two_serials_same_hip_land_in_one_project(tmp_path: Path) -> None:
     """核心回归：一个 hip 下的两个节点必须进**同一个**项目（此前各建一个，
     于是两个项目共享成员、状态永远一致）。"""

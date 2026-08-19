@@ -1,8 +1,8 @@
 # 进行中任务与剩余评估（v0.1.00118）
 
-> 主进程写。本文件是**当前唯一的进度真相**：`next-round-plan.md` 是上一轮的交接稿，
-> 与本文件冲突时以本文件为准。每条结论都标注了**验证方式**——写「已验证」的都在
-> 代码/浏览器/磁盘上实证过，没验的一律写「未验证」。
+> 主进程写。本文件是**进度与计划的唯一真相**——原 `next-round-plan.md` 已并入本文件
+> 并删除（用户要求：不塞多个文件，以免浪费 token）。每条结论都标注了**验证方式**：
+> 写「已验证」的都在代码/浏览器/磁盘上实证过，没验的一律写「未验证」。
 
 ## 0 本轮结论速览
 
@@ -13,6 +13,11 @@
 | dot 渲染不显示 / 连线断联 | **已修**（dot 改为连接装饰件 + 自绘连线组件） |
 | Ctrl+dot 残留 | **已移除**（Ctrl 分支改 Alt，`insertDotAt` 删除） |
 | dot NodeKind 清理 | **已完成**（见 §2） |
+
+> **dot 标记（v0.1.00119 用户拍板）**：手感不顺，**本轮起暂不再动**。现状可用：
+> Alt+左键点线生成白点、拖动跟手、甩远删除；已知限制是**无法从 dot 自身拖出连线**
+> （锚点 `pointer-events:none`，为保住 10×10 圆整体可拖并避开 ±12px 反向命中区）。
+> 要继续做需在 `graph.ts` 给 `getDOMSocketPosition` 自定义 `offset` —— 等有明确需求再说。
 
 **不需要退回 Ctrl+dot。** 两个 bug 都在真实浏览器里验证通过，不是"单测过了就宣布完成"。
 
@@ -123,6 +128,80 @@ geo 线上的点**取白色**而非 `#ff6b6b`：同色点压在同色线上只�
 **教训**：`as` 强转会让类型删除静默失效。删联合类型成员后，别信"测试还绿"，
 要去看测试里是不是用强转绕过了类型检查。
 
+## 2.4 层级实现里顺带修掉的一个潜伏 bug
+
+`enterByName` 原先的顺序是**先注册层级变化等待者、再调 `enterNode`**。
+`enterNode` 返回 `false`（节点不存在 / 不可进入）时那个 promise 不会被兑现，
+于是它**挂在那里等下一次无关的层级变化**才被唤醒——一次失败的地址栏导航会让
+后续某次正常的进入/退出触发一个早已过期的回调。
+改法：抽出 `enterNodeAwaited(nodeId)`，只在 `enterNode` 真的返回 true 之后才 await，
+`__cylHier.enter` 与地址栏共用它（钩子跑的就是用户那条路径，不是平行实现）。
+
+## 2.5 项目重建（v0.1.00119，用户授权）
+
+用户原话：「对于项目重建，你可以直接把 …\beginTest-1 中的 Cyl1nder 快照删了重来都行」。
+
+已做：
+1. 旧快照目录 `…\beginTest-1\Cyl1nder\` 整个删除（**先归档**到
+   `bridge/data/snapshot-backup-beginTest-1-*`，该目录已 gitignore）。删掉的三个子目录里
+   有两个是同一 serial 的重名残留（新名 `beginTest-1_C1-msm6dsp7-ob6t` + 旧名
+   `C1-msm6dsp7-ob6t`，迁移遇 `skipped:target-exists` 留下的），一个是不在注册表里的孤儿
+   `beginTest-1_C1-msm006pg-8fz7`。
+2. `projects.json` 清空为 `[]`、`mappings.json` 清空为 `{anchors:{},entries:{}}`
+   （两者都先 `.bak-<时间戳>` 备份）。清掉的残留里有一个死锚点
+   `C1-msyhkp0l-8oiw`：pid 54656 已不存在（实例现为 28720），且与
+   `C1-msz03wf5-u0ym` **指向同一个 nodePath**。
+3. **必须重启桥才算清干净**：桥把 projects/mappings 持在内存里，直接改盘上文件会被
+   它下一次落盘覆盖回去（实测：改完文件后 `GET /api/projects` 仍返回旧项目）。
+   走 `bridge_control.restart_bridge()` 重启后 `GET /api/projects` 返回 `{"projects":[]}`。
+
+**教训**：清桥侧状态不能只动文件，要么走桥的端点，要么改完重启。
+
+### 重建后的干净基线（实机实证）
+
+```
+project P1-msztfncq-1yyn | hip: beginTest-2.hip | members: hda:C1-msm6dsp7-ob6t, tag:C1-msz03wf5-u0ym
+  entries: 4
+    sandbox_sceneanimate/point_1     | type: vec3  | kind: data | ok: true
+    sandbox_sceneanimate/point_1/tx  | type: float | kind: data | ok: true
+    sandbox_sceneanimate/point_1/ty  | type: float | kind: data | ok: true
+    sandbox_sceneanimate/point_1/tz  | type: float | kind: data | ok: true
+```
+
+即：hip 已绑定（task #6 有数据可显）、成员按 hip 自动归拢成一个项目、
+4 条映射条目带真实类型且全部 `ok: true`（task #8 的类型来源到位）。
+**吊牌的注册在内部 `cyl1nder_tag_py` 里**，force 外层节点不一定触发，
+要 `n.node("cyl1nder_tag_py").cook(force=True)`。
+
+### 重建时实测到的三件事（都不是本轮引入的 bug，但会误导下一轮）
+
+1. **e2e fixture 会覆盖真实节点的注册记录。** 全部 `round*-*.spec.ts` 都用
+   `client.pushInputs(serial, …, { nodePath: "/obj/test/Cyl1nder1", label: "Cyl1nder1" })`
+   打到**当前活着的 serial** 上（`beforeAll` 取 `/api/serials` 的最后一个）。跑完 e2e 后
+   `registry.json` 里那条的 `nodePath` 就变成 `/obj/test/Cyl1nder1`——一个不存在的节点。
+   **且 cook 一次修不回来**：心跳只刷 `lastSeen`，`nodePath` 只在**真的 push 输入**时写，
+   而 `_push_inputs_if_changed` 在几何没变时直接跳过。实测 `force_cook` 后 `lastSeen`
+   归零但 `nodePath` 仍是假的。要修得让上游几何真的变一次。
+2. **项目的 `hip` 不会被回填 —— 本轮已修（桥侧）。**
+   根因：web 侧 `client.ensureProject(serial)` **从不带 hip**（它手上只有 serial，
+   `listSerials()` 只回字符串数组），于是 `POST /api/projects/ensure` 一路走到
+   `projects.create(label=serial)`，建出一个 **hip 为空**的项目；而项目 hip
+   **没有任何回填路径**——成员之后 push 刷的是 `registry`，不补项目那一栏。
+   实测重建后的 `P1-mszskx8f-0yf2` 的 hip 一直是空串，即使成员 registry 里已有正确 hip。
+   后果：nodeview 项目根无地址可显，**task #6 直接失去数据来源**；overview 也只能显示序列号。
+
+   修法（`project_routes.ensure_project`）：调用方没带 hip 时**回退读
+   `registry.get(serial).hip`**——那是 HDA cook 时自报的可信值——再走既有
+   `bind_serial_to_hip()`，于是「同一个 hip 只有一个项目」这条既有语义真的生效。
+   registry 里也没有时保持旧语义（建 `label=serial` 的无 hip 项目），**绝不编造 hip**。
+   实机验证：删掉那个空 hip 项目后重新 ensure →
+   `hip: …/beginTest-2.hip`、`hipName: beginTest-2.hip`（此前是 `""`）。
+   两条 pytest 钉住（回退命中 / registry 也无 hip 时不变）。
+3. **`cyl1nder_get_status`（MCP）读的是快照文件，不是 live 注册表。** 实测它回报
+   `lastSeen` 已 40000s，而 `bridge/data/registry.json` 里同一条是 0s 前刚更新的。
+   排查"HDA 是不是没连上桥"时**别信它**，直接读 `registry.json` 或
+   `GET /api/serials`；否则会把活得好好的链路误判成失联（本轮差点就此下错结论）。
+
 ## 3 剩余任务评估
 
 优先级按「解锁其他任务的程度 × 用户可感知度」排，不是按编号。
@@ -163,6 +242,12 @@ geo 线上的点**取白色**而非 `#ff6b6b`：同色点压在同色线上只�
   → 接入 `commitName → rewriteOnRename` 就是这个任务的全部工作量
 - 照 Houdini 的**登记制**：改名时推送重写，只重写登记过的引用；
   不要扫描参数猜哪个像路径——猜测正是 Houdini 明确不做的事
+- **Houdini 的真实机制（已实机验证，详见 `reference-registry-design.md`）**：不是求值时
+  解析，而是**改名时推送重写**。它维护名字依赖登记表（`parmsReferencingThis()` /
+  `opdepend -N`），只重写**登记过的** `NodeReference` 参数；VEX 字符串、Python、拼接
+  表达式一律静默失效——同一串路径在 `centroid()` 里被重写、在 VEX `point()` 里悄悄失效，
+  判据是**登记**而非文本匹配。所以照抄登记制：未登记 = 不重写，且这一点要在 UI 上
+  说清楚，而不是假装所有引用都保得住。
 - **附带地址栏 bug（已定位根因）**：`setChannelDisplayHandler` 先把
   `graphScope` 设成 member 并立即刷地址栏，而图的替换在 `activateSession` 里另行发生。
   地址是**乐观更新**的，所以图没切过去时地址栏已经变了。修法是等图切换落地后再刷地址。
@@ -177,6 +262,18 @@ geo 线上的点**取白色**而非 `#ff6b6b`：同色点压在同色线上只�
   自动转换确实未实现
 - 别合并 `ADDRESS_GRAPH_SCHEMA = 4` 与 `PROJECT_GRAPH_SCHEMA = 3`（语义不同，
   且有两条冻结断言互相夹死）
+
+### 被冻结测试锁住的两处设计妥协（改之前先读原因）
+
+1. **`PROJECT_GRAPH_SCHEMA` 仍是 3，另加 `ADDRESS_GRAPH_SCHEMA = 4`、`HIER_GRAPH_SCHEMA = 5`。**
+   `project-graph.test.ts:135` 要求「含 project/channel 的图 === `PROJECT_GRAPH_SCHEMA`」，
+   而 `:163` 对**同类图**要求字面量 `3` —— 两条互相夹死，bump 任何一个都会破其中一条。
+   语义上三个数各有其意（3 = 项目图、4 = 单端口 address 形态、5 = 含层级），
+   **要加版本就新增常量，别 bump 旧的**。
+2. **`makeInputNode()` / `makeOutputNode()` 默认仍是 4 端口**，单端口靠传 `true` 开启。
+   有冻结测试直接连 `output.out1`，rete 会抛
+   `target node doesn't have input with a key out1`。`buildGraph` 已传 `true`，
+   所以**新图就是单端口**，语义达标；默认值是为兼容而反过来的。
 - 端口重建不能破坏既有连线的缓存身份（`chain-cache` 签名由 `specs` 构成）
 
 ## 4 纪律（本轮新增）
@@ -189,6 +286,21 @@ geo 线上的点**取白色**而非 `#ff6b6b`：同色点压在同色线上只�
   鼠标根本碰不到，测试会以"取不到点"的形式假失败。
 - **`locator.dblclick()` 在本项目不可用**：dockview 的 `.dv-void-container` 覆盖层
   会让 Playwright 的 actionability 检查永远判定被遮挡。用 `page.mouse.dblclick(裸坐标)`。
+- **e2e 里 `await import("/src/...")` 拿到的模块实例是否与应用同一份，取决于 HMR 状态
+  ——所以绝不能依赖它**（v0.1.00119 实测）。
+  vite 把入口发成 `/src/main.ts?t=1787127560559`（HMR cache-buster），而 `main.ts`
+  import 的是**裸** `/src/nodes2/graph.ts`：
+  - **冷加载**：测试 import 的裸 specifier 与 main.ts 的一致 → **同一实例**，能用；
+  - **一旦某次 HMR 给链上模块盖了 `?t=`**：specifier 分叉 → 浏览器实例化**第二份**，
+    `activeGraph`/`netStack` 全空 → `serializeGraphFromRoot()` 返回 null、
+    `getNetPath()` 恒 `[]`（这正是本轮先看到的症状）。
+
+  所以它是**间歇的、依赖编辑历史的**——比稳定失败更糟：同一份 spec 现在 5/5 通过，
+  中途改过几次源码之后就会挂，而源码本身没变。**结论**：凡要驱动模块级状态的 e2e，
+  一律走应用自己挂出来的调试钩子（`__cylGraph` / `__cylHier`），
+  **不要**用动态 import 去拿模块级函数。
+  （本轮先下的结论「动态 import 必然是另一个实例」是错的——那只是恰好处在 HMR
+   已分叉的状态；两次测量都是真的，测的是不同的 HMR 状态。）
 - **桥重启走 `hda/scripts/bridge_control.py` 的 `restart_bridge()`**（按端口 8375/8376
   精确定位，不按 PID 杀）。该文件不在 Houdini 的 import path 上，要用
   `importlib.util.spec_from_file_location` 按路径加载。
@@ -210,3 +322,39 @@ geo 线上的点**取白色**而非 `#ff6b6b`：同色点压在同色线上只�
   改一行版本号却出现 `-\uFEFF...` 的首行 diff 就是它。功能上无害，但会把
   「纯删除」的 diff 污染成看不清的改动——提交前用
   `foreach($f in (git diff --cached --name-only)){ ... "^-\uFEFF" ... }` 扫一遍并补回。
+- **APEX 写入只在一次性副本节点上做**，绝不碰用户活动节点；绝不对 `animation` Data parm
+  调 `revertToDefaults()`（会清空整个场景）。
+- **不要用 `hou.hipFile.load(..., suppress_save_prompt=True)` 清理自己的测试文件**
+  —— 那会丢弃用户未保存改动。
+- 加 HDA 参数走**就地 patch 定义**（`type().definition().setParmTemplateGroup`），
+  别用 `build_hda.py` 全量重建（它开头就 `hipFile.clear()`）。
+- 新增 bridge 模块/路由后**必须重启桥**（走 `bridge_control.restart_bridge()`，
+  不按 PID 杀进程）。
+
+## 5 现有限制（已确认现状，别当 bug 重新调查）
+
+以下每条都是**已确认的现状**，不是待查问题。动手前先看这里，省一轮排查。
+
+### 5.1 实时性
+
+**`apex-ctrl` 没有推送通道。** 值的流动全靠：吊牌心跳（**60s** 节流）+ 用户显式探测
++ 分量写入时的 read-modify-write（每次都过 Houdini 主线程）。
+
+后果：连续拖动 gizmo 驱动 APEX 控制器时的时序**从未验证过**——这是整条链上唯一
+没在浏览器里跑过的部分。要做实时拖动得先设计推送，不是调参数能解决的。
+
+### 5.2 清理
+
+- `清理空项目` **只删 0 成员项目**。持有失效成员的残留项目够不着，只能逐行点删除。
+  要一键清完需要「清理失效项目」（按成员通道是否还在 `/api/channels` 判定）——
+  这是**按启发式删用户数据**，没擅自加。
+- `POST /api/scenes/cleanup` 只删「无效」快照目录（空/缺件/meta 损坏）。测试产物有完整
+  `meta.json`，所以它一个都删不掉。
+
+### 5.3 未验证 / 不要当已完成
+
+- **多层 additive 动画层合成、层权重、`flattenedLayers()`** —— 历史遗留未验证项。
+- **`Scene.writeToGeometry()` / 节点 `editanimation` 机制** —— 回写活动节点的替代路径，
+  未单独验证（现行 `saveToGeometry` + 保留全部顶层 prim 的路径已验证零误差）。
+- **一个逻辑名只绑一个锚点**；跨 hip 映射不做（`hip` 仅作校验与显示）。
+- 逻辑名冲突（两个锚点在同一项目产出同名 rel）：v1 后写覆盖先写，无自动改名。

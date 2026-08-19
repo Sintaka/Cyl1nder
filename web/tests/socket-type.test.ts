@@ -38,14 +38,27 @@ describe("canConnectSockets（连线类型校验谓词）", () => {
     expect(canConnectSockets(VEC3, VEC3)).toBe(true);
   });
 
-  it("完整矩阵：每一对不同类型都被拒绝", () => {
+  // v0.1.00119：float ↔ vec3 允许隐式转换（用户要求「float 到 vec3 三个值都是这个 float、
+  // vec3 到 float 取第一个通道」），所以「每一对不同类型都被拒绝」这条旧规则已作废。
+  // geo 与数值类型之间仍然必须拒绝——几何不是数值，转换没有语义。
+  it("完整矩阵：float↔vec3 放行，凡涉及 geo 的错配一律拒绝", () => {
     const mismatched = SOCKET_TYPES.flatMap((from) =>
       SOCKET_TYPES.filter((to) => to !== from).map((to) => [from, to] as const),
     );
     expect(mismatched).toHaveLength(6); // 3 类型 × 2 错配
+    const numericPair = (a: string, b: string) =>
+      (a === FLOAT && b === VEC3) || (a === VEC3 && b === FLOAT);
     for (const [from, to] of mismatched) {
-      expect(canConnectSockets(from, to), `${from} -> ${to} 必须被拒绝`).toBe(false);
+      const want = numericPair(from, to);
+      expect(canConnectSockets(from, to), `${from} -> ${to} 应为 ${want}`).toBe(want);
     }
+  });
+
+  it("geo 绝不与数值类型互通（两个方向都拒）", () => {
+    expect(canConnectSockets(GEO, FLOAT)).toBe(false);
+    expect(canConnectSockets(FLOAT, GEO)).toBe(false);
+    expect(canConnectSockets(GEO, VEC3)).toBe(false);
+    expect(canConnectSockets(VEC3, GEO)).toBe(false);
   });
 
   it("未知 / 空 / 非法类型一律拒绝（含两端同为未知类型）", () => {
@@ -143,14 +156,15 @@ describe("端口类型 × 连线校验（socketNameOf + canConnectSockets 联合
     );
   }
 
-  it("同类型放行、错配拒绝（走真实节点的 socket 名）", async () => {
+  it("同类型放行、float↔vec3 放行、涉及 geo 的错配拒绝（走真实节点的 socket 名）", async () => {
     for (const t of SOCKET_TYPES) expect(await allows(t, t), `${t} -> ${t}`).toBe(true);
     expect(await allows(GEO, FLOAT)).toBe(false);
     expect(await allows(GEO, VEC3)).toBe(false);
     expect(await allows(FLOAT, GEO)).toBe(false);
-    expect(await allows(FLOAT, VEC3)).toBe(false);
     expect(await allows(VEC3, GEO)).toBe(false);
-    expect(await allows(VEC3, FLOAT)).toBe(false);
+    // v0.1.00119：数值之间隐式转换，端到端（真实节点 socket 名）也必须放行
+    expect(await allows(FLOAT, VEC3)).toBe(true);
+    expect(await allows(VEC3, FLOAT)).toBe(true);
   });
 
   it("socketNameOf：节点/端口不存在 → \"\"（连线被拒，不抛）", async () => {

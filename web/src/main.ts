@@ -7,7 +7,15 @@ import { renderSpreadsheet, type SpreadsheetFocus } from "./app/spreadsheet";
 import { renderParams } from "./app/param";
 import { store } from "./stores/workspace";
 import { BridgeClient } from "./bridge/client";
+// connectWs 直接取用：session 的 connectWsFn 注入口在此包一层，截 anchor-moved 刷新映射缓存。
+import { connectWs } from "./bridge/client";
 import { createReteGraph, getNodeParamBindings, listNodeParamBindings, setNodeBindings, type ReteGraphHandlers } from "./nodes2/graph";
+// obj/sop 层级导航（v0.1.00119）：模块级层级 API（graph.ts 下方实现），地址栏按名下沉用。
+import { enterNode, exitNode, getCurrentNetKind, getNetPath, setNetPathChangedHandler } from "./nodes2/graph";
+import { isEnterableKind, type CylNode } from "./nodes2/graph-model";
+// task #8 映射类型缓存：_input_/_output_ 端口类型的唯一真源，生命周期由本文件驱动
+//（进项目 prime / anchor-moved 与切项目 invalidate）——不接就永远报「映射表未加载」。
+import { invalidateMappingTypes, primeMappingTypes } from "./nodes2/mapping-types";
 import { computeOutputsDetailed } from "./nodes2/network";
 import type { ActiveChains } from "./core/network";
 import { Viewport } from "./viewport/renderer";
@@ -39,7 +47,9 @@ import { buildGraphAddress } from "./app/graph-address";
 import {
   addressOf,
   canWriteProjectGraph,
+  isInSubNetwork,
   snapshotSerialOf,
+  withPath,
   type GraphScope,
 } from "./app/graph-scope";
 
@@ -148,8 +158,7 @@ const addressBar = createAddressBar(graphAddr, {
     const isSerial = (s: string) => /^C1-[0-9a-z]{8,}-[0-9a-z]{4}$/.test(s);
     const isProject = (s: string) => PROJECT_SERIAL_RE.test(s);
     // 2 段 /<P1-…>/<C1-…>/：确保项目模式 + 激活成员 + 地址显示两段。
-    if (segs.length === 2) {
-      if (!isProject(segs[0]) || !isSerial(segs[1])) return false;
+    if (segs.length === 2 && isProject(segs[0]) && isSerial(segs[1])) {
       if (currentProjectId === segs[0] && isProjectModeActive()) {
         // 已在目标项目：直接激活成员（避免重载图覆盖未保存编辑）。
         sessionCtl?.activateSession(segs[1]);
@@ -164,14 +173,25 @@ const addressBar = createAddressBar(graphAddr, {
       }
       return true;
     }
+    // 层级导航（v0.1.00119）：第 1 段起若不是 C1- 成员，就按**节点名**在当前网络里下沉。
+    // 顺序刻意如此——先试成员语义（上面那条 2 段分支逐字保留旧行为，多条 e2e 依赖它），
+    // 名字语义只在"不是 serial"时才接手，于是 `/P1-…/C1-…/` 永远不会被当成节点名。
+    if (segs.length >= 2) return navigateByName(segs);
     if (segs.length !== 1) return false;
     if (isSerial(segs[0])) {
       if (segs[0] === store.serial) {
+        // 身处子网络时，`/C1-…/` 表示的是**顶层**，先退回去再 frame —— 不退的话
+        // 「点面包屑第一段回不到顶层」（实机实测：地址停在 /C1-…/geoA 不动）。
+        if (isInSubNetwork(graphScope)) {
+          void exitToDepth(0);
+          return true;
+        }
         graph.frameSelection(); // 当前地址：跳到本图
         return true;
       }
       if (sessionCtl) {
         layout.serialInput.value = segs[0];
+        if (currentProjectId !== null) invalidateMappingTypes(); // 离开项目 → 映射缓存作废
         currentProjectId = null; // 1 段 C1- 导航 = 退出项目模式（serial 模式）
         graphScope = { kind: "serial", serial: segs[0] };
         sessionCtl.activateSession(segs[0]); // 跳转到另一个 serial（页面级导航）
@@ -180,6 +200,14 @@ const addressBar = createAddressBar(graphAddr, {
       return false;
     }
     if (isProject(segs[0])) {
+      // 已在该项目**且身处子网络**时：只是往上退层，绝不重进项目模式。
+      // 为什么必须特判：子网络里 graph.isProjectMode() 是 false（project 根节点不在这一层），
+      // enterProjectMode 的 fast path 判不出来，会走慢路径 loadProjectGraph 从桥重载整张图——
+      // 未保存的子网络编辑被丢掉，且 graph.ts 的层级栈还留在原深度，图与栈就此错位。
+      if (currentProjectId === segs[0] && graphScope.kind === "project" && isInSubNetwork(graphScope)) {
+        void exitToDepth(0);
+        return true;
+      }
       void enterProjectMode(segs[0]); // 已在目标项目时内部走 fast path（回到项目根）
       return true;
     }
@@ -188,14 +216,22 @@ const addressBar = createAddressBar(graphAddr, {
   },
   getCompletions: async (prefix, fullAddress) => {
     try {
-      // 项目模式第二段：补当前项目成员 serial（tag/hda 通道）。
       const segs = fullAddress.split("/").filter(Boolean);
-      if (segs.length >= 2 && segs[0] === currentProjectId && isProjectModeActive()) {
-        const members = (currentProject?.members ?? [])
-          .filter((m) => (m.kind === "tag" || m.kind === "hda") && m.serial)
-          .map((m) => m.serial)
-          .filter((s): s is string => !!s);
-        return members.filter((s) => s.startsWith(prefix));
+      // 正在编辑第几段：地址以 "/" 收尾（或为空）时光标在一个**新的空段**上，
+      // 段号即 segs.length；否则在最后一个已有段上。旧代码用 `segs.length >= 2` 近似，
+      // 于是 `/P1-…/` + Tab（第 1 段、segs.length===1）漏掉了成员补全。
+      const editingIndex =
+        fullAddress.length === 0 || fullAddress.endsWith("/") ? segs.length : Math.max(0, segs.length - 1);
+      // 第 1 段起：成员 serial ∪ 当前网络里可进入的节点名（层级导航按名下沉）。
+      if (editingIndex >= 1) {
+        const members =
+          segs[0] === currentProjectId
+            ? (currentProject?.members ?? [])
+                .filter((m) => (m.kind === "tag" || m.kind === "hda") && m.serial)
+                .map((m) => m.serial)
+                .filter((s): s is string => !!s)
+            : [];
+        return [...members, ...enterableNodeNames()].filter((s) => s.startsWith(prefix));
       }
       // 首段：serials ∪ projectSerials。
       const [serials, projects] = await Promise.all([
@@ -540,6 +576,9 @@ const dataflow = createDataflow({
 });
 const graph = await createReteGraph(layout.graphContainer, dataflow.handlers);
 graphReady = true; // updateGraphAddress / isProjectModeActive 现可安全引用 graph
+// 层级变化（双击进入 / Tab-U 退出 / 地址栏按名导航）**换完之后**才回调 —— 地址栏据此
+// 跟随。刻意不在 enterNode 调用点自己刷地址：那又会变成"地址先变、图后换"（task #7）。
+setNetPathChangedHandler(onNetPathChanged);
 
 const autosave = createAutosave({
   getPrefs: () => prefs,
@@ -658,6 +697,26 @@ const sessionMgr = createSessionManager({
     channelPanelRef.current?.applyValues(values);
     bindMgr?.applyIncoming(values);
   },
+  // task #8：`anchor-moved`（吊牌被挪了）→ 映射解析结果可能变，类型缓存必须作废并**立刻重取**，
+  // 否则端口类型会停在「不知道」上（每个填了 address 的节点一路红三角）。
+  //
+  // 为什么在这里包一层而不是加 session.ts 的分支：session.ts 是别人的写集，且它的
+  // SessionMessage 分派链根本没有 anchor-moved 这一支。connectWsFn 是它自己留的注入口，
+  // 在这里先看一眼消息再原样转交，语义上不改动它的任何一条既有分支。
+  connectWsFn: (serial, onMessage, onStatus) =>
+    connectWs(
+      serial,
+      (msg) => {
+        if ((msg as { type?: unknown } | null)?.type === "anchor-moved") {
+          invalidateMappingTypes();
+          // 重取：只作废不重取的话，缓存会一直停在未加载态，直到下次切项目才恢复。
+          if (currentProjectId) void primeMappingTypes(currentProjectId);
+          store.pushLog(`[mapping] anchor-moved → 映射类型缓存已刷新 (${serial})`);
+        }
+        onMessage(msg);
+      },
+      onStatus,
+    ),
 });
 sessionCtl = sessionMgr;
 
@@ -761,6 +820,38 @@ viewport.setPreRenderFlush(() => {
     layout.syncToggle.checked = !!v;
     layout.syncToggle.dispatchEvent(new Event("change", { bubbles: true }));
   },
+};
+// debug hook（obj/sop 层级，E2E 可观测性）：层级 API 全是 nodes2/graph 的**模块级**状态
+// （activeGraph / netStack），而浏览器里 `await import("/src/nodes2/graph.ts")` 拿到的是
+// **另一个模块实例**——函数都在，但它的 activeGraph/netStack 是空的，于是
+// serializeGraphFromRoot() 返回 null、getNetPath() 恒为 []，层级行为在浏览器里根本测不到。
+// 这里把**应用自己那份实例**挂出来，测试观察的就是用户实际跑的那条路径（不是平行实现）。
+//
+// enter/exitTo 刻意用本文件的 await 包装（等层级回调落地）而不是裸 enterNode/exitNode：
+// 后者同步返回、真正的图交换在其内部 async IIFE 里，测试就只能 sleep 猜时机。
+(window as unknown as Record<string, unknown>).__cylHier = {
+  /** 按节点 id 进入，resolve 时图**已换完**；不可进入/不存在 → false。 */
+  enter: (nodeId: string) => enterNodeAwaited(nodeId),
+  /** 按节点标签进入（同上）。 */
+  enterByName: (name: string) => enterByName(name),
+  /** 退到指定深度（缺省 0 = 顶层），逐层等换完。 */
+  exitTo: (depth = 0) => exitToDepth(depth),
+  /** 退一层：**直接暴露裸 exitNode 的返回值**（顶层时 false 是被断言的契约），
+   *  但仍等交换落地后才 resolve。 */
+  exitOnce: async (): Promise<boolean> => {
+    if (getNetPath().length === 0) return exitNode(); // 顶层：false，且无回调可等
+    const ok = exitNode();
+    if (ok) await waitNetPath();
+    return ok;
+  },
+  /** 当前层级标签栈（`[]` = 顶层）。 */
+  getNetPath: () => getNetPath(),
+  /** 当前层级种类（深度 0 → "obj"，否则 "sop"）。 */
+  getNetKind: () => getCurrentNetKind(),
+  /** 顶层完整图（serializeGraphFromRoot 折叠后的结果；在子网络里也给出父图）。
+   *  刻意不再提供"当前层不折叠"的变体：main.ts 手上没有这样的入口，为测试新造一个
+   *  就成了平行实现。要看当前层，直接读 `__cylGraph.editor` 的节点即可。 */
+  serializeFromRoot: () => graph.serializeGraph(),
 };
 const gizmo = createGizmoController({
   viewport,
@@ -965,11 +1056,129 @@ function projectAddress(): string {
   return buildGraphAddress(currentProjectId, store.serial);
 }
 
+// ---------------------------------------------------------------------------
+// obj/sop 层级导航（v0.1.00119）：地址栏按**节点名**下沉/上浮。
+//
+// 事实来源只有一处：nodes2/graph 的层级栈（getNetPath()）。本文件**不记**深度，只在
+// 层级真的换完之后把 getNetPath() 抄进 graphScope.path —— 于是"地址显示的层"与"编辑器
+// 里那一层"不可能各说各话（这正是 app/graph-scope.ts 头部那场事故的形状）。
+// ---------------------------------------------------------------------------
+
+/** 等待「层级已换完」的待办队列。`enterNode`/`exitNode` 同步返回 true，但真正的图交换
+ *  在它们内部的 async IIFE 里完成；要按名连下两层就必须等上一层落地（否则编辑器里还是
+ *  父图，第二个名字必然找不到）。 */
+let netPathWaiters: Array<() => void> = [];
+
+/** 层级变化的**唯一**汇合点：抄一次 getNetPath() 进 scope、刷地址、放行等待者。 */
+function onNetPathChanged(): void {
+  if (graphScope.kind !== "none") graphScope = withPath(graphScope, getNetPath());
+  updateGraphAddress();
+  const waiters = netPathWaiters;
+  netPathWaiters = [];
+  for (const fn of waiters) fn();
+}
+
+/** 等下一次层级变化落地。**带超时兜底**：`restoreGraph` 若在 async 里抛，回调永远不来，
+ *  没有兜底的 await 会把整条导航永久挂住（用户看到的是"地址栏点了没反应"）。 */
+function waitNetPath(timeoutMs = 2000): Promise<void> {
+  return new Promise<void>((resolve) => {
+    let done = false;
+    const finish = (): void => {
+      if (done) return;
+      done = true;
+      resolve();
+    };
+    netPathWaiters.push(finish);
+    setTimeout(finish, timeoutMs);
+  });
+}
+
+/** 当前网络里**可进入**节点的标签（地址栏补全用）。图未就绪 → []。 */
+function enterableNodeNames(): string[] {
+  if (!graphReady) return [];
+  return (graph.editor.getNodes() as CylNode[])
+    .filter((n) => isEnterableKind(n.kind))
+    .map((n) => n.label)
+    .filter((s) => !!s);
+}
+
+/** 按 id 进入某节点，**等图换完**才返回（enterNode 本身同步返回、交换在其内部 async 里）。
+ *  节点不存在 / 不可进入 / enterNode 拒绝 → false 且**不留等待者**（否则那个 promise 会被
+ *  下一次无关的层级变化误唤醒）。 */
+async function enterNodeAwaited(nodeId: string): Promise<boolean> {
+  if (!graphReady) return false;
+  const node = graph.editor.getNode(nodeId) as CylNode | undefined;
+  if (!node || !isEnterableKind(node.kind)) return false;
+  // 先调用再登记等待者是安全的：waitNetPath() 同步入队，而层级回调最早也要等一个
+  // microtask（enterNode 内部是 async IIFE），不可能在这两行之间就触发。
+  if (!enterNode(node.id)) return false;
+  await waitNetPath();
+  return true;
+}
+
+/** 按标签进入当前网络里的某节点；成功 = 图**已经**换完（await 过层级回调）。
+ *  找不到该名字 / 不可进入 → false（调用方据此走"无法解析地址"）。 */
+async function enterByName(name: string): Promise<boolean> {
+  if (!graphReady) return false;
+  const node = (graph.editor.getNodes() as CylNode[]).find((n) => n.label === name);
+  return node ? enterNodeAwaited(node.id) : false;
+}
+
+/** 退到指定深度（层级栈长度）。每层都等换完才退下一层，理由同 enterByName。 */
+async function exitToDepth(depth: number): Promise<void> {
+  let guard = 0;
+  while (getNetPath().length > depth && guard < 64) {
+    guard += 1;
+    const pending = waitNetPath();
+    if (!exitNode()) break; // 已在顶层：exitNode 返回 false，别空等回调
+    await pending;
+  }
+}
+
+/**
+ * 按名导航到任意深度（地址栏第 1 段起的节点名路径）。
+ *
+ * 先与当前路径求**公共前缀**，只退到分叉处再往下走：从 `/P1/geo1/geo2/` 点面包屑
+ * `/P1/geo1/` 只退一层，而不是"退到顶再重进 geo1"——后者会多做两次整图 restore，
+ * 且每次 restore 都可能丢掉尚未写回的编辑。
+ * 任一段解析不出 → 记一行 log 后返回 false（保持既有"无法解析地址"语义，绝不抛）。
+ */
+function navigateByName(segs: string[]): boolean {
+  const names = segs.slice(1);
+  const current = getNetPath();
+  let common = 0;
+  while (common < current.length && common < names.length && current[common] === names[common]) common += 1;
+  const todo = names.slice(common);
+  // **能同步判死的就同步判死**：不需要先退层时，第一跳的节点就在当前编辑器里，查得到。
+  // 于是 `/P1-…/不存在的名字/` 能如实返回 false，地址栏才会走它既有的"不可跳转 → 复制"
+  // 兜底；只有更深的段（要先换层才知道）才不得不异步报错。
+  if (todo.length > 0 && common === current.length && !enterableNodeNames().includes(todo[0])) {
+    store.pushLog(`[addr] 无法解析地址: /${segs.join("/")}/（节点「${todo[0]}」不存在或不可进入）`);
+    return false;
+  }
+  void (async () => {
+    await exitToDepth(common);
+    for (const name of todo) {
+      if (!(await enterByName(name))) {
+        store.pushLog(`[addr] 无法解析地址: /${segs.join("/")}/（节点「${name}」不存在或不可进入）`);
+        return;
+      }
+    }
+  })();
+  return true;
+}
+
 /** P2b 项目模式保存：图快照 → PUT /api/projects/{id}/graph。
  *  项目模式不写 per-serial snapshot（store.serial 为空会 400）；docking/preference 在
  *  项目模式下跳过 —— 布局沿用全局 ui-layout 文件与 localStorage，偏好沿用 localStorage。 */
 function saveProjectGraph(): void {
   if (!currentProjectId) return;
+  // **任意层级保存都是安全的**：`graph.projectGraphSnapshot()` 走 nodes2/graph.ts 的
+  // `serializeGraphFromRoot()`，它把当前图沿层级栈向外折叠（当前图 → 最近父层的
+  // children → 再往上，直到顶层），因此拿到的始终是顶层那张完整的图；栈不被修改，
+  // 所以定时自动保存不会把用户从当前层挪走。深度 0 时它退化成 serializeGraph，输出字节不变。
+  // 此处曾有一条「在子网络内拒绝保存」的分支：那是在 fold 存在之前的止损，现在它只会
+  // 让本该正确落盘的子网络编辑被静默丢弃，故删除。
   // 只有当前图**确实是项目根图**才允许写项目槽位。
   // 事故根因：进入成员后 currentProjectId 仍非空、图已换成成员图，旧代码据此把成员图
   // 写进 projects/<pid>/graph.json，项目根（project + channel 节点）被覆盖成 2 节点
@@ -1006,6 +1215,7 @@ async function enterProjectMode(projectId: string): Promise<void> {
     store.setSerial("");
     // 回到项目根：图确实是项目根图（isProjectMode 已确认），scope 必须跟着回来，
     // 否则残留的 member scope 会让 Save 一直拒写项目图。
+    // path 不带：isProjectMode() 为真即说明当前就是项目根那一层（子网络里 project 节点不在）。
     graphScope = { kind: "project", projectId };
     store.pushLog(`[project] 项目模式 ${projectId}（已在，回到项目根）`);
     updateGraphAddress();
@@ -1025,12 +1235,24 @@ async function enterProjectMode(projectId: string): Promise<void> {
     store.setStatus("offline");
     return;
   }
+  // 切项目 = 映射表换了一整张（逻辑名是项目内的命名空间）→ 旧缓存必须先作废，
+  // 否则新项目的第一批查表会命中上一个项目的类型，静默算错（比报「未加载」糟得多）。
+  if (currentProjectId !== null && currentProjectId !== projectId) invalidateMappingTypes();
   currentProjectId = projectId;
   currentProject = project;
   graphScope = { kind: "project", projectId }; // 图即将被换成项目根图
   // 进项目模式时地址栏同步成 ?project=（此处模式与地址一致，改写是诚实的；
   // 对比 ?serial= 分支：那条不改地址，见该处注释）。
   syncProjectInAddress(projectId);
+  // task #8：映射类型缓存与项目图**并发**取，然后一起 await。
+  //
+  // 为什么要 await（而不是 fire-and-forget）：端口类型的唯一真源就是这张表，第一次 cook
+  // 若表还没到，每个填了 address 的节点都会挂上「映射表未加载」红三角，然后在表到达后
+  // 才消失——用户看到的是一图红叉再自己好，像个 bug。
+  // 为什么不额外卡时间：它与 getProjectGraph 并发跑，总耗时 = max(两者) 而不是相加；
+  // 且 primeMappingTypes 绝不抛/绝不 reject（桥离线时静默保持未加载态），await 它不会
+  // 把进项目这条路径变脆。
+  const primed = primeMappingTypes(projectId);
   let graphJson: unknown = null;
   try {
     const g = await client.getProjectGraph(projectId);
@@ -1038,6 +1260,7 @@ async function enterProjectMode(projectId: string): Promise<void> {
   } catch {
     graphJson = null; // 读取失败当 null（如新项目尚无图快照）
   }
+  await primed;
   graph.loadProjectGraph(
     { projectSerial: project.projectSerial, label: project.label, members: project.members },
     graphJson,
@@ -1048,12 +1271,33 @@ async function enterProjectMode(projectId: string): Promise<void> {
     }
   }
   graph.setChannelDisplayHandler((serial: string) => {
+    // **只登记意图，不改地址**（v0.1.00119 修 task #7 的地址 bug）。
+    //
+    // 旧代码在这里就把 scope 设成 member 并立刻刷地址，但真正的图交换发生在
+    // activateSession 内部：它是 fire-and-forget（`void deps.loadSnapshot(serial)`，
+    // 无返回值、无完成信号），而 loadSnapshotIntoStore 只在快照**真的带图**时才
+    // restoreGraph。于是「点了 obj 层的 display flag，地址变成 /P1-…/C1-…/ 但 nodeview
+    // 纹丝不动」——用户报的正是这个。
+    // 现在：pending 由 commitPendingMemberScope() 在 restoreGraph 落地之后才兑现，
+    // 图没换 → 地址不动，地址栏因此永远描述**眼前这张图**。
+    pendingMemberScope = { projectId, serial };
     sessionMgr.activateSession(serial); // channel display 点击 = 激活成员
-    // 图即将被换成该成员自己的图 —— 记住"归属项目 + 当前是成员"，
-    // 这样 Save 不会再把成员图写进项目槽位（事故根因），地址栏仍显示两段。
-    graphScope = { kind: "member", projectId, serial };
-    updateGraphAddress();
   });
+  updateGraphAddress();
+}
+
+/** 待兑现的成员归属（channel display 点击登记 → 图确实换成该成员图后才落地）。 */
+let pendingMemberScope: { projectId: string; serial: string } | null = null;
+
+/** 图**已经**换成 `serial` 的成员图 —— 此刻才把 scope/地址切到 member。
+ *  loadSnapshotIntoStore 在 restoreGraph 成功后调用；serial 不匹配（期间又切了成员）
+ *  则丢弃这次兑现，绝不把地址写成一个已经过期的目标。 */
+function commitPendingMemberScope(serial: string): void {
+  const pending = pendingMemberScope;
+  if (!pending || pending.serial !== serial) return;
+  pendingMemberScope = null;
+  // path 不带：换的是**另一张图**，层级栈的旧深度对新图没有意义（顶层起算）。
+  graphScope = { kind: "member", projectId: pending.projectId, serial };
   updateGraphAddress();
 }
 
@@ -1134,9 +1378,17 @@ async function loadSnapshotIntoStore(serial: string): Promise<void> {
       try {
         await graph.restoreGraph(snapshot.graph);
         store.pushLog(`[path] restored node graph (${g.nodes.length} nodes)`);
+        // 图**确实**换成了这个成员的图 → 现在（且仅现在）把地址切到 /P1-…/C1-…/。
+        // 这是 task #7 地址 bug 的落地点：activateSession 本身给不出完成信号。
+        commitPendingMemberScope(serial);
       } catch (e) {
         store.pushLog(`[path] graph restore failed: ${String(e)}`);
       }
+    } else if (pendingMemberScope?.serial === serial) {
+      // 会话激活了，但这个成员没有存过图 → nodeview 没动，地址就不该动。
+      // 不静默：说清楚"为什么点了 display 地址没变"，否则又变成一个查不出来的怪现象。
+      store.pushLog(`[path] ${serial} 无已存图：会话已激活但 nodeview 未切换，地址保持不变`);
+      pendingMemberScope = null;
     }
     if (Array.isArray(outputs) && outputs.length > 0 && store.outputs.length === 0) {
       store.upsertOutputs(outputs as never, store.outputRev + 1);
@@ -1225,6 +1477,8 @@ function syncProjectInAddress(projectId: string): void {
 }
 
 const connectSerial = () => {
+  // 离开项目模式 = 映射表所属的命名空间没了 → 缓存作废（留着会被下一个项目误命中）。
+  if (currentProjectId !== null) invalidateMappingTypes();
   currentProjectId = null; // Connect = serial 模式动作（退出项目模式）
   const v = layout.serialInput.value.trim();
   if (!v) return;

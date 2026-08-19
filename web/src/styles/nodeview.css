@@ -62,6 +62,32 @@
   min-width: 264px;
   padding: 4px 6px 6px;
 }
+/* ---- 可进入节点（geo 类；类名由 NodeView 按 isEnterableKind(kind) 上，不硬编码 "geo"） ----
+   取「左侧强调条 + 紫罗兰描边 + 表头 ▸ 小标记」，理由：
+   - 背景色与 border-style 已被状态位占满（bypass 虚线 / freeze 半透 / displayed 蓝环 /
+     selected 黄环 / has-error 红 outline），再占一种必与状态打架。紫罗兰 #a78bfa 不在
+     现役配色里（geo 朱红 / float 浅蓝 / vec3 深绿 / 项目根金 / 选中黄 / display 蓝），一眼可辨。
+   - 左侧条走 ::before 绝对定位，**不占布局**（节点 264px 几何契约分毫不动），且它不是
+     box-shadow —— displayed/selected 的环叠上来时容器语义仍在。
+   - border-color 这条**故意放在 .displayed / .selected 之前**：同特异度下后来者胜，
+     所以蓝环/黄环照旧压过容器色（优先级约定见下方 .selected 一段的说明）。
+   纯表现层：双击进入的手势在 graph-interact.ts，这里不绑任何事件。 */
+.cyl-graph .cyl-rp-node.cyl-rp-enterable {
+  position: relative; /* 只在可进入节点上开，供 ::before 定位；其他 kind 的层叠不受影响 */
+  border-color: #6d5aa8;
+}
+.cyl-graph .cyl-rp-node.cyl-rp-enterable::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: #a78bfa; pointer-events: none;
+}
+/* 表头 ▸ 标记：树视图「可展开」的惯用符号，暗示双击可进入其子网络。
+   走 header 的 flex 常规流而**不用绝对定位**：.cyl-rp-node 是 overflow:hidden，
+   且 out0 的端口 dot 就贴在右下边缘 —— 浮在角上的标记要么被裁、要么与它相撞。 */
+.cyl-graph .cyl-rp-enter-hint {
+  flex: 0 0 auto; font-size: 10px; line-height: 1; color: #a78bfa;
+  margin: 1px 2px 0 auto;
+  pointer-events: none; /* 装饰件不吃事件：拖拽/双击一律落到节点本体 */
+}
 .cyl-graph .cyl-rp-node.displayed { border-color: #60a5fa; box-shadow: 0 0 0 1px #60a5fa, 0 4px 14px rgba(0,0,0,.45); } /* display = light blue ring */
 .cyl-graph .cyl-rp-node.bypass { border-style: dashed; opacity: .75; }
 .cyl-graph .cyl-rp-node.freeze { opacity: .6; }
@@ -201,8 +227,9 @@
 .cyl-graph .cyl-rp-node.has-error { outline: 1px solid rgba(255,77,79,.55); }
 .cyl-graph .cyl-rp-node.has-warning { outline: 1px solid rgba(250,219,20,.45); }
 
-/* 端口按数据类型着色，与连线配色同源：geo 朱红（默认，见上方 div[title] 规则）/
-   float 浅蓝 / vec3 深绿。geo 不加类 -> 旧 4 端口图零视觉变化。 */
+/* 端口按数据类型着色，与连线配色同源（见文件末尾 cyl-wire-float 一段的配色单源）：
+   geo 朱红 #ff6b6b（默认，见上方 div[title] 规则）/ float 浅蓝 #7fb0ff / vec3 深绿 #2f9e63。
+   geo 不加类 -> 旧 4 端口图零视觉变化。 */
 .cyl-graph .cyl-rp-port.cyl-port-float .output div[title],
 .cyl-graph .cyl-rp-port.cyl-port-float .input div[title] {
   border-color: #7fb0ff; background: #0b1a2b;
@@ -242,6 +269,20 @@
 /* ---- P2b 项目模式节点（NodeView.tsx project/channel 分支） ---- */
 .cyl-graph .cyl-rp-project { min-width: 180px; }
 .cyl-graph .cyl-rp-project .cyl-rp-title { color: #fde68a; } /* 项目根：金色（区别于普通绿色标题） */
+/* 项目根 hip 小字：第一行 hip 文件名（识别用，稍亮）、第二行 hip 绝对路径（暗、等宽）。
+   两行都**不给** text-overflow：省略由 TS 侧 elide() 做**中段**省略（铁律见
+   devlog/development-standards.md「过长标识串一律中间省略」）。CSS 的 ellipsis 只砍尾巴，
+   而路径的尾段正是文件名、文件名的尾段正是版本号（-v012.hip）——砍尾等于砍掉区分位。 */
+.cyl-graph .cyl-rp-project-hipname {
+  font-size: 9px; color: #9aa1ac; margin: 1px 0 0; padding-left: 2px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: nowrap;
+}
+.cyl-graph .cyl-rp-project-hip {
+  font-size: 9px; color: #6b7280; margin: 0 0 4px; padding-left: 2px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: nowrap;
+}
 .cyl-graph .cyl-rp-channel { min-width: 200px; }
 .cyl-graph .cyl-rp-channel .cyl-rp-title { cursor: default; } /* 标题不可改名（双击无入口） */
 .cyl-graph .cyl-rp-channel-sub {
@@ -261,10 +302,14 @@
   filter: brightness(0.65) saturate(0.5);
 }
 /* ---- 按数据类型着色（Houdini VOP 惯例：看线色即知类型） ----
-   geo 保持既有灰白（不加类）；float/vec3 由 applyConnectionTypeVisual 上类。
+   配色单源（三处必须逐字一致：线 / 端口 dot / waypoint 圆点）：
+     geo   朱红 #ff6b6b —— 不加类，沿用上方第 49 行的默认线色（旧 4 端口图零视觉变化）
+     float 浅蓝 #7fb0ff
+     vec3  深绿 #2f9e63
+   float/vec3 由 applyConnectionTypeVisual 上类。
    selected/runtime 用 !important 覆盖，因此这两条在被选中/流动时自然让位。 */
-.cyl-graph [data-testid="connection"] path.cyl-wire-float { stroke: #7ce3a8; }
-.cyl-graph [data-testid="connection"] path.cyl-wire-vec3 { stroke: #7fb0ff; }
+.cyl-graph [data-testid="connection"] path.cyl-wire-float { stroke: #7fb0ff; }
+.cyl-graph [data-testid="connection"] path.cyl-wire-vec3 { stroke: #2f9e63; }
 /* runtime flow: flowing dashed animation on the display chain during a slow cook
    (>=120ms); the JS layer adds/removes this class for min(ms, 2000) ms */
 .cyl-graph [data-testid="connection"] path.cyl-wire-runtime {
@@ -310,5 +355,5 @@
 /* 颜色跟着**线本身的类型类**走（兄弟选择器），因此永远不会与
    applyConnectionTypeVisual 定的线色跑偏——那是线色的唯一真源，
    这里不复制它的类型查表。色值与上面 float/vec3 线色逐字相同。 */
-.cyl-graph [data-testid="connection"] path.cyl-wire-float ~ circle.cyl-wp-dot { fill: #7ce3a8; }
-.cyl-graph [data-testid="connection"] path.cyl-wire-vec3 ~ circle.cyl-wp-dot { fill: #7fb0ff; }
+.cyl-graph [data-testid="connection"] path.cyl-wire-float ~ circle.cyl-wp-dot { fill: #7fb0ff; }
+.cyl-graph [data-testid="connection"] path.cyl-wire-vec3 ~ circle.cyl-wp-dot { fill: #2f9e63; }

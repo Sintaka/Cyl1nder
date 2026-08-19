@@ -6,6 +6,10 @@
  *   (from right to left): Display (light blue, one per network) / Reference (pink) /
  *   Bypass (yellow) / Freeze (icy blue). Reference/Bypass/Freeze are per-node toggles.
  * - ports rendered with RefSocket; each port div carries data-port-id for linkage.
+ * - project 根节点：标题下两行 hip 小字（文件名 + 绝对路径，均中段省略、全量进 title）；
+ *   node.hip 未绑定时整块不渲染。
+ * - 可进入节点（isEnterableKind，目前 geo）：左侧紫罗兰强调条 + 表头 ▸ 标记，纯表现层
+ *   （双击进入的手势在 graph-interact.ts）。
  */
 import React, { useEffect, useReducer, useRef } from "react";
 import { ClassicPreset } from "rete";
@@ -13,7 +17,7 @@ import { Presets } from "rete-react-plugin";
 import type { ClassicScheme, ReactArea2D, RenderEmit } from "rete-react-plugin";
 import { fireNodeState, showTooltip, hideTooltip, fireRename, getChannelDisplaySerial } from "./graph";
 import type { CylNode } from "./graph";
-import { socketTypeClass, worstSeverity } from "./graph-model";
+import { socketTypeClass, worstSeverity, isEnterableKind } from "./graph-model";
 import { elide } from "../app/elide";
 
 const { RefSocket } = Presets.classic;
@@ -21,6 +25,30 @@ const { RefSocket } = Presets.classic;
 /** 序列号/长标签在 tooltip 与副标题里的省略预算（中段省略，两端都留）。 */
 const LABEL_MAX = 48;
 const SERIAL_MAX = 28;
+/**
+ * 项目根 hip 路径的省略预算。
+ *
+ * 为什么是 44 而不是照抄 SERIAL_MAX(28)：serial 定长 16 字符（`C1-msm6dsp7-ob6t`），28
+ * 是「装得下就不省略」的宽松预算；hip 是**绝对路径**，实测形如
+ * `D:/Animation_Project/beginTest/hip/beginTest-1.hip`（50 字符）——按 28 省略会把
+ * `D:/Animation_…/beginTest-1.hip` 里的整个项目段吃光，路径就不再能定位「哪个项目」。
+ *
+ * 44 的来源是**几何**而非口味：小字 9px 等宽字体单字符约 5.4px，44 × 5.4 ≈ 238px，
+ * 加节点左右 padding 12px ≈ 250px，正好落在节点 min-width 264px 之内 —— 即这行小字
+ * **不会把项目根节点撑宽**（264px 是全局几何契约，不能让一行小字去改它）。
+ * 按 elide 的分配（头多分一个）：head 22 字符够放 `D:/Animation_Project/`，
+ * tail 21 字符够放 `/hip/beginTest-1.hip`，两端的辨识信息都保住。
+ */
+const HIP_MAX = 44;
+/** hip 文件名单独一行的预算：比路径行短（文件名本就短），超长时同样中段省略——
+ *  文件名的区分位在尾部版本号（`shot010-anim-v012.hip`），砍尾就分不出版本。 */
+const HIPNAME_MAX = 32;
+
+/** hip 文件名 = 路径最后一段（兼容 `/` 与 `\`，Houdini 在 Windows 上两种都会给）。 */
+function hipBaseName(hip: string): string {
+  const parts = hip.split(/[/\\]/);
+  return parts[parts.length - 1] ?? "";
+}
 
 /** Module-level display handler registered by createReteGraph. */
 let displayHandler: ((nodeId: string) => void) | null = null;
@@ -173,10 +201,19 @@ export function NodeView({ data, emit }: Props) {
   const inputs = Object.entries(node.inputs);
   const outputs = Object.entries(node.outputs);
   const flags = node.flags ?? { display: false, bypass: false, freeze: false, reference: false };
+  // 「可进入」按**能力**判定（isEnterableKind），不硬编码 "geo"：以后多一种容器 kind，
+  // 这里与 CSS 都不用改。纯表现层——双击进入的手势在 graph-interact.ts（非本写集）。
+  const enterable = isEnterableKind(node.kind);
 
   // P2b 项目根：标题 + label，无端口无 chips（display 等 4 chips 全部不渲染）。
   // 双击改名入口禁用（v1 固定标签）；样式类 .cyl-rp-project。
   if (node.kind === "project") {
+    // hip 是**纯显示值**（makeProjectNode 的第 5 参 → CylNode.hip）：权威来源在桥侧
+    // ProjectRef.hip，每次 loadProjectGraph 重新注入、不进快照（理由见 graph-model.ts
+    // 的 CylNode.hip 注释）。故这里绝不拿它做解析/比较/去重，只管画。
+    // 未绑定 hip 时是 undefined —— 下面整块不渲染（不留空行，节点回到"只有标题"的原样）。
+    const hip = node.hip ?? "";
+    const hipName = hipBaseName(hip);
     return (
       <div className={`cyl-rp-node cyl-rp-project ${node.selected ? "selected" : ""}`}>
         <div className="cyl-rp-head">
@@ -184,6 +221,25 @@ export function NodeView({ data, emit }: Props) {
             {node.label}
           </span>
         </div>
+        {/* hip 路径中段省略，理由与下面 channel 的 serial 完全同源：CSS 的 text-overflow
+            只砍尾巴，而路径的辨识信息在**两端**——头部是盘符/项目
+            （`D:/Animation_Project/…`）、尾部才是文件名（`beginTest-1.hip`），
+            砍尾会把两个不同项目的 hip 显示成同一个字符串。title 一律给全量。
+            文件名**另起一行**而不是靠路径尾段兜着：路径行的 tail 预算是定值（44 → 21 字符），
+            文件名一旦超过它，被吃掉的就是文件名的**头部**——实测
+            `…/sh0125_fx_destruction_rbd_v027.hip` 在路径行里只剩 `truction_rbd_v027.hip`，
+            `sh0125_fx_des` 没了。而"当前是哪个 hip"恰是这块小字最该回答的问题，
+            故单独一行按文件名自己的预算省略，头部永不被路径的目录段挤掉。 */}
+        {hip ? (
+          <>
+            <div className="cyl-rp-project-hipname" title={hip}>
+              {elide(hipName, HIPNAME_MAX)}
+            </div>
+            <div className="cyl-rp-project-hip" title={hip}>
+              {elide(hip, HIP_MAX)}
+            </div>
+          </>
+        ) : null}
       </div>
     );
   }
@@ -234,7 +290,7 @@ export function NodeView({ data, emit }: Props) {
         flags.reference ? "reference" : ""
       } ${flags.display ? "displayed" : ""} ${node.selected ? "selected" : ""}${
         nodeSeverity ? ` has-${nodeSeverity}` : ""
-      }`}
+      }${enterable ? " cyl-rp-enterable" : ""}`}
     >
       {/* 错误角标（照 Houdini：红三角=error、黄三角=warning）。
           一个节点只出一枚，取最严重的一条；tooltip 列出全部原因，
@@ -298,6 +354,13 @@ export function NodeView({ data, emit }: Props) {
             {node.label}
           </span>
         )}
+        {/* 可进入标记：树视图「可展开」的惯用 ▸。装饰件，不绑事件（pointer-events:none 在 CSS），
+            拖拽/双击照旧落到节点本体。 */}
+        {enterable ? (
+          <span className="cyl-rp-enter-hint" title="double-click to enter this container">
+            ▸
+          </span>
+        ) : null}
         <div className="cyl-rp-chips">
           {chip("display", flags.display, "Display (one per network, light blue)")}
           {chip("reference", flags.reference, "Reference (pink, no logic yet)")}

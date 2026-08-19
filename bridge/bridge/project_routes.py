@@ -369,8 +369,24 @@ async def ensure_project(body: EnsureBody) -> dict:
     if not is_valid_serial(body.serial):
         raise HTTPException(status_code=400, detail="invalid serial")
     st = get_state()
-    if body.hip:
-        project, created = await bind_serial_to_hip(body.serial, body.hip)
+    hip = body.hip or ""
+    if not hip:
+        # 调用方没带 hip 时**回退到注册表里那条记录的 hip**（v0.1.00119）。
+        #
+        # 为什么必须回退：web 侧 `ensureProject(serial)` 从来不带 hip（它手上只有 serial，
+        # `listSerials()` 只回字符串数组），于是 `?serial=` 启动一路走到下面
+        # `projects.create(label=serial)` —— 建出一个 **hip 为空** 的项目。而项目的 hip
+        # **没有任何回填路径**：成员后来 push 时刷的是 registry，不会补项目那一栏。
+        # 实测后果：重建后的 `P1-mszskx8f-0yf2` 的 hip 一直是空串，即使成员 registry 里
+        # 已经有正确的 hip；nodeview 的项目根因此无地址可显（task #6 直接失去数据来源），
+        # overview 也只能显示序列号。
+        #
+        # 注册表的 hip 是 HDA cook 时自报的（`put_inputs` 带 hip），是可信来源；
+        # 拿它归拢等于让「同一个 hip 只有一个项目」这条既有语义真的生效。
+        rec = st.registry.get(body.serial)
+        hip = (getattr(rec, "hip", "") or "") if rec is not None else ""
+    if hip:
+        project, created = await bind_serial_to_hip(body.serial, hip)
         return {"ok": True, "project": project, "created": created}
     for project in st.projects.list():
         for m in project.get("members", []):
