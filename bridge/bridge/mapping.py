@@ -162,7 +162,24 @@ class MappingRegistry:
         if rec.get("type", "float") not in MAPPING_TYPES:
             raise ValueError(f"invalid type {rec.get('type')!r}")
         with self._lock:
-            self._entries.setdefault(project, {})[name] = rec
+            names = self._entries.setdefault(project, {})
+            prev = names.get(name)
+            # **同名不同锚点 = 冲突，必须让它可见**（v0.1.00123）。
+            #
+            # 实测场景：`/obj/cyl1nder_tag_demo/cyl1ndertag` 与 `/obj/geo1/Cyl1nderTag2`
+            # 各自产出 rel=`transform1/tx`，解析到**两个不同的绝对路径**
+            # （`/obj/cyl1nder_tag_demo/transform1/tx` vs `/obj/geo1/transform1/tx`）。
+            # 后写覆盖先写之后，用户填的引用会**静默指向另一个节点**——值改了、但改的
+            # 不是他看着的那个 parm，这是最难查的一类 bug。
+            #
+            # 这里仍然让后写者赢（不中途改契约、不让 cook 失败），但把冲突记在条目上：
+            # `conflictWith` 列出被顶掉的锚点，`resolved` 因此能带出警告，
+            # UI/日志可以照实说「这个逻辑名有两个来源」。
+            prev_anchor = (prev or {}).get("anchor") or ""
+            if prev_anchor and prev_anchor != (rec.get("anchor") or ""):
+                prior = [a for a in (prev.get("conflictWith") or []) if a and a != rec.get("anchor")]
+                rec["conflictWith"] = sorted({*prior, prev_anchor})
+            names[name] = rec
             self._save(force=True)
             return dict(rec)
 
