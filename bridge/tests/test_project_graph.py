@@ -130,18 +130,32 @@ def test_migrate_single_member_snapshot_graph(tmp_path: Path, monkeypatch) -> No
     pid = _create_project(c)
     s = generate_serial()
     hip = str(tmp_path / "hipdir" / "scene.hip")
-    graph = {"nodes": [{"id": "n1"}], "connections": [], "viewport": {"scale": 1.0}}
-    # v0.1.00122 起 `write_snapshot` **不再写 graph**（成员图归项目所有），所以这里手工
-    # 铺一个**旧存档**形状的 node-graph.json —— 本测试要验的正是「旧存档还能被迁移读出来」，
-    # 用已经不写 graph 的 API 造夹具就什么都造不出来（夹具形状必须像它要模拟的那个年代）。
-    snap.write_snapshot(s, hip)  # 建出 snapshot_root 及其 scene/ 目录
+    # 旧成员图里**混着 sop 层节点与一个 geo**。迁移读必须只把 geo 类带上项目根
+    # （v0.1.00123，用户 bug #1：根目录下只能有 geo 类的，删了 reload 又会回来）。
+    graph = {
+        "schemaVersion": 5,
+        "viewport": {"scale": 1.0},
+        "nodes": [
+            {"id": "g1", "kind": "geo", "label": "geo1"},
+            {"id": "n1", "kind": "null", "label": "null1"},
+            {"id": "i1", "kind": "input", "label": "_input_"},
+        ],
+        "connections": [{"source": "g1", "target": "n1"}],
+    }
+    # v0.1.00122 起 `write_snapshot` 不再写 graph，故手工铺旧存档形状的 node-graph.json。
+    snap.write_snapshot(s, hip)
     legacy_graph = snap.snapshot_root(hip, s) / "scene" / "node-graph.json"
     legacy_graph.parent.mkdir(parents=True, exist_ok=True)
     legacy_graph.write_text(json.dumps(graph), encoding="utf-8")
-    c.post(f"/api/projects/{pid}/members", json={"kind": "tag", "serial": s, "nodePath": "/obj/geo1/tag1", "hip": hip, "label": ""})
+    c.post(
+        f"/api/projects/{pid}/members",
+        json={"kind": "tag", "serial": s, "nodePath": "/obj/geo1/tag1", "hip": hip, "label": ""},
+    )
     r = c.get(f"/api/projects/{pid}/graph")
     assert r.status_code == 200
-    assert r.json()["graph"] == graph
+    got = r.json()["graph"]
+    assert [n["kind"] for n in got["nodes"]] == ["geo"]  # sop 层节点没被带上来
+    assert got["connections"] == []  # 指向被剔节点的连接一并删掉
     assert not project_graph_path(tmp_path / "data", pid).exists()  # 纯读迁移：不写回
 
 

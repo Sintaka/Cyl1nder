@@ -580,8 +580,46 @@ async def get_project_graph(projectId: str) -> dict:
         members = [m for m in project.get("members", []) if m.get("kind") in ("tag", "hda")]
         if len(members) == 1 and members[0].get("serial") and members[0].get("hip"):
             snap = snapshot.read_snapshot(members[0]["hip"], members[0]["serial"])
-            graph = snap.get("graph") if snap is not None else None
+            legacy = snap.get("graph") if snap is not None else None
+            graph = _project_root_only(legacy)
     return {"ok": True, "graph": graph}
+
+
+def _project_root_only(graph: dict | None) -> dict | None:
+    """把迁移读到的旧成员图**过滤成项目根合法的形状**（v0.1.00123）。
+
+    用户报的 bug：「打开 beginTest2 又看见了 4 个遗留的节点，根目录下只能有 geo 类的，
+    我删了 reload 又会回来」。成因是这条迁移读把旧成员图**原样**当项目图返回，
+    而旧成员图里装的是 `_input_`/`_output_`/`null`/`transform` —— 那些是 **sop 层**的
+    东西，项目根（obj 层）只能有 geo 类容器。
+    而且它**只读不写**：用户删掉再保存，写进去的是删后的图；但只要那份图为空或读不到，
+    下一次读又会重跑迁移，节点就"又回来了"。删不掉的根因就在这里。
+
+    过滤规则：只保留 `project` 与 `geo`（obj 层唯一合法的两种），连接一并按保留下来的
+    节点 id 过滤（否则会留下指向已删节点的半截连接）。过滤后若一个 geo 都没有，
+    返回 None —— 与「没有图」等价，让前端按空项目渲染那行黄色提示，
+    而不是把一张只剩根节点的图硬塞回去。
+    """
+    if not isinstance(graph, dict):
+        return None
+    nodes = [n for n in (graph.get("nodes") or []) if isinstance(n, dict)]
+    kept = [n for n in nodes if n.get("kind") in ("project", "geo")]
+    dropped = len(nodes) - len(kept)
+    if dropped == 0:
+        return graph if kept else None
+    kept_ids = {n.get("id") for n in kept}
+    conns = [
+        c
+        for c in (graph.get("connections") or [])
+        if isinstance(c, dict) and c.get("source") in kept_ids and c.get("target") in kept_ids
+    ]
+    if not any(n.get("kind") == "geo" for n in kept):
+        # 只剩根节点（或什么都不剩）→ 当作"没有图"：前端会画空项目提示。
+        return None
+    out = dict(graph)
+    out["nodes"] = kept
+    out["connections"] = conns
+    return out
 
 
 @router.put("/api/projects/{projectId}/graph")
