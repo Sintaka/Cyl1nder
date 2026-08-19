@@ -284,6 +284,12 @@ project P1-msztfncq-1yyn | hip: beginTest-2.hip | members: hda:C1-msm6dsp7-ob6t,
   `web/e2e/waypoint-verify.spec.ts` 时刻意让它只依赖 `__cylGraph`。
 - **e2e 取线上的点之前必须先 fit**。不 fit 时线的中点会落在视口外（实测 x=1591,y=1001），
   鼠标根本碰不到，测试会以"取不到点"的形式假失败。
+- **`?serial=` 打开的图里 `_input_` 是旧 4 端口形态，没有 address 参数**（实测
+  `outs:["in0","in1","in2","in3"]`、`params:[]`）——它是从存档恢复的，而
+  `detectLegacyPorts` 判定旧形态就原样重建。所以要测 address / 映射类型 / 引用登记
+  这些**只存在于单端口形态**的行为，必须自己 `makeInputNode(true)` 建节点，
+  别复用图里现成的那个 `_input_`（否则参数写不进去，症状是 address 读回来是 null，
+  很容易误判成"写入逻辑坏了"）。
 - **`locator.dblclick()` 在本项目不可用**：dockview 的 `.dv-void-container` 覆盖层
   会让 Playwright 的 actionability 检查永远判定被遮挡。用 `page.mouse.dblclick(裸坐标)`。
 - **e2e 里 `await import("/src/...")` 拿到的模块实例是否与应用同一份，取决于 HMR 状态
