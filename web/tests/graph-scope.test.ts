@@ -27,8 +27,11 @@ describe("canWriteProjectGraph（钉住真实数据丢失）", () => {
 });
 
 describe("addressOf", () => {
-  it("member 带项目前缀（回归：曾退化成 /C1-…/）", () => {
-    expect(addressOf(member)).toBe(`/${P}/${C}/`);
+  // v0.1.00124 契约变更（用户要求）：「项目中不要再出现 /P1-…/C1-…/ 这个东西了，
+  // 触发 cook 的时候应该只有 /P1-…」。serial 是成员身份 + 数据通道，不是地址的一段。
+  // **kind 仍是 member**（scope 决定 Ctrl+S 写哪个槽位），只是地址不显示第二段。
+  it("member 只显示到项目根（不再出现第二段 serial）", () => {
+    expect(addressOf(member)).toBe(`/${P}/`);
   });
 
   it("project / serial / none", () => {
@@ -49,9 +52,10 @@ describe("addressOf + 层级路径（v0.1.00119 obj/sop）", () => {
     expect(addressOf({ kind: "project", projectId: P, path: ["geo1", "geo2"] })).toBe(`/${P}/geo1/geo2/`);
   });
 
-  it("member / serial 的既有两段与一段形态不变，层级在其后追加", () => {
-    expect(addressOf(member)).toBe(`/${P}/${C}/`);
-    expect(addressOf({ ...member, path: ["geo1"] })).toBe(`/${P}/${C}/geo1/`);
+  it("member 只到项目根 + 层级追加在其后；serial 形态不变", () => {
+    expect(addressOf(member)).toBe(`/${P}/`);
+    // 层级路径照样追加 —— 去掉的只是那段 serial，不是层级能力
+    expect(addressOf({ ...member, path: ["geo1"] })).toBe(`/${P}/geo1/`);
     expect(addressOf({ kind: "serial", serial: C, path: ["geo1"] })).toBe(`/${C}/geo1/`);
   });
 

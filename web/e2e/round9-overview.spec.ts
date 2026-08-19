@@ -49,16 +49,22 @@ test("/?serial=C1-... IS redirected to Overview (serial is no longer a page addr
   await expect(page.locator(".cyl-app")).toHaveCount(0);
 });
 
-test("/?project=P1-…&member=C1-… loads the member workspace (the replacement entry)", async ({ page }) => {
+test("/?project=P1-…&member=C1-…：地址只到项目根，member 仅作数据通道", async ({ page }) => {
+  // v0.1.00124 契约变更（用户要求）：「项目中不要再出现 /P1-…/C1-…/ 这个东西了，
+  // 触发 cook 的时候应该只有 /P1-…」。所以 `member=` 的**地址语义**废除 ——
+  // 地址栏只显示项目根。但它**仍然激活该成员的会话**（WS 数据通道本就按 serial 走），
+  // 否则没有 hello、状态永远停在 connecting、几何永远不来（我上一版正是这么挂掉 76 条的）。
   const serial = "C1-e2eround9-0001";
   const pid = await projectForSerial(serial);
   await page.goto(`${BASE}/?project=${pid}&member=${serial}`);
-  await expect(page).toHaveURL(new RegExp(`[?&]member=${serial}`), { timeout: 15000 });
   await expect(page.locator(".cyl-app")).toBeVisible({ timeout: 15000 });
-  await expect(page.locator("#cyl-serial")).toHaveValue(serial);
   await expect(page.locator(".ov-brand")).toHaveCount(0);
-  // 地址栏两段 /P1-…/C1-…/：成员只作为「项目的成员」可达，这正是替代 serial 页面入口的形态
-  await expect(page.locator(".cyl-graph-addr")).toContainText(`${pid}/${serial}`, { timeout: 15000 });
+  // 会话确实激活了：serial 输入框绑到该成员（数据通道通了）
+  await expect(page.locator("#cyl-serial")).toHaveValue(serial);
+  // 但地址栏**只到项目根**，不出现第二段 serial
+  const addr = page.locator(".cyl-graph-addr");
+  await expect(addr).toContainText(pid, { timeout: 15000 });
+  await expect(addr).not.toContainText(serial);
 });
 
 test("projects block is on top; mappings second; scenes demoted to a collapsed diag section", async ({ page }) => {

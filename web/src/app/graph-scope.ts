@@ -53,7 +53,17 @@ export function addressOf(scope: GraphScope): string {
     case "project":
       return `/${scope.projectId}/${pathSuffix(scope.path)}`;
     case "member":
-      return `/${scope.projectId}/${scope.serial}/${pathSuffix(scope.path)}`;
+      // **只显示到项目根**（v0.1.00124，用户要求）：「项目中不要再出现
+      // /P1-…/C1-…/ 这个东西了，触发 cook 的时候应该只有 /P1-…」。
+      //
+      // serial 是**成员身份 + 数据通道**，不是地址的一段：成员的内容属于项目图里那个 geo
+      // 的子网络，不存在一个与项目根平行的"成员层"。
+      //
+      // 改在这里而不是各入口各改一次：`addressOf` 是地址的**唯一**来源，
+      // 于是启动直达、display chip 点击、地址栏手打三条入口不可能显示得不一致。
+      // **`kind` 仍然是 `member`**（scope 决定 Ctrl+S 往哪写；把它改成 project 会让成员图
+      // 被当项目图保存 —— 实测 5 个 e2e 当场挂）。地址是给人看的，scope 是给写盘用的。
+      return `/${scope.projectId}/${pathSuffix(scope.path)}`;
     case "serial":
       return `/${scope.serial}/${pathSuffix(scope.path)}`;
     default:

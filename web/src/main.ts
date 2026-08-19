@@ -1680,6 +1680,8 @@ function syncMemberInAddress(projectId: string, serial: string): void {
   }
 }
 
+
+
 /** 把地址栏换成 `?project=`（项目根，不重载、不新增历史条目）。
  *
  *  `member` 必须一并清掉：回到项目根后还留着 member= 的话，刷新会又跳进成员工作区，
@@ -1761,7 +1763,27 @@ if (qp && PROJECT_SERIAL_RE.test(qp) && qm && SERIAL_RE.test(qm)) {
   //
   // 现在：进项目根（地址就是 `/P1-…/`，符合要求），**同时**激活该成员会话拿几何。
   store.pushLog(`[nav] member= 仅作数据通道：地址进项目根 ${qp}，会话激活 ${qm}`);
-  void enterProjectMode(qp).then(() => sessionCtl?.activateSession(qm));
+  // **复用 `enterMemberWorkspace`**，只把地址覆盖成项目根。
+  //
+  // 为什么不自己拼 `enterProjectMode + activateSession`：我试过，`#cyl-serial` 是空的
+  // （探针实录 `input="" store="C1-e2eround9-0001"`）——会话确实激活了、store 也对，
+  // 但**画输入框那一步在 enterMemberWorkspace 里**（`layout.serialInput.value = serial`）。
+  // 绕开它就等于把「激活成员」这件事做了一半，两条入口从此各自漂移。
+  //
+  // 地址语义的差异只在最后一步：`enterMemberWorkspace` 会写两段
+  // `/P1-…/C1-…/`，而用户要求只到项目根，所以落地后把 scope 与地址改回项目根。
+  // 数据通道（WS 按 serial）不受影响 —— 那本来就该按 serial 走。
+  void enterMemberWorkspace(qp, qm).then((ok) => {
+    if (!ok) return;
+    // **只改地址显示，绝不改 graphScope**。
+    //
+    // 我先前把 scope 也改成 project，于是 `canWriteProjectGraph` 变真 —— Ctrl+S 走进
+    // 「保存项目图」分支、**再也不发 snapshot PUT**（5 个 e2e 因此挂掉：Ctrl+S / 自动保存 /
+    // Save Scene As）。scope 回答的是「这张图属于谁、该写哪个槽位」，
+    // 地址回答的是「给人看什么」——正是 graph-scope.ts 头部警告过的那种混用。
+    // 用户要的是**地址**只到项目根，不是把这张成员图当成项目图去写。
+    // 地址那一半已经由 `addressOf(member)` 统一处理（graph-scope.ts），这里无事可做。
+  });
 } else if (qp && PROJECT_SERIAL_RE.test(qp)) {
   // P2b 项目模式：?project=P1-… 直接进入项目根（index.html 已放行，不重定向 overview）。
   void enterProjectMode(qp);
