@@ -670,6 +670,71 @@ def test_delete_project_invalid_400(tmp_path: Path) -> None:
     assert r.json()["detail"] == "invalid project serial"
 
 
+def test_put_graph_writes_beside_hip(tmp_path: Path) -> None:
+    """PUT 带 hip -> 图落在 `<hip目录>/Cyl1nder/<hip名>_<P1-…>/graph.json`。
+
+    这是用户点名要的形状：目录按**项目** serial 命名（P1-），不是成员的 C1-。
+    同时确认旧位置**没有**被写出来，否则等于两处各留半份。
+    """
+    c = _client(tmp_path)
+    st = get_state()
+    hip = str(tmp_path / "beginTest-2.hip")
+    pid = c.post("/api/projects", json={"label": "Demo", "hip": hip}).json()["project"]["projectSerial"]
+    assert c.put(f"/api/projects/{pid}/graph", json={"graph": {"nodes": ["a"]}}).status_code == 200
+
+    expected = tmp_path / "Cyl1nder" / f"beginTest-2_{pid}" / "graph.json"
+    assert expected.is_file()
+    assert json.loads(expected.read_text(encoding="utf-8")) == {"nodes": ["a"]}
+    assert not (st.data_dir / "projects" / pid / "graph.json").exists()   # 旧位置未被写
+    assert c.get(f"/api/projects/{pid}/graph").json()["graph"] == {"nodes": ["a"]}
+
+
+def test_put_graph_without_hip_uses_legacy_path(tmp_path: Path) -> None:
+    """项目还没绑 hip（建了但成员没 cook 过）-> 旧位置，行为逐字不变。"""
+    c = _client(tmp_path)
+    st = get_state()
+    pid = c.post("/api/projects", json={"label": "Demo"}).json()["project"]["projectSerial"]
+    assert c.put(f"/api/projects/{pid}/graph", json={"graph": {"nodes": []}}).status_code == 200
+    assert (st.data_dir / "projects" / pid / "graph.json").is_file()
+    assert not (tmp_path / "Cyl1nder").exists()
+
+
+def test_get_graph_reads_legacy_only_graph_and_migrates(tmp_path: Path) -> None:
+    """旧位置的图必须找得到（迁移安全性的**关键属性**），且顺带被迁到 hip 旁。"""
+    c = _client(tmp_path)
+    st = get_state()
+    hip = str(tmp_path / "beginTest-2.hip")
+    pid = c.post("/api/projects", json={"label": "Demo", "hip": hip}).json()["project"]["projectSerial"]
+    legacy = st.data_dir / "projects" / pid
+    legacy.mkdir(parents=True)
+    (legacy / "graph.json").write_text(json.dumps({"nodes": ["old"]}), encoding="utf-8")
+
+    assert c.get(f"/api/projects/{pid}/graph").json()["graph"] == {"nodes": ["old"]}
+    moved = tmp_path / "Cyl1nder" / f"beginTest-2_{pid}" / "graph.json"
+    assert moved.is_file() and not legacy.exists()      # 已迁走
+    assert c.get(f"/api/projects/{pid}/graph").json()["graph"] == {"nodes": ["old"]}
+
+
+def test_get_graph_target_exists_leaves_both_and_still_reads(tmp_path: Path) -> None:
+    """两处都有图 -> 不合并、不覆盖，hip 侧优先返回，旧位置原地保留。
+
+    合并语义是人的决定，不是迁移能替用户做的。
+    """
+    c = _client(tmp_path)
+    st = get_state()
+    hip = str(tmp_path / "beginTest-2.hip")
+    pid = c.post("/api/projects", json={"label": "Demo", "hip": hip}).json()["project"]["projectSerial"]
+    legacy = st.data_dir / "projects" / pid
+    legacy.mkdir(parents=True)
+    (legacy / "graph.json").write_text(json.dumps({"nodes": ["old"]}), encoding="utf-8")
+    hip_side = tmp_path / "Cyl1nder" / f"beginTest-2_{pid}"
+    hip_side.mkdir(parents=True)
+    (hip_side / "graph.json").write_text(json.dumps({"nodes": ["new"]}), encoding="utf-8")
+
+    assert c.get(f"/api/projects/{pid}/graph").json()["graph"] == {"nodes": ["new"]}
+    assert json.loads((legacy / "graph.json").read_text(encoding="utf-8")) == {"nodes": ["old"]}
+
+
 def test_delete_project_cascades_graph_and_mappings(tmp_path: Path) -> None:
     """级联：项目图文件 + 其目录被删，mappings.drop_project 被调用。"""
     c = _client(tmp_path)
@@ -683,6 +748,52 @@ def test_delete_project_cascades_graph_and_mappings(tmp_path: Path) -> None:
     assert not graph_path.exists()
     assert not graph_path.parent.exists()
     assert st.mappings.dropped == [pid]
+
+
+def test_delete_project_removes_hip_side_dir_and_keeps_sibling(tmp_path: Path) -> None:
+    """级联删 hip 侧项目图目录，且**兄弟 per-serial 快照目录必须活着**。
+
+    两者同住 `<hip目录>/Cyl1nder/`：`beginTest-1_P1-…`（项目图）与 `beginTest-1_C1-…`
+    （成员快照）。删项目只许动前者——照 rmtree 整个 Cyl1nder/ 会连带端掉用户的场景数据。
+    hip 侧文件在此手工造：写入器目前还到不了新根（见报告里的 snapshot.py 阻塞项）。
+    """
+    c = _client(tmp_path)
+    st = get_state()
+    st.mappings = _FakeMappings()
+    hip = str(tmp_path / "beginTest-1.hip")
+    pid = c.post("/api/projects", json={"label": "Demo", "hip": hip}).json()["project"]["projectSerial"]
+
+    graph_root = snapshot.project_graph_root(st.data_dir, pid, hip)
+    assert graph_root.parent.name == "Cyl1nder"          # 确实落在 hip 旁
+    assert graph_root.name == f"beginTest-1_{pid}"        # 按**项目** serial 命名
+    graph_root.mkdir(parents=True)
+    (graph_root / "graph.json").write_text(json.dumps({"nodes": []}), encoding="utf-8")
+
+    member_serial = generate_serial()
+    sibling = graph_root.parent / f"beginTest-1_{member_serial}" / "scene"
+    sibling.mkdir(parents=True)
+    (sibling / "meta.json").write_text(json.dumps({"serial": member_serial}), encoding="utf-8")
+
+    assert c.delete(f"/api/projects/{pid}").json()["removed"] is True
+    assert not graph_root.exists()
+    assert (sibling / "meta.json").is_file()             # 兄弟快照未受牵连
+    assert graph_root.parent.is_dir()                    # 不删整个 Cyl1nder/
+    assert st.mappings.dropped == [pid]
+
+
+def test_delete_project_also_removes_legacy_dir(tmp_path: Path) -> None:
+    """迁移是尽力而为的，legacy 目录可能还在原地 -> 级联必须两处都清。"""
+    c = _client(tmp_path)
+    st = get_state()
+    st.mappings = _FakeMappings()
+    hip = str(tmp_path / "beginTest-1.hip")
+    pid = c.post("/api/projects", json={"label": "Demo", "hip": hip}).json()["project"]["projectSerial"]
+    legacy = snapshot.project_graph_root(st.data_dir, pid)
+    assert legacy == st.data_dir / "projects" / pid
+    legacy.mkdir(parents=True)
+    (legacy / "graph.json").write_text(json.dumps({"nodes": []}), encoding="utf-8")
+    assert c.delete(f"/api/projects/{pid}").json()["removed"] is True
+    assert not legacy.exists()
 
 
 def test_delete_project_without_mappings_attribute(tmp_path: Path) -> None:

@@ -24,6 +24,7 @@ from .protocol import (
     WEB_UI_URL,
     is_valid_serial,
 )
+from .project_routes import bind_serial_to_hip, is_transient_hip
 from .scenes import cleanup_scenes, create_scene, list_scenes, open_scene, save_scene
 from .snapshot import maybe_snapshot, read_snapshot, write_snapshot
 from .usdz import build_usdz_bytes
@@ -71,6 +72,38 @@ async def status(serial: str) -> dict:
     }
 
 
+async def _reestablish_project_if_missing(st, serial: str, hip: str) -> None:
+    """HDA 推送 inputs 时，若这个 serial 曾属于的项目已被删除，立即按 hip 重建一个空项目
+    并把它重新收进成员（用户需求 #3：cook 时发现项目没了，快速对齐 hip 名重建一个空场景）。
+
+    热路径成本：稳态下（项目健在、serial 已是成员）只付一次 find_by_hip（线性扫描项目
+    列表比对 hip，项目数量级通常个位数到几十）+ 命中项目自身 members 列表的一次线性
+    扫描（O(k)，k = 该项目成员数）——不扫「全部项目的全部成员」，不落盘，不调用
+    ensure_for_hip。只有 find_by_hip 未命中（项目确实被删了，或这个 hip 从未建过项目）
+    或该项目里还没有这个成员时，才升级到 bind_serial_to_hip：那条路径本身会做一次
+    全项目扫描（另存为检测）+ ensure_for_hip 的查/建 + add_member 落盘，但只在这个
+    稀有分支（删除后第一次 cook / 新成员首次加入）上付出这个代价。
+
+    is_transient_hip 复用 project_routes 现成判定（崩溃恢复 `*_recovered.hip` /
+    `untitled.hip` 等）：绝不为这些临时文件建项目，否则每次崩溃重启都多出一个用户
+    没选过的项目——这也顺带盖住了 hip 为空的情况（is_transient_hip("") 恒为 True）。
+
+    best-effort：任何异常只记日志后吞掉，绝不让项目重建失败打断几何推送本身
+    （对齐 channel_routes._sync_mapping_entry 「注册绝不能因映射失败而失败」的先例）。
+    """
+    if not hip or is_transient_hip(hip):
+        return
+    try:
+        project = st.projects.find_by_hip(hip)
+        if project is not None and any(
+            (m or {}).get("serial") == serial for m in project.get("members") or []
+        ):
+            return  # 项目健在且已是成员：稳态热路径到此为止，不做任何写入
+        await bind_serial_to_hip(serial, hip)
+    except Exception as exc:  # noqa: BLE001 - 项目重建失败不能打断几何推送
+        st.logs.error("routes", f"project reestablish failed for hip={hip!r}: {exc}", serial)
+
+
 @router.put("/api/hda/{serial}/inputs")
 async def put_inputs(serial: str, payload: InputsPut) -> dict:
     _check_serial(serial)
@@ -80,6 +113,7 @@ async def put_inputs(serial: str, payload: InputsPut) -> dict:
     )
     rev = st.workspaces.get_or_create(serial).set_inputs(payload.inputs, payload.frame)
     st.registry.mark_activity(serial)
+    await _reestablish_project_if_missing(st, serial, payload.hip)
     st.logs.info("routes", f"inputs pushed ({len(payload.inputs)}), rev={rev}", serial)
     await manager.broadcast(
         serial,

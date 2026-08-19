@@ -18,6 +18,7 @@ main.py 由主进程挂载本 router（本文件不改 main.py）。
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -37,11 +38,31 @@ def _check_project_serial(pid: str) -> None:
         raise HTTPException(status_code=400, detail="invalid project serial")
 
 
-def _cascade_delete(pid: str) -> None:
+def _drop_graph_dir(root: Path) -> None:
+    """删掉一个项目图目录里的 graph.json(+tmp)，目录随之空了才删目录本身。
+
+    只碰这两个文件名、只在目录**确实空了**时 rmdir：项目图目录与 per-serial 快照目录
+    同住 `<hip目录>/Cyl1nder/` 之下，一个 rmtree 写错就会连带端掉兄弟快照。
+    失败一律吞掉——清理附属物绝不能阻断项目记录本身的删除。
+    """
+    try:
+        (root / "graph.json").unlink(missing_ok=True)
+        (root / "graph.json.tmp").unlink(missing_ok=True)
+        if root.exists() and not any(root.iterdir()):
+            root.rmdir()
+    except OSError:
+        pass
+
+
+def _cascade_delete(pid: str, hip: str = "") -> None:
     """删项目的附属物：映射分区 + 项目图文件及其目录。
 
     mappings 由主进程在合并时挂到 state 上，未挂载时 no-op；
     删附属物失败不应阻断项目记录本身的删除。
+
+    `hip` 必须由调用方在 `projects.delete()` **之前**取好：记录一删，hip 就再也查不到，
+    hip 侧目录会变成永久垃圾。两处都删（hip 侧 + legacy `data_dir/projects/<pid>/`）是
+    因为迁移是尽力而为的（目标已存在/目录被占用时 legacy 目录会留在原地），两边都得清。
     """
     st = get_state()
     mappings = getattr(st, "mappings", None)
@@ -50,14 +71,9 @@ def _cascade_delete(pid: str) -> None:
             mappings.drop_project(pid)
         except Exception:  # noqa: BLE001 - 清理失败不阻断删除
             pass
-    graph = snapshot.project_graph_path(st.data_dir, pid)
-    try:
-        graph.unlink(missing_ok=True)
-        graph.with_suffix(".json.tmp").unlink(missing_ok=True)
-        if graph.parent.exists() and not any(graph.parent.iterdir()):
-            graph.parent.rmdir()
-    except OSError:
-        pass
+    roots = {snapshot.project_graph_root(st.data_dir, pid, hip), snapshot.project_graph_root(st.data_dir, pid)}
+    for root in roots:
+        _drop_graph_dir(root)
 
 
 def _member_probe_serial(member: dict) -> str:
@@ -321,9 +337,12 @@ async def rename_project(projectId: str, body: ProjectPatchBody) -> dict:
 async def delete_project(projectId: str) -> dict:
     """删项目（级联：映射分区 + 项目图文件）；项目不存在 -> removed False。"""
     _check_project_serial(projectId)
-    removed = get_state().projects.delete(projectId)
+    st = get_state()
+    # 先取 hip 再删记录：删完就查不到 hip，hip 侧目录会变成永久垃圾。
+    hip = (st.projects.get(projectId) or {}).get("hip") or ""
+    removed = st.projects.delete(projectId)
     if removed:
-        _cascade_delete(projectId)
+        _cascade_delete(projectId, hip)
     return {"ok": True, "removed": removed}
 
 
@@ -333,8 +352,9 @@ async def cleanup_projects() -> dict:
     st = get_state()
     removed: list[str] = []
     for pid in st.projects.list_empty():
+        hip = (st.projects.get(pid) or {}).get("hip") or ""  # 同 DELETE：删记录前取 hip
         if st.projects.delete(pid):
-            _cascade_delete(pid)
+            _cascade_delete(pid, hip)
             removed.append(pid)
     return {"ok": True, "removed": removed}
 
@@ -419,7 +439,9 @@ async def get_project_graph(projectId: str) -> dict:
     project = st.projects.get(projectId)
     if project is None:
         raise HTTPException(status_code=404, detail="project not found")
-    graph = snapshot.read_project_graph(st.data_dir, projectId)
+    # 带上项目自己的 hip：图落在 hip 旁（`<hip目录>/Cyl1nder/<hip名>_<pid>/`）。
+    # 尚未绑定 hip 的项目传空串，自动退回旧位置 `data_dir/projects/<pid>/`。
+    graph = snapshot.read_project_graph(st.data_dir, projectId, project.get("hip") or "")
     if graph is None:
         members = [m for m in project.get("members", []) if m.get("kind") in ("tag", "hda")]
         if len(members) == 1 and members[0].get("serial") and members[0].get("hip"):
@@ -433,7 +455,9 @@ async def put_project_graph(projectId: str, body: GraphPutBody) -> dict:
     """项目图写（原子 tmp+replace + 内容对比，见 snapshot.write_project_graph）。"""
     _check_project_serial(projectId)
     st = get_state()
-    if st.projects.get(projectId) is None:
+    project = st.projects.get(projectId)
+    if project is None:
         raise HTTPException(status_code=404, detail="project not found")
-    snapshot.write_project_graph(st.data_dir, projectId, body.graph)
+    # 同读那侧：带 hip 写到 hip 旁，无 hip 退回旧位置（见 snapshot.write_project_graph）。
+    snapshot.write_project_graph(st.data_dir, projectId, body.graph, project.get("hip") or "")
     return {"ok": True}

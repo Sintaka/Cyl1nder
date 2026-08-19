@@ -308,3 +308,43 @@ class OutputsPut(BaseModel):
 class SyncEnabledPut(BaseModel):
     """PUT /api/hda/{serial}/sync-enabled body: manual two-way sync gate (web is source of truth)."""
     enabled: bool = True
+
+
+# ---------------------------------------------------------------------------
+# serial 能力查询（nodeview 单地址 + 下拉端口）
+#
+# 用户在 _input_/_output_ 节点只填**一个地址（serial）**，由桥回答「这个 serial 提供
+# 什么端口」，UI 据此渲染下拉——不再把所有节点都画成固定 4 口。
+# 同一个 serial 可能挂在多个 Houdini 节点上（用户有意为之，好让这些参数被集中管理），
+# 所以「有什么端口」只能由桥的注册表回答，节点自己说不清。
+# ---------------------------------------------------------------------------
+
+
+class SerialPortOption(BaseModel):
+    """下拉里的一个可选端口。
+
+    key: 机器标识。hda = "in0".."in3" / "out0".."out3"（**0 基，与 web 图内部端口键
+         一致，不能改**）；tag = 逻辑名（相对地址，如 "transform1/tx"）。
+    label: 给人看的文本。hda 用 **1 基**（"In 1".."In 4"）——用户口语就是 in1-4。
+    type: MAPPING_TYPES 之一；**"" = 类型未知**（脏值一律丢弃，不猜默认值：
+          类型决定 UI 怎么连线与读写，猜一个等于对前端撒谎）。
+    """
+    key: str
+    label: str = ""
+    type: str = ""
+
+
+class SerialCapabilities(BaseModel):
+    """GET /api/serials/{serial}/capabilities 响应。
+
+    known=False（kind=""、两个列表皆空）= 该 serial 未在任何注册表出现。这是**正常
+    状态**而非错误：用户是逐字输入地址的，半截地址必然查不到，所以本端点恒返回
+    200，绝不 404——否则每敲一个键都变成一次报错。
+    """
+    serial: str
+    kind: str = ""              # "hda" | "tag" | "" = 未知/未注册
+    known: bool = False
+    nodePath: str = ""
+    hip: str = ""
+    inputs: list[SerialPortOption] = Field(default_factory=list)
+    outputs: list[SerialPortOption] = Field(default_factory=list)

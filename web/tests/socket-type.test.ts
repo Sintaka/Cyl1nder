@@ -87,15 +87,18 @@ describe("toSocketType / nodeSocketType", () => {
 });
 
 describe("单端口 _input_ / _output_（schema 4 形态）", () => {
-  it("singlePort=true → 1 端口 + address/type 参数", () => {
+  // v0.1.00120 起多一个 `port`：address 存 serial、port 存能力探测给出的端口 key
+  // （hda 的 in0..in3 / tag 的逻辑名）。空 port = 「还没选」，不是错误。
+  it("singlePort=true → 1 端口 + address/type/port 参数", () => {
     const input = makeInputNode(true);
     expect(Object.keys(input.outputs)).toEqual(["in0"]);
-    expect(input.params?.map((p) => p.name)).toEqual(["address", "type"]);
+    expect(input.params?.map((p) => p.name)).toEqual(["address", "type", "port"]);
     expect(input.params?.find((p) => p.name === "address")?.value).toBe("");
     expect(input.params?.find((p) => p.name === "type")?.value).toBe(GEO);
+    expect(input.params?.find((p) => p.name === "port")?.value).toBe("");
     const output = makeOutputNode(true);
     expect(Object.keys(output.inputs)).toEqual(["out0"]);
-    expect(output.params?.map((p) => p.name)).toEqual(["address", "type"]);
+    expect(output.params?.map((p) => p.name)).toEqual(["address", "type", "port"]);
   });
 
   it("无参调用 → 旧 4 端口形态原样（承重墙：dataflow / chain-cache / e2e）", () => {
@@ -404,8 +407,11 @@ describe("restoreNodeForKind × 端口形态", () => {
       { kind: "output", params: [{ name: "type", type: "menu", value: VEC3 }] },
       false,
     ) as CylNode;
-    expect(onlyType.params?.map((p) => p.name)).toEqual(["address", "type"]);
+    // port 也在补全之列：旧的 schema-4 存档没有这个键，恢复时必须回填成空串，
+    // 否则参数面板会缺一行、setNodeParams 也找不到可写的目标。
+    expect(onlyType.params?.map((p) => p.name)).toEqual(["address", "type", "port"]);
     expect(onlyType.params?.find((p) => p.name === "address")?.value).toBe("");
+    expect(onlyType.params?.find((p) => p.name === "port")?.value).toBe("");
     expect(onlyType.inputs.out0?.socket.name).toBe(VEC3);
     expect(onlyType.address).toBeUndefined(); // 空 address → 不带该键
   });

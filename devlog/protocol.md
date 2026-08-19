@@ -147,6 +147,23 @@ WS 广播：
 
 轨迹：新增 action `anchor-move`（actor `tag-hda`）。
 
+### serial 能力探测（v0.1.00120 起）
+
+**为什么**：nodeview 的 `_input_`/`_output_` 不再是 4 端口，而是用户填**一个 serial**，由桥告诉 UI 这个 serial 能提供什么，UI 据此给下拉。同一个 hip 里多个 HDA 可以刻意共用一个 serial，用户的本意就是把这些参数关联起来、由桥统一管理。
+
+- `GET /api/serials/{serial}/capabilities` -> **SerialCapabilities**
+  `{serial, kind: "hda"|"tag"|"", known, nodePath, hip, inputs: SerialPortOption[], outputs: SerialPortOption[]}`
+- **SerialPortOption**：`{key, label, type}`。
+  - `key` 是机器标识：hda = `"in0".."in3"` / `"out0".."out3"`（**0 基，与 web 图内部端口键一致，不可改**）；tag = 逻辑名（相对地址，如 `transform1/tx`）。
+  - `label` 给人看：hda 用 **1 基**（`"In 1".."In 4"`），因为用户口语就是 in1-4。
+  - `type` 是 `MAPPING_TYPES` 之一；**`""` = 类型未知**（脏值一律丢弃，不猜默认值——类型决定 UI 怎么连线与读写，猜一个等于对前端撒谎）。
+- **kind 判定顺序（关键，反了就错）**：先看通道大全里有没有 `kind:"tag"` 行，**再**看 registry 命中才算 `hda`。
+  **不能拿「在 registry 里」当 hda 判据**：`SerialRegistry.touch()` 对任何合法 serial 首次接触就自动登记（`registry.py:125`），所以吊牌只要轮询过 `/pending` 也会进 registry。
+  （`project-mapping-design.md` §5.1 说的「吊牌不在 registry 里」只对 `put_inputs` 那条路成立，不足以当判据。）
+- **未注册 serial → `known:false` + HTTP 200，绝不 404**：地址是用户逐字输入的，半截地址必然查不到，404 会让每敲一个键都变成一次报错。
+- tag 的选项在 `inputs` 与 `outputs` **两侧都给**：参数是双向的——`PUT /api/channels/{id}/value` 对 param 通道返回 400，但 `PUT /api/hda/{serial}/channel-values` 可以批量写。
+- 逻辑名排序稳定，下拉不会在两次请求之间重排。
+
 ## 吊牌标记模式（v0.1.00114 起）
 `Cyl1nderTag` 新增 `mode` 参数（menu）：
 - `parm`（默认）：条目 = 相对参数地址，`transform1/tx` 或 `tx`（以上游节点为基准，兼容旧写法）

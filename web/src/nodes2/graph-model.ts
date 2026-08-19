@@ -294,6 +294,112 @@ export function multiSourceErrorsToNodeErrors(
   return map;
 }
 
+/**
+ * 一条「同一 serial 的同一 out 端口被两个 _output_ 节点重复占用」错误（v0.1.00120）。
+ *
+ * 用户原话：「Cyl1nder 中同一个序列号 out 的同一个端口不可重复, 否则报错」。语义上这是
+ * **写冲突**：两个 _output_ 都想往同一个 (serial, port) 写几何/数值，桥侧无从裁决谁赢。
+ */
+export interface DuplicateOutputPortError {
+  /** 冲突里**每一个**参与节点的 id（成对/成组，全部都要报——用户得看见是哪几个撞了）。 */
+  nodeIds: string[];
+  /** address 参数值（serial）。 */
+  serial: string;
+  /** port 参数值（capabilities 里的 key，如 "out1"）。 */
+  port: string;
+  /** 参与冲突的节点标签（消息里列出，顺序同 nodeIds）。 */
+  labels: string[];
+  message: string;
+}
+
+/** findDuplicateOutputPorts 的入参形状：**结构化接收**，不 import 任何具体节点类型。
+ *  于是 NetworkSnapshot 的节点、CylNode、单测里的字面量都能直接喂进来。 */
+export interface OutputPortNodeLike {
+  id: string;
+  /** 刻意是宽 `string` 而不是 `NodeKind`：本谓词只把它与 `"output"` 比一次，
+   *  用不上窄类型；而调用方 `NetworkSnapshot.nodes`（network.ts 的 `NetworkNode`）
+   *  的 kind 本就是 `string`，收窄会让快照传不进来，只能靠 cast 绕——那是把类型
+   *  检查关掉，不是满足它。 */
+  kind: string;
+  label?: string;
+  params?: ReadonlyArray<{ name: string; value: unknown }>;
+}
+
+/** 从节点的 params 里读一个字符串参数（非字符串/缺省 → ""）。 */
+function stringParam(n: OutputPortNodeLike, name: string): string {
+  const v = n.params?.find((p) => p.name === name)?.value;
+  return typeof v === "string" ? v : "";
+}
+
+/**
+ * 检出重复占用的 (serial, port) 组合 —— **纯谓词**，不碰编辑器、不碰 DOM。
+ *
+ * 规则（三条都是刻意的）：
+ *  1. 只看 `kind === "output"`：input 侧一个 serial 的同一端口被读多次完全合法
+ *     （读没有冲突，写才有）。
+ *  2. `address`（serial）或 `port` **任一为空 → 跳过**。地址填了还没选端口、或反之，
+ *     都是正常的填写中间态；把它报成错误会让用户在填第一个字符时就看见红三角。
+ *  3. 键是 `serial + "\u0000" + port` 的**精确**组合：serial 不同或 port 不同都不冲突。
+ *
+ * 同组里**每一个**节点都被列进 `nodeIds`（不是只报后来的那个）：用户要看见"是这两个
+ * 撞了"，只标第二个等于让他自己去猜第一个是谁。
+ */
+export function findDuplicateOutputPorts(
+  nodes: ReadonlyArray<OutputPortNodeLike>,
+): DuplicateOutputPortError[] {
+  const groups = new Map<string, OutputPortNodeLike[]>();
+  for (const n of nodes) {
+    if (!n || n.kind !== "output") continue;
+    const serial = stringParam(n, "address");
+    const port = stringParam(n, PORT_PARAM);
+    if (serial === "" || port === "") continue; // 未填完 ≠ 错误
+    const key = `${serial}\u0000${port}`;
+    const list = groups.get(key);
+    if (list) list.push(n);
+    else groups.set(key, [n]);
+  }
+  const out: DuplicateOutputPortError[] = [];
+  for (const [key, list] of groups) {
+    if (list.length < 2) continue;
+    const [serial, port] = key.split("\u0000");
+    const labels = list.map((n) => n.label ?? n.id);
+    out.push({
+      nodeIds: list.map((n) => n.id),
+      serial,
+      port,
+      labels,
+      message: `output port ${serial}.${port} is claimed by ${list.length} nodes (${labels.join(", ")}): one serial port can only be written once - change the address or pick another port`,
+    });
+  }
+  return out;
+}
+
+/**
+ * DuplicateOutputPortError[] → NodeErrorMap（照 multiSourceErrorsToNodeErrors 的形状）。
+ *
+ * `port` 一律填 `"out0"` 而不是冲突的那个 key：单端口 _output_ 的**图内 socket**就叫
+ * out0，NodeView 高亮的是图内端口 dot。冲突的 capabilities key（"out1"…）在 message
+ * 里说清楚——两者是不同层的东西，混用会让红圈打在一个不存在的端口上。
+ */
+export function duplicateOutputPortsToNodeErrors(
+  errors: ReadonlyArray<DuplicateOutputPortError>,
+): NodeErrorMap {
+  const map: NodeErrorMap = {};
+  for (const e of errors) {
+    if (!e?.nodeIds?.length || typeof e.message !== "string" || e.message === "") continue;
+    for (const id of e.nodeIds) {
+      if (!id) continue;
+      (map[id] ??= []).push({
+        severity: "error",
+        message: e.message,
+        port: "out0",
+        source: "duplicate-output-port",
+      });
+    }
+  }
+  return map;
+}
+
 /** 合并多个来源的错误表（后者追加到前者之后，同 nodeId 不覆盖而是拼接）。
  *  产生方各自独立上报（结构性 + compute + mapping），合并后一次性 setNodeErrors。 */
 export function mergeNodeErrorMaps(...maps: Array<NodeErrorMap | null | undefined>): NodeErrorMap {
@@ -507,23 +613,111 @@ export class CylNode extends ClassicPreset.Node {
   }
 }
 
-/** _input_ / _output_ 的单端口参数（schema 4 形态）：address = 逻辑名/相对地址
- *  （如 "point_1/tx"，桥侧映射系统据此解析绝对路径）；type = 端口数据类型。 */
+/**
+ * 单端口 `_input_`/`_output_` 里「选中的端口/通道」参数名（v0.1.00120）。
+ *
+ * 抽成常量而不是散写字面量：这个名字是**跨写集契约**——参数面板（另一写集）按它
+ * 渲染下拉、capabilities 解析（再一个写集）按它写回选中的 key，本文件按它做
+ * 序列化过滤与重复检测。三处必须逐字一致，散写字面量迟早会有一处拼错。
+ */
+export const PORT_PARAM = "port";
+
+/**
+ * _input_ / _output_ 的单端口参数（schema 4 形态）。
+ *
+ * - `address`：**一个序列号**（serial）。用户只填这一个值，桥侧
+ *   `GET /api/serials/{serial}/capabilities` 回答"它提供什么"——SOP HDA → in0..in3 /
+ *   out0..out3；tag → 该 tag 的逻辑名及其类型。
+ *   （历史注释说 address 是"逻辑名/相对地址（如 point_1/tx）"，那是 address 还兼任
+ *    端口选择时的形态；现在**端口选择分出去成了 `port`**，address 只剩 serial。）
+ * - `port`：从 capabilities 里选中的那个 `key`（如 "out1" / "transform1/tx"）。
+ *   空 = 还没选（**不是错误**：地址填了但端口未选是正常的中间状态）。
+ * - `type`：端口数据类型。**仍由映射/capabilities 解析写入**、由 syncPortSocketType
+ *   读出去换 socket——本次改动一个字都没碰那条通路。
+ */
 function addressParams(): ParamSpec[] {
   return [
     { name: "address", type: "string", value: "", default: "" },
     { name: "type", type: "menu", value: GEO, default: GEO },
+    { name: PORT_PARAM, type: "menu", value: "", default: "" },
   ];
+}
+
+// ---------------------------------------------------------------------------
+// _input_ / _output_ 的标签序号（v0.1.00120）
+//
+// 这两种节点原本是「每图唯一」，所以没有序号计数器。现在用户要能拉多个 input、各填
+// 一个 serial 地址再各选端口，于是必须像 null/transform/geo 那样发唯一名。
+//
+// **命名取「首个不带序号，第二个起 _input_2」而不是 input1/input2**：
+//   - `_input_` / `_output_` 这两个字面量是**外部契约**，13 个 e2e spec 的存档 fixture
+//     直接写 `label: "_input_"` 并用 `hasText: "_input_"` 定位节点（round2/3/4/5/6/7/8、
+//     round12/14/15/16/17/18/19/20、waypoint-verify、rename-refs-verify），
+//     `bridge/tests/test_mcp.py` 也断言 `sourceLabel == "_input_"`。改首名 = 一次性打断
+//     这些全部，收益是零。
+//   - 与 null/transform/geo 的「首个也带序号（null1）」**刻意不同**：那三个从来没有
+//     "无序号"形态，而这两个的无序号形态已经被冻结在存档与文档里（devlog/shortcuts.md
+//     记的就是 `_input_` / `_output_`）。一致性在这里要让位于兼容性。
+//   - 保留首尾下划线：它标记「这是网络的边界节点，不是普通 SOP」，Houdini 也是这个味道。
+// ---------------------------------------------------------------------------
+
+/** 下一个 _input_ 序号：1 → `_input_`（无后缀），2 → `_input_2`，以此类推。 */
+let inputSeq = 1;
+/** 同上，_output_ 独立计数（与 nullSeq/transformSeq/geoSeq 各自独立同理）。 */
+let outputSeq = 1;
+
+/** 序号 → 标签：首个不带后缀（冻结契约），第二个起接数字。 */
+function seqLabel(base: string, seq: number): string {
+  return seq <= 1 ? base : `${base}${seq}`;
+}
+
+/**
+ * 恢复图/undo 时推进 _input_ 序号，避免与既有节点撞名（照 claimGeoLabel 的做法）。
+ * 认两种形态：`_input_`（占掉序号 1 → 下一个至少是 2）与 `_input_<n>`（下一个至少 n+1）。
+ */
+export function claimInputLabel(label: string): void {
+  claimSeqLabel(label, "_input_", (n) => {
+    if (inputSeq <= n) inputSeq = n + 1;
+  });
+}
+
+/** 同上，_output_ 侧。 */
+export function claimOutputLabel(label: string): void {
+  claimSeqLabel(label, "_output_", (n) => {
+    if (outputSeq <= n) outputSeq = n + 1;
+  });
+}
+
+/** claimInputLabel / claimOutputLabel 的共同核心：解析 `<base>` 或 `<base><n>` 的序号。
+ *  不匹配（用户改过名，如 "myInput"）→ 什么都不做：那种名字不占本序列的号。 */
+function claimSeqLabel(label: string, base: string, bump: (n: number) => void): void {
+  if (label === base) {
+    bump(1);
+    return;
+  }
+  if (!label.startsWith(base)) return;
+  const rest = label.slice(base.length);
+  if (!/^\d+$/.test(rest)) return;
+  const n = parseInt(rest, 10);
+  if (Number.isFinite(n)) bump(n);
 }
 
 /**
  * _input_ 节点。**默认是旧 4 端口形态**（in0..in3 全 GEO，无参数）——4 端口形状是
  * dataflow / chain-cache / 快照 / e2e 的承重墙，无参调用必须原样保持。
- * singlePort=true → schema 4 单端口形态：1 个 in0 + address/type 参数，端口类型跟随
- * type 参数。只有**新建图**（graph.ts buildGraph）与 schema>=4 的恢复走这条路。
+ * singlePort=true → schema 4 单端口形态：1 个 in0 + address/type/port 参数，端口类型
+ * 跟随 type 参数。只有**新建图**（graph.ts buildGraph / Tab 面板）与 schema>=4 的恢复
+ * 走这条路。
+ *
+ * 标签按 inputSeq 发号：第一个仍是 `_input_`（e2e / 桥测试冻结的字面量），之后
+ * `_input_2`、`_input_3`…（见上方序号块的论证）。
  */
 export function makeInputNode(singlePort = false): CylNode {
-  const n = new CylNode("_input_", "input");
+  const n = new CylNode(seqLabel("_input_", inputSeq), "input");
+  inputSeq += 1;
+  // baseLabel 恒为 `_input_`（不含序号）：与 null/transform/geo 同约定——baseLabel 是
+  // "这是哪一族节点"，label 才是"这一个叫什么"。改名逻辑与面板都读 baseLabel。
+  n.baseLabel = "_input_";
   if (!singlePort) {
     for (let i = 0; i < 4; i++) n.addOutput(`in${i}`, new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
     return n;
@@ -532,9 +726,12 @@ export function makeInputNode(singlePort = false): CylNode {
   n.params = addressParams();
   return n;
 }
-/** _output_ 节点：默认旧 out0..out3；singlePort=true → 单端口 out0 + address/type。 */
+/** _output_ 节点：默认旧 out0..out3；singlePort=true → 单端口 out0 + address/type/port。
+ *  标签同 makeInputNode：首个 `_output_`，之后 `_output_2`…（独立序号）。 */
 export function makeOutputNode(singlePort = false): CylNode {
-  const n = new CylNode("_output_", "output");
+  const n = new CylNode(seqLabel("_output_", outputSeq), "output");
+  outputSeq += 1;
+  n.baseLabel = "_output_";
   if (!singlePort) {
     for (let i = 0; i < 4; i++) n.addInput(`out${i}`, new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
     return n;
@@ -632,6 +829,47 @@ export function makeTransformNode(): CylNode {
     { name: "group", type: "string", value: "", default: "" },
     { name: "class", type: "string", value: "autoguess", default: "autoguess" },
   ];
+  return n;
+}
+
+/** kind → 该 kind 的工厂（Tab 面板可建的五种）；project/channel → null。
+ *
+ *  `input`/`output` **一律 singlePort=true**：面板建的必须是 schema 4 单端口 + serial 地址
+ *  形态。工厂的默认 `false`（旧 4 端口）只服务于冻结测试与旧图恢复，绝不能漏到这里。 */
+function paletteFactory(kind: NodeKind): (() => CylNode) | null {
+  switch (kind) {
+    case "input":
+      return () => makeInputNode(true);
+    case "output":
+      return () => makeOutputNode(true);
+    case "null":
+      return makeNullNode;
+    case "transform":
+      return makeTransformNode;
+    case "geo":
+      return makeGeoNode;
+    default:
+      return null; // project / channel：只能由 loadProjectGraph 建立
+  }
+}
+
+/**
+ * Tab 面板「新建一个节点」的**决策单源**（v0.1.00120）。
+ *
+ * 为什么住在 graph-model 而不是 graph-interact：graph-interact 经 NodeView 传递依赖到
+ * graph.ts（进而 three / DOM），在 node 环境的 vitest 里根本 import 不进来。把「建哪种、
+ * 建成什么形状、撞名怎么办」这段**纯决策**放这里，于是它可被直接单测，而 graph-interact
+ * 只剩 editor.addNode + area.translate 的 DOM 侧接线。
+ *
+ * `taken`：图里已有的标签集合。序号是模块级单调递增的，所以重取一次必然拿到新名字；
+ * 循环仍设上界（纯防御：万一将来有人让某个工厂发固定名，这里也不会挂死浏览器）。
+ * 不可建的 kind → null（调用方原地返回，不建节点）。
+ */
+export function makePaletteNode(kind: NodeKind, taken: ReadonlySet<string> = new Set()): CylNode | null {
+  const make = paletteFactory(kind);
+  if (!make) return null;
+  let n = make();
+  for (let guard = 0; taken.has(n.label) && guard < 1000; guard += 1) n = make();
   return n;
 }
 
@@ -841,11 +1079,16 @@ export interface GraphConnectionSnapshotData {
   waypoint?: ConnectionWaypoint;
 }
 
-/** 参数是否为「单端口默认值」——address="" 或 type="geo"。这类参数**不序列化**，
- *  于是全默认的新 _input_/_output_ 与旧 4 端口节点输出字节一致（无 params 键）。 */
+/** 参数是否为「单端口默认值」——address="" / type="geo" / port=""。这类参数**不序列化**，
+ *  于是全默认的新 _input_/_output_ 与旧 4 端口节点输出字节一致（无 params 键）。
+ *
+ *  `port` 必须进这张表，否则新增该参数会让每个 v2/v3/v4/v5 快照凭空多出一个
+ *  `{"name":"port",...}`——那是字节级兼容的承重墙（有冻结测试盯着）。
+ *  未选端口（"") 与"没有这个参数"在序列化层等价，正是这条规则做到的。 */
 function isDefaultAddressParam(p: ParamSpec): boolean {
   if (p.name === "address") return p.value === "" || p.value == null;
   if (p.name === "type") return p.value === GEO || p.value == null;
+  if (p.name === PORT_PARAM) return p.value === "" || p.value == null;
   return false;
 }
 
@@ -1013,6 +1256,10 @@ export function restoreNodeForKind(
   }
   // schema 5 层级：netKind / children 原样带回，并推进 geo 序号防撞名。
   if (n && n.kind === "geo") claimGeoLabel(nd.label ?? "");
+  // v0.1.00120：_input_/_output_ 现在可多建，序号同样要在恢复时推进——否则恢复一张
+  // 含 `_input_3` 的图之后新建，会再发一个 `_input_3` 撞名。
+  if (n && n.kind === "input") claimInputLabel(nd.label ?? "");
+  if (n && n.kind === "output") claimOutputLabel(nd.label ?? "");
   if (n) {
     if (nd.netKind === "obj" || nd.netKind === "sop") n.netKind = nd.netKind;
     if (nd.children != null) n.children = nd.children;
@@ -1038,20 +1285,38 @@ export function sanitizeAddress(v: unknown): string | undefined {
   return typeof v === "string" && v !== "" ? v : undefined;
 }
 
+/** 校验反序列化 port（选中的端口/通道 key）：仅接受字符串，其余（数字/对象/缺省）→ ""。
+ *
+ *  与 sanitizeAddress 的返回约定**刻意不同**：这里回 `""` 而不是 undefined，因为
+ *  "未选端口"是一个**正常值**（参数必须存在且为空串），而不是"这个字段不存在"。 */
+export function sanitizePort(v: unknown): string {
+  return typeof v === "string" ? v : "";
+}
+
 /**
- * 单端口节点的 address/type 参数补全：快照的 params 里可能只剩非默认项（序列化剔除了
+ * 单端口节点的 address/type/port 参数补全：快照的 params 里可能只剩非默认项（序列化剔除了
  * 默认值），这里把缺的补回默认值并让 address 字段与参数一致，最后同步 socket 类型。
+ *
+ * `port` 走**同一条补全规则**，于是一张 schema-4 老图（那时还没有 port 这个参数）恢复后
+ * 也带上 `port=""`——参数面板拿到的形状与新建节点完全一致，无需在 UI 侧写"可能没有这个
+ * 参数"的分支。补回来的是默认值，序列化时又被 isDefaultAddressParam 剔掉，所以**往返
+ * 字节不变**。
  */
 function syncAddressParams(n: CylNode, address: string | undefined, saved?: ParamSpec[]): void {
   const savedAddress = saved?.find((p) => p.name === "address");
   const savedType = saved?.find((p) => p.name === "type");
+  const savedPort = saved?.find((p) => p.name === PORT_PARAM);
   const addr = sanitizeAddress(savedAddress?.value) ?? address ?? "";
   const type = toSocketType(savedType?.value);
+  const port = sanitizePort(savedPort?.value);
   // 快照里已有的那一项**原样保留**（含有/无 default 键），只补缺的那一项：
   // 于是 serialize -> restore -> serialize 字节稳定（不会凭空长出 default 键）。
+  // 顺序固定 address -> type -> port：addressParams() 与本函数必须同序，否则同一张图
+  // 经不同路径（新建 / 恢复）得到的 params 顺序不同，序列化就不再字节稳定。
   n.params = [
     savedAddress ? { ...savedAddress, value: addr } : { name: "address", type: "string", value: addr, default: "" },
     savedType ? { ...savedType, value: type } : { name: "type", type: "menu", value: type, default: GEO },
+    savedPort ? { ...savedPort, value: port } : { name: PORT_PARAM, type: "menu", value: port, default: "" },
   ];
   if (addr) n.address = addr;
   else delete n.address;

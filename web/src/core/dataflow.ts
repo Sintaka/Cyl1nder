@@ -6,7 +6,13 @@
  */
 import { store } from "../stores/workspace";
 import { computeNodeResult, findMultiSourceErrors, type NetworkSnapshot } from "../nodes2/network";
-import { mergeNodeErrorMaps, multiSourceErrorsToNodeErrors, type NodeErrorMap } from "../nodes2/graph-model";
+import {
+  duplicateOutputPortsToNodeErrors,
+  findDuplicateOutputPorts,
+  mergeNodeErrorMaps,
+  multiSourceErrorsToNodeErrors,
+  type NodeErrorMap,
+} from "../nodes2/graph-model";
 import { mappingAddressErrors } from "../nodes2/mapping-types";
 import type { ReteGraph, ReteGraphHandlers } from "../nodes2/graph";
 import type { ReferenceItem, Viewport } from "../viewport/renderer";
@@ -239,7 +245,13 @@ export function createDataflow(deps: DataflowDeps): Dataflow {
         const structural: NodeErrorMap = multiSourceErrorsToNodeErrors(findMultiSourceErrors(snap));
         // 同步查缓存（mapping-types 的 fetch 在别处 prime），不 await、不阻塞 cook。
         const mapping: NodeErrorMap = mappingAddressErrors(collectAddressEntries(snap));
-        g.setNodeErrors(mergeNodeErrorMaps(structural, mapping));
+        // v0.1.00120：同一 serial 的同一个 out 端口被两个 _output_ 抢 → 两边都标红。
+        // 用户要求「Cyl1nder 中同一个序列号 out 的同一个端口不可重复, 否则报错」。
+        // 同样并进这一次调用：三个产生方分开调 setNodeErrors 会每帧互相擦掉。
+        const dupOut: NodeErrorMap = duplicateOutputPortsToNodeErrors(
+          findDuplicateOutputPorts(snap.nodes),
+        );
+        g.setNodeErrors(mergeNodeErrorMaps(structural, mapping, dupOut));
       }
     } catch {
       /* 错误上报本身绝不能打断 cook */

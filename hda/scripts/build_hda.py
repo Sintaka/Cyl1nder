@@ -32,13 +32,35 @@ FORCE_COOK_CALLBACK = (
     "        n.cook(force=True)\n"
 )
 
+# Open in Browser 打开的是**项目**（v0.1.00120），不再是 `?serial=`。
+#
+# 为什么：`?serial=` 是「一个页面一个 HDA」的旧入口，与「项目 = 一个 hip 文件」的
+# 身份模型冲突——同一个 hip 里的多个 HDA 本该落进同一个项目、共用一张图。用户要求
+# 「open Browser 应该是打开对应的项目, 然后是空的或者已保存的内容」，并明确要求
+# 删除基于 hda sop 序列号的网页访问能力，统一并入桥接映射系统。
+#
+# 解析路径：POST /api/projects/ensure {serial} → 桥按 serial 找/建其所属项目
+# （v0.1.00119 起它会回退读 registry 里该 serial 的 hip，所以不必由 HDA 传 hip），
+# 返回 projectSerial → 打开 `?project=<P1-…>`。桥不可达/解析失败时**退回 overview**
+# （`/`）而不是拼一个 `?serial=`：那条入口已经删了，拼出来只会打开一个死页面。
 OPEN_WEB_CALLBACK = (
     "import webbrowser\n"
     "import threading\n"
     "import urllib.request\n"
+    "import json\n"
     "node = hou.pwd()\n"
     "base = node.parm('web_url').eval().rstrip('/')\n"
     "serial = node.parm('cyl1nder_serial').eval()\n"
+    "bridge = node.parm('bridge_url').eval().rstrip('/')\n"
+    "def _project_for_serial():\n"
+    "    try:\n"
+    "        body = json.dumps({'serial': serial}).encode('utf-8')\n"
+    "        req = urllib.request.Request(bridge + '/api/projects/ensure', data=body,\n"
+    "                                     headers={'Content-Type': 'application/json'})\n"
+    "        with urllib.request.urlopen(req, timeout=3.0) as r:\n"
+    "            return (json.loads(r.read().decode('utf-8')).get('project') or {}).get('projectSerial') or ''\n"
+    "    except Exception:\n"
+    "        return ''\n"
     "def _ui_up():\n"
     "    try:\n"
     "        urllib.request.urlopen('http://127.0.0.1:8376/', timeout=0.5)\n"
@@ -49,7 +71,8 @@ OPEN_WEB_CALLBACK = (
     "    if not _ui_up():\n"
     "        exec(open(r'D:/code/dev/Cyl1nder/hda/scripts/bridge_control.py', encoding='utf-8-sig').read())\n"
     "        ensure_frontend()\n"
-    "    webbrowser.open(base + '/?serial=' + serial)\n"
+    "    pid = _project_for_serial()\n"
+    "    webbrowser.open(base + '/?project=' + pid if pid else base + '/')\n"
     "threading.Thread(target=_open, daemon=True).start()\n"
 )
 

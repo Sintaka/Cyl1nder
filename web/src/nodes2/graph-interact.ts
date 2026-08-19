@@ -13,9 +13,7 @@ import type { CylNode, NodeFlags } from "./graph-model";
 import {
   isEnterableKind,
   log,
-  makeGeoNode,
-  makeNullNode,
-  makeTransformNode,
+  makePaletteNode,
   netKindOfCreatable,
   nodeFromTarget,
   notifySelection,
@@ -32,8 +30,10 @@ interface PaletteEntry {
 
 const PALETTE: PaletteEntry[] = [
   { kind: "geo", label: "geo", desc: "geometry container 可进入", keywords: "geo geometry object subnet 几何 容器 进入" },
-  { kind: "input", label: "_input_", desc: "4-output source", keywords: "source input 输入 起点" },
-  { kind: "output", label: "_output_", desc: "4-input sink", keywords: "sink output 输出 终点" },
+  // desc 从「4-output source」改为单端口说明：面板建的是 schema 4 单端口形态
+  // （1 端口 + serial 地址 + 端口选择），4 端口形状只存在于旧图恢复。
+  { kind: "input", label: "_input_", desc: "source 单端口 serial+port", keywords: "source input 输入 起点 serial 地址" },
+  { kind: "output", label: "_output_", desc: "sink 单端口 serial+port", keywords: "sink output 输出 终点 serial 地址" },
   { kind: "null", label: "null", desc: "passthrough 1+1", keywords: "null passthrough 直通" },
   { kind: "transform", label: "transform", desc: "translate by group 变换/移动", keywords: "transform translate move 变换 移动 组" },
 ];
@@ -149,20 +149,24 @@ export function attachTabSearch(
         y: (lastGraphMouse.y - rect.top - t.y) / t.k,
       };
     }
-    // geo 与 null/transform 同属「每次 Tab 都新建一个」的工厂类节点（各有独立序号），
-    // 因此共用同一条 dedup-by-label 循环；_input_/_output_ 仍是「每图唯一、移过去」。
-    if (entry.kind === "null" || entry.kind === "transform" || entry.kind === "geo") {
-      const make =
-        entry.kind === "transform" ? makeTransformNode : entry.kind === "geo" ? makeGeoNode : makeNullNode;
-      let n = make();
-      while (editor.getNodes().some((x) => (x as CylNode).label === n.label)) n = make();
-      await editor.addNode(n);
-      await area.translate(n.id, center);
-      log(`created ${entry.kind} node ${n.label}`);
-    } else {
-      const existing = editor.getNodes().find((x) => (x as CylNode).kind === entry.kind);
-      if (existing) await area.translate(existing.id, center);
+    // 每个面板条目都是「每次 Tab 都新建一个」的工厂类节点（各有独立序号）。
+    // 「建哪种 / 建成什么形状 / 撞名怎么办」是 makePaletteNode 的职责（graph-model，可单测）；
+    // 这里只剩 addNode + translate 的接线。
+    //
+    // **_input_/_output_ 为什么从"每图唯一、移过去"改成"新建"**（v0.1.00120 修的 bug）：
+    // 旧代码假设默认那一对必然存在，于是只把它 area.translate 到鼠标处。自 v0.1.00119
+    // 起项目根图是空的、新建的 geo 子网络也是空的，`find()` 什么都找不到 → 面板**静默
+    // 什么都不做**（用户报的「新建不了 input 和 output 节点」就是这个）。而且用户现在
+    // 明确要能拉多个：一个 input 填一个 serial 地址、一个 output 填另一个，再连起来。
+    const taken = new Set(editor.getNodes().map((x) => (x as CylNode).label));
+    const n = makePaletteNode(entry.kind, taken);
+    if (!n) {
+      close();
+      return; // project/channel 之类不可建的 kind：原地返回（面板本就不列它们）
     }
+    await editor.addNode(n);
+    await area.translate(n.id, center);
+    log(`created ${entry.kind} node ${n.label}`);
     close();
   };
 

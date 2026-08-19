@@ -388,28 +388,105 @@ def flush_all_workspaces() -> None:
 
 
 # --- 项目图（P2b，见 devlog/tag-hda-plan.md P2b）-------------------------------
-# 项目无单一 hip 上下文，项目图不放在 hip 旁：data_dir/projects/<project_id>/graph.json。
 # 原子写模式照 write_snapshot（tmp+replace + 内容对比）。
+#
+# v0.1.00120 起**落在 hip 旁**：`<hip目录>/Cyl1nder/<hip名>_<P1-…>/graph.json`。
+# 旧注释写「项目无单一 hip 上下文」——自 v0.1.00116「项目 = 一个 hip 文件」之后那句
+# 就不成立了：项目有且只有一个当前绑定的 hip。放回 hip 旁的理由是用户能在文件管理器里
+# 按场景归属清理（此前 `bridge/data/projects/<pid>/` 里一排 P1- 目录，看不出属于哪个场景）。
+# 无 hip 绑定（尚未 cook 过的空项目）时退回 `data_dir/projects/<pid>/`。
 
 
-def project_graph_path(data_dir, project_id: str) -> Path:
-    """data_dir/projects/<project_id>/graph.json"""
-    return data_dir / "projects" / project_id / "graph.json"
+def project_scene_dir_name(hip: str, project_id: str) -> str:
+    """项目图目录名：`<hip名>_<P1-…>`。与 per-serial 的 scene_dir_name 同款命名，
+    但用**项目** serial —— 用户要看到的是 `beginTest-2_P1-…`，不是成员的 `C1-…`。"""
+    stem = _sanitize_dir_part(Path(hip).stem if hip else "")
+    return f"{stem}_{project_id}" if stem else project_id
 
 
-def read_project_graph(data_dir, project_id: str) -> dict | None:
-    """读项目图；文件缺失/损坏（OSError/ValueError）→ None。"""
-    p = project_graph_path(data_dir, project_id)
+def project_graph_root(data_dir, project_id: str, hip: str = "") -> Path:
+    """项目图目录。hip 非空 → `<hip目录>/Cyl1nder/<hip名>_<pid>/`；否则退回 data_dir。
+
+    退回分支不是兜底摆设：项目可以先被建出来（`POST /api/projects`）、之后才由成员
+    cook 带上 hip，那段时间它确实没有 hip 上下文可依。
+    """
+    if hip:
+        hip_dir = Path(hip).parent
+        if hip_dir.is_absolute():
+            return hip_dir / "Cyl1nder" / project_scene_dir_name(hip, project_id)
+    return data_dir / "projects" / project_id
+
+
+def project_graph_path(data_dir, project_id: str, hip: str = "") -> Path:
+    """项目图文件路径（见 project_graph_root）。`hip` 缺省保持旧路径，
+    因此所有尚未传 hip 的既有调用点行为逐字不变。"""
+    return project_graph_root(data_dir, project_id, hip) / "graph.json"
+
+
+def migrate_project_graph_dir(data_dir, project_id: str, hip: str) -> str:
+    """把项目图从旧位置 `data_dir/projects/<pid>/` **就地改名**到 hip 旁的新位置。
+
+    返回值仅供日志/测试：`""` 无事可做、`"renamed"` 已迁移、`"skipped:<原因>"`。
+    纪律逐条照 `migrate_snapshot_dir`（同一套语义，别另造一套）：
+    - 无 hip / hip 非绝对路径 → `""`（新旧位置相同，没有迁移可言）
+    - 目标已存在 → `skipped:target-exists`。**不合并、不覆盖**——两边都可能有用户数据，
+      合并语义得由人来定。
+    - 改名失败（占用/权限）→ 吞掉返回 `skipped:oserror`，**绝不阻断读写**：
+      读那侧有旧位置兜底，最坏情况只是多留一个旧目录。
+    """
+    if not hip:
+        return ""
+    legacy = data_dir / "projects" / project_id
+    target = project_graph_root(data_dir, project_id, hip)
+    if target == legacy or not (legacy / "graph.json").exists():
+        return ""
+    if target.exists():
+        return "skipped:target-exists"
     try:
-        data = orjson.loads(p.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    return data if isinstance(data, dict) else None
+        target.parent.mkdir(parents=True, exist_ok=True)
+        legacy.rename(target)
+        return "renamed"
+    except OSError:
+        return "skipped:oserror"
 
 
-def write_project_graph(data_dir, project_id: str, graph: dict) -> None:
-    """原子写（tmp+replace）+ 内容对比（与现文件相同则跳过）；mkdir parents。"""
-    target = project_graph_path(data_dir, project_id)
+def read_project_graph(data_dir, project_id: str, hip: str = "") -> dict | None:
+    """读项目图；文件缺失/损坏（OSError/ValueError）→ None。
+
+    `hip` 非空时先尝试把旧位置的图迁到 hip 旁（best-effort），再读新位置；新位置没有
+    则回落旧位置。**迁移与 hip 感知必须同时落地**：只迁不改读会把一张好图变成 API
+    报 null 的图——那是穿着迁移外衣的数据丢失。
+    """
+    if hip:
+        migrate_project_graph_dir(data_dir, project_id, hip)
+    for candidate in _project_graph_candidates(data_dir, project_id, hip):
+        try:
+            data = orjson.loads(candidate.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(data, dict):
+            return data
+    return None
+
+
+def _project_graph_candidates(data_dir, project_id: str, hip: str) -> list[Path]:
+    """读取候选路径：hip 旁优先，旧位置兜底（去重且保序）。"""
+    paths = [project_graph_path(data_dir, project_id, hip)]
+    legacy = project_graph_path(data_dir, project_id)
+    if legacy not in paths:
+        paths.append(legacy)
+    return paths
+
+
+def write_project_graph(data_dir, project_id: str, graph: dict, hip: str = "") -> None:
+    """原子写（tmp+replace）+ 内容对比（与现文件相同则跳过）；mkdir parents。
+
+    `hip` 非空 → 写 hip 旁的新位置（并先尽力迁移旧目录，避免两处各留半份）。
+    缺省 `""` 保持旧路径，故既有调用点行为逐字不变。
+    """
+    if hip:
+        migrate_project_graph_dir(data_dir, project_id, hip)
+    target = project_graph_path(data_dir, project_id, hip)
     target.parent.mkdir(parents=True, exist_ok=True)
     try:
         if target.exists() and orjson.loads(target.read_text(encoding="utf-8")) == graph:

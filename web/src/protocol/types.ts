@@ -204,6 +204,34 @@ export interface MappingsResponse {
   resolved: Record<string, MappingResolved>;
 }
 
+/**
+ * 下拉里的一个可选端口（`GET /api/serials/{serial}/capabilities`）。
+ *
+ * `key` 是机器标识：hda 为 `"in0".."in3"` / `"out0".."out3"`（**0 基，与图内部端口键
+ * 一致，不可改**）；tag 为逻辑名（相对地址，如 `"transform1/tx"`）。
+ * `label` 给人看：hda 用 **1 基**（`"In 1".."In 4"`），因为用户口语就是 in1-4。
+ * `type` 是 MappingType 之一，**`""` = 类型未知**（桥丢弃脏值而不猜默认值）。
+ */
+export interface SerialPortOption {
+  key: string;
+  label: string;
+  type: MappingType | "";
+}
+
+/**
+ * serial 能力探测响应。`known:false`（`kind:""` + 两个空列表）= 该 serial 未注册，
+ * 这是**正常状态**不是错误：地址是逐字输入的，半截地址必然查不到，故端点恒 200。
+ */
+export interface SerialCapabilities {
+  serial: string;
+  kind: "hda" | "tag" | "";
+  known: boolean;
+  nodePath: string;
+  hip: string;
+  inputs: SerialPortOption[];
+  outputs: SerialPortOption[];
+}
+
 /** WS：锚点（吊牌）位置变化 —— 逻辑名不变，仅提示与刷新。 */
 export interface AnchorMovedMsg {
   type: "anchor-moved";

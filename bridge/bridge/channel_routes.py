@@ -6,6 +6,7 @@
                                                   body 可选 values -> WS 广播 channel-values，P5a）
 - GET  /api/channels/{channelId:path}/probe       经 houdini 代理做存活探测
 - GET/PUT /api/channels/{channelId:path}/value    data 通道值读写（经适配器 code.execute_python 代理）
+- GET  /api/serials/{serial}/capabilities         该 serial 提供什么端口（nodeview 下拉数据源）
 
 URL channelId 规范：param/data 通道 = absolutePath 去前导 "/"（段间保留 "/"），
 经 FastAPI :path 捕获后服务端回加 "/"；tag/hda 通道 = serial。
@@ -25,7 +26,13 @@ from pydantic import BaseModel
 from . import houdini_mcp
 from .data_adapters import get_adapter
 from .houdini_routes import _resolve_port
-from .protocol import ChannelRef, is_valid_serial
+from .protocol import (
+    MAPPING_TYPES,
+    ChannelRef,
+    SerialCapabilities,
+    SerialPortOption,
+    is_valid_serial,
+)
 from .state import get_state
 from .ws import manager
 
@@ -372,6 +379,106 @@ async def probe(channelId: str) -> dict:
             matched = "cyl1ndertag" in _node_type_name(data).lower()
     get_state().channels.touch(key, time.time())
     return {"ok": True, "alive": alive, "matched": matched, "nodePath": node_path, "serial": serial, "reason": reason}
+
+
+# --- serial 能力查询（nodeview 单地址 + 下拉端口）----------------------------
+#
+# 路由不会被吞、也不吞别人：本仓已两次踩「{serial} 段吃掉更具体路由」的坑
+# （见 devlog/project-mapping-design.md §5 与本文件顶部 /value 注释）。这里的
+# `/api/serials/{serial}/capabilities` 是**定长 3 段 + 末段字面量**，而唯一的同前缀
+# 路由 `GET /api/serials`（routes.py）是定长 2 段的精确路径——段数不同，互不匹配。
+# 本仓所有 `:path`（会跨段贪吃的那种）都在 `/api/channels/…` 与 `/api/projects/…`
+# 之下，前缀不同，够不到 `/api/serials/…`。故与挂载顺序无关。
+
+# HDA = Cyl1nder geo 节点，固定 4 进 4 出（铁律，见 AGENTS.md 仓库结构）。
+_HDA_PORTS = 4
+
+
+def _norm_type(raw: object) -> str:
+    """脏 type 归一化到 MAPPING_TYPES；不认识的一律返回 ""（不猜默认值）。
+
+    值来自 HDA 上报的线上数据，可能是 None / 大小写不一 / 带空格 / 早期写法。
+    这里**只做去空格 + 小写**再比对白名单：不做别名映射，因为猜错类型比不给类型更坏
+    （UI 会照着连线和读写）。
+    """
+    s = str(raw or "").strip().lower()
+    return s if s in MAPPING_TYPES else ""
+
+
+def _tag_options(serial: str) -> list[SerialPortOption]:
+    """吊牌的逻辑名清单：该 serial 名下 kind=param/data 的通道行。
+
+    逻辑名取 `rel`（相对吊牌所在网络的地址，正是用户在 node 里写的东西）；兼容读
+    `logicalName` 别名，但 `rel` 优先——本仓落库字段是 `rel`（见 protocol.ChannelRef）。
+    按逻辑名排序：下拉顺序必须在多次请求间稳定，否则用户选项会自己跳位。
+    """
+    options: list[SerialPortOption] = []
+    for ref in get_state().channels.list():
+        if ref.get("serial") != serial or ref.get("kind") not in ("param", "data"):
+            continue
+        name = str(ref.get("rel") or ref.get("logicalName") or "").strip()
+        if not name:
+            continue  # 没逻辑名的行进不了下拉：用户无从选择，也无法解析
+        options.append(
+            SerialPortOption(
+                key=name,
+                label=str(ref.get("label") or "").strip() or name,
+                type=_norm_type(ref.get("type")),
+            )
+        )
+    options.sort(key=lambda o: o.key)
+    return options
+
+
+@router.get("/api/serials/{serial}/capabilities")
+async def serial_capabilities(serial: str) -> SerialCapabilities:
+    """一个地址（serial）-> 它提供什么端口，供 nodeview 渲染下拉。
+
+    检测顺序是**先吊牌、后 HDA**，这一点不能反：
+    ① 通道表里有 `kind="tag"` 且 key=serial 的行 = 吊牌的**直接证据**（吊牌注册时自己
+       写的）；
+    ② registry.json 只由 `put_inputs` 写，**吊牌从不进去**（devlog/
+       project-mapping-design.md §5.1 记的踩坑，曾是「打开吊牌项目显示 HDA 离线」的根因）。
+       反过来 registry 里有记录**不能**证明是 geo HDA——`SerialRegistry.touch()` 对任何
+       合法 serial 都会自动登记。所以只有在「通道表说不是吊牌」之后，registry 命中才
+       能读作 HDA。
+    ③ 两边都没有 -> known=False。
+
+    非法格式（半截地址）与未注册同样处理：返回 200 + known=False，不抛 400。
+    """
+    out = SerialCapabilities(serial=serial)
+    if not is_valid_serial(serial):
+        return out
+    st = get_state()
+    tag = st.channels.get(serial)
+    if tag is not None and tag.get("kind") == "tag":
+        options = _tag_options(serial)
+        # 吊牌暴露的是 Houdini **参数值**，读写双向都通：读 = GET /api/channels/{id}/value
+        # 与 GET /api/hda/{serial}/channel-values；写 = 对应的 PUT（data 走适配器，
+        # param 走 parameters.set_parameter 批量端点）。既然同一批逻辑名两个方向都能用，
+        # inputs 与 outputs 就给同一份清单，由用户按节点类型选方向。
+        return SerialCapabilities(
+            serial=serial,
+            kind="tag",
+            known=True,
+            nodePath=str(tag.get("nodePath") or ""),
+            hip=str(tag.get("hip") or ""),
+            inputs=options,
+            outputs=list(options),
+        )
+    rec = st.registry.get(serial)
+    if rec is None:
+        return out
+    return SerialCapabilities(
+        serial=serial,
+        kind="hda",
+        known=True,
+        nodePath=rec.nodePath or "",
+        hip=rec.hip or "",
+        # key 0 基（web 图内部端口键 in0..in3 / out0..out3），label 1 基（用户口语 in1-4）。
+        inputs=[SerialPortOption(key=f"in{i}", label=f"In {i + 1}", type="geo") for i in range(_HDA_PORTS)],
+        outputs=[SerialPortOption(key=f"out{i}", label=f"Out {i + 1}", type="geo") for i in range(_HDA_PORTS)],
+    )
 
 
 def _node_type_name(data: dict) -> str:
