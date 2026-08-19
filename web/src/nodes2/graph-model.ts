@@ -18,7 +18,7 @@ export type AreaExtra = ReactArea2D<Schemes>;
 
 // P2b 项目模式：project（项目根，无端口）+ channel（成员通道，1 in/1 out，compute 忽略——
 // v1 关联线纯视觉）。两者只在项目图（schemaVersion 3）中出现；?serial= 单 serial 场景保持旧 kinds。
-export type NodeKind = "input" | "output" | "null" | "transform" | "dot" | "project" | "channel";
+export type NodeKind = "input" | "output" | "null" | "transform" | "project" | "channel";
 
 export interface NodeFlags {
   display: boolean;
@@ -348,7 +348,7 @@ export function resolveInputSourcePort(
     const m = /^in(\d)$/.exec(out);
     return m ? Number(m[1]) : null;
   }
-  if ((src?.kind === "null" || src?.kind === "transform" || src?.kind === "dot") && out === "out0") {
+  if ((src?.kind === "null" || src?.kind === "transform") && out === "out0") {
     return resolveInputSourcePort(editor, src.id, visited);
   }
   return null;
@@ -517,26 +517,6 @@ export function makeNullNode(): CylNode {
   n.addInput("in0", new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
   n.addOutput("out0", new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
   return n;
-}
-/** Houdini-style unique naming: _dot_1, _dot_2… (independent seq). */
-let dotSeq = 1;
-export function makeDotNode(): CylNode {
-  const name = `_dot_${dotSeq}`;
-  dotSeq += 1;
-  const n = new CylNode(name, "dot");
-  n.baseLabel = "_dot_";
-  n.addInput("in0", new ClassicPreset.Input(new ClassicPreset.Socket(GEO)));
-  n.addOutput("out0", new ClassicPreset.Output(new ClassicPreset.Socket(GEO)));
-  return n;
-}
-/** Reserve the dot sequence counter past a restored label so undo-redo rebuilds
- *  never collide with an existing _dot_ label. */
-export function claimDotLabel(label: string): void {
-  const m = /^_dot_(\d+)$/.exec(label);
-  if (m) {
-    const n = Number(m[1]);
-    if (dotSeq <= n) dotSeq = n + 1;
-  }
 }
 /** Houdini-style unique naming: transform1, transform2… (independent seq). */
 let transformSeq = 1;
@@ -877,9 +857,6 @@ export function restoreNodeForKind(
     case "transform":
       n = makeTransformNode();
       break;
-    case "dot":
-      n = makeDotNode();
-      break;
     case "project":
       n = makeProjectNode(nd.id ?? "", nd.label ?? "project");
       break;
@@ -1009,7 +986,6 @@ export async function restoreGraph(
     }
     n.flags = flags;
     n.label = nd.label ?? n.label;
-    if (n.kind === "dot") claimDotLabel(n.label); // restore advances the seq so Ctrl+add never collides
     n.baseLabel = nd.baseLabel ?? n.baseLabel;
     // 单端口 _input_/_output_ 的 params 已由 restoreNodeForKind 补全（默认值 + socket
     // 类型同步），不能被快照里「只剩非默认项」的 params 覆盖回去。

@@ -12,11 +12,11 @@ import type { ConnectionRef, UndoManager } from "./undo";
 import type { CylNode, NodeFlags } from "./graph-model";
 import {
   log,
-  makeDotNode,
   makeNullNode,
   makeTransformNode,
   nodeFromTarget,
   notifySelection,
+  setConnectionWaypoint,
 } from "./graph-model";
 import type { AreaExtra, NodeKind, ReteGraphHandlers, Schemes } from "./graph-model";
 
@@ -32,8 +32,9 @@ const PALETTE: PaletteEntry[] = [
   { kind: "output", label: "_output_", desc: "4-input sink", keywords: "sink output 输出 终点" },
   { kind: "null", label: "null", desc: "passthrough 1+1", keywords: "null passthrough 直通" },
   { kind: "transform", label: "transform", desc: "translate by group 变换/移动", keywords: "transform translate move 变换 移动 组" },
-  { kind: "dot", label: "_dot_", desc: "junction dot passthrough 连接点", keywords: "dot junction 连接点 _dot_" },
 ];
+// dot 不再是可创建的节点：路径中点（waypoint）是挂在**连接**上的纯装饰属性，
+// 由 Alt+左键点线创建（见 attachReconnect），既不进拓扑也不影响 cook。
 // P2b：project/channel 刻意不出现在 Tab 面板（它们只能由 loadProjectGraph 建立——项目根
 // 与成员通道不是可自由创建的图元）；create() 与既有交互对这两种 kind 无特殊逻辑。
 
@@ -120,8 +121,8 @@ export function attachTabSearch(
         y: (lastGraphMouse.y - rect.top - t.y) / t.k,
       };
     }
-    if (entry.kind === "null" || entry.kind === "transform" || entry.kind === "dot") {
-      const make = entry.kind === "transform" ? makeTransformNode : entry.kind === "dot" ? makeDotNode : makeNullNode;
+    if (entry.kind === "null" || entry.kind === "transform") {
+      const make = entry.kind === "transform" ? makeTransformNode : makeNullNode;
       let n = make();
       while (editor.getNodes().some((x) => (x as CylNode).label === n.label)) n = make();
       await editor.addNode(n);
@@ -1036,6 +1037,9 @@ export function attachConnectionSelect(
     "pointerdown",
     (e) => {
       if (e.button !== 0) return;
+      // Alt 必须继续被忽略：Alt+点线是 waypoint 手势（attachReconnect），它命中的可能是
+      // 线体之外的空白（hitTestConnection 有 14px 容差），若在这里清选，等于"建 waypoint
+      // 顺手把线的选中态清掉"。metaKey/ctrlKey 同理不参与清选。
       if (e.altKey || e.metaKey || e.ctrlKey) return;
       const target = e.target as Element;
       if (target.closest?.('[data-testid="connection"]')) return; // connection click -> handled by reconnect select
@@ -1050,8 +1054,15 @@ export function attachConnectionSelect(
 // Connection reconnect: grab an existing connection (pointerdown + drag >6px),
 // preview a re-route through the mouse with flowing dashed curves, then confirm
 // on release-over-a-port (while holding) or on a follow-up click (after release).
-// ESC / click-on-blank cancels; Ctrl+click on a connection splices a _dot_ node.
+// ESC / click-on-blank cancels; Alt+click(+drag) on a connection sets/moves its
+// waypoint (纯装饰的路径中点，不改拓扑、不触发 cook)，甩远即删。
 // ---------------------------------------------------------------------------
+
+/** Alt 拖动"甩掉" waypoint 的判定半径（屏幕像素，以手势起点那条线的原始几何为基准）。
+ *  取 hitTestConnection 的 14px 命中半径 × 8 = 112px：既明显大于"沿着线微调中点"的
+ *  日常位移（也远大于 reconnect 的 6px 起拖阈值，两个手势不会互相误判），又只需约半个
+ *  节点宽度的甩动就能删除——不必把鼠标丢到画布外。 */
+const WAYPOINT_FLING_PX = 14 * 8;
 
 interface PortHit {
   nodeId: string;
@@ -1205,6 +1216,7 @@ export function attachReconnect(
       view?.element.querySelector("path")?.classList.remove("reconnect-grabbed", "reconnect-target");
     }
     setPortHighlight(null);
+    clearWaypointDrag(); // Esc / pointercancel 也要把 Alt 手势的状态一并清掉
     grabbed = false;
     holding = false;
     trackedConnId = null;
@@ -1299,35 +1311,114 @@ export function attachReconnect(
     clearReconnect();
   };
 
-  /** Ctrl+click on a connection: splice a _dot_ junction node into it. */
-  const insertDotAt = async (connId: string, clientX: number, clientY: number) => {
-    const conn = editor.getConnection(connId) as ClassicPreset.Connection<CylNode, CylNode> | undefined;
-    if (!conn) return;
-    const srcNode = editor.getNode(conn.source) as CylNode | undefined;
-    const tgtNode = editor.getNode(conn.target) as CylNode | undefined;
-    if (!srcNode || !tgtNode) return;
-    const before: ConnectionRef = {
-      source: conn.source,
-      sourceOutput: conn.sourceOutput,
-      target: conn.target,
-      targetInput: conn.targetInput,
-    };
-    const dot = makeDotNode();
+  // -------------------------------------------------------------------------
+  // Waypoint gesture (Alt + LMB on a wire). 与 reconnect 共用同一套 pointer 状态机，
+  // 但走**平行**的一组变量：Alt 分支在 trackedConnId 赋值之前就 return，所以 reconnect
+  // 预览不会出现、线也不会进入 selected 态。
+  // -------------------------------------------------------------------------
+  let waypointConnId: string | null = null;   // 正在跟随鼠标的连接（甩掉后置 null）
+  let waypointActive = false;                 // 本次 pointer 是 Alt 起手的（甩掉后仍为 true）
+  let waypointBase: { x: number; y: number }[] = []; // 手势起点时那条线的屏幕采样点
+  // 手势期间额外挂在 window 上的 pointermove（挂它的理由见 bindWaypointWindowMove）。
+  let waypointWindowMove: ((e: PointerEvent) => void) | null = null;
+
+  const clearWaypointDrag = () => {
+    // 摘掉 window 监听：置空即幂等 —— clearReconnect(Esc/pointercancel) 与 pointerup
+    // 可能连着调两次，既不会重复 remove，也不会每次手势泄漏一个监听。
+    if (waypointWindowMove) {
+      window.removeEventListener("pointermove", waypointWindowMove, true);
+      waypointWindowMove = null;
+    }
+    waypointConnId = null;
+    waypointActive = false;
+    waypointBase = [];
+  };
+
+  /** client -> area-local，和节点摆放用的是同一套算术（insert 预览/Tab 面板同款）。 */
+  const toGraph = (clientX: number, clientY: number) => {
     const rect = container.getBoundingClientRect();
     const t = area.area.transform;
-    const pos = { x: (clientX - rect.left - t.x) / t.k, y: (clientY - rect.top - t.y) / t.k };
-    await editor.removeConnection(connId);
-    await editor.addNode(dot);
-    await area.translate(dot.id, pos);
-    await editor.addConnection(
-      new ClassicPreset.Connection(srcNode, conn.sourceOutput as string, dot, "in0") as unknown as Schemes["Connection"],
-    );
-    await editor.addConnection(
-      new ClassicPreset.Connection(dot, "out0", tgtNode, conn.targetInput as string) as unknown as Schemes["Connection"],
-    );
-    undoManager.push({ type: "dot-add", nodeId: dot.id, nodeLabel: dot.label, connection: before, x: pos.x, y: pos.y });
-    handlers.onNetworkChanged?.();
-    log(`dot-add ${dot.label} spliced into ${srcNode.label} -> ${tgtNode.label}`);
+    return { x: (clientX - rect.left - t.x) / t.k, y: (clientY - rect.top - t.y) / t.k };
+  };
+
+  /** 手势起点那条线的屏幕空间采样点：和 hitTestConnection 同样用 getScreenCTM +
+   *  getPointAtLength，所以"离线多远"用的就是命中测试那套几何。jsdom 下取不到长度时
+   *  返回空数组 —— 距离恒为 0，绝不会误删。 */
+  const sampleConnScreen = (connId: string): { x: number; y: number }[] => {
+    const view = area.connectionViews.get(connId);
+    const svg = (view?.element.querySelector("path") ?? view?.element) as SVGPathElement | null;
+    if (!svg || typeof svg.getTotalLength !== "function") return [];
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return [];
+    const len = svg.getTotalLength();
+    const step = Math.max(4, len / 40);
+    const pts: { x: number; y: number }[] = [];
+    for (let t = 0; t <= len; t += step) {
+      const p = svg.getPointAtLength(t);
+      const sp = new DOMPoint(p.x, p.y).matrixTransform(ctm);
+      pts.push({ x: sp.x, y: sp.y });
+    }
+    return pts;
+  };
+
+  /** 鼠标到"手势起点那条线"的最近距离。采样为空（jsdom / 无 CTM）时返回 0 —— 宁可不删。 */
+  const distToBase = (clientX: number, clientY: number): number => {
+    if (!waypointBase.length) return 0;
+    let best = Infinity;
+    for (const p of waypointBase) {
+      const d = Math.hypot(p.x - clientX, p.y - clientY);
+      if (d < best) best = d;
+    }
+    return best;
+  };
+
+  /** 写入/移动 waypoint，然后只重绘这一条连接。**不动拓扑、不发 onNetworkChanged。** */
+  const putWaypoint = (connId: string, clientX: number, clientY: number) => {
+    const conn = editor.getConnection(connId);
+    if (!conn) return;
+    setConnectionWaypoint(conn, toGraph(clientX, clientY));
+    void area.update("connection", connId);
+  };
+
+  /** 甩远 -> 删掉 waypoint。删的是连接上的一个属性，连接本身**始终是同一条**，
+   *  不可能像老的 _dot_ 节点那样留下两截半线。 */
+  const dropWaypoint = (connId: string) => {
+    const conn = editor.getConnection(connId);
+    if (!conn) return;
+    setConnectionWaypoint(conn, null);
+    void area.update("connection", connId);
+    log(`waypoint removed from connection ${connId} (flung > ${WAYPOINT_FLING_PX}px)`);
+  };
+
+  /** 已经处理过的那个 move 事件对象。window 与 container 两个监听器会为**同一个事件**
+   *  各触发一次（capture 阶段 window 先到），按对象身份去重 = 一次 move 只写一次
+   *  waypoint、只用一组坐标判一次甩远，绝不会拿旧坐标算距离。 */
+  let waypointMoveSeen: Event | null = null;
+
+  /** waypoint 拖动的唯一权威处理：container / window 谁先收到就谁执行，另一个被去重挡掉。 */
+  const onWaypointMove = (e: PointerEvent) => {
+    if (!waypointActive) return;
+    if (waypointMoveSeen === e) return; // 同一事件的第二次投递
+    waypointMoveSeen = e;
+    // 兜底：万一漏收 pointerup（切窗口/失焦），别让 hover 继续拖 waypoint。
+    if ((e.buttons & 1) === 0) { clearWaypointDrag(); return; }
+    if (!waypointConnId) return; // 已经甩掉了，本次 pointer 不再重建
+    if (distToBase(e.clientX, e.clientY) > WAYPOINT_FLING_PX) {
+      dropWaypoint(waypointConnId);
+      waypointConnId = null;
+      return;
+    }
+    putWaypoint(waypointConnId, e.clientX, e.clientY);
+  };
+
+  /** container 是图面板本身，指针一旦拖出它的 bounding box 就收不到 pointermove 了
+   *  （实测 20 步的甩动只有 3 个事件进得来，距离永远到不了 WAYPOINT_FLING_PX，于是
+   *  永远删不掉）。所以手势期间额外在 window 上挂一份，拖到窗口任何角落都持续跟手。
+   *  只在手势内存活，clearWaypointDrag() 负责摘掉。 */
+  const bindWaypointWindowMove = () => {
+    if (waypointWindowMove) return;
+    waypointWindowMove = (e: PointerEvent) => onWaypointMove(e);
+    window.addEventListener("pointermove", waypointWindowMove, true);
   };
 
   container.addEventListener(
@@ -1346,16 +1437,22 @@ export function attachReconnect(
       }
       // Ports/sockets belong to the ConnectionPlugin and node bodies to node drag
       // (both can sit within 14px of a connection line), so a pointerdown on them
-      // must never start a reconnect grab or dot-splice.
+      // must never start a reconnect grab or a waypoint drag.
       if (target.closest?.(".cyl-rp-port")) return;
       if (nodeFromTarget(editor, area, target)) return;
-      // Ctrl+click on a connection -> splice a _dot_ junction node right there.
-      if (e.ctrlKey) {
+      // Alt+click on a connection -> set its waypoint right there (Alt+drag moves it).
+      // 必须在下面 trackedConnId 赋值**之前**拦掉：那个顺序就是"不出 reconnect 预览、
+      // 线也不进 selected 态"的全部原因。
+      if (e.altKey) {
         const connId = hitTestConnection(area, e.clientX, e.clientY);
         if (connId) {
           e.preventDefault();
           e.stopPropagation();
-          void insertDotAt(connId, e.clientX, e.clientY);
+          waypointBase = sampleConnScreen(connId); // 取原始几何，之后 waypoint 会把线拉弯
+          waypointConnId = connId;
+          waypointActive = true;
+          bindWaypointWindowMove(); // 甩出面板之外也要继续收 move，否则删不掉
+          putWaypoint(connId, e.clientX, e.clientY);
         }
         return;
       }
@@ -1377,6 +1474,13 @@ export function attachReconnect(
     "pointermove",
     (e) => {
       lastGraphMouse = { x: e.clientX, y: e.clientY };
+      // Alt 手势独占本次 pointer：它从不设 trackedConnId，所以放在最前面短路即可。
+      // 逻辑本体在 onWaypointMove，跟 window 那份共用同一份去重，所以指针在面板内、
+      // 面板外走的都是同一条代码路径，一次 move 只生效一次。
+      if (waypointActive) {
+        onWaypointMove(e);
+        return;
+      }
       if (grabbed && grabbedConnId) {
         updatePreview(e.clientX, e.clientY);
       } else if (trackedConnId && !grabbed) {
@@ -1396,6 +1500,11 @@ export function attachReconnect(
   );
 
   const up = (e: PointerEvent) => {
+    // Alt 手势：松手就收工。放在最前面，因为它没有 trackedConnId，会被下面那行 return 掉。
+    if (waypointActive) {
+      clearWaypointDrag();
+      return;
+    }
     if (!trackedConnId && !grabbed) return;
     if (grabbed && holding) {
       holding = false;
@@ -1416,11 +1525,11 @@ export function attachReconnect(
   };
   window.addEventListener("pointerup", up);
   window.addEventListener("pointercancel", () => {
-    if (grabbed || trackedConnId) clearReconnect();
+    if (grabbed || trackedConnId || waypointActive) clearReconnect();
   });
 
-  // Window-level Escape (graph.ts) cancels the reconnect grab.
+  // Window-level Escape (graph.ts) cancels the reconnect grab / waypoint drag.
   registerInteractionCanceller(() => {
-    if (grabbed || trackedConnId || reconnectGrabbed || reconnectPointerActive) clearReconnect();
+    if (grabbed || trackedConnId || reconnectGrabbed || reconnectPointerActive || waypointActive) clearReconnect();
   });
 }

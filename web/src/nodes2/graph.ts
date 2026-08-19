@@ -18,6 +18,7 @@ import { Presets, ReactPlugin } from "rete-react-plugin";
 import { createRoot } from "react-dom/client";
 import React from "react";
 import { NodeView, notifyNodeChanged, setDisplayHandler } from "./NodeView";
+import { ConnectionView } from "./ConnectionView";
 import { store } from "../stores/workspace";
 import type { UndoAction } from "./undo";
 import {
@@ -314,6 +315,18 @@ async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
   // separate Zoom handler) are unaffected; node dragging uses each NodeView's own
   // Drag handler and keeps working.
   area.area.setDragHandler(null);
+  // 同理移除 rete 的另一个默认交互：Zoom 类自带 dblclick 处理器，双击背景/节点会
+  // 直接 onzoom(..., 'dblclick') 缩放视图。任务 #4 要把双击定义为「进入节点」，
+  // 双击同时缩放会让视图跳一下，手感全毁。zoom 是**可取消**的 guard 管道事件，
+  // 且 ZoomEventParams 带 source，于是只拦 source === "dblclick"：
+  // 滚轮缩放（source === "wheel"）与程序化的 AreaExtensions.zoomAt（走
+  // area.area.zoom(k, 0, 0)，不带 source）都照旧放行。
+  area.addPipe((ctx) => {
+    if (ctx.type === "zoom" && (ctx.data as { source?: string }).source === "dblclick") {
+      return undefined;
+    }
+    return ctx;
+  });
   const connection = new ConnectionPlugin<Schemes, AreaExtra>();
   const engine = new DataflowEngine<DataflowEngineScheme>();
   const react = new ReactPlugin<Schemes, AreaExtra>({ createRoot });
@@ -353,6 +366,9 @@ async function buildGraph(container: HTMLElement, handlers: ReteGraphHandlers) {
     Presets.classic.setup({
       customize: {
         node: (d) => (props) => React.createElement(NodeView, { data: d.payload, emit: props.emit }),
+        // 自绘连线：只为把连接上的 waypoint（路径中点装饰件）画出来，
+        // 自带 Connection 的 path 写死两点、塞不进中点。DOM 契约见 ConnectionView.tsx。
+        connection: () => ConnectionView,
       },
     }),
   );

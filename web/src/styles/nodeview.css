@@ -184,91 +184,6 @@
   z-index: 30; pointer-events: none;
 }
 .cyl-rect-select.hidden { display: none; }
-/* ---- _dot_ junction node (NodeView.tsx): pure circle + 2 invisible socket anchors ----
-   GEOMETRY CONTRACT (do not "tidy" the magic numbers - the wire endpoints depend on them):
-
-   rete measures a socket as getElementCenter(socketSpan, nodeElement) and then adds a
-   FIXED offset of -12px (input) / +12px (output) on x (DOMSocketPosition). It walks
-   offsetParent from the span up to the node element, accumulating offsetLeft + clientLeft.
-
-   We want BOTH wire ends to land on the circle's centre (5, 5) so a junction dot reads as
-   a single point, like Houdini's. So each anchor is pre-offset by the OPPOSITE 12px and
-   the ±12 cancels out:
-     input  span: left 15px, width 4px -> centre x = 15 + 2 = 17 -> 17 - 12 = 5  ✔
-     output span: left -9px, width 4px -> centre x = -9 + 2 = -7 -> -7 + 12 = 5  ✔
-     both:        top   3px, height 4px -> centre y = 3 + 2 = 5                  ✔
-   That is why `.input` sits on the RIGHT and `.output` on the LEFT here - it is deliberate,
-   not a typo.
-
-   The ring is an inset box-shadow, NOT a border, on purpose: clientLeft would add the
-   border width (1.5px -> rounded 1 or 2) into the accumulated offset above and push both
-   endpoints off-centre. With no border, clientLeft is 0 and the arithmetic is exact. */
-.cyl-graph .cyl-rp-dot {
-  position: relative; /* containing block + offsetParent for the two anchors */
-  width: 10px; height: 10px; border-radius: 50%;
-  background: #2b0b0b; /* same dark red-tinted fill as the normal port sockets */
-  /* ring via inset shadow (keeps clientLeft = 0; see contract above).
-     Default = geo = #ff6b6b, matching the geo wire/socket colour the dot sits on. */
-  box-shadow: inset 0 0 0 1.5px #ff6b6b, inset 0 0 0 2.5px rgba(255,255,255,.06), 0 2px 8px rgba(0,0,0,.45);
-  cursor: pointer;
-}
-/* socket anchors: measurable by rete, invisible to the user, inert to the pointer.
-   NEVER use display:none/visibility:hidden here - getElementCenter() awaits a non-null
-   offsetParent in a loop, so a hidden anchor makes that loop spin forever. */
-/* 未接线 = 中性白（用户要求：默认白色圆点，接线后才自动改颜色）。
-   注意不能只靠 socket 类型判断——未接线与接了 geo 都报 geo，会让新建的 dot
-   直接显示成 geo 朱红。类由 dotVisualClass 依据真实连接状态给出。 */
-.cyl-graph .cyl-rp-dot.unwired {
-  background: #f5f7fa;
-  box-shadow: inset 0 0 0 1.5px #ffffff, 0 2px 8px rgba(0,0,0,.45);
-}
-
-.cyl-graph .cyl-rp-dot .cyl-rp-dot-port {
-  position: absolute; width: 0; height: 0; pointer-events: none;
-}
-.cyl-graph .cyl-rp-dot .cyl-rp-dot-port > span.input,
-.cyl-graph .cyl-rp-dot .cyl-rp-dot-port > span.output {
-  position: absolute; display: block; width: 4px; height: 4px; top: 3px;
-  opacity: 0; pointer-events: none; /* transparent but still laid out => still measurable */
-}
-.cyl-graph .cyl-rp-dot .cyl-rp-dot-port > span.input { left: 15px; }   /* +12 pre-offset, -12 applied => x=5 */
-.cyl-graph .cyl-rp-dot .cyl-rp-dot-port > span.output { left: -9px; }  /* -12 pre-offset, +12 applied => x=5 */
-/* the classic socket preset paints a circle inside the span - kill it, the dot IS the circle */
-.cyl-graph .cyl-rp-dot .cyl-rp-dot-port > span.input > div,
-.cyl-graph .cyl-rp-dot .cyl-rp-dot-port > span.output > div {
-  width: 4px; height: 4px; background: transparent; border: none; box-shadow: none;
-}
-/* ---- dot ring colour by port data type: EXACTLY the wire palette, so the ring and the
-   wires meeting inside it are the same colour (a dot spliced into a float wire reads as
-   float at a glance):
-     geo   #ff6b6b  <- default rule above, matches [data-testid=connection] path
-     float #7ce3a8  <- matches path.cyl-wire-float
-     vec3  #7fb0ff  <- matches path.cyl-wire-vec3
-   State rings (below) intentionally outrank type: display blue > selected yellow > hover. */
-.cyl-graph .cyl-rp-dot.type-float {
-  background: #0f1f17;
-  box-shadow: inset 0 0 0 1.5px #7ce3a8, inset 0 0 0 2.5px rgba(255,255,255,.06), 0 2px 8px rgba(0,0,0,.45);
-}
-.cyl-graph .cyl-rp-dot.type-vec3 {
-  background: #0d1622;
-  box-shadow: inset 0 0 0 1.5px #7fb0ff, inset 0 0 0 2.5px rgba(255,255,255,.06), 0 2px 8px rgba(0,0,0,.45);
-}
-/* state visuals mirror .cyl-rp-node: display blue > selected yellow > hover pale yellow */
-.cyl-graph .cyl-rp-dot.bypass { opacity: .75; }
-.cyl-graph .cyl-rp-dot.freeze { opacity: .6; }
-.cyl-graph .cyl-rp-dot.reference { box-shadow: inset 0 0 0 1.5px #ec4899, 0 2px 8px rgba(0,0,0,.45); }
-.cyl-graph .cyl-rp-dot:hover {
-  box-shadow: inset 0 0 0 1.5px #fde68a, 0 0 0 1px rgba(253,224,71,.5), 0 2px 8px rgba(0,0,0,.45);
-}
-.cyl-graph .cyl-rp-dot.selected {
-  box-shadow: inset 0 0 0 1.5px #fde047, 0 0 0 1px rgba(253,224,71,.55), 0 2px 8px rgba(0,0,0,.3);
-}
-.cyl-graph .cyl-rp-dot.displayed {
-  box-shadow: inset 0 0 0 1.5px #60a5fa, 0 0 0 1px #60a5fa, 0 2px 8px rgba(0,0,0,.45);
-}
-.cyl-graph .cyl-rp-dot.displayed.selected {
-  box-shadow: inset 0 0 0 1.5px #60a5fa, 0 0 0 1px #60a5fa, 0 0 0 3px rgba(253,224,71,.4), 0 2px 8px rgba(0,0,0,.45);
-}
 /* ---- 错误角标 + 类型化端口配色（v0.1.00117）----
    角标照 Houdini：红三角 error / 黄三角 warning，一个节点只出一枚（取最严重）。
    放在节点左上角**外侧**，不占标题行宽度——标题已经要挤序列号小字。 */
@@ -360,3 +275,40 @@
 @keyframes cyl-flow {
   to { stroke-dashoffset: -10; }
 }
+/* ---- 自绘连线视图（ConnectionView.tsx）的基础样式 ----
+   连线渲染从 rete 自带 Connection 接管过来后，原本由它的 styled.svg / styled.path
+   提供的基础样式必须在这里**逐条补齐**（照抄 rete 发行包里的声明），少一条就出事：
+     - svg 的 9999px 画布 + overflow:visible：路径坐标是图空间的绝对值，
+       画布小于路径包围盒时线会被裁掉
+     - path 的 fill:none：不然闭合感的贝塞尔会被填成一块色块
+     - path 的 pointer-events:auto（svg 自身是 none）：连线的 hover 与
+       hitTestConnection 的命中测试全靠它
+   stroke 不在这里给——上面第 49 行的 [data-testid="connection"] path 已定义 geo 线色。 */
+.cyl-graph [data-testid="connection"] {
+  overflow: visible !important;
+  position: absolute;
+  pointer-events: none;
+  width: 9999px;
+  height: 9999px;
+}
+.cyl-graph [data-testid="connection"] path {
+  fill: none;
+  stroke-width: 5px;
+  pointer-events: auto;
+}
+/* ---- waypoint 圆点（路径中点装饰件） ----
+   纯装饰：pointer-events:none。连线拾取走 hitTestConnection 的几何算法，
+   圆点可命中会抢掉抓线/重连的事件。
+   stroke 用图背景色 #101216 描一圈：圆点压在同色线上时仍能看清
+   （等价于旧 .cyl-rp-dot 的 inset 环 + 0 2px 8px 投影）。r=5 对应旧 10px 直径。 */
+.cyl-graph [data-testid="connection"] circle.cyl-wp-dot {
+  pointer-events: none;
+  fill: #ffffff;
+  stroke: #101216;
+  stroke-width: 1.5px;
+}
+/* 颜色跟着**线本身的类型类**走（兄弟选择器），因此永远不会与
+   applyConnectionTypeVisual 定的线色跑偏——那是线色的唯一真源，
+   这里不复制它的类型查表。色值与上面 float/vec3 线色逐字相同。 */
+.cyl-graph [data-testid="connection"] path.cyl-wire-float ~ circle.cyl-wp-dot { fill: #7ce3a8; }
+.cyl-graph [data-testid="connection"] path.cyl-wire-vec3 ~ circle.cyl-wp-dot { fill: #7fb0ff; }

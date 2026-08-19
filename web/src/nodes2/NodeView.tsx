@@ -11,9 +11,9 @@ import React, { useEffect, useReducer, useRef } from "react";
 import { ClassicPreset } from "rete";
 import { Presets } from "rete-react-plugin";
 import type { ClassicScheme, ReactArea2D, RenderEmit } from "rete-react-plugin";
-import { fireNodeState, showTooltip, hideTooltip, fireRename, getChannelDisplaySerial, isNodeWired } from "./graph";
+import { fireNodeState, showTooltip, hideTooltip, fireRename, getChannelDisplaySerial } from "./graph";
 import type { CylNode } from "./graph";
-import { FLOAT, GEO, VEC3, socketTypeClass, worstSeverity } from "./graph-model";
+import { socketTypeClass, worstSeverity } from "./graph-model";
 import { elide } from "../app/elide";
 
 const { RefSocket } = Presets.classic;
@@ -21,34 +21,6 @@ const { RefSocket } = Presets.classic;
 /** 序列号/长标签在 tooltip 与副标题里的省略预算（中段省略，两端都留）。 */
 const LABEL_MAX = 48;
 const SERIAL_MAX = 28;
-
-/**
- * 端口数据类型 -> dot 环颜色类（Houdini VOP 惯例：看颜色即知类型）。
- *
- * 用**与连线完全相同的色板**（nodeview.css）：geo #ff6b6b（默认规则，无类）、
- * float #7ce3a8（.type-float）、vec3 #7fb0ff（.type-vec3）——于是环色与在环内交汇的
- * 那两根线同色。未知/缺省一律按 geo（与 graph-model 的 toSocketType 兜底一致）。
- */
-export function dotTypeClass(socketName: string): string {
-  if (socketName === FLOAT) return "type-float";
-  if (socketName === VEC3) return "type-vec3";
-  return ""; // GEO 及未知：默认环色
-}
-
-/** dot 的端口类型：以 out0 为准（junction 两端同型；缺则退 in0，再退 geo）。 */
-function dotSocketName(node: CylNode): string {
-  return node.outputs.out0?.socket?.name ?? node.inputs.in0?.socket?.name ?? GEO;
-}
-
-/** dot 的配色类：**未接线 = 中性白**，接线后才按类型上色。
- *
- *  只看 socket 名不够——未接线的 dot 与接了 geo 的 dot 都报 `geo`，
- *  于是新建的 dot 会直接显示成 geo 朱红。用户要的是「默认白色圆点，接线后自动改颜色」，
- *  所以先问连接状态，再决定要不要取类型色。 */
-function dotVisualClass(node: CylNode): string {
-  if (!isNodeWired(node.id as string)) return "unwired";
-  return dotTypeClass(dotSocketName(node));
-}
 
 /** Module-level display handler registered by createReteGraph. */
 let displayHandler: ((nodeId: string) => void) | null = null;
@@ -114,60 +86,6 @@ export function NodeView({ data, emit }: Props) {
     };
   }, [editing]);
 
-  // _dot_ junction node: visually a pure circle (no head/chips/labels/stats), but it
-  // MUST still hand rete two real socket anchors or its wires have nowhere to land.
-  //
-  // Why the anchors exist at all: rete only learns a socket position from a
-  // `rendered`/`socket` event carrying the socket ELEMENT (BaseSocketPosition ->
-  // SocketsPositionsStorage). The old dot rendered no RefSocket, so
-  // sockets.getPosition() returned null for in0/out0, the connection listener never
-  // fired a position update, and every wire touching a dot kept a stale/zero endpoint.
-  //
-  // Why the circle still looks like a circle: the anchors are 4x4 fully transparent
-  // spans, absolutely positioned OUT of flow, so they contribute nothing to the 10x10
-  // circle's box. They are NOT display:none - getElementCenter() spins on a null
-  // offsetParent (`while (!child.offsetParent) await ...`), so a hidden anchor would
-  // hang that loop. Transparent + pointer-events:none keeps them measurable and inert.
-  //
-  // Why the sides look swapped in CSS: DOMSocketPosition adds a FIXED ±12px to the
-  // measured centre (-12 input / +12 output). To make both wire ends meet at the
-  // circle's centre - the whole point of a Houdini junction dot - each anchor is
-  // pre-offset by the opposite 12px, so the ±12 cancels out. See nodeview.css.
-  if (node.kind === "dot") {
-    const socketName = dotSocketName(node);
-    const flags = node.flags ?? { display: false, bypass: false, freeze: false, reference: false };
-    const tip = `${elide(node.label, LABEL_MAX)} · junction (${socketName})`;
-    // Pass the port's OWN socket instance (never a freshly built one - a new object each
-    // render would churn the socket render path for no reason).
-    const anchor = (side: "input" | "output", key: string, socket: ClassicPreset.Socket) => (
-      <div className={`cyl-rp-dot-port ${side}`} key={key} data-port-id={key}>
-        <RefSocket
-          name={side}
-          side={side}
-          emit={emit}
-          nodeId={node.id as string as never}
-          socketKey={key}
-          payload={socket}
-        />
-      </div>
-    );
-    return (
-      <div
-        className={`cyl-rp-dot ${dotVisualClass(node)} ${flags.bypass ? "bypass" : ""} ${
-          flags.freeze ? "freeze" : ""
-        } ${flags.reference ? "reference" : ""} ${flags.display ? "displayed" : ""} ${
-          node.selected ? "selected" : ""
-        }`}
-        onMouseEnter={(e) => showTooltip(e.clientX, e.clientY, tip)}
-        onMouseMove={(e) => showTooltip(e.clientX, e.clientY, tip)}
-        onMouseLeave={() => hideTooltip()}
-      >
-        {node.inputs.in0 ? anchor("input", "in0", node.inputs.in0.socket) : null}
-        {node.outputs.out0 ? anchor("output", "out0", node.outputs.out0.socket) : null}
-      </div>
-    );
-  }
-
   // 错误角标状态：一个节点只出一枚（取最严重），tooltip 列全部原因。
   const nodeErrors = node.errors ?? [];
   const nodeSeverity = worstSeverity(nodeErrors);
@@ -220,6 +138,10 @@ export function NodeView({ data, emit }: Props) {
     </button>
   );
 
+  // 每个端口必须真的渲染出 RefSocket：rete 只从带 socket ELEMENT 的 `rendered`/`socket`
+  // 事件学到位置（BaseSocketPosition -> SocketsPositionsStorage）。不渲染 RefSocket 的端口
+  // 会让 sockets.getPosition() 返回 null，连接监听器永不触发位置更新，接在该端口上的线
+  // 就一直停在过期/零点坐标上。
   const port = (
     side: "input" | "output",
     id: string,

@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-18），由 `node scripts/gen-index.mjs` 产出。共 **1040** 个函数/类。
+> 机器生成（2026-08-19），由 `node scripts/gen-index.mjs` 产出。共 **1048** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -1134,68 +1134,73 @@
 | `computeOutputsCached` | 303 | function | export | 1 |
 | `computeNodeResultCached` | 347 | function | export | 1 |
 
-## web/src/nodes2/graph-interact.ts（1427 行）
+## web/src/nodes2/graph-interact.ts（1536 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `isReconnectBusy` | 61 | function | export | 4 |
-| `registerInteractionCanceller` | 68 | function | export | 5 |
-| `cancelGraphInteractions` | 73 | function | export | 1 |
-| `attachTabSearch` | 77 | function | export | 1 |
-| `render` | 93 | arrow |  | 3 |
-| `create` | 108 | arrow |  | 3 |
-| `close` | 137 | arrow |  | 6 |
-| `update` | 145 | arrow |  | 3 |
-| `distToSegment` | 175 | function |  | 2 |
-| `sampleConnectionPath` | 185 | function |  | 2 |
-| `attachCutMode` | 206 | function | export | 1 |
-| `isTyping` | 232 | arrow |  | 1 |
-| `pathLen` | 238 | arrow |  | 1 |
-| `setPoints` | 243 | arrow |  | 2 |
-| `clear` | 247 | arrow |  | 2 |
-| `cutConnection` | 252 | arrow |  | 1 |
-| `cutByPolyline` | 267 | arrow |  | 1 |
-| `up` | 346 | arrow |  | 0 |
-| `attachFlagMenu` | 368 | function | export | 1 |
-| `show` | 380 | arrow |  | 2 |
-| `setNodeStateHandler` | 434 | function | export | 1 |
-| `fireNodeState` | 440 | function | export | 1 |
-| `setRenameHandler` | 446 | function | export | 1 |
-| `fireRename` | 450 | function | export | 1 |
-| `initTooltip` | 456 | function | export | 1 |
-| `showTooltip` | 463 | function | export | 1 |
-| `hideTooltip` | 477 | function | export | 1 |
-| `attachMMBPan` | 485 | function | export | 1 |
-| `onMove` | 496 | arrow |  | 0 |
-| `onUp` | 499 | arrow |  | 0 |
-| `attachDotGrid` | 517 | function | export | 1 |
-| `hitTestConnection` | 551 | function |  | 5 |
-| `connectionPathD` | 580 | function |  | 7 |
-| `isInsertable` | 588 | function |  | 2 |
-| `attachInsertion` | 592 | function | export | 1 |
-| `refreshPreview` | 640 | arrow |  | 2 |
-| `updatePreview` | 648 | arrow |  | 3 |
-| `setHover` | 671 | arrow |  | 3 |
-| `attachRectSelect` | 800 | function | export | 1 |
-| `attachShakeDisconnect` | 876 | function | export | 1 |
-| `reset` | 887 | arrow |  | 0 |
-| `shakeNode` | 893 | arrow |  | 1 |
-| `getSelectedConnectionId` | 1007 | function | export | 1 |
-| `connectionPathEl` | 1011 | function |  | 4 |
-| `selectConnection` | 1015 | function |  | 2 |
-| `clearConnectionSelection` | 1022 | function | export | 3 |
-| `attachConnectionSelect` | 1031 | function | export | 1 |
-| `hitTestPort` | 1064 | function |  | 4 |
-| `attachReconnect` | 1100 | function | export | 1 |
-| `toLocal` | 1129 | arrow |  | 2 |
-| `setPortHighlight` | 1150 | arrow |  | 2 |
-| `markGrabbedPath` | 1164 | arrow |  | 2 |
-| `clearReconnect` | 1202 | arrow |  | 11 |
-| `labelOf` | 1218 | arrow |  | 8 |
-| `applyReconnect` | 1221 | arrow |  | 2 |
-| `insertDotAt` | 1303 | arrow |  | 1 |
+| `isReconnectBusy` | 62 | function | export | 4 |
+| `registerInteractionCanceller` | 69 | function | export | 5 |
+| `cancelGraphInteractions` | 74 | function | export | 1 |
+| `attachTabSearch` | 78 | function | export | 1 |
+| `render` | 94 | arrow |  | 3 |
+| `create` | 109 | arrow |  | 3 |
+| `close` | 138 | arrow |  | 6 |
+| `update` | 146 | arrow |  | 5 |
+| `distToSegment` | 176 | function |  | 2 |
+| `sampleConnectionPath` | 186 | function |  | 2 |
+| `attachCutMode` | 207 | function | export | 1 |
+| `isTyping` | 233 | arrow |  | 1 |
+| `pathLen` | 239 | arrow |  | 1 |
+| `setPoints` | 244 | arrow |  | 2 |
+| `clear` | 248 | arrow |  | 2 |
+| `cutConnection` | 253 | arrow |  | 1 |
+| `cutByPolyline` | 268 | arrow |  | 1 |
+| `up` | 347 | arrow |  | 0 |
+| `attachFlagMenu` | 369 | function | export | 1 |
+| `show` | 381 | arrow |  | 2 |
+| `setNodeStateHandler` | 435 | function | export | 1 |
+| `fireNodeState` | 441 | function | export | 1 |
+| `setRenameHandler` | 447 | function | export | 1 |
+| `fireRename` | 451 | function | export | 1 |
+| `initTooltip` | 457 | function | export | 1 |
+| `showTooltip` | 464 | function | export | 1 |
+| `hideTooltip` | 478 | function | export | 1 |
+| `attachMMBPan` | 486 | function | export | 1 |
+| `onMove` | 497 | arrow |  | 0 |
+| `onUp` | 500 | arrow |  | 0 |
+| `attachDotGrid` | 518 | function | export | 1 |
+| `hitTestConnection` | 552 | function |  | 5 |
+| `connectionPathD` | 581 | function |  | 7 |
+| `isInsertable` | 589 | function |  | 2 |
+| `attachInsertion` | 593 | function | export | 1 |
+| `refreshPreview` | 641 | arrow |  | 2 |
+| `updatePreview` | 649 | arrow |  | 3 |
+| `setHover` | 672 | arrow |  | 3 |
+| `attachRectSelect` | 801 | function | export | 1 |
+| `attachShakeDisconnect` | 877 | function | export | 1 |
+| `reset` | 888 | arrow |  | 0 |
+| `shakeNode` | 894 | arrow |  | 1 |
+| `getSelectedConnectionId` | 1008 | function | export | 1 |
+| `connectionPathEl` | 1012 | function |  | 4 |
+| `selectConnection` | 1016 | function |  | 2 |
+| `clearConnectionSelection` | 1023 | function | export | 3 |
+| `attachConnectionSelect` | 1032 | function | export | 1 |
+| `hitTestPort` | 1075 | function |  | 4 |
+| `attachReconnect` | 1111 | function | export | 1 |
+| `toLocal` | 1140 | arrow |  | 2 |
+| `setPortHighlight` | 1161 | arrow |  | 2 |
+| `markGrabbedPath` | 1175 | arrow |  | 2 |
+| `clearReconnect` | 1213 | arrow |  | 12 |
+| `labelOf` | 1230 | arrow |  | 8 |
+| `applyReconnect` | 1233 | arrow |  | 2 |
+| `clearWaypointDrag` | 1325 | arrow |  | 4 |
+| `toGraph` | 1338 | arrow |  | 1 |
+| `putWaypoint` | 1376 | arrow |  | 2 |
+| `dropWaypoint` | 1385 | arrow |  | 1 |
+| `onWaypointMove` | 1399 | arrow |  | 2 |
+| `bindWaypointWindowMove` | 1418 | arrow |  | 1 |
 
-## web/src/nodes2/graph-model.ts（1151 行）
+## web/src/nodes2/graph-model.ts（1176 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -1218,7 +1223,7 @@
 | `nodeFromTarget` | 358 | function | export | 1 |
 | `renderNode` | 374 | function | export | 1 |
 | `portIndexFromTarget` | 389 | function | export | 1 |
-| `CylNode` | 397 | class | export | 7 |
+| `CylNode` | 397 | class | export | 6 |
 | `addressParams` | 444 | function |  | 3 |
 | `makeInputNode` | 457 | function | export | 2 |
 | `makeOutputNode` | 468 | function | export | 2 |
@@ -1226,61 +1231,62 @@
 | `nodeSocketType` | 485 | function | export | 2 |
 | `syncPortSocketType` | 494 | function | export | 2 |
 | `makeNullNode` | 512 | function | export | 2 |
-| `makeDotNode` | 523 | function | export | 2 |
-| `claimDotLabel` | 534 | function | export | 2 |
-| `makeTransformNode` | 543 | function | export | 2 |
-| `makeProjectNode` | 584 | function | export | 2 |
-| `makeChannelNode` | 593 | function | export | 2 |
-| `getConnectionBypass` | 610 | function | export | 2 |
+| `makeTransformNode` | 523 | function | export | 2 |
+| `makeProjectNode` | 564 | function | export | 2 |
+| `makeChannelNode` | 573 | function | export | 2 |
+| `getConnectionBypass` | 590 | function | export | 2 |
+| `getConnectionWaypoint` | 600 | function | export | 2 |
+| `setConnectionWaypoint` | 608 | function | export | 2 |
 | `setConnectionBypassFlag` | 614 | function | export | 2 |
 | `socketNameOf` | 621 | function | export | 1 |
 | `applyConnectionTypeVisual` | 635 | function | export | 1 |
 | `applyConnectionBypassVisual` | 657 | function | export | 2 |
-| `isDefaultAddressParam` | 703 | function |  | 2 |
-| `serializableParams` | 710 | function |  | 2 |
-| `buildGraphSnapshot` | 725 | function | export | 2 |
-| `serializeGraph` | 762 | function | export | 2 |
-| `restoreNodeForKind` | 811 | function | export | 2 |
-| `sanitizeAddress` | 869 | function | export | 3 |
-| `syncAddressParams` | 877 | function |  | 2 |
-| `detectLegacyPorts` | 900 | function | export | 2 |
-| `restoreGraph` | 915 | function | export | 2 |
-| `sanitizeBindings` | 1009 | function | export | 2 |
-| `nodeParamBindingsView` | 1019 | function | export | 1 |
-| `listNodeParamBindingsView` | 1032 | function | export | 1 |
-| `applyNodeBindings` | 1048 | function | export | 1 |
-| `getNetworkSnapshot` | 1063 | function | export | 2 |
-| `planProjectGraph` | 1114 | function | export | 1 |
+| `isDefaultAddressParam` | 720 | function |  | 2 |
+| `serializableParams` | 727 | function |  | 2 |
+| `buildGraphSnapshot` | 742 | function | export | 2 |
+| `serializeGraph` | 779 | function | export | 2 |
+| `restoreNodeForKind` | 831 | function | export | 2 |
+| `sanitizeAddress` | 886 | function | export | 3 |
+| `syncAddressParams` | 894 | function |  | 2 |
+| `detectLegacyPorts` | 917 | function | export | 2 |
+| `restoreGraph` | 932 | function | export | 2 |
+| `sanitizeBindings` | 1034 | function | export | 2 |
+| `nodeParamBindingsView` | 1044 | function | export | 1 |
+| `listNodeParamBindingsView` | 1057 | function | export | 1 |
+| `applyNodeBindings` | 1073 | function | export | 1 |
+| `getNetworkSnapshot` | 1088 | function | export | 2 |
+| `planProjectGraph` | 1139 | function | export | 1 |
 
-## web/src/nodes2/graph-undo.ts（202 行）
+## web/src/nodes2/graph-undo.ts（163 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `actionContainsParams` | 16 | function | export | 2 |
 | `findConnectionByRef` | 23 | function |  | 2 |
 | `applyUndoAction` | 34 | function | export | 3 |
-| `addConn` | 40 | arrow |  | 14 |
-| `delConn` | 48 | arrow |  | 14 |
-| `lbl` | 52 | arrow |  | 5 |
-| `createGraphUndoManager` | 169 | function | export | 1 |
+| `addConn` | 40 | arrow |  | 11 |
+| `delConn` | 48 | arrow |  | 11 |
+| `lbl` | 52 | arrow |  | 4 |
+| `createGraphUndoManager` | 130 | function | export | 1 |
 
-## web/src/nodes2/graph.ts（722 行）
+## web/src/nodes2/graph.ts（747 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `setChannelDisplayHandler` | 101 | function | export | 2 |
-| `getChannelDisplaySerial` | 106 | function | export | 1 |
-| `isProjectMode` | 111 | function | export | 2 |
-| `loadProjectGraph` | 123 | function | export | 2 |
-| `projectGraphSnapshot` | 160 | function | export | 2 |
-| `getNodeParamBindings` | 174 | function | export | 1 |
-| `listNodeParamBindings` | 181 | function | export | 1 |
-| `setNodeBindings` | 192 | function | export | 1 |
-| `setNodeErrors` | 208 | function | export | 1 |
-| `getNodeErrors` | 216 | function | export | 1 |
-| `displayChainConnectionIds` | 223 | function |  | 2 |
-| `buildGraph` | 243 | function |  | 2 |
-| `createReteGraph` | 402 | function | export | 1 |
+| `setChannelDisplayHandler` | 102 | function | export | 2 |
+| `getChannelDisplaySerial` | 107 | function | export | 1 |
+| `isNodeWired` | 113 | function | export | 1 |
+| `isProjectMode` | 121 | function | export | 2 |
+| `loadProjectGraph` | 133 | function | export | 2 |
+| `projectGraphSnapshot` | 170 | function | export | 2 |
+| `getNodeParamBindings` | 184 | function | export | 1 |
+| `listNodeParamBindings` | 191 | function | export | 1 |
+| `setNodeBindings` | 202 | function | export | 1 |
+| `setNodeErrors` | 218 | function | export | 1 |
+| `getNodeErrors` | 226 | function | export | 1 |
+| `displayChainConnectionIds` | 233 | function |  | 2 |
+| `buildGraph` | 253 | function |  | 2 |
+| `createReteGraph` | 427 | function | export | 1 |
 
 ## web/src/nodes2/groups.ts（32 行）
 
@@ -1357,11 +1363,18 @@
 | `RefRegistry` | 147 | class | export | 1 |
 | `makeRefRegistry` | 257 | function | export | 1 |
 
-## web/src/nodes2/undo.ts（135 行）
+## web/src/nodes2/undo.ts（125 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `createUndoManager` | 76 | function | export | 2 |
+| `createUndoManager` | 66 | function | export | 2 |
+
+## web/src/nodes2/waypoint-path.ts（42 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `segment` | 21 | function |  | 4 |
+| `waypointConnectionPath` | 29 | function | export | 1 |
 
 ## web/src/overview.ts（1332 行）
 

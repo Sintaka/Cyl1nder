@@ -7,7 +7,7 @@ import { ClassicPreset, NodeEditor } from "rete";
 import { AreaPlugin } from "rete-area-plugin";
 import { notifyNodeChanged } from "./NodeView";
 import { createUndoManager, type ConnectionRef, type UndoAction, type UndoManager } from "./undo";
-import { claimDotLabel, CylNode, log, makeDotNode } from "./graph-model";
+import { CylNode, log } from "./graph-model";
 import type { AreaExtra, ReteGraphHandlers, Schemes } from "./graph-model";
 
 /** Does an action contain a params edit (recursively through group children)?
@@ -101,45 +101,6 @@ export async function applyUndoAction(
       await addConn(action.after);
     }
     log(`${direction} reconnect ${lbl(action.before)} -> ${lbl(action.after)}`);
-  } else if (action.type === "dot-add") {
-    if (direction === "undo") {
-      // tear the dot back out: A->dot + dot->B removed, original A->B restored
-      await delConn({
-        source: action.connection.source,
-        sourceOutput: action.connection.sourceOutput,
-        target: action.nodeId,
-        targetInput: "in0",
-      });
-      await delConn({
-        source: action.nodeId,
-        sourceOutput: "out0",
-        target: action.connection.target,
-        targetInput: action.connection.targetInput,
-      });
-      await editor.removeNode(action.nodeId);
-      await addConn(action.connection);
-    } else {
-      // rebuild the dot at its stored position; label + sequence stay unique
-      await delConn(action.connection);
-      const dot = makeDotNode();
-      dot.label = action.nodeLabel;
-      claimDotLabel(action.nodeLabel);
-      await editor.addNode(dot);
-      if (area) await area.translate(dot.id, { x: action.x, y: action.y });
-      await addConn({
-        source: action.connection.source,
-        sourceOutput: action.connection.sourceOutput,
-        target: dot.id,
-        targetInput: "in0",
-      });
-      await addConn({
-        source: dot.id,
-        sourceOutput: "out0",
-        target: action.connection.target,
-        targetInput: action.connection.targetInput,
-      });
-    }
-    log(`${direction} dot-add ${action.nodeLabel} into ${lbl(action.connection)}`);
   } else if (action.type === "params") {
     const n = editor.getNode(action.nodeId) as CylNode | undefined;
     if (n) {

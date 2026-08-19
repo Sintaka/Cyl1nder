@@ -211,7 +211,7 @@ export function traceChainSpecs(
     return base ? { base, specs: [] } : null;
   }
 
-  if (node.kind === "null" || node.kind === "transform" || node.kind === "dot") {
+  if (node.kind === "null" || node.kind === "transform") {
     const up = findFeeder(snap, node.id, "in0");
     const upNode = up ? nodeById(snap, up.source) : undefined;
     if (!up || !upNode) return null;

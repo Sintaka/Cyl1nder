@@ -1,13 +1,14 @@
-﻿import { expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { BridgeClient } from "../src/bridge/client";
 
 /**
- * Round 18 (nodeview reconnect + dot + Esc + Delete write-set):
+ * Round 18 (nodeview reconnect + waypoint + Esc + Delete write-set):
  * 1. attachReconnect: grab an existing connection (pointerdown + drag >6px),
  *    preview re-route with dashed curves, release over another input port ->
  *    connection re-routed (bridge network recomputes via onNetworkChanged).
  * 2. Release over blank -> still grabbed (preview alive); ESC restores.
- * 3. Ctrl+click a connection -> _dot_ junction node spliced in (A->B split).
+ * 3. Alt+click a connection -> a waypoint (pure decoration on the connection
+ *    itself) appears; topology is untouched, so nothing is spliced.
  * 4. Dragging a new connection from a port then ESC -> no connection created.
  * 5. Delete removes selected node + its connections (no undo in v1).
  * Self-contained: beforeAll pushes the canonical fixture; afterAll restores it.
@@ -156,6 +157,29 @@ async function snapshot(page: Page): Promise<{
   });
 }
 
+/** Waypoints read straight off the editor's connections, resolved to node labels.
+ *  getNetworkSnapshot deliberately omits waypoint (that omission is what makes a
+ *  waypoint cook-neutral), so the snapshot above cannot be used to observe one. */
+async function waypoints(page: Page): Promise<
+  { x: number; y: number; sourceLabel: string; sourceOutput: string; targetLabel: string; targetInput: string }[]
+> {
+  return page.evaluate(() => {
+    const g: any = (window as any).__cylGraph;
+    const labelOf = (id: string) => g.editor.getNode(id)?.label ?? id;
+    return g.editor
+      .getConnections()
+      .filter((c: any) => c.waypoint)
+      .map((c: any) => ({
+        x: c.waypoint.x,
+        y: c.waypoint.y,
+        sourceLabel: labelOf(c.source),
+        sourceOutput: String(c.sourceOutput),
+        targetLabel: labelOf(c.target),
+        targetInput: String(c.targetInput),
+      }));
+  });
+}
+
 function hasConn(
   snap: { nodes: { id: string; label: string }[]; connections: { source: string; sourceOutput: string; target: string; targetInput: string }[] },
   srcLabel: string,
@@ -254,7 +278,7 @@ test("reconnect: release over blank stays grabbed (preview live), ESC restores",
   expect(snap.connections.length).toBe(3);
 });
 
-test("Ctrl+click on a connection splices a _dot_ junction node", async ({ page }) => {
+test("Alt+click on a connection produces a waypoint (topology untouched)", async ({ page }) => {
   await openGraph(page);
   await restoreGraph(page);
   await fitGraph(page);
@@ -262,26 +286,32 @@ test("Ctrl+click on a connection splices a _dot_ junction node", async ({ page }
   const mid = await connectionPoint(page, { srcLabel: "_input_", srcOut: "in1", tgtLabel: "_output_", tgtIn: "out1" });
   expect(mid).not.toBeNull();
 
-  await page.keyboard.down("Control");
+  await page.keyboard.down("Alt");
   await page.mouse.click(mid!.x, mid!.y);
-  await page.keyboard.up("Control");
+  await page.keyboard.up("Alt");
 
+  // waypoint lives on the CONNECTION, so it is read from the editor - it is
+  // deliberately absent from getNetworkSnapshot (that absence IS cook-neutrality).
   await expect
-    .poll(async () => {
-      const snap = await snapshot(page);
-      return snap.nodes.some((n) => n.kind === "dot" && /^_dot_\d+$/.test(n.label)) ? "ok" : "pending";
-    }, { timeout: 10000 })
+    .poll(async () => ((await waypoints(page)).length > 0 ? "ok" : "pending"), { timeout: 10000 })
     .toBe("ok");
 
+  const wps = await waypoints(page);
+  expect(wps.length).toBe(1);
+  expect(Number.isFinite(wps[0].x)).toBe(true);
+  expect(Number.isFinite(wps[0].y)).toBe(true);
+
+  // the waypoint sits on the very connection that was clicked
+  expect(wps[0].sourceLabel).toBe("_input_");
+  expect(wps[0].sourceOutput).toBe("in1");
+  expect(wps[0].targetLabel).toBe("_output_");
+  expect(wps[0].targetInput).toBe("out1");
+
   const snap = await snapshot(page);
-  const dot = snap.nodes.find((n) => n.kind === "dot");
-  expect(dot).toBeDefined();
-  expect(dot!.label).toMatch(/^_dot_\d+$/);
-  // original edge split into two through the dot
-  expect(hasConn(snap, "_input_", "in1", "_output_", "out1")).toBe(false);
-  expect(hasConn(snap, "_input_", "in1", dot!.label, "in0")).toBe(true);
-  expect(hasConn(snap, dot!.label, "out0", "_output_", "out1")).toBe(true);
-  expect(snap.connections.length).toBe(4); // 3 - 1 + 2
+  // nothing was spliced: same 3 connections, original edge still end-to-end
+  expect(snap.connections.length).toBe(3);
+  expect(hasConn(snap, "_input_", "in1", "_output_", "out1")).toBe(true);
+  expect(snap.nodes.some((n) => n.kind === "dot")).toBe(false);
 });
 
 test("drag a new connection from a port, press Esc -> nothing created", async ({ page }) => {

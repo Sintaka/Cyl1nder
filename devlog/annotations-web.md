@@ -176,7 +176,8 @@ enderer.refresh() 在 outputGroup 隐藏时不更新几何也不消费 rev（dis
 ### nodeview（rete 图）
 - **连线重连 ttachReconnect**：pointerdown 命中连线 + 拖 >6px → grabbed（松开鼠标仍保持）；预览 = 未接近端口两段流动虚线穿过鼠标、接近 input/output 端口一段虚线吸附；确认状态机——按住松开：接近→应用/空白→保持 grabbed；中途松开后点左键：接近→应用/空白→取消；Esc 取消。应用时按端口类型改 source 端或 target 端，阻止自连/同端口 no-op，替换已占用 input 并记录 prevConnection，push 
 econnect undo。
-- **Ctrl+点击连线插 _dot_N 直通节点**：makeDotNode（1 in/1 out、无 parms/flags、label _dot_N）、NodeView 渲染纯圆点（hover 显示全名、不可改名）、restoreGraph/调色板/network 直通都支持；undo dot-add（undo 移除 dot 恢复原边，redo 重建 + claimDotLabel 防重名；restore 也推进 seq）。
+- **Alt+点击连线生成 waypoint 圆点（v0.1.00118 起）**：dot 不再是节点，而是**连接上的可选属性** `ConnectionWaypoint{x,y}`；Alt+左键点线生成、Alt+拖动跟手、甩远 112px 删除。拓扑始终不变（连接恒为一条，不可能留半截线）、不参与 cook、不进 `getNetworkSnapshot`。渲染由 `ConnectionView.tsx` 自绘连线承担（rete 自带 path 写死两点，塞不进中点），圆点是排在连线 `<path>` **之后**的 `<circle class="cyl-wp-dot">` 且 `pointer-events:none`；颜色走兄弟选择器跟随线的类型类，未接类型为白色。
+  **历史（已删，勿复活）**：v0.1.00117 及以前是 `Ctrl+点击` 插入真 `_dot_N` 节点（`makeDotNode`/`dotSeq`/`claimDotLabel`/undo `dot-add`/`network.ts` passthrough 特例）。那套实现进拓扑、要 cook 特例、删掉留两截半线，与「dot 只是装饰符」的需求直接冲突，已在 v0.1.00118 全部移除。
 - **Esc 取消进行中操作**：graph.ts 窗口级 Esc → connection.drop()（取消 rete 连线绘制）+ cancelGraphInteractions()（重连 grab / 拖拽插入 / 调色板）。
 - **Delete/Backspace 删除选中节点**（含其连接；v1 无 undo，devlog 注明为未来工作）。
 - **地址栏 + 面板标题**：main.ts 把 graph 面板内容包成 .cyl-graph-shell（flex column），顶部 .cyl-graph-addr 显示 /<serial>/；面板 tab 标题同步为地址（无 serial 时 "Node Graph"）；base.css 补 shell/addr 样式。

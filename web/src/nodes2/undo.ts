@@ -41,16 +41,6 @@ export type UndoAction =
       before: ConnectionRef;
       after: ConnectionRef;
       prevConnection: ConnectionRef | null;
-    }
-  | {
-      /** Ctrl+click on a connection spliced a _dot_ junction node into it:
-       *  A->B becomes A->dot.in0 + dot.out0->B at (x, y). */
-      type: "dot-add";
-      nodeId: string;
-      nodeLabel: string;
-      connection: ConnectionRef;
-      x: number;
-      y: number;
     };
 
 export interface UndoManager {
