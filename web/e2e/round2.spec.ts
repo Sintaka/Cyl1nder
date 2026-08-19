@@ -280,6 +280,18 @@ test("Y cut: L-shaped polyline cuts a connection; Ctrl+Z undo / Ctrl+Y redo", as
   await restoreCanonicalGraph(page);
   const count = () => page.evaluate(() => (window as any).__cylGraph.editor.getConnections().length);
 
+  // **先把图缩放到面板内**：面板实测只有 443x249（底栏两行之后更矮），而规范图
+  // 按默认缩放铺得比它宽，于是所有采样点都落在可见框外 → spot 恒为 null。
+  // 这与 waypoint-verify 里那条「取线上的点之前必须先 fit」是同一个坑。
+  await page.evaluate(async () => {
+    const g = (window as never as {
+      __cylGraph: { area: { area: { zoom(k: number): Promise<unknown>; translate(x: number, y: number): Promise<unknown> } } };
+    }).__cylGraph;
+    await g.area.area.zoom(0.55);
+    await g.area.area.translate(40, 30);
+  });
+  await page.waitForTimeout(250);
+
   const spot = await page.evaluate(() => {
     const g: any = (window as any).__cylGraph;
     const box = document.querySelector(".cyl-graph")!.getBoundingClientRect();
@@ -288,7 +300,10 @@ test("Y cut: L-shaped polyline cuts a connection; Ctrl+Z undo / Ctrl+Y redo", as
       if (!path) continue;
       const len = path.getTotalLength();
       const ctm = path.getScreenCTM();
-      for (let t = len * 0.25; t <= len * 0.75; t += len / 30) {
+      if (!len || !ctm) continue;
+      // 全长扫描、步长更细（原来只扫中间一半、步长 len/30）。规范图的线又短又密，
+      // 加上下面 40px/24px 的边距守卫，只扫中段会导致**一个点都取不到**（spot=null）。
+      for (let t = 0; t <= len; t += Math.max(1, len / 120)) {
         const p = path.getPointAtLength(t);
         const sp = new DOMPoint(p.x, p.y).matrixTransform(ctm);
         // visible-box guard: the bottom bar now has two rows, so the graph panel
@@ -297,12 +312,23 @@ test("Y cut: L-shaped polyline cuts a connection; Ctrl+Z undo / Ctrl+Y redo", as
         if (sp.x < box.left + 40 || sp.x > box.right - 40) continue;
         if (sp.y < box.top + 24 || sp.y > box.bottom - 24) continue;
         const el = document.elementFromPoint(sp.x, sp.y);
-        if (el && !el.closest(".cyl-rp-node") && !el.closest("button")) return { x: sp.x, y: sp.y };
+        // 必须**真的命中连线本体**（`[data-testid="connection"]` 的后代 path）。
+        // 原判据只排除节点与按钮，于是「点在空白画布上」也会被当成有效切点——
+        // 那时 Y-click 自然一根线都切不到，表现为连接数不变。v0.1.00121 收紧：
+        // 图上多了灰色未接线端口与动态 null 端口之后，几何变了，这个漏洞才暴露出来。
+        if (el && el.closest('[data-testid="connection"]')) return { x: sp.x, y: sp.y };
       }
     }
     return null;
   });
-  expect(spot).not.toBeNull();
+  // spot=null 有好几种成因（无连线视图 / 线没渲染 / 被节点盖住 / 在可见框外），
+  // 所以把连接数与面板尺寸带进断言消息，失败时不用再靠猜。
+  const diag = await page.evaluate(() => {
+    const g = (window as never as { __cylGraph: { editor: { getConnections(): unknown[] } } }).__cylGraph;
+    const b = document.querySelector(".cyl-graph")?.getBoundingClientRect();
+    return `conns=${g.editor.getConnections().length} panel=${b ? `${Math.round(b.width)}x${Math.round(b.height)}` : "none"}`;
+  });
+  expect(spot, `no cuttable wire point — ${diag}`).not.toBeNull();
 
   const before = await count();
   // click-cut: holding Y, a plain click on a wire cuts the connection under the
