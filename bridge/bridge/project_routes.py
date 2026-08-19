@@ -1,7 +1,7 @@
 """吊牌 HDA 项目路由（项目 = 一个 hip 文件，见 devlog/protocol.md「项目 = hip 文件」）。
 
 - POST   /api/projects                         建项目（body {label?, hip?}）-> {ok, project}
-- GET    /api/projects                         项目列表（按 createdAt 升序）
+- GET    /api/projects                         项目列表（按 createdAt 升序；**列前先扫测试残留**）
 - GET    /api/projects/{projectId}             单项目
 - PATCH  /api/projects/{projectId}             改名（body {label}）-> {ok, project}
 - DELETE /api/projects/{projectId}             删项目（级联映射分区 + 项目图）-> {ok, removed}
@@ -18,6 +18,7 @@ main.py 由主进程挂载本 router（本文件不改 main.py）。
 from __future__ import annotations
 
 import asyncio
+import time
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -188,6 +189,116 @@ async def migrate_project_hip(pid: str, to_hip: str) -> dict:
     }
 
 
+# --- 测试残留项目的自动清理（用户需求：「除了 begintest2 其它都是残留的测试场景」）---
+#
+# 残留是怎么来的：`ensure` 在 hip 查不到时会**建一个 label=serial 的无 hip 项目**
+# （见 ensure_project 末尾那条兜底）。web/e2e 的 `projectForSerial()` 每个 spec 都会
+# 对合成 serial 调一次 ensureProject，而合成 serial 在 registry 里没有 hip，
+# 于是每跑一轮 e2e 就沉淀一批「hip 为空 + 单个占位成员」的项目。
+# 实测 13 个项目里 12 个是这么来的。
+#
+# 为什么不能复用 /cleanup（0 成员）：残留**恰好各有 1 个成员**，0 成员判据一个都抓不到。
+
+# 残留项目的保护期（秒）：更新时间在这个窗口内的一律不动。
+#
+# 这条不是保守起见，是**正确性必需**：新建项目（POST /api/projects）在成员加入之前，
+# 形态与残留完全一致（hip 空、label 空/序列号、成员是占位或没有）。没有年龄门，
+# 自动清理会把用户刚点「新建项目」的那个、以及 e2e 正在用的那个当场删掉
+# （round9 的 `/?project=&member=` 用例就是先 ensure 再打开页面，中间隔着导航）。
+RESIDUE_GRACE_S = 600.0
+
+
+def _is_placeholder_member(member: dict) -> bool:
+    """这个成员是 `member_ref_for` 的占位 ref，而不是真的通道成员吗？
+
+    真成员来自 `channels.list()`，必然带 nodePath 或非零 registeredAt
+    （`channels.register` 里 `rec["registeredAt"] = registered_at or now`，恒 > 0）。
+    占位 ref 则是 member_ref_for 末尾那个字面量：路径全空、两个时间戳都是 0。
+    """
+    if (member.get("nodePath") or "").strip():
+        return False
+    if (member.get("absolutePath") or "").strip():
+        return False
+    return not (member.get("registeredAt") or 0.0) and not (member.get("lastSeen") or 0.0)
+
+
+def is_residue_project(project: dict, registry=None, now: float | None = None) -> bool:
+    """这个项目是「测试残留」吗 —— 下列条件**全部**满足才算，缺一不可。
+
+    1. `hip` 为空：项目 = hip 文件（铁律/身份模型），没绑过文件的项目**不可能**是
+       用户在 Houdini 里开的场景。这一条就是护住真项目的那道墙：`beginTest-2.hip`
+       的 hip 非空，从第一条起就出局。
+    2. 成员非空且**全是**占位 ref：0 成员的壳交给 `/cleanup`（用户显式点按钮），
+       自动清理只碰「ensure 兜底合成出来的」那种。任何一个真通道成员 = 有真东西，
+       立刻保留。
+    3. label 没有人味：空串、或就是个序列号（C1-/P1- 尾巴）。用户改过名 = 有意图，
+       改过名的一律留着。
+    4. 更新时间早于保护期（见 RESIDUE_GRACE_S）。
+
+    第 5 条（作为 1 的独立复核）：任一成员在 registry 里有非空 hip -> 保留。
+    真项目的成员**也是**占位 ref（实测 `C1-msm6dsp7-ob6t` 的 nodePath 为空、
+    registeredAt 为 0），所以条件 2 对它没有保护作用；而它在 registry 里带着
+    `beginTest-2.hip`。这一条让「误删真项目」需要同时突破两道彼此独立的判据。
+    传 registry=None 时跳过（纯判据可单测）。
+    """
+    if (project.get("hip") or "").strip():
+        return False
+    members = list(project.get("members") or [])
+    if not members or not all(_is_placeholder_member(m) for m in members):
+        return False
+    label = (project.get("label") or "").strip()
+    if label and not (is_valid_serial(label) or is_valid_project_serial(label)):
+        return False
+    stamp = max(float(project.get("updatedAt") or 0.0), float(project.get("createdAt") or 0.0))
+    if (now if now is not None else time.time()) - stamp < RESIDUE_GRACE_S:
+        return False
+    if registry is not None:
+        for m in members:
+            serial = _member_probe_serial(m)
+            if not serial:
+                continue
+            rec = registry.get(serial)
+            if rec is not None and (getattr(rec, "hip", "") or "").strip():
+                return False   # registry 说这个成员有真 hip -> 不是残留
+    return True
+
+
+def sweep_residue_projects() -> list[str]:
+    """删掉所有残留项目 -> 被删的 pid 列表。级联与 DELETE 完全一致。
+
+    best-effort：单个删除抛异常只吞掉（照 `_cascade_delete` 的先例——清理绝不能
+    把调用方（项目列表）搞挂）。每次真删都埋 trace：自动删除用户可见记录这件事
+    必须留痕，否则「我的项目怎么没了」无从追查。
+    """
+    st = get_state()
+    registry = getattr(st, "registry", None)
+    now = time.time()
+    removed: list[str] = []
+    for project in st.projects.list():
+        pid = project.get("projectSerial") or ""
+        if not pid or not is_residue_project(project, registry, now):
+            continue
+        try:
+            hip = (st.projects.get(pid) or {}).get("hip") or ""   # 同 DELETE：删记录前取 hip
+            if st.projects.delete(pid):
+                _cascade_delete(pid, hip)
+                removed.append(pid)
+                st.trace.add(
+                    actor="bridge",
+                    action="register",
+                    channel=pid,
+                    target="residue-sweep",
+                    digest=(
+                        f"auto-removed residue project {pid} "
+                        f"(label={project.get('label') or '(empty)'}, no hip, "
+                        f"{len(project.get('members') or [])} placeholder member(s))"
+                    ),
+                )
+        except Exception:  # noqa: BLE001 - 清理失败绝不能让项目列表挂掉
+            pass
+    return removed
+
+
 def is_transient_hip(hip: str) -> bool:
     """这个 hip 是「用户没选过的临时文件」吗？—— 是则不许触发另存为换绑。
 
@@ -311,6 +422,19 @@ async def create_project(body: ProjectCreateBody) -> dict:
 
 @router.get("/api/projects")
 async def list_projects() -> dict:
+    """项目列表（按 createdAt 升序）；**列之前先扫掉测试残留**（见 is_residue_project）。
+
+    为什么挂在这个 GET 上（而不是心跳/cook 侧）：用户的抱怨是「打开列表看到一堆垃圾」，
+    而这里是所有 UI（overview 项目区、nodeview 项目根、e2e）取项目的唯一入口——
+    在此扫，残留就再也没机会露面，且不依赖 Houdini 是否开着（挂在 cook 路径上的话，
+    Houdini 关着时列表永远是脏的）。
+
+    代价与取舍要说明白：GET 因此**有副作用**。可接受的理由是判据只读内存里的项目表
+    （项目数量级个位数到几十）、稳态下一个都不匹配时零写入，且删除是幂等的
+    （删完再列还是同一份结果）。RESIDUE_GRACE_S 的年龄门保证「刚新建/正在用」的项目
+    绝不会被这条读路径吃掉。
+    """
+    sweep_residue_projects()
     return {"projects": get_state().projects.list()}
 
 

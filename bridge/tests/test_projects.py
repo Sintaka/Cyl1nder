@@ -1115,6 +1115,238 @@ def test_ensure_moves_stale_param_member_when_target_hip_has_owner(tmp_path: Pat
     assert [m["serial"] for m in c.get(f"/api/projects/{owner}").json()["project"]["members"]] == [s]
 
 
+# --- 测试残留项目的自动清理（用户需求：「除了 begintest2 其它都是残留的测试场景」）---
+#
+# 实测背景（GET /api/projects 返回 13 个，只有 1 个是真的）：`ensure` 在 hip 查不到时
+# 会兜底建一个 label=serial 的无 hip 项目，而 web/e2e 的 projectForSerial() 每个 spec
+# 都对合成 serial 调一次 ensureProject —— 于是每跑一轮 e2e 沉淀一批残留。
+# 残留恰好各有 1 个成员，所以 /cleanup（0 成员）一个都抓不到。
+
+
+def _residue(label: str = "", *, serial: str = "", age_s: float = 10_000.0) -> dict:
+    """造一个残留项目记录：无 hip + 单个占位成员（照 member_ref_for 的兜底字面量）。"""
+    s = serial or generate_serial()
+    now = time.time() - age_s
+    return {
+        "projectSerial": generate_project_serial(),
+        "label": label or s,
+        "hip": "",
+        "hipName": "",
+        "createdAt": now,
+        "updatedAt": now,
+        "migratedAt": 0.0,
+        "previousHip": "",
+        "members": [
+            {"kind": "hda", "serial": s, "nodePath": "", "absolutePath": None,
+             "hip": "", "label": s, "registeredAt": 0.0, "lastSeen": 0.0},
+        ],
+    }
+
+
+def test_is_residue_project_matches_the_real_e2e_residue_shape() -> None:
+    """逐字照实测残留（bridge/data/projects.json 里那 12 个）的形状判定。"""
+    from bridge.project_routes import is_residue_project
+
+    assert is_residue_project(_residue(label="C1-e2etest9999-zzzz", serial="C1-e2etest9999-zzzz")) is True
+    assert is_residue_project(_residue(label="C1-e2eround9-0001", serial="C1-e2eround9-0001")) is True
+    assert is_residue_project(_residue(label="")) is True            # label 空也算没人味
+
+
+def test_is_residue_project_never_touches_a_hip_bound_project() -> None:
+    """**最重要的安全性质**：绑了 hip 的项目永远不是残留 —— 这就是护住用户真项目的墙。
+
+    实测真项目 `P1-mszw0wfu-d3u3` 的成员**也是**占位 ref（nodePath 空、registeredAt 0），
+    所以只有 hip 这一条能把它与残留区分开。这里刻意用「除 hip 外样样像残留」的记录：
+    label 是序列号、成员是占位、年龄够老 —— 只要 hip 非空就必须存活。
+    """
+    from bridge.project_routes import is_residue_project
+
+    real = _residue(label="C1-msm6dsp7-ob6t", serial="C1-msm6dsp7-ob6t")
+    real["hip"] = "D:/Animation_Project/Houdini/Test/Cyl1nder/dev/beginTest-1/beginTest-2.hip"
+    real["hipName"] = "beginTest-2.hip"
+    real["members"][0]["hip"] = real["hip"]
+    assert is_residue_project(real) is False
+
+
+def test_is_residue_project_requires_all_conditions() -> None:
+    """四条判据各自都能单独保命（少任何一条都不算残留）。"""
+    from bridge.project_routes import is_residue_project
+
+    # 有人味的 label（用户改过名）-> 留
+    assert is_residue_project(_residue(label="我的场景")) is False
+    # 0 成员 -> 不是自动清理的活儿（交给 /cleanup 按钮）
+    shell = _residue()
+    shell["members"] = []
+    assert is_residue_project(shell) is False
+    # 有真通道成员（nodePath 非空）-> 有真东西，留
+    with_node = _residue()
+    with_node["members"][0]["nodePath"] = "/obj/geo1/tag1"
+    assert is_residue_project(with_node) is False
+    # 有真通道成员（registeredAt 非零：channels.register 恒 > 0）-> 留
+    registered = _residue()
+    registered["members"][0]["registeredAt"] = 1787132737.0
+    assert is_residue_project(registered) is False
+    # param 成员（absolutePath 非空）-> 留
+    param = _residue()
+    param["members"][0]["absolutePath"] = "/obj/geo1/transform1/tx"
+    assert is_residue_project(param) is False
+
+
+def test_is_residue_project_grace_period_protects_fresh_projects() -> None:
+    """保护期不是保守起见，是正确性必需：新建项目在成员加入前形态与残留一致。
+
+    没有年龄门，自动清理会把用户刚点「新建项目」的那个、以及 e2e 正在用的那个
+    （round9 先 ensure 再导航，中间隔着一次页面加载）当场删掉。
+    """
+    from bridge.project_routes import RESIDUE_GRACE_S, is_residue_project
+
+    assert is_residue_project(_residue(age_s=1.0)) is False
+    assert is_residue_project(_residue(age_s=RESIDUE_GRACE_S - 1.0)) is False
+    assert is_residue_project(_residue(age_s=RESIDUE_GRACE_S + 1.0)) is True
+    # 只有 updatedAt 新（刚被动过）也算新鲜：取 createdAt/updatedAt 的较大者
+    touched = _residue(age_s=10_000.0)
+    touched["updatedAt"] = time.time()
+    assert is_residue_project(touched) is False
+
+
+def test_is_residue_project_registry_hip_is_an_independent_guard(tmp_path: Path) -> None:
+    """第二道独立判据：成员在 registry 里有非空 hip -> 保留（哪怕项目那栏是空的）。
+
+    真项目的成员在 registry 里带着 `beginTest-2.hip`（HDA cook 时自报），所以
+    「误删真项目」需要同时突破 hip 与 registry 两道彼此独立的墙。
+    """
+    from bridge.project_routes import is_residue_project
+
+    reset_state(tmp_path / "data")
+    st = get_state()
+    s = generate_serial()
+    st.registry.register(s, hip="D:/proj/beginTest-2.hip", nodePath="/obj/test/Cyl1nder1", label="Cyl1nder1")
+    rec = _residue(serial=s)
+    assert is_residue_project(rec, None) is True          # 不看 registry 时算残留
+    assert is_residue_project(rec, st.registry) is False  # 看了 registry -> 保命
+
+
+def test_list_projects_sweeps_residue_and_keeps_the_real_one(tmp_path: Path) -> None:
+    """端到端复现用户的实测局面：13 个项目里 12 个残留 -> 列表只剩真的那个。
+
+    如果这个用例把 `beginTest-2.hip` 那个删了，就是灾难性失败（用户的真项目）。
+    """
+    c = _client(tmp_path)
+    st = get_state()
+    st.mappings = _FakeMappings()
+    real_serial = generate_serial()
+    hip = "D:/Animation_Project/Houdini/Test/Cyl1nder/dev/beginTest-1/beginTest-2.hip"
+    st.registry.register(real_serial, hip=hip, nodePath="/obj/test/Cyl1nder1", label="Cyl1nder1")
+    real = st.projects.ensure_for_hip(hip)[0]["projectSerial"]
+    st.projects.add_member(real, {
+        "kind": "hda", "serial": real_serial, "nodePath": "", "absolutePath": None,
+        "hip": hip, "label": real_serial, "registeredAt": 0.0, "lastSeen": 0.0,
+    })
+    # 12 个残留：照实测形状（无 hip、label=serial、单个占位成员），年龄足够老
+    old = time.time() - 10_000.0
+    for _ in range(12):
+        s = generate_serial()
+        pid = st.projects.create(label=s)["projectSerial"]
+        st.projects.add_member(pid, {
+            "kind": "hda", "serial": s, "nodePath": "", "absolutePath": None,
+            "hip": "", "label": s, "registeredAt": 0.0, "lastSeen": 0.0,
+        })
+        rec = st.projects.get(pid)
+        st.projects._records[pid]["createdAt"] = old   # 直接改内存：造「上次跑 e2e 留下的」
+        st.projects._records[pid]["updatedAt"] = old
+        assert rec is not None
+    assert len(st.projects.list()) == 13
+
+    projects = c.get("/api/projects").json()["projects"]
+    assert [p["projectSerial"] for p in projects] == [real], "只应剩真项目"
+    assert projects[0]["hipName"] == "beginTest-2.hip"
+    assert len(projects[0]["members"]) == 1
+    # 级联同 DELETE：映射分区一并清掉
+    assert len(st.mappings.dropped) == 12
+
+
+def test_list_projects_keeps_fresh_and_named_and_empty_projects(tmp_path: Path) -> None:
+    """自动清理的三类「不许碰」：刚新建的、改过名的、0 成员的壳。"""
+    c = _client(tmp_path)
+    st = get_state()
+    fresh = c.post("/api/projects", json={}).json()["project"]["projectSerial"]   # 刚建，成员都还没加
+    shell = st.projects.create(label="")["projectSerial"]                          # 0 成员壳
+    st.projects._records[shell]["createdAt"] = time.time() - 10_000.0              # 老，但仍是壳
+    st.projects._records[shell]["updatedAt"] = time.time() - 10_000.0
+    named = st.projects.create(label="我的场景")["projectSerial"]                  # 改过名
+    s = generate_serial()
+    st.projects.add_member(named, {
+        "kind": "hda", "serial": s, "nodePath": "", "absolutePath": None,
+        "hip": "", "label": s, "registeredAt": 0.0, "lastSeen": 0.0,
+    })
+    st.projects._records[named]["createdAt"] = time.time() - 10_000.0
+    st.projects._records[named]["updatedAt"] = time.time() - 10_000.0
+
+    got = {p["projectSerial"] for p in c.get("/api/projects").json()["projects"]}
+    assert got == {fresh, shell, named}
+
+
+def test_list_projects_is_idempotent_and_noop_when_clean(tmp_path: Path) -> None:
+    """稳态（没有残留）时 list 不写任何东西；连列两次结果一致。"""
+    c = _client(tmp_path)
+    st = get_state()
+    hip = "D:/proj/beginTest-2.hip"
+    st.registry.register(generate_serial(), hip=hip, nodePath="/obj/x", label="x")
+    pid = st.projects.ensure_for_hip(hip)[0]["projectSerial"]
+    first = c.get("/api/projects").json()["projects"]
+    second = c.get("/api/projects").json()["projects"]
+    assert [p["projectSerial"] for p in first] == [pid]
+    assert [p["projectSerial"] for p in second] == [pid]
+    assert first[0]["updatedAt"] == second[0]["updatedAt"]   # 没被动过
+
+
+def test_sweep_residue_traces_every_removal(tmp_path: Path) -> None:
+    """自动删用户可见记录必须留痕，否则「我的项目怎么没了」无从追查。"""
+    from bridge.project_routes import sweep_residue_projects
+
+    _client(tmp_path)
+    st = get_state()
+    s = generate_serial()
+    pid = st.projects.create(label=s)["projectSerial"]
+    st.projects.add_member(pid, {
+        "kind": "hda", "serial": s, "nodePath": "", "absolutePath": None,
+        "hip": "", "label": s, "registeredAt": 0.0, "lastSeen": 0.0,
+    })
+    st.projects._records[pid]["createdAt"] = time.time() - 10_000.0
+    st.projects._records[pid]["updatedAt"] = time.time() - 10_000.0
+
+    assert sweep_residue_projects() == [pid]
+    events = [e for e in st.trace.list(actor="bridge") if e["target"] == "residue-sweep"]
+    assert len(events) == 1
+    assert events[0]["channel"] == pid
+    assert pid in events[0]["digest"]
+
+
+def test_sweep_survives_a_broken_cascade(tmp_path: Path) -> None:
+    """级联炸了也不能让项目列表挂掉（照 _cascade_delete 的先例）。"""
+    import bridge.project_routes as pr
+
+    c = _client(tmp_path)
+    st = get_state()
+    s = generate_serial()
+    pid = st.projects.create(label=s)["projectSerial"]
+    st.projects.add_member(pid, {
+        "kind": "hda", "serial": s, "nodePath": "", "absolutePath": None,
+        "hip": "", "label": s, "registeredAt": 0.0, "lastSeen": 0.0,
+    })
+    st.projects._records[pid]["createdAt"] = time.time() - 10_000.0
+    st.projects._records[pid]["updatedAt"] = time.time() - 10_000.0
+
+    class _Boom:
+        def drop_project(self, project: str) -> bool:
+            raise RuntimeError("mappings exploded")
+
+    st.mappings = _Boom()
+    r = c.get("/api/projects")
+    assert r.status_code == 200          # 列表照常可用
+    assert r.json()["projects"] == []    # 记录还是删掉了（级联失败不阻断删除）
+
+
 def test_ensure_with_changed_hip_migrates_instead_of_duplicating(tmp_path: Path, monkeypatch) -> None:
     """另存为后 ensure 报新 hip：换绑旧项目，而不是并出第二个项目。"""
     c = _client(tmp_path)
