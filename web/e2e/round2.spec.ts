@@ -63,6 +63,18 @@ async function openGraph(page: import("@playwright/test").Page): Promise<void> {
   await gotoMember(page, serial);
   await expect(page.locator(".cyl-graph .cyl-rp-title").first()).toBeVisible({ timeout: 15000 });
   await expect(page.locator(".cyl-status")).toHaveClass(/ok/, { timeout: 15000 });
+  // 夹具卫生：本文件有三个用例会切到 Spreadsheet / Params 面板且**从不切回来**
+  // （123 / 141 / 242 行），而 dockview 的布局是跨用例持久化的。于是「Y cut」这种
+  // 靠 elementFromPoint 命中连线的用例，会在图面板被盖住的情况下跑——线没渲染，
+  // 自然一根都切不到，表现为连接数不变（曾被误读成"偶发 7≠6"）。
+  // 所以每个用例开场都显式把 Graph 页签切回前台，让每个用例从同一个可见状态起跑。
+  // 用**面板 id** 而不是页签文字：页签标题会被 syncSerialInAddress 改成地址
+  // （`/P1-…/C1-…/`），拿 "Node Graph" 去匹配匹配不到。id "graph" 是稳定的。
+  await page.evaluate(() => {
+    const dv = (window as never as { __cylDv?: { api?: { getPanel?(id: string): { api: { setActive(): void } } | undefined } } }).__cylDv;
+    dv?.api?.getPanel?.("graph")?.api.setActive();
+  });
+  await expect(page.locator(".cyl-graph")).toBeVisible({ timeout: 15000 });
 }
 
 /** Restore the canonical 7-connection graph in-browser (ignores whatever the disk snapshot holds). */

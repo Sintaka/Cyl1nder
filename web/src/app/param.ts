@@ -9,10 +9,15 @@
  * (float/int/vector/color3/string/class) to param.default or a type fallback.
  * P5b channel reference（可选 bindCtx 第 4 参）：参数行 ⛓ 链接按钮（未绑定灰 / 已绑定绿），
  * 弹出当前 serial 的 param 通道列表完成绑定；已绑定点击直接解除。不传 bindCtx 行为与旧版完全一致。
+ * #5/#6（v0.1.00121）：参数右键引用菜单（复制 / 粘贴相对 / 粘贴绝对）+ transform 的
+ * tx/ty/tz 合成一行 vec3（行首 `T`）。两条需求共用同一套引用寻址，见下方「参数引用菜单」块。
  * Pure DOM string rendering - no framework.
  */
 
 import { attachScrub, format4 } from "./scrub";
+// parseParamRef 是 #4/#5/#6 共用的**唯一**引用解析器（web/src/nodes2/param-ref.ts）——
+// 本面板不另写一套「什么算合法地址」，只调它。
+import { parseParamRef } from "../nodes2/param-ref";
 import { openColorPicker, rgbToHex, hexToRgb, fitInViewport, type RGB } from "./color";
 // PORT_PARAM 是跨写集契约（graph-model 序列化 / 本面板渲染下拉 / capabilities 回写
 // 三处必须逐字一致）——**import 而不是重打一遍字面量**，拼错的可能性直接归零。
@@ -340,6 +345,86 @@ function repaint(
   if (sel.value !== current) sel.value = current; // 防浏览器把 selected 落在别处
 }
 
+// ---------------------------------------------------------------------------
+// vec3 成组（#6）：transform 的 tx/ty/tz 合成**一行**，行首标 `T`
+//
+// 用户要求：「三个 float 应该包含在一行, 前面是 T」，且「右键 tx 的输入框复制的是 tx
+// 而不是 translate，右键那个 T 才是 vec3」。所以这是**纯显示层成组**：
+//
+//   - 底层 params 仍是三个独立 float（graph-model 的 makeTransformNode 一个字没动，
+//     那是别人的写集）。成组只改 DOM 形状，不改数据形状 —— 于是序列化、undo、
+//     chain-cache 的 tx/ty/tz 快路径、gizmo 的 readParamFloats 全部零影响。
+//   - 每个分量**仍是自己的 `<input data-name="tx">`**。这一条是硬约束：8 个 e2e spec
+//     用 `.cyl-param-table input[data-name="tx"]` 这个**后代选择器** + `.fill()` 驱动
+//     （round2/7/12/15/19 等）。它们不关心中间套了几层 td/span，只要那个 input 还在表里
+//     带着同名 data-name 就照常工作。把三个 float 塞进一个 text 框（"x,y,z" 形式）会
+//     一次性打断这 8 个 spec，收益是零。
+//
+// 组名 `t` 而非 `translate`：映射系统的约定是「vec3 无分量后缀、float 带后缀」
+// （devlog/project-mapping-design.md:81「有后缀 → float，无后缀 → vec3」），
+// tx/ty/tz 的公共前缀就是 `t`，所以 vec3 地址 = `transform1/t`、分量 = `transform1/tx`。
+// 显示标签用大写 `T`（用户原话「前面是 T」），机器标识仍是小写 `t`。
+// ---------------------------------------------------------------------------
+
+/** 一个 vec3 组：机器名（`t`）、显示标签（`T`）、按 x/y/z 顺序的三个分量参数名。 */
+export interface VecGroup {
+  name: string;
+  label: string;
+  members: [string, string, string];
+}
+
+/** 按 kind 声明哪些参数要成组。**只有 transform 的 t**：用户只要求包 t，
+ *  px/py/pz（pivot）保持散开 —— 没被要求的事不顺手做，改了就得连带改 gizmo 的读法。 */
+const VEC_GROUPS: Record<string, readonly VecGroup[]> = {
+  transform: [{ name: "t", label: "T", members: ["tx", "ty", "tz"] }],
+};
+
+/**
+ * 决定这个面板要不要成组，以及成组成什么样（**纯函数**，可直接单测）。
+ *
+ * 只有三个分量**全部存在且全是 float** 才成组。缺一个（旧图 / 别的 kind 复用了 tx 名）
+ * 就退回三行散开：宁可显示得朴素，也不要渲染出一个只有两格的"vec3"骗人。
+ */
+export function planVecGroups(info: ParamPanelInfo): VecGroup[] {
+  const declared = VEC_GROUPS[info.kind ?? ""] ?? [];
+  const byName = new Map(info.params.map((p) => [p.name, p]));
+  return declared.filter((g) =>
+    g.members.every((m) => {
+      const p = byName.get(m);
+      return !!p && (p.type === "float" || p.type === "int");
+    }),
+  );
+}
+
+/**
+ * 面板的行计划：每行要么是一个普通参数，要么是一个 vec3 组（**纯函数**，可直接单测）。
+ *
+ * 组行的位置 = 其**首个分量原来的位置**（transform 里就是 px/py/pz 之后），
+ * 其余分量从流里摘掉。这样行序仍是用户熟悉的顺序，而不是把组一律甩到表尾。
+ */
+export type ParamRow = { kind: "param"; param: ParamInfo } | { kind: "vec"; group: VecGroup; params: ParamInfo[] };
+
+export function planParamRows(info: ParamPanelInfo): ParamRow[] {
+  const groups = planVecGroups(info);
+  // 分量名 → 它属于哪个组；用于「首个分量出组行、其余跳过」
+  const memberOf = new Map<string, VecGroup>();
+  for (const g of groups) for (const m of g.members) memberOf.set(m, g);
+  const byName = new Map(info.params.map((p) => [p.name, p]));
+  const rows: ParamRow[] = [];
+  const emitted = new Set<string>();
+  for (const p of info.params) {
+    const g = memberOf.get(p.name);
+    if (!g) {
+      rows.push({ kind: "param", param: p });
+      continue;
+    }
+    if (emitted.has(g.name)) continue; // 该组的行已经出过（当前是第 2/3 个分量）
+    emitted.add(g.name);
+    rows.push({ kind: "vec", group: g, params: g.members.map((m) => byName.get(m)!) });
+  }
+  return rows;
+}
+
 /** Default value for a param: explicit `default` first, then a type fallback. */
 export function paramDefault(p: ParamInfo): unknown {
   if (p.default !== undefined) return p.default;
@@ -348,6 +433,247 @@ export function paramDefault(p: ParamInfo): unknown {
   if (p.type.startsWith("vector")) return [0, 0, 0];
   if (p.type === "string" && p.name === "class") return "autoguess";
   return "";
+}
+
+// ---------------------------------------------------------------------------
+// 参数引用菜单（#5）：右键一个 parm → 复制当前 param / 粘贴相对参考地址 / 粘贴绝对地址
+//
+// 用户原话：「我如果右键一个 parm, 出现复制当前 param, 粘贴相对参考 param 地址,
+// 粘贴绝对 param 地址 三个选项」。设计对齐 Houdini 的 RMB Copy/Paste reference
+// （devlog/tag-hda-plan.md:82 已把它记为 P5b 的设计参考）。
+//
+// ## 剪贴板为什么是模块级结构体，而不是系统剪贴板
+//
+// 复制的不只是一串文本，还有「它是 float 还是 vec3」「它的绝对形式是什么」——
+// 粘贴到 tx 时要据此决定补不补 `.x`。系统剪贴板只能存文本，读还是异步 + 权限门，
+// 在 node 环境的 vitest 里根本不存在。所以**结构化状态留在模块里**，同时
+// best-effort 往系统剪贴板写一份文本（用户想粘到别处/发给别人时有东西可粘），
+// 写失败静默忽略：那只是附加便利，不是本功能的通路。
+//
+// ## 相对 vs 绝对
+//
+// - **相对**（`transform1/t`）：映射系统的原生形态。桥侧 `rel` 就是「相对**吊牌所在
+//   网络**的地址」（devlog/protocol.md:61），capabilities 给吊牌端口的 key 也正是这种
+//   逻辑名（`transform1/tx`）。所以相对形式**不带 `../`**：它相对的是网络，不是节点。
+// - **绝对**（`/obj/geo1/transform1/t`）：完整 Houdini 路径。只有在能拿到网络前缀时
+//   才给得出——见 absoluteAddress 的两个来源。拿不到就把该菜单项**禁用并写明原因**，
+//   绝不拼一个半截路径出去（半截路径会被当成合法输入存进图里，之后无声失效）。
+// ---------------------------------------------------------------------------
+
+/** 一次「复制当前 param」的产物。`kind` 决定粘到 float 槽时补不补分量后缀。 */
+export interface ParamRefClip {
+  /** 相对地址（`transform1/t` / `transform1/tx`）。 */
+  relative: string;
+  /** 绝对地址（`/obj/geo1/transform1/tx`）；拿不到网络前缀时 null。 */
+  absolute: string | null;
+  /** 被复制的是整个 vec3 还是单个 float。 */
+  kind: "float" | "vec3";
+  /** 源参数显示名（菜单文案回显用，如 `T` / `tx`）。 */
+  label: string;
+}
+
+/** 引用上下文（renderParams 第 5 参，可选）。不传时：复制照常可用（相对形式不需要它），
+ *  绝对形式因拿不到 netPath 而禁用，粘贴则退到 bindCtx 通路（见 resolvePasteSink）；
+ *  每种降级的原因都写进菜单项 title，不静默。 */
+export interface ParamRefCtx {
+  /** 本节点所在的 Houdini 网络绝对路径（如 `/obj/geo1`），用于拼绝对地址。空/缺省 =
+   *  未知 → 绝对相关菜单项禁用（而不是拼半截路径）。 */
+  netPath?: string;
+  /** 本节点标签（如 `transform1`）：相对地址的第一段。缺省时退回 info.label。 */
+  nodeLabel?: string;
+  /** 粘贴落地。**这是引用真正被持久化的地方**；不传则粘贴项禁用并说明原因。 */
+  onPasteRef?: (target: ParamRefTarget, ref: ParamRefClip, form: "relative" | "absolute") => void;
+}
+
+/** 粘贴目标：哪个参数、它是 float 还是 vec3、若是 vec3 分量则它是第几个。 */
+export interface ParamRefTarget {
+  /** 参数名（`tx`）或组名（`t`）。 */
+  name: string;
+  kind: "float" | "vec3";
+  /** vec3 组的三个分量参数名（kind==="vec3" 时有值），供落地方逐分量写入。 */
+  members?: string[];
+  /** 该参数在其 vec3 组里的下标（0=x）；不属于任何组时 null。 */
+  componentIndex: number | null;
+}
+
+/** 复制时的当前剪贴板（模块级单例：面板重渲染 / 切换选中都不该清空它——
+ *  跨节点粘贴正是这个功能的主要用途）。 */
+let refClip: ParamRefClip | null = null;
+
+/** 测试与调试用：读当前剪贴板（不导出 setter，写入只经 copyParamRef 一条路）。 */
+export function currentParamRefClip(): ParamRefClip | null {
+  return refClip;
+}
+
+/**
+ * 拼相对地址：`<节点标签>/<参数或组名>`（**不带 `../`**，见上方块）。
+ *
+ * 节点标签缺失（未命名节点）时返回裸参数名：那仍是一个合法的相对地址（同网络内
+ * 同名参数），比拼出 `undefined/tx` 诚实。
+ */
+export function relativeAddress(nodeLabel: string | null | undefined, member: string): string {
+  const label = (nodeLabel ?? "").trim();
+  return label ? `${label}/${member}` : member;
+}
+
+/**
+ * 拼绝对地址：`<网络路径>/<相对地址>`。
+ *
+ * `netPath` 空 → null（调用方据此禁用菜单项）。末尾斜杠归一，避免 `/obj/geo1//transform1/tx`。
+ */
+export function absoluteAddress(netPath: string | null | undefined, relative: string): string | null {
+  const base = (netPath ?? "").trim().replace(/\/+$/, "");
+  if (!base) return null;
+  return `${base}/${relative}`;
+}
+
+/**
+ * 把剪贴板里的引用**适配到粘贴目标**（纯函数，可直接单测）。
+ *
+ * 四种组合，只有一种要改写地址：
+ *   - float → float：原样（`transform1/tx` 进 tx）。**这就是验收用例**「拿 transform
+ *     节点去修改映射通道的那个 tx」走的那条路。
+ *   - vec3 → vec3：原样（整个 vec3 跟整个 vec3）。
+ *   - vec3 → float：**补目标自己的分量后缀**。右键 T 复制得到 `transform1/t`，粘到 ty
+ *     应该是 `transform1/t.y` —— 分量取**目标的**下标，不是源的。
+ *   - float → vec3：拒绝（返回 null + 原因）。一个标量填不满三个分量，Houdini 会把同一
+ *     引用复制进三格，但那在这里是歧义操作（用户到底想 (v,v,v) 还是只改 x？），
+ *     宁可禁用并说明，也不要猜。
+ */
+export function adaptRefToTarget(
+  clip: ParamRefClip,
+  target: ParamRefTarget,
+  form: "relative" | "absolute",
+): { ok: true; expression: string } | { ok: false; reason: string } {
+  const base = form === "absolute" ? clip.absolute : clip.relative;
+  if (!base) return { ok: false, reason: "该引用没有绝对地址（网络路径未知）" };
+  if (clip.kind === "float" && target.kind === "vec3") {
+    return { ok: false, reason: `「${clip.label}」是单个 float，填不满 vec3 的三个分量` };
+  }
+  if (clip.kind === "vec3" && target.kind === "float") {
+    const idx = target.componentIndex ?? 0;
+    const letter = "xyzw"[idx] ?? "x";
+    return { ok: true, expression: `${base}.${letter}` };
+  }
+  return { ok: true, expression: base };
+}
+
+/**
+ * 粘贴「落地」到哪条通路（**纯函数**，可直接单测）。
+ *
+ * 引用要能持久化才算粘贴成功。今天仓库里只有**一条**已接线的引用落地通路：P5b 的
+ * `bindings`（paramName → 通道 **absolutePath**），main.ts 已经装配好 bindCtx.onBind。
+ * 于是三种情况：
+ *
+ *   - `"paste-ref"`：refCtx.onPasteRef 已接线 → 走它（最完整，相对/绝对都能存）。
+ *   - `"bind"`：没接 onPasteRef，但这次粘贴**恰好等价于一条 P5b 绑定** → 走 onBind。
+ *     等价的条件很窄，三条全中才算：
+ *       1. 绝对形式（bindings 存的就是 absolutePath，相对地址放进去会被 PUT 成
+ *          一个不存在的 Houdini 路径）；
+ *       2. 目标是单个 float（bindings 一个键一个参数，vec3 三分量不是一次 onBind 能表达的）；
+ *       3. 表达式**不带分量后缀**（`/obj/geo1/transform1/tx` 是真 parm 路径；
+ *          `…/t.x` 不是——分量形式只对 apex 控制器成立，见 annotations-bridge.md:163）。
+ *     这一条正是验收用例「拿 transform 节点去修改映射通道的那个 tx」：float → float
+ *     的绝对粘贴，今天就能落地。
+ *   - `null`：没有可用通路 → 菜单项禁用 + 写明原因（绝不假装粘上了）。
+ *
+ * **相对形式为什么不降级成绝对再走 bind**：那会静默丢掉相对引用的全部意义（跟随改名 /
+ * 复制子网指向副本自己）。用户要的是相对引用，给他一条绝对绑定却告诉他"粘好了"，
+ * 是最坏的一种"成功"。
+ */
+export function resolvePasteSink(
+  target: ParamRefTarget,
+  form: "relative" | "absolute",
+  expression: string,
+  has: { onPasteRef: boolean; onBind: boolean },
+): "paste-ref" | "bind" | null {
+  if (has.onPasteRef) return "paste-ref";
+  if (!has.onBind) return null;
+  if (form !== "absolute") return null;
+  if (target.kind !== "float") return null;
+  const parsed = parseParamRef(expression);
+  if (!parsed.ok || parsed.components.length > 0) return null;
+  return "bind";
+}
+
+/** 落地通路缺失时的禁用原因（分开写：用户/装配者能做的事不同）。 */
+export function pasteDisabledReason(target: ParamRefTarget, form: "relative" | "absolute"): string {
+  if (form === "relative") {
+    return "相对引用尚无落地通路：P5b bindings 只存绝对通道路径（需 refCtx.onPasteRef）";
+  }
+  if (target.kind !== "float") return "vec3 目标需 refCtx.onPasteRef（一次 onBind 只能绑一个参数）";
+  return "带分量后缀的引用需 refCtx.onPasteRef（bindings 只接受真实 parm 路径）";
+}
+
+/** 菜单项的最终形态（禁用态带原因；**纯函数产物**，可直接单测）。 */
+export interface RefMenuItem {
+  id: "copy" | "paste-relative" | "paste-absolute";
+  label: string;
+  enabled: boolean;
+  /** 禁用原因 / 启用时的目标表达式，都进 title。 */
+  title: string;
+  /** 启用且是粘贴项时，落地要写的表达式。 */
+  expression?: string;
+  /** 启用时走哪条落地通路（见 resolvePasteSink）。 */
+  sink?: "paste-ref" | "bind";
+}
+
+/**
+ * 构造三个菜单项（**纯函数**：不碰 DOM，可直接单测）。
+ *
+ * 禁用永远带原因。三条禁用来源各自独立，文案也分开——用户能做的事完全不同：
+ *   - 还没复制过 → 去右键一个 parm 复制
+ *   - 类型不匹配（float → vec3）→ 换个目标
+ *   - 没有落地通路（onPasteRef 未接线）/ 网络路径未知 → 这是装配缺失，不是用户操作问题
+ */
+export function buildRefMenuItems(
+  target: ParamRefTarget,
+  clip: ParamRefClip | null,
+  /** 有哪些落地通路（见 resolvePasteSink）。缺省 = 两条都有（纯 UI 测试用）。 */
+  sinks: { onPasteRef: boolean; onBind: boolean } = { onPasteRef: true, onBind: true },
+): RefMenuItem[] {
+  const items: RefMenuItem[] = [
+    {
+      id: "copy",
+      label: `复制当前 param（${target.name}）`,
+      enabled: true,
+      title: `复制 ${target.name} 的引用地址（${target.kind}）`,
+    },
+  ];
+  for (const form of ["relative", "absolute"] as const) {
+    const id = form === "relative" ? "paste-relative" : "paste-absolute";
+    const label = form === "relative" ? "粘贴相对参考 param 地址" : "粘贴绝对 param 地址";
+    if (!clip) {
+      items.push({ id, label, enabled: false, title: "剪贴板为空：先右键某个 param「复制当前 param」" });
+      continue;
+    }
+    const adapted = adaptRefToTarget(clip, target, form);
+    if (!adapted.ok) {
+      items.push({ id, label, enabled: false, title: adapted.reason });
+      continue;
+    }
+    // 落地前用共用解析器验一遍自己拼出来的串。拼错（分量混用 / 空地址）应该在这里
+    // 就变成禁用 + 原因，而不是写进图里之后再被别处判非法。
+    const parsed = parseParamRef(adapted.expression);
+    if (!parsed.ok) {
+      items.push({ id, label, enabled: false, title: `引用非法：${parsed.reason}` });
+      continue;
+    }
+    const sink = resolvePasteSink(target, form, adapted.expression, sinks);
+    if (!sink) {
+      items.push({ id, label, enabled: false, title: pasteDisabledReason(target, form) });
+      continue;
+    }
+    items.push({
+      id,
+      label,
+      enabled: true,
+      title: `${label} → ${adapted.expression}${sink === "bind" ? "（经 P5b 通道绑定落地）" : ""}`,
+      expression: adapted.expression,
+      sink,
+    });
+  }
+  return items;
 }
 
 // ---------------------------------------------------------------------------
@@ -382,6 +708,7 @@ function tailOfPath(path: string): string {
 
 function openLinkPop(btn: HTMLElement, name: string, ctx: ParamBindCtx): void {
   closeLinkPop(); // 单例：先收起旧的
+  closeRefMenu(); // #5 引用右键菜单也是弹层：两者互斥（否则点 ⛓ 会留下悬着的右键菜单）
   const root = document.createElement("div");
   root.className = "cyl-param-link-pop";
   root.setAttribute("role", "listbox");
@@ -458,6 +785,156 @@ async function loadChannelItems(root: HTMLElement, name: string, ctx: ParamBindC
   }
 }
 
+/** 当前引用右键菜单（单例，照 link pop 的做法）。 */
+let refMenuClose: (() => void) | null = null;
+
+function closeRefMenu(): void {
+  if (refMenuClose) {
+    const close = refMenuClose;
+    refMenuClose = null;
+    close();
+  }
+}
+
+/**
+ * 从右键事件定位引用目标 —— **「右键 T」与「右键 tx 输入框」的分界就在这里**。
+ *
+ * 判据：从事件目标向上找**最近的** `[data-ref-name]`。锚点只挂在 name 单元格的 span
+ * 与 vec3 行的轴标 span 上，两者互不嵌套：
+ *   - 右键 `T` → 命中组锚点（`data-ref-kind="vec3"`）→ 目标是整个 vec3
+ *   - 右键 `x` 轴标 → 命中该分量锚点（float）
+ *   - 右键 tx 的 `<input>` → input **不在任何锚点内部**，closest 拿不到 → 回退到
+ *     「按 input 自己的 data-name 找同名参数」，于是拿到的是 **tx（float）**，不是 T。
+ * 这条回退是必需的：用户说的就是「右键 tx 的输入框应该复制的是 tx」，而输入框本身
+ * 不该被包进组锚点里（包进去 = 右键输入框变成复制 vec3，正是要避免的那个错）。
+ */
+function refTargetFromEvent(ev: Event, info: ParamPanelInfo): ParamRefTarget | null {
+  const el = ev.target as Element | null;
+  if (!el) return null;
+  const groups = planVecGroups(info);
+  const indexOf = (name: string): number | null => {
+    for (const g of groups) {
+      const i = g.members.indexOf(name);
+      if (i >= 0) return i;
+    }
+    return null;
+  };
+  const anchor = el.closest<HTMLElement>("[data-ref-name]");
+  if (anchor) {
+    const name = anchor.getAttribute("data-ref-name") ?? "";
+    const kind = anchor.getAttribute("data-ref-kind") === "vec3" ? "vec3" : "float";
+    const members = anchor.getAttribute("data-ref-members")?.split(",").filter(Boolean);
+    return { name, kind, members, componentIndex: kind === "float" ? indexOf(name) : null };
+  }
+  // 控件本身（input/select）：按它的 data-name 当 float 目标
+  const ctrl = el.closest<HTMLElement>("[data-name]");
+  const name = ctrl?.getAttribute("data-name") ?? "";
+  if (!name) return null;
+  return { name, kind: "float", componentIndex: indexOf(name) };
+}
+
+/** 复制：写模块剪贴板 + best-effort 写系统剪贴板（失败静默，见上方设计块）。 */
+function copyParamRef(target: ParamRefTarget, info: ParamPanelInfo, refCtx?: ParamRefCtx): void {
+  const nodeLabel = refCtx?.nodeLabel ?? info.label;
+  const relative = relativeAddress(nodeLabel, target.name);
+  refClip = {
+    relative,
+    absolute: absoluteAddress(refCtx?.netPath, relative),
+    kind: target.kind,
+    label: target.name,
+  };
+  try {
+    void navigator.clipboard?.writeText(refClip.absolute ?? relative);
+  } catch {
+    /* 系统剪贴板不可用（无权限 / 非安全上下文）→ 模块剪贴板照常可用，不打断流程 */
+  }
+}
+
+/** 弹出引用右键菜单（三项；禁用项灰显且 title 写明原因）。 */
+function openRefMenu(
+  x: number,
+  y: number,
+  target: ParamRefTarget,
+  info: ParamPanelInfo,
+  refCtx: ParamRefCtx | undefined,
+  sinks: { onPasteRef: boolean; onBind: boolean },
+  onPaste: (item: RefMenuItem, form: "relative" | "absolute") => void,
+): void {
+  closeRefMenu();
+  closeLinkPop(); // 两个弹层不同时存在（照 link pop 的单例约定）
+  const items = buildRefMenuItems(target, refClip, sinks);
+  const root = document.createElement("div");
+  root.className = "cyl-param-ref-menu";
+  root.setAttribute("role", "menu");
+  root.setAttribute("aria-label", `${target.name} 引用操作`);
+  root.innerHTML = items
+    .map(
+      (it) =>
+        `<button type="button" role="menuitem" class="cyl-param-ref-item${it.enabled ? "" : " disabled"}" data-ref-item="${it.id}"${it.enabled ? "" : " disabled aria-disabled=\"true\""} title="${attrEscape(it.title)}">${esc(it.label)}</button>`,
+    )
+    .join("");
+  document.body.appendChild(root);
+  root.style.left = `${x}px`;
+  root.style.top = `${y}px`;
+  fitInViewport(root);
+  const onDocPointer = (e: PointerEvent): void => {
+    if (root.contains(e.target as Node)) return;
+    closeRefMenu();
+  };
+  const onKey = (e: KeyboardEvent): void => {
+    if (e.key === "Escape") closeRefMenu();
+  };
+  refMenuClose = () => {
+    document.removeEventListener("pointerdown", onDocPointer, true);
+    document.removeEventListener("keydown", onKey);
+    root.remove();
+  };
+  document.addEventListener("pointerdown", onDocPointer, true);
+  document.addEventListener("keydown", onKey);
+  for (const btn of root.querySelectorAll<HTMLButtonElement>(".cyl-param-ref-item")) {
+    const id = btn.getAttribute("data-ref-item") ?? "";
+    const item = items.find((it) => it.id === id);
+    if (!item?.enabled) continue;
+    btn.addEventListener("click", () => {
+      closeRefMenu();
+      if (item.id === "copy") {
+        copyParamRef(target, info, refCtx);
+        return;
+      }
+      onPaste(item, item.id === "paste-relative" ? "relative" : "absolute");
+    });
+  }
+}
+
+/**
+ * 把引用右键菜单接到面板（#5）。整个表**一个** contextmenu 监听（事件委托）。
+ *
+ * **必须挂在 table 上，不能挂在 `el` 上**：`el` 是外部传进来的常驻容器，renderParams
+ * 只替换它的 innerHTML —— 挂 el 上的监听不会随 innerHTML 消失，于是每次重渲染叠一个，
+ * 切 10 次选中就有 10 个 handler（右键一次弹 10 次菜单）。table 是本函数每次新建的，
+ * 随 innerHTML 一起被丢弃，监听自然随之消失。本文件其它 handler 也都挂在新建子元素上。
+ */
+function wireRefMenu(el: HTMLElement, info: ParamPanelInfo, refCtx?: ParamRefCtx, bindCtx?: ParamBindCtx): void {
+  const table = el.querySelector<HTMLElement>(".cyl-param-table");
+  if (!table) return; // 空状态面板（无参数）没有表 → 没有可右键的 parm
+  const sinks = { onPasteRef: !!refCtx?.onPasteRef, onBind: !!bindCtx };
+  table.addEventListener("contextmenu", (ev) => {
+    const target = refTargetFromEvent(ev, info);
+    if (!target) return; // 表格空白处右键 → 交给浏览器原生菜单
+    ev.preventDefault();
+    const me = ev as MouseEvent;
+    openRefMenu(me.clientX, me.clientY, target, info, refCtx, sinks, (item, form) => {
+      if (!item.expression || !refClip) return;
+      if (item.sink === "bind") {
+        // 绝对 + 单 float + 无分量后缀 → 等价于一条 P5b 通道绑定（见 resolvePasteSink）
+        bindCtx?.onBind(target.name, item.expression);
+        return;
+      }
+      refCtx?.onPasteRef?.(target, refClip, form);
+    });
+  });
+}
+
 /**
  * Render the param panel into `el`.
  * - info === null -> no selected node -> "未选择节点" empty state.
@@ -472,8 +949,10 @@ export function renderParams(
   info: ParamPanelInfo | null,
   onChange?: (params: ParamInfo[]) => void,
   bindCtx?: ParamBindCtx,
+  refCtx?: ParamRefCtx,
 ): void {
   closeLinkPop(); // 面板重渲染（选中变化 / 绑定变化）时收起旧弹出，防孤立 DOM
+  closeRefMenu(); // 同上：右键菜单也是弹层，重渲染必须收起
   if (!info) {
     el.innerHTML = `<div class="cyl-param"><div class="cyl-param-empty">未选择节点</div></div>`;
     return;
@@ -489,14 +968,44 @@ export function renderParams(
     return;
   }
 
-  const rows = info.params
-    .map((p) => {
-      // P5b：参数名旁 ⛓ 链接按钮（未绑定灰 / 已绑定绿 + title = absolutePath）
-      const boundPath = bindCtx?.bindings[p.name] ?? null;
-      const linkBtn = bindCtx
-        ? `<button type="button" class="cyl-param-link${boundPath ? " bound" : ""}" data-link-name="${attrEscape(p.name)}" title="${boundPath ? attrEscape(boundPath) : "绑定到通道（channel reference）"}" aria-label="绑定 ${esc(p.name)} 到通道">⛓</button>`
-        : "";
-      return `<tr><td>${linkBtn}${esc(p.name)}</td><td>${esc(p.type)}</td><td>${controlHtml(p, info)}</td></tr>`;
+  // P5b：参数名旁 ⛓ 链接按钮（未绑定灰 / 已绑定绿 + title = absolutePath）
+  const linkBtnHtml = (name: string): string => {
+    const boundPath = bindCtx?.bindings[name] ?? null;
+    return bindCtx
+      ? `<button type="button" class="cyl-param-link${boundPath ? " bound" : ""}" data-link-name="${attrEscape(name)}" title="${boundPath ? attrEscape(boundPath) : "绑定到通道（channel reference）"}" aria-label="绑定 ${esc(name)} 到通道">⛓</button>`
+      : "";
+  };
+
+  // #5：name 单元格里的可右键锚点。`data-ref-name` **只挂在这个 span 上**，
+  // 不挂在 input 或其祖先上 —— 这正是「右键 T 得到 vec3、右键 tx 的输入框得到 float」
+  // 的判据（见 refTargetFromEvent）。
+  const refAnchor = (name: string, label: string, kind: "float" | "vec3", members?: string[]): string =>
+    `<span class="cyl-param-ref-anchor" data-ref-name="${attrEscape(name)}" data-ref-kind="${kind}"${
+      members ? ` data-ref-members="${attrEscape(members.join(","))}"` : ""
+    } title="右键：复制 / 粘贴引用地址">${esc(label)}</span>`;
+
+  const rows = planParamRows(info)
+    .map((row) => {
+      if (row.kind === "param") {
+        const p = row.param;
+        return `<tr><td>${linkBtnHtml(p.name)}${refAnchor(p.name, p.name, "float")}</td><td>${esc(p.type)}</td><td>${controlHtml(p, info)}</td></tr>`;
+      }
+      // #6 vec3 行：行首 `T` 是**组**的引用锚点（vec3），三个分量各自仍是独立 input，
+      // 各自带自己的 float 锚点（轴标 x/y/z）——右键轴标 = 右键那个分量。
+      //
+      // **⛓ 挂在每个分量上，不挂在组名 `T` 上**：P5b 绑定是 paramName → 通道路径，而
+      // channel-bind 的 applyIncoming 用 `node.params` 按名字查值（channel-bind.ts:151）。
+      // `t` 不是真参数名，绑到它会生成一条**永远匹配不上**的死绑定（H→C 回显查不到、
+      // C→H 提交也取不到值），且不报错——正是最难查的那种。所以 vec3 行保留三个 ⛓，
+      // 每个绑各自的分量通道。
+      const g = row.group;
+      const cells = row.params
+        .map(
+          (p, i) =>
+            `<span class="cyl-param-vec-comp">${linkBtnHtml(p.name)}${refAnchor(p.name, "xyz"[i], "float")}${controlHtml(p, info)}</span>`,
+        )
+        .join("");
+      return `<tr class="cyl-param-vec-row"><td>${refAnchor(g.name, g.label, "vec3", g.members)}</td><td>vec3</td><td><span class="cyl-param-vec" data-vec-group="${attrEscape(g.name)}">${cells}</span></td></tr>`;
     })
     .join("");
   el.innerHTML = `<div class="cyl-param">
@@ -509,6 +1018,10 @@ export function renderParams(
 
   // `port` 动态下拉：接桥取端口清单（onChange 之外也要接——只读面板同样该显示真清单）
   wirePortMenu(el, info);
+  // #5 引用右键菜单：**onChange 之外也要接**——「复制引用地址」是只读操作，
+  // 只读面板（未传 onChange）同样该能复制。bindCtx 一并传入：它是「绝对 float 粘贴」
+  // 今天唯一已接线的落地通路（见 resolvePasteSink）。
+  wireRefMenu(el, info, refCtx, bindCtx);
 
   if (onChange) {
     const controls = Array.from(

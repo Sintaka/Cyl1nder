@@ -60,6 +60,17 @@ export interface ParamSpec {
   type: string;
   value: unknown;
   default?: unknown;
+  /**
+   * **相对引用表达式**（v0.1.00121，需求 #4/#5/#6）：如 `transform1/tx`、`point_1.x`。
+   *
+   * 非空时这个参数的值「跟着引用走」——由取值侧按 `param-ref.ts` 解析后拉取并覆盖
+   * `value`。为什么存相对而不是解析成绝对：相对引用**唯一的价值**就是锚点移动/改名后
+   * 自动跟随（映射系统的 rel 语义），存成绝对等于把它降级成一个会失效的快照。
+   *
+   * 空/缺省时**不序列化该键**（`isDefaultAddressParam` 一并剔除），所以没用引用的图
+   * 与改动前字节一致。绝对形式的引用不走这里，走既有的 P5b `bindings`。
+   */
+  ref?: string;
 }
 
 export interface SelectedNodeInfo {

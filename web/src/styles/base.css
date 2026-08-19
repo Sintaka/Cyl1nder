@@ -226,6 +226,49 @@ body { font-family: var(--cyl-font-ui); }
 }
 .cyl-param-link-unlink:hover { background: #7f1d1d; color: #fff; }
 
+/* ---- #6 vec3 成组行（transform 的 T = tx/ty/tz 同一行，web/src/app/param.ts） ---- */
+/* 三个分量各自仍是独立 <input data-name="tx">（8 个 e2e spec 靠它定位），
+   这里只负责让它们在一行里等宽排开。 */
+.cyl-param-vec { display: inline-flex; gap: 4px; align-items: center; width: 100%; }
+.cyl-param-vec-comp { display: inline-flex; gap: 2px; align-items: center; flex: 1 1 0; min-width: 0; }
+.cyl-param-vec-comp input { width: 100%; min-width: 0; } /* min-width:0 才让 flex 真能压缩 */
+/* 分量轴标（x/y/z）：右键它 = 右键该分量（float），与行首 T（vec3）区分 */
+.cyl-param-vec-comp .cyl-param-ref-anchor { color: #6b7280; flex: 0 0 auto; }
+
+/* ---- #5 参数引用右键菜单（复制 / 粘贴相对 / 粘贴绝对，web/src/app/param.ts） ---- */
+/* 可右键锚点：name 单元格的参数名与 vec3 行首的 T。虚线下划线提示"这里有右键操作"。 */
+.cyl-param-ref-anchor { cursor: context-menu; border-bottom: 1px dotted #3a3f4a; }
+.cyl-param-ref-anchor:hover { border-bottom-color: #7ce3a8; }
+.cyl-param-ref-menu {
+  position: fixed;
+  z-index: 160; /* 高于 link pop(150)：右键菜单永远压在最上层 */
+  min-width: 200px;
+  background: #1b1e24;
+  border: 1px solid #3a3f4a;
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .5);
+  font: 10px/1.5 var(--cyl-font-ui);
+  color: #cfd2d6;
+}
+.cyl-param-ref-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: #cfd2d6;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font: inherit;
+  white-space: nowrap;
+}
+.cyl-param-ref-item:hover:not(.disabled) { background: #2b6cb0; color: #fff; }
+/* 禁用项**保留在菜单里**（灰显 + title 写原因），不隐藏：用户要看得见"有这个操作、
+   现在为什么不能用"，隐藏会让人以为功能不存在。 */
+.cyl-param-ref-item.disabled { color: #4b5563; cursor: not-allowed; }
+
 /* ---- middle-drag scrub popup (web/src/app/scrub.ts) ---- */
 .cyl-scrub {
   position: fixed;

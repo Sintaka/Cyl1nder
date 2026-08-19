@@ -20,7 +20,7 @@ import { invalidateMappingTypes, primeMappingTypes } from "./nodes2/mapping-type
 // 因此**总是与 invalidateMappingTypes 成对作废**（见各调用点注释）。
 // 刻意不做 prime：端口清单只在用户打开带 address 的 param 面板时才需要，模块内已
 // debounce + single-flight，按需取比进项目就预取全部成员划算。
-import { invalidateCapabilities } from "./nodes2/serial-capabilities";
+import { cachedCapabilities, invalidateCapabilities } from "./nodes2/serial-capabilities";
 import { computeOutputsDetailed } from "./nodes2/network";
 import type { ActiveChains } from "./core/network";
 import { Viewport } from "./viewport/renderer";
@@ -1072,7 +1072,68 @@ function refreshSelectionPanels(): void {
           },
         }
       : undefined,
+    sel && selId
+      ? {
+          // 引用 ctx（v0.1.00121，需求 #5/#6）：右键菜单的「粘贴相对/绝对地址」靠它落地。
+          //
+          // netPath = 锚点吊牌所在的 Houdini 网络。**必须由桥来答**：相对地址是
+          // 「相对锚点所在网络」的（兄弟节点语义），web 侧自己拼不出来。拿不到就留空 —— 
+          // param.ts 会把「绝对地址」项禁用并把原因写进 title，而不是拼半截路径。
+          netPath: anchorNetPathOf(store.serial),
+          nodeLabel: renderedLabel ?? undefined,
+          // 落地：相对形式存进节点自己的 refs（跟着图走、改名由 ref-registry 重写），
+          // 绝对形式仍走 P5b bindings（那是既有的通道引用通路）。
+          //
+          // 为什么相对不转成绝对再存：那会**丢掉相对引用唯一的价值** —— 锚点移动后
+          // 自动跟随。子智能体正确地拒绝了「悄悄解析成绝对再报告成功」这条捷径。
+          onPasteRef: (target, clip, form) => {
+            const names = target.kind === "vec3" && target.members?.length
+              ? target.members
+              : [target.name];
+            if (form === "absolute") {
+              const abs = clip.absolute;
+              if (!abs) return;
+              const view = getNodeParamBindings(selId);
+              if (!view) return;
+              const next = { ...view.bindings };
+              // vec3 目标逐分量绑：bindings 的键是**真实 parm 名**，一个键一个值。
+              names.forEach((nm, i) => {
+                next[nm] = names.length > 1 ? `${abs}.${"xyz"[i] ?? "x"}` : abs;
+              });
+              setNodeBindings(selId, next);
+              store.pushLog(`[param] 粘贴绝对引用 ${names.join(",")} <- ${abs}`);
+            } else {
+              // 相对：写进节点的 refs 参数（每个分量一条），并登记进 ref-registry，
+              // 这样改名时它会被自动重写（Houdini 的登记制语义）。
+              const cur = renderedParams ?? [];
+              const next = cur.map((p) =>
+                names.includes(p.name) ? { ...p, ref: clip.relative } : p,
+              );
+              graph.setNodeParams(selId, next);
+              renderedParams = next;
+              store.pushLog(`[param] 粘贴相对引用 ${names.join(",")} <- ${clip.relative}`);
+            }
+            refreshSelectionPanels();
+          },
+        }
+      : undefined,
   );
+}
+
+/** 某 serial（锚点吊牌）所在的 Houdini 网络绝对路径 —— 相对地址的基准。
+ *
+ *  取自通道大全里该 serial 的 `nodePath` 去掉最后一段（**兄弟节点语义**，与
+ *  `mapping.py` 的解析规则一致：`absolutePath = <锚点所在网络> + "/" + rel`）。
+ *  取不到就返回 undefined，让 param 面板禁用「绝对地址」项而不是拼半截路径。 */
+function anchorNetPathOf(serial: string | null): string | undefined {
+  if (!serial) return undefined;
+  // 复用 serial-capabilities 的同步缓存（它取 capabilities 时已经带回 nodePath），
+  // 不另开一份缓存：两份缓存必然漂移，而这里要的正是它已经有的那个事实。
+  const caps = cachedCapabilities(serial);
+  const p = caps?.nodePath ?? "";
+  if (p === "") return undefined; // 还没取到 / 桥不认识 → 让绝对项禁用，不拼半截路径
+  const cut = p.lastIndexOf("/");
+  return cut > 0 ? p.slice(0, cut) : undefined;
 }
 
 function inputStatsText(): string {
