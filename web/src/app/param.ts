@@ -950,6 +950,86 @@ function wireRefMenu(el: HTMLElement, info: ParamPanelInfo, refCtx?: ParamRefCtx
   });
 }
 
+// ---------------------------------------------------------------------------
+// 聚焦保护（v0.1.00128）：**正在被编辑的输入框绝不能被重渲染冲掉**
+//
+// 病象（用户原话）：「我需要按下数字并且在极短的时间内按下回车才能把值写回 houdini」。
+// 实测链路（e2e 探针：慢速输入 "123" → 框里只剩 "1"、焦点落在 BODY）：
+//   keydown "1" → input 事件 → commit → onChange → graph.setNodeParams + network.run()
+//   → store 通知 → pendingFlush → 下一帧 rAF → flushStoreView → dataflow.flush()
+//   → refreshSelectionPanels() → renderParams() → `el.innerHTML = …`
+// innerHTML 重写把**正在聚焦的那个 <input> 整个丢掉**，焦点退回 body，于是第 2、3 个
+// 字符根本没有收件人。用户"极短时间内按回车"能成，只是因为两个按键挤在同一帧里、
+// 抢在 rAF 之前落地 —— 那是撞运气，不是可用的交互。
+//
+// 为什么选「聚焦时不重渲染」而不是防抖：
+//   防抖只是把窗口从 16ms 拉长到 N ms —— 打字慢一点、或某次 cook 卡一下，同样的丢字
+//   照样发生，而且变成偶发（更难查）。焦点是一个**确定的信号**：这个控件里有用户尚未
+//   离开的编辑意图，此刻面板的真源是 DOM 而不是 store。所以按焦点门控，不按时间。
+// ---------------------------------------------------------------------------
+
+/** 会承载「未离开的编辑意图」的控件标签。 */
+const EDITABLE_TAGS = new Set(["INPUT", "SELECT", "TEXTAREA"]);
+
+/** 单个参数值是否相等（数组逐元素比；其余用 ===）。vector/color3 的值是数组，
+ *  引用比会把"每次 applyEdit 都新建数组"误判成"值变了"，于是空提交永远拦不住。 */
+function valueEqual(a: unknown, b: unknown): boolean {
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((x, i) => x === b[i]);
+  }
+  return a === b;
+}
+
+/**
+ * 两组参数在**值层面**是否完全相同（纯函数，可直接单测）。
+ *
+ * 用来丢弃空提交（见 commitParams）。只比 name/value：`type` 由渲染决定、`default` 是
+ * 代码侧常量，两者都不是"用户改了什么"的一部分；顺序按下标比，因为 applyEdit 是 map
+ * 出来的，恒定保序。
+ */
+export function paramsEqual(a: ParamInfo[], b: ParamInfo[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  return a.every((p, i) => p.name === b[i].name && valueEqual(p.value, b[i].value));
+}
+
+/**
+ * 焦点此刻是否落在**这个面板的参数表**里的可编辑控件上（结构化入参，可直接单测）。
+ *
+ * 入参故意只要求 `contains` / `tagName` / `closest` 三个成员而不是 HTMLElement：
+ * vitest 环境是 node 且没装 jsdom，真 DOM 类型进不来。判据仍是真的那一条 ——
+ * 「标签可编辑」且「在 `.cyl-param-table` 内」且「那张表属于本面板」。
+ * 第三条不能省：同页可能有第二个参数面板，别人的输入框不该冻结我的重渲染。
+ */
+export function isParamEditorFocused(
+  panel: { contains(node: never): boolean } | null | undefined,
+  active: { tagName?: string; closest?(sel: string): unknown } | null | undefined,
+): boolean {
+  if (!panel || !active) return false;
+  if (!EDITABLE_TAGS.has(String(active.tagName ?? "").toUpperCase())) return false;
+  const table = active.closest?.(".cyl-param-table") ?? null;
+  if (!table) return false;
+  return panel.contains(table as never);
+}
+
+/**
+ * 这次重渲染该不该推迟（**纯函数**，可直接单测）。
+ *
+ * 只有「同一个节点 + 面板里有聚焦编辑器」才推迟。两条例外都必须照渲：
+ *   - **换节点**（nextNodeId !== renderedNodeId）：宁可打断打字，也绝不让面板显示
+ *     A 节点的标题配 B 节点的值 —— 那会让人把值改到错误的节点上。
+ *   - **没有已渲染节点 / 目标为空**：没有"正在编辑的上下文"可保护。
+ */
+export function shouldDeferParamRender(g: {
+  renderedNodeId: string | null;
+  nextNodeId: string | null;
+  editorFocused: boolean;
+}): boolean {
+  if (!g.editorFocused) return false;
+  if (!g.nextNodeId || !g.renderedNodeId) return false;
+  return g.nextNodeId === g.renderedNodeId;
+}
+
 /**
  * Render the param panel into `el`.
  * - info === null -> no selected node -> "未选择节点" empty state.
@@ -1038,6 +1118,33 @@ export function renderParams(
   // 今天唯一已接线的落地通路（见 resolvePasteSink）。
   wireRefMenu(el, info, refCtx, bindCtx);
 
+  // 编辑基线（**活的**，不是渲染时那份快照）。
+  //
+  // 聚焦保护之后，面板可以在**不重渲染**的情况下连续接收多次编辑（在 tx 里打完 5 直接
+  // Tab 到 ty 再打 7）。若每次 commit 都拿渲染时的 `info.params` 当基线，第二次编辑会把
+  // 第一次的结果**按旧值写回去**（ty=7 的同时把 tx 退回 0）—— 一个只在"面板不重渲染"
+  // 时才够得着的回归。所以基线随每次 commit 前进；`info` 本身保持不变（wirePortMenu /
+  // wireRefMenu 用它读 kind/label，那些是渲染期事实，不该被编辑改写）。
+  let live: ParamInfo[] = info.params;
+  const baseInfo = (): ParamPanelInfo => ({ label: info.label, kind: info.kind, params: live });
+  /** 提交一次编辑：前进基线，再交给外部（顺序要紧——onChange 可能同步回调进来）。 */
+  const commitParams = (next: ParamInfo[]): void => {
+    // 空提交直接丢弃（v0.1.00128）。
+    //
+    // 每个控件同时听 `input` 与 `change`。number input 的 `change` **在失焦时**才发，
+    // 且值与最后一次 `input` 相同 —— 一次纯粹的空提交。以前它不存在，只是因为面板
+    // 每帧重渲染已经把那个 input 连根换掉了（被销毁的元素不会再发 change）；聚焦保护
+    // 让输入框活到失焦，于是这条早就存在的空提交第一次真的跑起来，代价是：
+    //   1. 它落在 600ms undo 去抖**之后** → 生成一条 before === after 的空 undo 记录，
+    //      于是用户按一次 Ctrl+Z 像是"没反应"（实际是撤销了那条空记录）；
+    //   2. 白跑一次 network.run() + 推桥。
+    // 判据用"值真的变了吗"，而不是"这是第几个事件"：事件序在不同浏览器/输入法下不
+    // 保证，值相等则无事可做是恒真的。
+    if (paramsEqual(live, next)) return;
+    live = next;
+    onChange?.(next);
+  };
+
   if (onChange) {
     const controls = Array.from(
       el.querySelectorAll<HTMLInputElement | HTMLSelectElement>("input[data-name], select[data-name]"),
@@ -1045,7 +1152,7 @@ export function renderParams(
     for (const ctrl of controls) {
       const name = ctrl.getAttribute("data-name") ?? "";
       const p = info.params.find((x) => x.name === name)!; // name always comes from controlHtml
-      const commit = () => onChange(applyEdit(info, name, ctrl.value));
+      const commit = () => commitParams(applyEdit(baseInfo(), name, ctrl.value));
       ctrl.addEventListener("input", commit);
       ctrl.addEventListener("change", commit);
       // Ctrl + middle-click restores the default value (explicit default first,
@@ -1069,7 +1176,7 @@ export function renderParams(
           (next) => {
             const text = format4(next);
             ctrl.value = text;
-            onChange(applyEdit(info, name, text));
+            commitParams(applyEdit(baseInfo(), name, text));
           },
         );
       }
@@ -1104,7 +1211,7 @@ export function renderParams(
           onColor: (nrgb: RGB) => {
             const val: [number, number, number] = [nrgb.r / 255, nrgb.g / 255, nrgb.b / 255];
             currentValue = val;
-            onChange(info.params.map((q) => (q.name === p.name ? { ...q, value: val } : q)));
+            commitParams(live.map((q) => (q.name === p.name ? { ...q, value: val } : q)));
             sync(val);
           },
         });
@@ -1116,7 +1223,7 @@ export function renderParams(
           return;
         }
         currentValue = parsed;
-        onChange(applyEdit(info, name, hexInput.value));
+        commitParams(applyEdit(baseInfo(), name, hexInput.value));
         sync(parsed);
       };
       hexInput.addEventListener("input", () => commitRaw(false));
@@ -1128,7 +1235,7 @@ export function renderParams(
           const dv = paramDefault(p);
           currentValue = dv;
           hexInput.value = color3Hex(dv); // show the default as #RRGGBB, not "r,g,b"
-          onChange(info.params.map((q) => (q.name === p.name ? { ...q, value: dv } : q)));
+          commitParams(live.map((q) => (q.name === p.name ? { ...q, value: dv } : q)));
           sync(dv);
         }
       };

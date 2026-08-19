@@ -4,7 +4,7 @@ import { DEFAULT_LAYOUT, DEFAULT_LAYOUT_NAME } from "./app/layouts";
 import { createChannelBindManager } from "./core/channel-bind";
 import { applyLayout, channelPanelRef, setChannelValuesSink, setupDock } from "./app/dock";
 import { renderSpreadsheet, type SpreadsheetFocus } from "./app/spreadsheet";
-import { renderParams } from "./app/param";
+import { renderParams, isParamEditorFocused, shouldDeferParamRender } from "./app/param";
 import { store } from "./stores/workspace";
 import { BridgeClient } from "./bridge/client";
 // connectWs 直接取用：session 的 connectWsFn 注入口在此包一层，截 anchor-moved 刷新映射缓存。
@@ -977,6 +977,39 @@ function applyLayoutSettings(json: unknown): void {
  *  last transform the same way). */
 let heldSelectionId: string | null = null;
 let selectionPanelRendered = false;
+
+// ---------------------------------------------------------------------------
+// 聚焦保护（v0.1.00128）：param 面板正在被打字时不重渲染
+//
+// refreshSelectionPanels 每次 store flush / cook / WS 消息都跑（dataflow.flush →
+// 每帧），而 renderParams 是整块 `innerHTML =` 重写。于是"输入框里打一个字"会走：
+//   input → onChange → network.run() → store 通知 → 下一帧 flush → 面板重建
+// 正在聚焦的 <input> 被连根丢掉，焦点退回 body，后续字符没有收件人 —— 这就是
+// 「必须极短时间内按回车」的真因（两个按键挤进同一帧才侥幸成功）。
+//
+// 门控只包住 renderParams 这**一个**调用：spreadsheet 仍逐帧更新（它没有编辑态，
+// 打字时看着几何/表格实时变正是想要的）。推迟的重渲染在焦点离开参数表时补上，
+// 所以打字期间被外部改掉的别的行（undo / H→C 同步）不会永久停在旧值。
+// ---------------------------------------------------------------------------
+
+/** 当前 param 面板渲染的是哪个节点（聚焦门控要用它区分"同节点刷新"与"换节点"）。 */
+let paramRenderedNodeId: string | null = null;
+/** 打字期间被推迟掉的重渲染（焦点离开后补）。 */
+let paramRenderPending = false;
+
+// focusout 挂在**常驻容器** paramEl 上（不是表里的控件）：renderParams 只换它的
+// innerHTML，挂在这里的监听不随重渲染消失，也就不会每次渲染叠一个。
+// 延到下一个微任务再判：focusout 触发时 activeElement 还没落到新元素上，立刻读会
+// 把"从 tx 跳到 ty"误判成"离开面板"，那样 Tab 换格就又被重渲染打断了。
+paramEl.addEventListener("focusout", () => {
+  setTimeout(() => {
+    if (isParamEditorFocused(paramEl, document.activeElement)) return; // 还在表里（Tab 换格）
+    if (!paramRenderPending) return;
+    paramRenderPending = false;
+    refreshSelectionPanels();
+  }, 0);
+});
+
 function refreshSelectionPanels(): void {
   const sel = graph.getSelectedNode();
   if (sel) {
@@ -1024,6 +1057,20 @@ function refreshSelectionPanels(): void {
   selectionPanelRendered = true;
   renderSpreadsheet(spreadsheetEl, payloads, source, focus);
   const selId = sel?.id ?? null;
+  // 聚焦保护：同一节点 + 面板里有正在编辑的控件 → 推迟重渲染（见上方设计块）。
+  // 换节点不推迟：标题配错值比打断打字严重得多。
+  if (
+    shouldDeferParamRender({
+      renderedNodeId: paramRenderedNodeId,
+      nextNodeId: selId ?? heldSelectionId,
+      editorFocused: isParamEditorFocused(paramEl, document.activeElement),
+    })
+  ) {
+    paramRenderPending = true;
+    return;
+  }
+  paramRenderPending = false;
+  paramRenderedNodeId = selId ?? heldSelectionId;
   const renderedLabel = sel?.label ?? null;
   let renderedParams = sel?.params ?? null;
   renderParams(
