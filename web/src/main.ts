@@ -159,17 +159,24 @@ const addressBar = createAddressBar(graphAddr, {
     const isProject = (s: string) => PROJECT_SERIAL_RE.test(s);
     // 2 段 /<P1-…>/<C1-…>/：确保项目模式 + 激活成员 + 地址显示两段。
     if (segs.length === 2 && isProject(segs[0]) && isSerial(segs[1])) {
-      if (currentProjectId === segs[0] && isProjectModeActive()) {
-        // 已在目标项目：直接激活成员（避免重载图覆盖未保存编辑）。
+      // 与 channel display 点击**共用同一套 pending 机制**（v0.1.00119 收口）：
+      // 先登记待兑现归属，等 loadSnapshotIntoStore 里 restoreGraph 真的落地后
+      // 才由 commitPendingMemberScope 写 scope + 刷地址。
+      //
+      // 为什么这条也要收口：`activateSession` **不保证任何事**（它 `void
+      // loadSnapshot(serial)` 即返回，图交换发生在 loadSnapshotIntoStore 内部，
+      // 且仅当该成员有存图）。原先这里立刻写 member scope + 刷地址，于是成员没有
+      // 存图时地址会指向一个 nodeview 从未去过的地方——正是用户报的那个症状，
+      // 只是入口不同（那次是 display chip）。两个入口用同一套机制，就不会一个诚实
+      // 一个乐观。
+      const activateMember = (): void => {
+        pendingMemberScope = { projectId: segs[0], serial: segs[1] };
         sessionCtl?.activateSession(segs[1]);
-        graphScope = { kind: "member", projectId: segs[0], serial: segs[1] };
-        updateGraphAddress();
+      };
+      if (currentProjectId === segs[0] && isProjectModeActive()) {
+        activateMember(); // 已在目标项目：不重载项目图，避免覆盖未保存编辑
       } else {
-        void enterProjectMode(segs[0]).then(() => {
-          sessionCtl?.activateSession(segs[1]);
-          graphScope = { kind: "member", projectId: segs[0], serial: segs[1] };
-          updateGraphAddress();
-        });
+        void enterProjectMode(segs[0]).then(activateMember);
       }
       return true;
     }

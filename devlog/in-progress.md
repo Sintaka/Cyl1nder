@@ -248,9 +248,20 @@ project P1-msztfncq-1yyn | hip: beginTest-2.hip | members: hda:C1-msm6dsp7-ob6t,
   表达式一律静默失效——同一串路径在 `centroid()` 里被重写、在 VEX `point()` 里悄悄失效，
   判据是**登记**而非文本匹配。所以照抄登记制：未登记 = 不重写，且这一点要在 UI 上
   说清楚，而不是假装所有引用都保得住。
-- **附带地址栏 bug（已定位根因）**：`setChannelDisplayHandler` 先把
-  `graphScope` 设成 member 并立即刷地址栏，而图的替换在 `activateSession` 里另行发生。
-  地址是**乐观更新**的，所以图没切过去时地址栏已经变了。修法是等图切换落地后再刷地址。
+- **附带地址栏 bug（已修）**：`setChannelDisplayHandler` 原先先把 `graphScope` 设成
+  member 并立即刷地址栏，而图的替换在 `activateSession` 里另行发生。
+  **`activateSession` 不保证任何事**：它 `void loadSnapshot(serial)` 即返回，图交换在
+  `loadSnapshotIntoStore` 内部，**且仅当该成员有存图**（`if (g?.nodes?.length)`）。
+  所以成员没有存图时，地址会指向一个 nodeview 从未去过的地方。
+
+  修法：`pendingMemberScope` 登记待兑现归属 → `restoreGraph` 真的落地后由
+  `commitPendingMemberScope(serial)` 才写 scope + 刷地址；serial 不匹配则丢弃
+  （快速连点不会留下过期地址）；成员无存图那条分支**明确 log 原因**，
+  否则「点了 display 地址没变」会变成下一个查不明白的症状。
+
+  地址栏的 2 段 `/P1-…/C1-…/` 分支**也已收口到同一套机制**（v0.1.00119）：
+  它原先同样是乐观更新，只是入口不同（手打地址 vs 点 display chip）。两个入口共用
+  一套机制，就不会一个诚实一个乐观。17 例浏览器 e2e 验证该分支行为未回归。
 
 **#8 in/out 端口升级 + 桥接与映射系统统一** —— 范围最大，建议拆多轮。
 - 已就位：端口配色、`canConnectSockets` 类型校验、错误红三角链路、单端口 address 形态
