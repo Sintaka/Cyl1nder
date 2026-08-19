@@ -202,6 +202,10 @@ export function toSocketType(v: unknown): string {
 export function socketTypeClass(socketType: unknown): string {
   if (socketType === FLOAT) return "cyl-port-float";
   if (socketType === VEC3) return "cyl-port-vec3";
+  // geo 从 v0.1.00121 起也**显式出类**：此前它靠「不加类 = CSS 默认色」来上朱红，
+  // 结果所有**没有类型**的端口也一并变红（红色还兼作错误色，整张图像在报错）。
+  // 现在无类型 = 中性灰白，是 geo 才朱红——「不知道类型」与「是几何」得能分辨。
+  if (socketType === GEO) return "cyl-port-geo";
   return "";
 }
 
@@ -1335,7 +1339,16 @@ export function detectLegacyPorts(d: {
   nodes?: Array<{ id: string; kind: NodeKind }>;
   connections?: Array<{ source: string; sourceOutput: string; target: string; targetInput: string }>;
 }): boolean {
-  if ((d.schemaVersion ?? 2) < ADDRESS_GRAPH_SCHEMA) return true;
+  // **只按「有没有真的引用 in1-3 / out1-3」判定**（v0.1.00121 修）。
+  //
+  // 原先还有一条 `schemaVersion < 4 → 旧形态` 的短路，那是「保存后 reload 变成 4 端口」
+  // 的根因：单端口节点在 address/type/port 全默认时，序列化会把这些键**全部剔除**
+  // （为了与旧图字节兼容），于是快照降级成 v2；再读回来时这条短路就把它判成旧形态、
+  // 按 4 端口重建。用户看到的正是「创建时是 1 个，存盘 reload 后变 4 个」。
+  //
+  // 端口引用才是形态的**充分且必要**证据：真正的旧 4 端口图必然连过 in1-3/out1-3
+  // （只连 in0/out0 的旧图与单端口图在拓扑上完全等价，按单端口重建不丢任何连接）。
+  // 因此不再需要看版本号，v2/v3/v4/v5 一视同仁。
   const inputIds = new Set((d.nodes ?? []).filter((n) => n.kind === "input").map((n) => n.id));
   const outputIds = new Set((d.nodes ?? []).filter((n) => n.kind === "output").map((n) => n.id));
   return (d.connections ?? []).some(

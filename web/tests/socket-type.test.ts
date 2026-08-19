@@ -182,10 +182,13 @@ describe("端口类型 × 连线校验（socketNameOf + canConnectSockets 联合
 });
 
 describe("socketTypeClass（端口类型着色类名）", () => {
-  it("float / vec3 各有类名；geo 与任何非法值 → \"\"（不加类，沿用灰白端口）", () => {
+  // v0.1.00121：geo 也**显式出类**。此前 geo 靠「不加类 = CSS 默认色」上朱红，
+  // 于是所有**没有类型**的端口也一并变红——而红色在本项目还兼作错误色，整张图看着像在报错。
+  // 现在：无类型 → ""（中性灰白），geo → cyl-port-geo（朱红）。
+  it("三种合法类型各有类名；非法/未知值 → \"\"（中性灰白，不是红）", () => {
     expect(socketTypeClass(FLOAT)).toBe("cyl-port-float");
     expect(socketTypeClass(VEC3)).toBe("cyl-port-vec3");
-    expect(socketTypeClass(GEO)).toBe(""); // geo 保持既有外观
+    expect(socketTypeClass(GEO)).toBe("cyl-port-geo");
     expect(socketTypeClass("banana")).toBe("");
     expect(socketTypeClass("")).toBe("");
     expect(socketTypeClass(undefined)).toBe("");
@@ -196,16 +199,16 @@ describe("socketTypeClass（端口类型着色类名）", () => {
 
   it("跟随节点的真实 socket 名：改 type 参数后端口类名随之变化", () => {
     const input = makeInputNode(true);
-    expect(socketTypeClass(input.outputs.in0?.socket.name)).toBe(""); // 默认 geo
+    expect(socketTypeClass(input.outputs.in0?.socket.name)).toBe("cyl-port-geo"); // 默认 geo
     input.params = [{ name: "type", type: "menu", value: VEC3 }];
     syncPortSocketType(input);
     expect(socketTypeClass(input.outputs.in0?.socket.name)).toBe("cyl-port-vec3");
   });
 
-  it("旧 4 端口图全 geo → 每个端口都不加类（外观零变化）", () => {
+  it("旧 4 端口图全 geo → 每个端口都是 geo 类（朱红，与改动前视觉一致）", () => {
     const legacy = makeInputNode();
     for (const key of ["in0", "in1", "in2", "in3"]) {
-      expect(socketTypeClass(legacy.outputs[key]?.socket.name)).toBe("");
+      expect(socketTypeClass(legacy.outputs[key]?.socket.name)).toBe("cyl-port-geo");
     }
   });
 });
@@ -223,10 +226,31 @@ describe("sanitizeAddress（防御式读入，风格同 sanitizeBindings）", ()
 });
 
 describe("detectLegacyPorts（旧图形状兼容判定）", () => {
-  it("v2 / v3 / 缺省 schemaVersion → 旧 4 端口形态", () => {
-    expect(detectLegacyPorts({ schemaVersion: 2, nodes: [], connections: [] })).toBe(true);
-    expect(detectLegacyPorts({ schemaVersion: 3, nodes: [], connections: [] })).toBe(true);
-    expect(detectLegacyPorts({ nodes: [], connections: [] })).toBe(true);
+  // v0.1.00121：**版本号不再是判据**，只看有没有真的引用 in1-3 / out1-3。
+  //
+  // 原来那条 `schemaVersion < 4 → 旧形态` 的短路正是「保存后 reload 变 4 端口」的根因：
+  // 单端口节点在 address/type/port 全默认时序列化会剔除这些键（旧图字节兼容），
+  // 快照因此降级成 v2；读回来时短路把它判成旧形态、按 4 端口重建。
+  //
+  // 只连 in0/out0 的旧图与单端口图在拓扑上完全等价，按单端口重建不丢任何连接，
+  // 所以放弃版本号判据是安全的。
+  it("低版本但无旧端口引用 → 单端口形态（修「存盘 reload 变 4 端口」）", () => {
+    expect(detectLegacyPorts({ schemaVersion: 2, nodes: [], connections: [] })).toBe(false);
+    expect(detectLegacyPorts({ schemaVersion: 3, nodes: [], connections: [] })).toBe(false);
+    expect(detectLegacyPorts({ nodes: [], connections: [] })).toBe(false);
+  });
+
+  it("v2 图只连 in0/out0 也按单端口重建（等价拓扑，连接不丢）", () => {
+    expect(
+      detectLegacyPorts({
+        schemaVersion: 2,
+        nodes: [
+          { id: "in", kind: "input" },
+          { id: "out", kind: "output" },
+        ],
+        connections: [{ source: "in", sourceOutput: "in0", target: "out", targetInput: "out0" }],
+      }),
+    ).toBe(false);
   });
 
   it("schema 4 且无旧端口引用 → 单端口形态", () => {

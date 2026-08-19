@@ -102,9 +102,19 @@
 .cyl-graph .cyl-rp-port .output > span, .cyl-graph .cyl-rp-port .input > span {
   display: inline-flex; align-items: center; justify-content: center; height: 100%;
 }
+/* 端口默认色 = **中性灰白**（v0.1.00121 修「所有端口都是红色」）。
+   原先这里写死 `border: 1.5px solid #ff6b6b`，那是 geo 的朱红；类型类只覆盖
+   float/vec3，于是**凡是没类型的端口全渲染成红色**——红色在本项目里还兼作错误色，
+   一眼看过去像整张图都在报错。
+   现在：无类型 = 灰白（cyl-port-geo 才是朱红），类型色由下面的类覆盖。 */
 .cyl-graph .cyl-rp-port .output div[title], .cyl-graph .cyl-rp-port .input div[title] {
-  width: 10px; height: 10px; border-radius: 50%; background: #2b0b0b; border: 1.5px solid #ff6b6b;
+  width: 10px; height: 10px; border-radius: 50%; background: #15171c; border: 1.5px solid #8b93a1;
   box-sizing: border-box;
+}
+/* geo 显式成类（不再靠"默认就是红"）：这样"没类型"与"是 geo"在视觉上可区分。 */
+.cyl-graph .cyl-rp-port.cyl-port-geo .output div[title],
+.cyl-graph .cyl-rp-port.cyl-port-geo .input div[title] {
+  background: #2b0b0b; border-color: #ff6b6b;
 }
 /* dot-grid background (screen-space, zoom LOD handled by JS opacity).
    isolation: isolate makes .cyl-graph its own stacking context so the dot grid's
