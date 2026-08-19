@@ -288,6 +288,21 @@
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   white-space: nowrap;
 }
+/* 空项目提示（v0.1.00122）：用户要求 cook 后项目里「就一个黄色高亮提示」。
+   用与项目标题同族的琥珀色，但更暗一档——它是指引而不是标题，不该抢焦点。
+   `white-space: normal` 是刻意的：这行是给人读的句子，不是标识串，
+   折行比中段省略更合适（省略会把「建 input/output」这半句吃掉）。 */
+.cyl-graph .cyl-rp-project-hint {
+  margin-top: 4px;
+  font-size: 9px;
+  line-height: 1.35;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.10);
+  border-left: 2px solid #fbbf24;
+  padding: 3px 5px;
+  border-radius: 2px;
+  white-space: normal;
+}
 .cyl-graph .cyl-rp-project-hip {
   font-size: 9px; color: #6b7280; margin: 0 0 4px; padding-left: 2px;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;

@@ -96,7 +96,13 @@ def test_scene_save_copies_folder_and_usdz(client: TestClient, tmp_path: Path) -
     assert Path(r3.json()["path"]).exists()
 
 
-def test_scene_save_includes_graph_and_docking(client: TestClient, tmp_path: Path) -> None:
+def test_scene_save_ignores_graph_but_keeps_docking(client: TestClient, tmp_path: Path) -> None:
+    """`graph` 被**收下但不写**（v0.1.00122），`docking` 照常落盘。
+
+    成员图归项目所有（项目目录的 `graph.json`）。两个图家会重演 v0.1.00117 那次
+    「成员图覆盖项目根」的数据丢失，所以成员侧不再有 `scene/node-graph.json`。
+    仍返回 200 而不是 4xx：老的 web 构建还会发这个键，硬报错会直接打断 cook 推送。
+    """
     serial = client.post("/api/scenes", json={}).json()["serial"]
     graph = {"nodes": [{"id": "n1"}], "connections": []}
     docking = {"panels": ["viewport"]}
@@ -108,7 +114,7 @@ def test_scene_save_includes_graph_and_docking(client: TestClient, tmp_path: Pat
     target = Path(
         client.post(f"/api/hda/{serial}/scene/save", json={"target_dir": str(out)}).json()["path"]
     )
-    assert json.loads((target / "scene" / "node-graph.json").read_text(encoding="utf-8")) == graph
+    assert not (target / "scene" / "node-graph.json").exists()  # 成员侧不再有图
     assert json.loads((target / "docking-layout.json").read_text(encoding="utf-8")) == docking
 
 

@@ -3,13 +3,17 @@
 Rules (devlog/snapshot-design.md + scene-snapshot-research.md):
 - Logical path: cyl://<serial>/<domain>, physical paths fully derivable from
   registry[serial].hip (the ONLY context variable) - never parse .hda/.hip.
-- Snapshot root: <hip-dir>/Cyl1nder/<serial>/ ; fallback: bridge/data/snapshots/<serial>/
+- Snapshot root (v0.1.00122): <hip-dir>/Cyl1nder/<hipstem>_<P1-pid>/members/<serial>/
+  成员**嵌在项目目录里**，不再与项目目录并列。解析不出 project id 时退回
+  v0.1.00117 的兄弟目录 <hip-dir>/Cyl1nder/<hipstem>_<serial>/；无 hip 时
+  fallback bridge/data/snapshots/<serial>/。
 - Fixed file names (NO serial prefix) under per-domain folders:
     io/inputs.json          geometry input cache
     io/outputs.json         geometry output cache
     scene/meta.json         identity + rev metadata
-    scene/node-graph.json   node network (logic: nodes/connections/viewport)
     scene/node-parm.json    per-node parameters (absolute path keyed)
+    scene/node-graph.json   **只读不写**（v0.1.00122）：成员图归项目所有
+                            （项目目录的 graph.json）。旧存档仍读得到。
     docking-layout.json     dockview desktop layout
     Preference.json         web preferences ({"schemaVersion":1,"sync_max_fps":30,"update_mode":"auto"})
 - Single writer (bridge only); atomic tmp+replace; content-compare before write (R5).
@@ -31,7 +35,16 @@ DEFAULT_ROOT = Path(__file__).resolve().parent.parent / "data" / "snapshots"
 _SNAP_LAST: dict[str, float] = {}
 _SNAP_THROTTLE = 5.0
 
+# 每 serial 只提示一次的两个 set（v0.1.00122）。cook 每次心跳都会走写快照这条路，
+# 无节制地 log 会把日志淹掉；完全不 log 又会让「行为变了」不可见。
+_GRAPH_IGNORED: set[str] = set()   # graph 部分被忽略（成员图归项目所有）
+_ORPHAN_LOGGED: set[str] = set()   # 解析不出 project id，退回旧的兄弟目录
+
 # fixed file names per part (no serial prefix - the serial is the folder)
+#
+# `graph` **仍留在这张表里**，因为它还要被**读**：既有存档里有 node-graph.json，
+# 且 `GET /api/projects/{id}/graph` 的单成员缺省迁移读正是从这里取图（那是把旧成员图
+# 接进项目的唯一通路）。写那侧在 `write_snapshot` 里显式跳过它。
 _PARTS: dict[str, tuple[str, str]] = {
     "meta": ("scene", "meta.json"),
     "graph": ("scene", "node-graph.json"),
@@ -74,11 +87,91 @@ def _sanitize_dir_part(name: str) -> str:
     return "".join(out).strip(" .")[:64]
 
 
-def snapshot_root(hip: str, serial: str) -> Path:
-    """Derive the snapshot directory for a serial from its hip file.
+def _log_once(bucket: set[str], serial: str, message: str) -> None:
+    """每 serial 一次的 info 日志。取 state 失败一律吞掉：日志绝不能让写快照失败。"""
+    if serial in bucket:
+        return
+    bucket.add(serial)
+    try:
+        from .state import get_state  # local import: avoids a module-level cycle
 
-    目录名自 v0.1.00117 起是 `<场景名>_<serial>`（见 scene_dir_name）。
-    环境变量覆盖仍只用 serial —— 测试隔离目录不需要人眼分辨。
+        get_state().logs.info("snapshot", message, serial)
+    except Exception:  # noqa: BLE001 - 日志失败不能阻断快照读写
+        pass
+
+
+def resolve_project_id(hip: str, serial: str) -> str:
+    """这个成员该挂在哪个项目下 -> `P1-…`，解析不出返回 `""`。
+
+    **绝不编造 project id**（用户明令）：查不到就返回空串，由调用方退回旧路径。
+
+    两条依据，都要求 hip 一致，顺序是刻意的：
+    ① `find_by_hip(hip)` —— 目录是按 hip 落的，「拥有这个 hip 文件的项目」正是
+       它旁边那个 `<hipstem>_<P1-…>/`。这是主依据。
+    ② 成员表里含该 serial、且项目 hip 归一后与传入 hip 相同（或项目 hip 为空，
+       即尚未回填的旧记录）。补上 ① 漏掉的情况。
+
+    为什么 ② 必须校验 hip：否则一个 serial 在别的 hip 下的项目里当过成员，就会把
+    快照写进「另一个场景旁边的目录」——那比不迁移更糟。
+    取不到 state / 任何异常 -> `""`：路径解析绝不能抛（读路径也走这里）。
+    """
+    if not hip or not serial:
+        return ""
+    try:
+        from .houdini_mcp import normalize_hip
+        from .state import get_state  # local import: avoids a module-level cycle
+
+        st = get_state()
+        owner = st.projects.find_by_hip(hip)
+        if owner is not None and owner.get("projectSerial"):
+            return str(owner["projectSerial"])
+        norm = normalize_hip(hip)
+        for project in st.projects.list():
+            pid = project.get("projectSerial") or ""
+            if not pid:
+                continue
+            phip = normalize_hip(project.get("hip") or "")
+            if phip and phip != norm:
+                continue
+            for m in project.get("members") or []:
+                if (m.get("serial") or "").strip() == serial:
+                    return str(pid)
+    except Exception:  # noqa: BLE001 - 解析不出就退回旧路径，绝不抛穿
+        return ""
+    return ""
+
+
+MEMBERS_DIR = "members"
+
+
+def member_root(hip: str, serial: str, project_id: str) -> Path:
+    """成员快照目录：`<hip目录>/Cyl1nder/<hipstem>_<pid>/members/<serial>/`（v0.1.00122）。
+
+    成员**嵌在项目里**，不再是项目目录的兄弟——用户原话：「它应该被包含在项目中而不是
+    单独一个节点的 serial 出现，这是早期的设计而且应该被根除了」。
+
+    目录名与项目图共用 `project_scene_dir_name`（同一个项目目录，别算出两个名字）。
+    hip 为空/非绝对 -> 退回 `DEFAULT_ROOT/<serial>`（无 hip 时本就没有项目目录可挂）。
+    """
+    if not hip or not project_id:
+        return DEFAULT_ROOT / serial
+    hip_dir = Path(hip).parent
+    if not hip_dir.is_absolute():
+        return DEFAULT_ROOT / serial
+    return hip_dir / "Cyl1nder" / project_scene_dir_name(hip, project_id) / MEMBERS_DIR / serial
+
+
+def snapshot_root(hip: str, serial: str, project_id: str | None = None) -> Path:
+    """成员快照目录。v0.1.00122 起嵌在项目目录下（见 member_root）。
+
+    `project_id` 缺省时自行解析（`resolve_project_id`）；**解析不出就退回
+    v0.1.00117 的兄弟目录 `<hipstem>_<serial>/` 并 log 一次**，绝不编造 pid。
+    退回不是摆设：`put_inputs` 第一次写快照时项目可能还没 ensure 出来（web 的
+    ensureProject / 心跳 bind_serial_to_hip 都在之后），此时只能落旧路径，
+    下一次写入解析到 pid 后再由 `migrate_member_snapshot_dir` 迁进去。
+
+    环境变量覆盖仍是**扁平 `<root>/<serial>`**（测试隔离目录不需要项目层次，
+    且既有测试逐字依赖这个形状）。
     """
     env = os.environ.get("CYL1NDER_SNAPSHOT_ROOT")
     if env:
@@ -86,6 +179,15 @@ def snapshot_root(hip: str, serial: str) -> Path:
     if hip:
         hip_dir = Path(hip).parent
         if hip_dir.is_absolute():
+            pid = resolve_project_id(hip, serial) if project_id is None else project_id
+            if pid:
+                return member_root(hip, serial, pid)
+            _log_once(
+                _ORPHAN_LOGGED,
+                serial,
+                "no project bound yet; member snapshot stays at the legacy sibling dir "
+                f"({scene_dir_name(hip, serial)}) until a project owns this hip",
+            )
             return hip_dir / "Cyl1nder" / scene_dir_name(hip, serial)
     return DEFAULT_ROOT / serial
 
@@ -151,13 +253,18 @@ def migrate_snapshot_dir(hip: str, serial: str) -> str:
       新目录照常创建，读取那侧有 `_legacy_roots` 兜底，最坏情况只是多一个旧目录。
     - 只改名 hip 同侧的目录；`bridge/data/snapshots` 回退根不动（那是无 hip 时的落点，
       本就没有场景名可用）。
+
+    v0.1.00122：这一步只负责 **裸 `<serial>` → 兄弟 `<场景名>_<serial>`**。目标路径
+    显式传 `project_id=""` 求得，**不允许**它随 pid 解析漂到 `members/` 里去——
+    「兄弟目录 → 项目内」是 `migrate_member_snapshot_dir` 的职责。两个函数各管一段，
+    否则同一个名字在有无项目时做两件不同的事，下一轮没人说得清它到底迁到哪。
     """
     if not hip:
         return ""
     hip_dir = Path(hip).parent
     if not hip_dir.is_absolute():
         return ""
-    target = snapshot_root(hip, serial)
+    target = snapshot_root(hip, serial, "")
     legacy = hip_dir / "Cyl1nder" / serial
     if target == legacy or not legacy.is_dir():
         return ""
@@ -171,12 +278,51 @@ def migrate_snapshot_dir(hip: str, serial: str) -> str:
         return "skipped:oserror"
 
 
+def migrate_member_snapshot_dir(hip: str, serial: str, project_id: str) -> str:
+    """把成员快照从**兄弟目录**就地改名进 `<项目目录>/members/<serial>/`（v0.1.00122）。
+
+    返回值仅供日志/测试：`""` 无事可做、`"renamed"` 已迁移、`"skipped:<原因>"`。
+    纪律逐条照 `migrate_project_graph_dir`（同一套语义，别另造一套）：
+    - 无 hip / 无 pid / hip 非绝对 -> `""`
+    - 目标已存在 -> `skipped:target-exists`。**不合并、不覆盖**——两边都可能有用户数据。
+    - 改名失败（占用/权限）-> 吞掉返回 `skipped:oserror`，**绝不阻断写入**：
+      读那侧有 `_legacy_roots` 兜底，最坏情况只是多留一个旧目录。
+
+    源目录优先级：`<场景名>_<serial>`（v0.1.00117）→ 裸 `<serial>`（v0.1.00116 及更早）。
+    两个都在时只迁第一个，另一个留给下一次调用——一次只做一件可解释的事。
+    """
+    if not hip or not project_id:
+        return ""
+    hip_dir = Path(hip).parent
+    if not hip_dir.is_absolute():
+        return ""
+    base = hip_dir / "Cyl1nder"
+    target = member_root(hip, serial, project_id)
+    source = next(
+        (d for d in (base / scene_dir_name(hip, serial), base / serial) if d != target and d.is_dir()),
+        None,
+    )
+    if source is None:
+        return ""
+    if target.exists():
+        return "skipped:target-exists"
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        source.rename(target)
+        return "renamed"
+    except OSError:
+        return "skipped:oserror"
+
+
 def _legacy_roots(hip: str, serial: str) -> list[Path]:
     """该 serial 可能存在的历史快照目录（按优先级）。
 
     ① hip 同侧的纯 `<serial>` 目录（v0.1.00116 及更早的命名）
-    ② hip 同侧任何以 `_<serial>` 结尾的目录（另存为改名前的场景名前缀）
-    ③ bridge/data/snapshots/<serial>（hip 为空时写入的回退根）
+    ② hip 同侧任何以 `_<serial>` 结尾的目录（v0.1.00117 的 `<场景名>_<serial>` 兄弟目录）
+    ③ **任意项目目录下的 `members/<serial>/`**（v0.1.00122 起的新位置）——
+       含「项目被删/重建后 pid 变了」的情况：解析到的 pid 与盘上那个不同时，
+       不扫这一条就会把一份好快照读成 None（穿着迁移外衣的数据丢失）。
+    ④ bridge/data/snapshots/<serial>（hip 为空时写入的回退根）
     """
     roots: list[Path] = []
     if hip:
@@ -186,9 +332,14 @@ def _legacy_roots(hip: str, serial: str) -> list[Path]:
             roots.append(base / serial)
             try:
                 suffix = f"_{serial}"
-                roots.extend(
-                    d for d in base.iterdir() if d.is_dir() and d.name.endswith(suffix)
-                )
+                for d in base.iterdir():
+                    if not d.is_dir():
+                        continue
+                    if d.name.endswith(suffix):
+                        roots.append(d)
+                    nested = d / MEMBERS_DIR / serial
+                    if nested.is_dir():
+                        roots.append(nested)
             except OSError:
                 pass
     roots.append(DEFAULT_ROOT / serial)
@@ -208,19 +359,36 @@ def write_snapshot(
     preference: dict[str, Any] | None = None,
 ) -> bool:
     """Atomically write snapshot parts under io/ scene/ + docking-layout.json + Preference.json.
-    Returns True if anything changed on disk."""
-    root = snapshot_root(hip, serial)
-    migrate_snapshot_dir(hip, serial)  # 旧目录就地改名到新命名（best-effort）
+    Returns True if anything changed on disk.
+
+    v0.1.00122 两处变化：
+    - 目录嵌进项目：`<项目目录>/members/<serial>/`（见 snapshot_root / member_root）；
+      解析不出 project id 时退回旧的兄弟目录，行为与 v0.1.00117 逐字相同。
+    - **`graph` 一律不写**（accept-but-ignore + 每 serial 一条 log）：成员图归项目所有。
+      仍接受该参数、仍返回 200 —— 老版 web 还在发它，硬报错会打断 cook 推送。
+    """
+    pid = resolve_project_id(hip, serial)
+    if pid:
+        migrate_member_snapshot_dir(hip, serial, pid)   # 兄弟目录 -> 项目内（best-effort）
+    else:
+        migrate_snapshot_dir(hip, serial)               # 无项目时仍做 v0.1.00117 那步改名
+    root = snapshot_root(hip, serial, pid)   # 传 pid 本身（"" = 无项目），不要再解析一次
     try:
         root.mkdir(parents=True, exist_ok=True)
         (root / "io").mkdir(exist_ok=True)
         (root / "scene").mkdir(exist_ok=True)
     except OSError:
         return False
+    if graph is not None:
+        # accept-but-ignore：收下、不写、每 serial 提示一次（见本函数 docstring）。
+        _log_once(
+            _GRAPH_IGNORED,
+            serial,
+            "graph part ignored (member graphs are project-owned since v0.1.00122)",
+        )
     wrote = False
     parts: dict[str, Any] = {
         "meta": meta,
-        "graph": graph,
         "parm": parm,
         "inputs": inputs,
         "outputs": outputs,

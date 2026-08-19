@@ -240,6 +240,14 @@ export function NodeView({ data, emit }: Props) {
             </div>
           </>
         ) : null}
+        {/* 空项目提示（v0.1.00122，用户要求）：cook 之后项目里**只有这个根节点**，
+            不再自动出现成员工作区。用户需要知道下一步做什么，否则一张只有一个金色
+            节点的图看不出是"好了"还是"坏了"。
+            判据用 `node.projectEmpty`（由 graph.ts 在项目图落地后写入），而不是在这里
+            数 editor 里的节点——NodeView 只拿到自己这一个节点，数不到别人。 */}
+        {node.projectEmpty ? (
+          <div className="cyl-rp-project-hint">建 geo → 双击进入 → 建 input/output</div>
+        ) : null}
       </div>
     );
   }

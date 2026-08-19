@@ -181,6 +181,15 @@ export function loadProjectGraph(input: ProjectGraphInput, saved: unknown): void
       await g.area.area.zoom(plan.viewport.k);
       await g.area.area.translate(plan.viewport.x ?? 0, plan.viewport.y ?? 0);
     }
+    // 空项目提示（v0.1.00122，用户要求）：cook 之后项目里只剩根节点，用户需要知道
+    // 下一步是「建 geo → 双击进入 → 建 input/output」。判据在这里算：此刻图刚落地，
+    // 节点数是权威的；NodeView 只拿到自己那一个节点，数不到别人。
+    const nodesNow = g.editor.getNodes() as CylNode[];
+    const nonRoot = nodesNow.filter((n) => n.kind !== "project").length;
+    for (const n of nodesNow) {
+      if (n.kind !== "project") continue;
+      n.projectEmpty = nonRoot === 0;
+    }
     channelDisplaySerial = null; // 图重建后旧 serial 已不在图中 → display 重置
     log(`loaded project graph: ${plan.nodes.length} nodes / ${plan.connections.length} connections`);
   })();

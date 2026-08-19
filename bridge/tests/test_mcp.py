@@ -45,12 +45,20 @@ def test_mcp_tools(tmp_path: Path, monkeypatch) -> None:
     assert cyl1nder_nodeview_status(serial) is None
     assert cyl1nder_nodeview_connected(serial, "n1") is None
 
-    # write a graph snapshot and re-check
-    from bridge.snapshot import write_snapshot
-    write_snapshot(
-        serial,
-        "",
-        graph={
+    # 铺一个**旧存档**形状的成员图再查。
+    #
+    # v0.1.00122 起 `write_snapshot` 不再写 graph（成员图归项目所有），所以不能再用它造
+    # 夹具——传 graph 进去只会被 accept-but-ignore，什么都不会落盘，四个 nodeview 工具
+    # 于是全部返回 None（就是本测试原先的报错 `'NoneType' object is not iterable`）。
+    # 这里直接写 `scene/node-graph.json`，正是 `_read_graph` 的第 2 条兜底来源，
+    # 因此本测试同时也钉住了「旧存档仍然读得到」这条兼容承诺。
+    import json as _json
+    from bridge.snapshot import snapshot_root, write_snapshot
+    write_snapshot(serial, "")  # 建出快照根与 scene/ 目录
+    _scene = snapshot_root("", serial) / "scene"
+    _scene.mkdir(parents=True, exist_ok=True)
+    (_scene / "node-graph.json").write_text(
+        _json.dumps({
             "schemaVersion": 2,
             "viewport": {"k": 1, "x": 0, "y": 10},
             "nodes": [
@@ -58,7 +66,8 @@ def test_mcp_tools(tmp_path: Path, monkeypatch) -> None:
                 {"id": "n2", "kind": "output", "label": "_output_", "baseLabel": "_output_", "flags": {"display": False}, "x": 100, "y": 0},
             ],
             "connections": [{"source": "n1", "sourceOutput": "in0", "target": "n2", "targetInput": "out0"}],
-        },
+        }),
+        encoding="utf-8",
     )
     assert [n["id"] for n in cyl1nder_nodeview_nodes(serial)] == ["n1", "n2"]
     conns = cyl1nder_nodeview_connections(serial)

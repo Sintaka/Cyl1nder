@@ -287,6 +287,31 @@ def test_put_snapshot_preference(tmp_path: Path, monkeypatch) -> None:
     assert json.loads(p.read_text(encoding="utf-8")) == pref
 
 
+def test_put_snapshot_graph_accepted_but_ignored(tmp_path: Path, monkeypatch) -> None:
+    """PUT /snapshot 带 graph -> 仍 200，但 node-graph.json 不落盘（v0.1.00122）。
+
+    为什么是 200 而不是 4xx：老版 web 还在发这个键，硬报错会打断它的 cook 推送。
+    同一请求里的 parm 必须照常写入 —— 忽略 graph 不等于忽略整个请求。
+    """
+    monkeypatch.setenv("CYL1NDER_SNAPSHOT_ROOT", str(tmp_path / "snaps"))
+    c = _client(tmp_path)
+    serial = generate_serial()
+    r = c.put(
+        f"/api/hda/{serial}/snapshot",
+        json={"graph": {"nodes": ["x"]}, "parm": {"/obj/geo1": {"tx": 1}}},
+    )
+    assert r.status_code == 200
+    root = tmp_path / "snaps" / serial
+    assert not (root / "scene" / "node-graph.json").exists()
+    assert (root / "scene" / "node-parm.json").is_file()
+    snap = c.get(f"/api/hda/{serial}/snapshot").json()["snapshot"]
+    assert snap.get("graph") is None
+    assert snap["parm"] == {"/obj/geo1": {"tx": 1}}
+    assert any(
+        "graph part ignored" in e["message"] for e in get_state().logs.query(serial=serial)
+    )
+
+
 def test_stage_broadcast_latest_wins_coalesced(tmp_path: Path, monkeypatch) -> None:
     """stage_broadcast merges by index (latest-wins) and flushes once per fps window."""
     import asyncio

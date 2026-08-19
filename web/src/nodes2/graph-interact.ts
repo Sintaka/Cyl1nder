@@ -931,6 +931,8 @@ export function attachRectSelect(
 ): void {
   const overlay = document.createElement("div");
   overlay.className = "cyl-rect-select hidden";
+  /** 「算不算拖出了一个框」的像素阈值。与 reconnect 的抓线阈值同量级，手感一致。 */
+  const RECT_SELECT_MIN_PX = 4;
   container.appendChild(overlay);
   let sel: { x0: number; y0: number } | null = null;
 
@@ -944,7 +946,12 @@ export function attachRectSelect(
       if (isReconnectBusy()) return; // reconnect grab owns the pointer
       if (nodeFromTarget(editor, area, target)) return; // node drag, not rect select
       sel = { x0: e.clientX, y0: e.clientY };
-      overlay.classList.remove("hidden");
+      // **不在这里 remove("hidden")**（v0.1.00122 修）：overlay 上还留着上一次拖拽的
+      // left/top/width/height，此刻显示出来就是「闪一下上次的选区」——用户单击或
+      // 按住不动都会看到。改为等 pointermove 真的算出新几何之后再显示：
+      // 先把尺寸归零，再由 move 分支决定显不显示。
+      overlay.style.width = "0px";
+      overlay.style.height = "0px";
     },
     true,
   );
@@ -957,15 +964,29 @@ export function attachRectSelect(
       const y = e.clientY - rect.top;
       const x0 = sel.x0 - rect.left;
       const y0 = sel.y0 - rect.top;
+      const w = Math.abs(x - x0);
+      const h = Math.abs(y - y0);
       overlay.style.left = `${Math.min(x0, x)}px`;
       overlay.style.top = `${Math.min(y0, y)}px`;
-      overlay.style.width = `${Math.abs(x - x0)}px`;
-      overlay.style.height = `${Math.abs(y - y0)}px`;
+      overlay.style.width = `${w}px`;
+      overlay.style.height = `${h}px`;
+      // 只有真的拖出一个框才显示（阈值同 reconnect 的 6px 手感）：单击时 w/h 都是 0，
+      // 显示一个零尺寸框只会让用户看到上次残留的边框。
+      if (w > RECT_SELECT_MIN_PX || h > RECT_SELECT_MIN_PX) overlay.classList.remove("hidden");
     },
     true,
   );
   const up = (e: PointerEvent) => {
     if (!sel || !selectable) return;
+    // 单击（没拖出框）**不动选择**：否则「点一下空白」会把已有选择全清掉，而那与
+    // 「框选了 0 个节点」在代码里长得一样。阈值与显示阈值同一个，行为才一致。
+    const moved =
+      Math.abs(e.clientX - sel.x0) > RECT_SELECT_MIN_PX || Math.abs(e.clientY - sel.y0) > RECT_SELECT_MIN_PX;
+    if (!moved) {
+      sel = null;
+      overlay.classList.add("hidden");
+      return;
+    }
     const t = area.area.transform;
     const rect = container.getBoundingClientRect();
     const lx = (Math.min(sel.x0, e.clientX) - rect.left - t.x) / t.k;

@@ -1,4 +1,8 @@
-"""快照目录命名 `<场景名>_<serial>` + 旧目录兜底/迁移（v0.1.00117）。"""
+"""快照目录命名与位置：
+
+- `<场景名>_<serial>` 兄弟目录 + 旧目录兜底/迁移（v0.1.00117）
+- **成员嵌进项目目录** `<hipstem>_<pid>/members/<serial>/` + graph 不再写（v0.1.00122）
+"""
 from __future__ import annotations
 
 import json
@@ -6,18 +10,23 @@ from pathlib import Path
 
 from bridge.scenes import cleanup_scenes
 from bridge.snapshot import (
+    MEMBERS_DIR,
     _sanitize_dir_part,
+    member_root,
+    migrate_member_snapshot_dir,
     migrate_project_graph_dir,
     migrate_snapshot_dir,
     project_graph_root,
     project_scene_dir_name,
     read_project_graph,
     read_snapshot,
+    resolve_project_id,
     scene_dir_name,
     snapshot_root,
+    write_snapshot,
 )
 from bridge.protocol import generate_project_serial, generate_serial
-from bridge.state import reset_state
+from bridge.state import get_state, reset_state
 
 def test_scene_dir_name_prefixes_hip_stem() -> None:
     s = generate_serial()
@@ -170,3 +179,180 @@ def test_migrate_is_noop_without_hip_or_legacy(tmp_path: Path, monkeypatch) -> N
     assert migrate_snapshot_dir("", generate_serial()) == ""
     # hip 有但没有旧目录 -> 无事可做
     assert migrate_snapshot_dir(str(tmp_path / "x.hip"), generate_serial()) == ""
+
+
+# --- v0.1.00122 成员嵌进项目目录 -------------------------------------------------
+#
+# 用户要根除的形态：`<hipstem>_<C1-…>` 与 `<hipstem>_<P1-…>` 并列做兄弟。
+# 目标：`<hipstem>_<P1-…>/members/<C1-…>/`。
+
+
+def _bound_project(tmp_path: Path, monkeypatch) -> tuple[str, str, str]:
+    """建一个真的「项目 + 成员」绑定 -> (hip, pid, serial)。
+
+    走 state 而不是 mock：`resolve_project_id` 的全部意义就是从 state 里查出归属，
+    塞假对象就等于不测它。
+    """
+    monkeypatch.delenv("CYL1NDER_SNAPSHOT_ROOT", raising=False)
+    monkeypatch.setattr("bridge.snapshot.DEFAULT_ROOT", tmp_path / "fallback")
+    reset_state(tmp_path / "data")
+    hip = str(tmp_path / "beginTest-2.hip")
+    serial = generate_serial()
+    st = get_state()
+    project, _ = st.projects.ensure_for_hip(hip)
+    pid = project["projectSerial"]
+    st.projects.add_member(pid, {"kind": "hda", "serial": serial, "nodePath": "/obj/x"})
+    return hip, pid, serial
+
+
+def test_member_snapshot_nests_under_project_dir(tmp_path: Path, monkeypatch) -> None:
+    """核心断言：成员目录在项目目录**里面**，且不再有兄弟目录那种形态。"""
+    hip, pid, serial = _bound_project(tmp_path, monkeypatch)
+    base = tmp_path / "Cyl1nder"
+    root = snapshot_root(hip, serial)
+    assert root == base / f"beginTest-2_{pid}" / MEMBERS_DIR / serial
+    assert root == member_root(hip, serial, pid)
+    # 兄弟形态必须不再是写入目标（这正是用户要根除的东西）
+    assert root != base / f"beginTest-2_{serial}"
+    assert resolve_project_id(hip, serial) == pid
+
+
+def test_write_lands_inside_project_and_no_sibling_dir(tmp_path: Path, monkeypatch) -> None:
+    hip, pid, serial = _bound_project(tmp_path, monkeypatch)
+    assert write_snapshot(serial, hip, inputs=[{"index": 0, "name": "in0"}]) is True
+    base = tmp_path / "Cyl1nder"
+    assert (base / f"beginTest-2_{pid}" / MEMBERS_DIR / serial / "io" / "inputs.json").is_file()
+    # 盘上**只有**项目目录这一个顶层条目，没有 `beginTest-2_C1-…` 兄弟
+    assert [d.name for d in base.iterdir()] == [f"beginTest-2_{pid}"]
+    snap = read_snapshot(hip, serial)
+    assert snap is not None and snap["inputs"] == [{"index": 0, "name": "in0"}]
+
+
+def _seed_sibling(tmp_path: Path, hip: str, serial: str, name: str) -> Path:
+    """在 hip 同侧造一个旧的兄弟快照目录（带 meta.json，形态与真快照一致）。"""
+    old = tmp_path / "Cyl1nder" / name
+    (old / "scene").mkdir(parents=True)
+    (old / "scene" / "meta.json").write_text(
+        json.dumps({"serial": serial, "old": True}), encoding="utf-8"
+    )
+    return old
+
+
+def test_migrate_member_renames_sibling_into_project(tmp_path: Path, monkeypatch) -> None:
+    hip, pid, serial = _bound_project(tmp_path, monkeypatch)
+    old = _seed_sibling(tmp_path, hip, serial, f"beginTest-2_{serial}")
+    assert migrate_member_snapshot_dir(hip, serial, pid) == "renamed"
+    assert not old.exists()
+    target = member_root(hip, serial, pid)
+    assert json.loads((target / "scene" / "meta.json").read_text(encoding="utf-8"))["old"] is True
+
+
+def test_migrate_member_also_takes_bare_serial_dir(tmp_path: Path, monkeypatch) -> None:
+    """v0.1.00116 的裸 `<serial>` 目录也要能直接迁进项目（跳过中间那代命名）。"""
+    hip, pid, serial = _bound_project(tmp_path, monkeypatch)
+    old = _seed_sibling(tmp_path, hip, serial, serial)
+    assert migrate_member_snapshot_dir(hip, serial, pid) == "renamed"
+    assert not old.exists()
+    assert (member_root(hip, serial, pid) / "scene" / "meta.json").is_file()
+
+
+def test_migrate_member_skips_when_target_exists_and_never_loses_data(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """目标已存在 -> 谁都不动、两份都在；读退化成「仍从旧位置读到」，不是数据丢失。"""
+    hip, pid, serial = _bound_project(tmp_path, monkeypatch)
+    old = _seed_sibling(tmp_path, hip, serial, f"beginTest-2_{serial}")
+    member_root(hip, serial, pid).mkdir(parents=True)     # 占位：迁移会 skip
+    assert migrate_member_snapshot_dir(hip, serial, pid) == "skipped:target-exists"
+    assert old.is_dir()
+    # 新位置没有 meta.json，读必须回落到旧兄弟目录（`_legacy_roots` 兜底）
+    snap = read_snapshot(hip, serial)
+    assert snap is not None and snap["meta"]["old"] is True
+
+
+def test_migrate_member_noop_without_hip_pid_or_source(tmp_path: Path, monkeypatch) -> None:
+    hip, pid, serial = _bound_project(tmp_path, monkeypatch)
+    assert migrate_member_snapshot_dir("", serial, pid) == ""
+    assert migrate_member_snapshot_dir(hip, serial, "") == ""      # 无 pid：绝不编造
+    assert migrate_member_snapshot_dir(hip, serial, pid) == ""     # 没有旧目录可迁
+
+
+def test_member_workspace_round_trips_through_nested_dir(tmp_path: Path, monkeypatch) -> None:
+    """成员工作区仍照常工作：flush 落进 members/<serial>/、restore 从那里读回来。
+
+    这条是「换了目录会不会把成员工作区弄坏」的直接答案——走的是桥重启后恢复工作区的
+    真实路径（`flush_workspace` -> `restore_workspace`），不是只比对路径字符串。
+    """
+    from bridge.protocol import InputPayload
+    from bridge.snapshot import flush_workspace, restore_workspace
+
+    hip, pid, serial = _bound_project(tmp_path, monkeypatch)
+    st = get_state()
+    st.registry.register(serial, hip=hip, nodePath="/obj/geo1/cyl1nder1", label="Cyl1nder")
+    ws = st.workspaces.get_or_create(serial)
+    ws.set_inputs([InputPayload(index=0, name="in0", pointCount=1, points=[[1, 2, 3]])])
+
+    assert flush_workspace(serial) is True
+    root = member_root(hip, serial, pid)
+    assert (root / "io" / "inputs.json").is_file()
+    assert (root / "scene" / "meta.json").is_file()
+
+    # 桥重启：工作区清空，再从盘上恢复
+    st.workspaces._workspaces.pop(serial, None)
+    assert restore_workspace(serial, hip) is True
+    restored = st.workspaces.get(serial)
+    assert restored is not None
+    assert [i.points for i in restored.inputs] == [[[1.0, 2.0, 3.0]]]
+
+
+def test_graph_part_accepted_but_never_written(tmp_path: Path, monkeypatch) -> None:
+    """accept-but-ignore：不抛、不写 node-graph.json，且只因 graph 而不算「写过」。"""
+    hip, pid, serial = _bound_project(tmp_path, monkeypatch)
+    assert write_snapshot(serial, hip, graph={"nodes": ["x"]}) is False
+    assert not (member_root(hip, serial, pid) / "scene" / "node-graph.json").exists()
+    # 提示可见（每 serial 一次），且不影响别的部分照常写
+    assert any(
+        "graph part ignored" in e["message"] for e in get_state().logs.query(serial=serial)
+    )
+    assert write_snapshot(serial, hip, graph={"nodes": ["x"]}, parm={"a": 1}) is True
+    assert (member_root(hip, serial, pid) / "scene" / "node-parm.json").is_file()
+    assert not (member_root(hip, serial, pid) / "scene" / "node-graph.json").exists()
+
+
+def test_existing_member_graph_still_readable(tmp_path: Path, monkeypatch) -> None:
+    """旧存档里的 node-graph.json 仍要读得到 —— 项目图的单成员缺省迁移读靠它。"""
+    hip, pid, serial = _bound_project(tmp_path, monkeypatch)
+    scene = member_root(hip, serial, pid) / "scene"
+    scene.mkdir(parents=True)
+    (scene / "node-graph.json").write_text(json.dumps({"nodes": ["legacy"]}), encoding="utf-8")
+    snap = read_snapshot(hip, serial)
+    assert snap is not None and snap["graph"] == {"nodes": ["legacy"]}
+
+
+def test_falls_back_to_sibling_when_no_project_bound(tmp_path: Path, monkeypatch) -> None:
+    """项目还没 ensure 出来时（put_inputs 首次写快照）退回旧兄弟目录，绝不编造 pid。"""
+    monkeypatch.delenv("CYL1NDER_SNAPSHOT_ROOT", raising=False)
+    monkeypatch.setattr("bridge.snapshot.DEFAULT_ROOT", tmp_path / "fallback")
+    reset_state(tmp_path / "data")
+    hip = str(tmp_path / "beginTest-2.hip")
+    serial = generate_serial()
+    assert resolve_project_id(hip, serial) == ""
+    assert snapshot_root(hip, serial) == tmp_path / "Cyl1nder" / f"beginTest-2_{serial}"
+
+
+def test_resolve_ignores_project_bound_to_another_hip(tmp_path: Path, monkeypatch) -> None:
+    """成员挂在**别的 hip** 的项目下时不得命中：否则快照会写进另一个场景旁边。"""
+    monkeypatch.delenv("CYL1NDER_SNAPSHOT_ROOT", raising=False)
+    reset_state(tmp_path / "data")
+    serial = generate_serial()
+    st = get_state()
+    other, _ = st.projects.ensure_for_hip(str(tmp_path / "other.hip"))
+    st.projects.add_member(other["projectSerial"], {"kind": "hda", "serial": serial})
+    assert resolve_project_id(str(tmp_path / "beginTest-2.hip"), serial) == ""
+
+
+def test_env_override_stays_flat(tmp_path: Path, monkeypatch) -> None:
+    """`CYL1NDER_SNAPSHOT_ROOT` 仍是扁平 `<root>/<serial>`（测试隔离目录不要项目层次）。"""
+    monkeypatch.setenv("CYL1NDER_SNAPSHOT_ROOT", str(tmp_path / "snaps"))
+    serial = generate_serial()
+    assert snapshot_root(str(tmp_path / "beginTest-2.hip"), serial) == tmp_path / "snaps" / serial

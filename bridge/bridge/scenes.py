@@ -180,8 +180,27 @@ def open_scene(folder_path: str) -> dict[str, Any]:
         serial,
         "",
         inputs=[i.model_dump() for i in inputs] if inputs is not None else None,
-        graph=graph if isinstance(graph, dict) else None,
         docking=docking if isinstance(docking, dict) else None,
     )
+    # 旧存档带图时**原样把文件搬过去**（v0.1.00122）。
+    #
+    # 不能再走 `write_snapshot(graph=…)`：它自 v0.1.00122 起 accept-but-ignore，
+    # 传进去等于**静默丢掉这张图** —— 打开一个旧场景文件夹却把它的图弄没了，
+    # 是比"不支持"更坏的结果。
+    # 直接落到 `scene/node-graph.json`：`read_snapshot` 仍会读它（graph 只读不写），
+    # 于是 `GET /api/projects/{id}/graph` 的单成员迁移读还能把它**提升成项目图**——
+    # 那才是这张图该去的地方。
+    if isinstance(graph, dict):
+        try:
+            dest = snapshot_root("", serial) / "scene"
+            dest.mkdir(parents=True, exist_ok=True)
+            (dest / "node-graph.json").write_text(
+                json.dumps(graph, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            st.logs.info("scenes", f"legacy member graph preserved for migration: {serial}", serial)
+        except OSError as exc:
+            # 图没搬成不该让"打开场景"整体失败：inputs/docking 已经就位，
+            # 用户至少还能看到几何；这里只如实记一条。
+            st.logs.error("scenes", f"legacy graph copy failed for {serial}: {exc}", serial)
     st.logs.info("scenes", f"scene opened: {serial} <- {folder}", serial)
     return {"serial": serial}

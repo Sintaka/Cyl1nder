@@ -205,12 +205,17 @@ const addressBar = createAddressBar(graphAddr, {
         graph.frameSelection(); // 当前地址：跳到本图
         return true;
       }
-      // 1 段 `/C1-…/` 指向**另一个**成员：v0.1.00120 起不再退成 serial 模式，而是经桥的
-      // serial→项目映射解析出它所属的项目，进那个项目下的成员工作区（地址随之变成
-      // 两段 /P1-…/C1-…/）。理由与删 `?serial=` 一致：serial 只是成员身份，不是一个
-      // 可以独立存在的"模式"；留着旧分支就等于把刚拆掉的暗门原样搬进地址栏。
-      void openProjectMember(segs[0]);
-      return true;
+      // 1 段 `/C1-…/`：**v0.1.00122 起直接拒绝**。
+      //
+      // 用户要求：「项目中不要再出现 /P1-…/C1-…/ 这个东西了」「把老 hda 会直接按照
+      // serial 创建项目的问题清理掉, 这个入口必须 ban」。serial 是**成员身份**，
+      // 不是一个可以被当作地址打开的东西；成员的内容属于项目图里那个 geo 子网络。
+      // 留着这条分支就等于把刚拆掉的 `?serial=` 暗门原样搬进地址栏。
+      store.pushLog(
+        `[nav] 拒绝按 serial 打开：${segs[0]} 是成员身份而不是地址——` +
+          `请打开它所属的项目（/P1-…/），在项目里建 geo 并进入 sop 层级`,
+      );
+      return false; // 地址栏据此走「无法解析 → 复制」的既有降级
     }
     if (isProject(segs[0])) {
       // 已在该项目**且身处子网络**时：只是往上退层，绝不重进项目模式。
@@ -1744,9 +1749,14 @@ const bootParams = new URLSearchParams(location.search);
 const qp = bootParams.get("project");
 const qm = bootParams.get("member");
 if (qp && PROJECT_SERIAL_RE.test(qp) && qm && SERIAL_RE.test(qm)) {
-  // 直达成员：与 openProjectMember 共用 enterMemberWorkspace（此处项目已在地址里，
-  // 无需再问桥要映射）。
-  void enterMemberWorkspace(qp, qm);
+  // **`&member=` 已废弃（v0.1.00122）**：忽略它，只进项目根。
+  //
+  // 用户要求 cook 之后只出现 `/P1-…`，里面一个黄色高亮提示，由用户手动建 geo 并进入
+  // sop 层级建 input。成员工作区这个概念本身就是「按 serial 当地址」的残余：
+  // 成员的内容属于项目图里那个 geo 的子网络，不是一个平行的顶层图。
+  // 老书签因此优雅降级成「进它所属的项目」，而不是报错或跳 Overview。
+  store.pushLog(`[nav] member= 已废弃：忽略 ${qm}，进入项目根 ${qp}（成员内容请在项目里的 geo 子网络中查看）`);
+  void enterProjectMode(qp);
 } else if (qp && PROJECT_SERIAL_RE.test(qp)) {
   // P2b 项目模式：?project=P1-… 直接进入项目根（index.html 已放行，不重定向 overview）。
   void enterProjectMode(qp);

@@ -45,6 +45,16 @@ def _drop_graph_dir(root: Path) -> None:
     只碰这两个文件名、只在目录**确实空了**时 rmdir：项目图目录与 per-serial 快照目录
     同住 `<hip目录>/Cyl1nder/` 之下，一个 rmtree 写错就会连带端掉兄弟快照。
     失败一律吞掉——清理附属物绝不能阻断项目记录本身的删除。
+
+    v0.1.00122 起成员快照嵌在 `<项目目录>/members/<serial>/`，于是删项目后**目录通常
+    不空、rmdir 不再发生**，只有 graph.json 被删掉。这是**刻意的**：成员的 io/scene
+    快照是用户的几何与参数数据，不该随「删项目记录」被连带清掉（项目可以重建并按 hip
+    重新归拢，见 `bind_serial_to_hip`）——**绝不在这里 rmtree**。
+
+    附带说清楚谁也清不掉它：`POST /api/scenes/cleanup`（`scenes.cleanup_scenes`）只扫
+    `_snapshot_base()`（`CYL1NDER_SNAPSHOT_ROOT` 或 `bridge/data/snapshots/`），
+    **从不走 hip 同侧**，也不递归进 `members/`。所以 hip 旁的成员快照目前只能由用户
+    手工删。要做「删项目连带删成员快照」得是显式新端点 + 用户确认，不在这里偷偷做。
     """
     try:
         (root / "graph.json").unlink(missing_ok=True)

@@ -627,6 +627,10 @@ export class CylNode extends ClassicPreset.Node {
   bindings?: Record<string, string>;
   /** 该节点活在哪一层（v0.1.00119）。缺省 `"sop"` —— 旧图无此字段，行为与改造前一致。 */
   netKind?: NetKind;
+  /** 仅 kind==="project"：项目里除根节点外**什么都没有**（v0.1.00122）。
+   *  NodeView 据此画一行「建 geo → 双击进入 → 建 input/output」的提示。
+   *  **不序列化**：它是根据当前图算出来的瞬时事实，存下来只会在下次加载时说谎。 */
+  projectEmpty?: boolean;
   /** 仅 kind==="project"：当前绑定的 hip 绝对路径（v0.1.00119，task #6）。
    *  **不序列化**——hip 的权威来源是桥侧 `ProjectRef.hip`，每次 loadProjectGraph 重新注入；
    *  存进快照只会在另存为之后变成过期数据（比没有更糟）。 */
@@ -950,6 +954,42 @@ export function dynamicInputKey(i: number): string {
   return `${DYN_IN}${i}`;
 }
 
+/** 端口引用参数名前缀：`ref_in0` / `ref_out0`。 */
+export const REF_PARAM_PREFIX = "ref_";
+
+/** 端口 key → 该端口的引用参数名。 */
+export function refParamName(portKey: string): string {
+  return `${REF_PARAM_PREFIX}${portKey}`;
+}
+
+/**
+ * 按当前端口重建 null 节点的引用参数列表（用户需求 #4）。
+ *
+ * 每个输入端口 + 每个输出端口各一个 string 参数，用户在里面填相对地址
+ * （`transform1/tx`、`point_1.x`），由取值侧解析后**覆盖**该端口的值——前提是类型对得上
+ * （目前只有 float 走通）。
+ *
+ * **保留已有值**：端口增减时不能把用户填过的引用擦掉。所以按 name 从旧列表里捞回来，
+ * 只补齐缺的、丢掉端口已经不存在的那些。
+ *
+ * 空值参数**照样生成**（面板要有地方填），序列化时由 `isDefaultRefParam` 剔除，
+ * 所以磁盘上的 v2 快照仍然不带 params 键。
+ */
+export function syncRefParams(n: CylNode): boolean {
+  if (!hasDynamicInputs(n.kind)) return false;
+  const want = [...Object.keys(n.inputs), ...Object.keys(n.outputs)].map(refParamName);
+  const prev = new Map((n.params ?? []).map((p) => [p.name, p]));
+  const next: ParamSpec[] = want.map(
+    (name) => prev.get(name) ?? { name, type: "string", value: "", default: "" },
+  );
+  const same =
+    (n.params?.length ?? 0) === next.length &&
+    (n.params ?? []).every((p, i) => p.name === next[i]?.name && p.value === next[i]?.value);
+  if (same) return false;
+  n.params = next;
+  return true;
+}
+
 /** 动态输入 key → 序号；非该形状（`out0`、`inx`、`in-1`…）→ null。 */
 export function dynamicInputIndex(key: string): number | null {
   const m = /^in(\d+)$/.exec(key);
@@ -999,6 +1039,9 @@ export function syncDynamicInputs(n: CylNode, wiredKeys: readonly string[], sock
     n.addInput(key, new ClassicPreset.Input(new ClassicPreset.Socket(socketType)));
     changed = true;
   }
+  // 端口变了就同步引用参数（需求 #4）：新端口要有地方填引用，消失的端口不该留下孤儿参数。
+  // 放在这里而不是让调用方各自记得调——端口与参数必须同生同灭，分开就会漂移。
+  if (syncRefParams(n)) changed = true;
   return changed;
 }
 
@@ -1224,6 +1267,7 @@ export function makeNullNode(): CylNode {
   n.baseLabel = "null";
   n.addInput(dynamicInputKey(0), new ClassicPreset.Input(new ClassicPreset.Socket(ANY)));
   n.addOutput("out0", new ClassicPreset.Output(new ClassicPreset.Socket(ANY)));
+  syncRefParams(n); // 需求 #4：每个端口一个引用 string，否则 param 面板是空的
   return n;
 }
 /** Houdini-style unique naming: transform1, transform2… (independent seq). */
@@ -1508,12 +1552,32 @@ function isDefaultAddressParam(p: ParamSpec): boolean {
   return false;
 }
 
-/** 剔除默认 address/type 后的参数列表（空 → undefined，序列化时无该键）。 */
+/** 动态端口引用参数（null 节点的 `ref_in0` / `ref_out0`…）是否处于默认（= 空）状态。
+ *
+ *  与 address/type/port 同理：**空引用与"没有这个参数"在序列化层必须等价**。
+ *  `dynamic-ports.test.ts:414` 那条断言（v2 图里 null 节点 `params === undefined`）
+ *  是字节兼容的承重墙——null 从来不带 params，加了引用参数之后若不剔除默认值，
+ *  每个既有 v2 快照都会凭空多出一串 `ref_in*`。 */
+function isDefaultRefParam(p: ParamSpec): boolean {
+  if (!p.name.startsWith(REF_PARAM_PREFIX)) return false;
+  return p.value === "" || p.value == null;
+}
+
+/** 剔除默认参数后的列表（空 → undefined，序列化时无该键）。
+ *
+ *  三类 kind 各有自己的默认集：`input`/`output` 是 address/type/port，
+ *  `null` 是 `ref_*`。其余 kind 原样输出（transform 的 tx/ty/tz 等本来就该存）。 */
 function serializableParams(kind: NodeKind, params?: ParamSpec[]): ParamSpec[] | undefined {
   if (!params || params.length === 0) return undefined;
-  if (kind !== "input" && kind !== "output") return params; // 其它 kind 的参数原样
-  const kept = params.filter((p) => !isDefaultAddressParam(p));
-  return kept.length > 0 ? kept : undefined;
+  if (kind === "input" || kind === "output") {
+    const kept = params.filter((p) => !isDefaultAddressParam(p));
+    return kept.length > 0 ? kept : undefined;
+  }
+  if (hasDynamicInputs(kind)) {
+    const kept = params.filter((p) => !isDefaultRefParam(p));
+    return kept.length > 0 ? kept : undefined;
+  }
+  return params;
 }
 
 /**

@@ -14,7 +14,7 @@ from pathlib import Path
 from fastmcp import FastMCP
 
 from .protocol import VERSION
-from .snapshot import read_snapshot, snapshot_root
+from .snapshot import read_project_graph, read_snapshot, snapshot_root
 from .state import get_state
 
 mcp = FastMCP("cyl1nder")
@@ -79,10 +79,30 @@ def cyl1nder_read_snapshot(serial: str) -> dict:
 
 
 def _read_graph(serial: str) -> dict | None:
-    """读取某 serial 的节点图快照（schemaVersion 2），无快照返回 None。"""
+    """读取某 serial 的节点图，无图返回 None。
+
+    **两个来源，按新旧顺序（v0.1.00122）**：
+    1. 该 serial 所属**项目**的 `graph.json` —— 成员图归项目所有之后，这才是权威位置；
+    2. 旧存档里成员自己的 `scene/node-graph.json`（只读不写，仍兜底）。
+
+    只读第 2 条的话，这四个 nodeview 工具在新工程上会**全部返回 null**（成员侧已经
+    不再写图）；只读第 1 条则读不到既有存档。两条都要，顺序决定谁赢。
+    """
     st = get_state()
     rec = st.registry.get(serial)
     hip = rec.hip if rec else ""
+    # 1) 项目图：找包含该 serial 的项目，读它的 graph.json
+    try:
+        for proj in st.projects.list():
+            members = proj.get("members") or []
+            if not any((m or {}).get("serial") == serial for m in members):
+                continue
+            pg = read_project_graph(st.data_dir, proj.get("projectSerial") or "", proj.get("hip") or "")
+            if isinstance(pg, dict) and pg.get("nodes"):
+                return pg
+    except Exception:  # noqa: BLE001 - 读不到项目图就退到旧存档，不该让工具整体失败
+        pass
+    # 2) 旧存档兜底
     snap = read_snapshot(hip, serial)
     if not snap:
         return None

@@ -364,7 +364,14 @@ async def put_ui_layout(payload: dict) -> dict:
 
 @router.put("/api/hda/{serial}/snapshot")
 async def put_snapshot(serial: str, payload: dict) -> dict:
-    """Web persists the node graph / node params / docking layout (scene part)."""
+    """Web persists node params / docking layout / preference (scene part).
+
+    **`graph` 自 v0.1.00122 起被收下但忽略**（成员图归项目所有，见
+    `snapshot.write_snapshot`）：成员是一个 HDA 内部的内容，图属于项目
+    （项目目录的 graph.json）。两个 graph 归宿正是 v0.1.00117 那次数据丢失的成因。
+    仍返回 200 而不是 4xx —— 老版 web 还在发这个键，硬报错会打断它的 cook 推送。
+    要写项目图请走 `PUT /api/projects/{projectId}/graph`。
+    """
     _check_serial(serial)
     st = get_state()
     rec = st.registry.get(serial)

@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 
@@ -130,7 +131,13 @@ def test_migrate_single_member_snapshot_graph(tmp_path: Path, monkeypatch) -> No
     s = generate_serial()
     hip = str(tmp_path / "hipdir" / "scene.hip")
     graph = {"nodes": [{"id": "n1"}], "connections": [], "viewport": {"scale": 1.0}}
-    snap.write_snapshot(s, hip, graph=graph)  # 在 snapshot_root(hip, serial) 写带 graph 的 serial 快照
+    # v0.1.00122 起 `write_snapshot` **不再写 graph**（成员图归项目所有），所以这里手工
+    # 铺一个**旧存档**形状的 node-graph.json —— 本测试要验的正是「旧存档还能被迁移读出来」，
+    # 用已经不写 graph 的 API 造夹具就什么都造不出来（夹具形状必须像它要模拟的那个年代）。
+    snap.write_snapshot(s, hip)  # 建出 snapshot_root 及其 scene/ 目录
+    legacy_graph = snap.snapshot_root(hip, s) / "scene" / "node-graph.json"
+    legacy_graph.parent.mkdir(parents=True, exist_ok=True)
+    legacy_graph.write_text(json.dumps(graph), encoding="utf-8")
     c.post(f"/api/projects/{pid}/members", json={"kind": "tag", "serial": s, "nodePath": "/obj/geo1/tag1", "hip": hip, "label": ""})
     r = c.get(f"/api/projects/{pid}/graph")
     assert r.status_code == 200
