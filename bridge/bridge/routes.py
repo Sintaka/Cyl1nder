@@ -24,6 +24,7 @@ from .protocol import (
     WEB_UI_URL,
     is_valid_serial,
 )
+from .cook_txn import passthrough_outputs
 from .project_routes import bind_serial_to_hip, is_transient_hip
 from .scenes import cleanup_scenes, create_scene, list_scenes, open_scene, save_scene
 from .snapshot import maybe_snapshot, read_snapshot, write_snapshot
@@ -104,6 +105,39 @@ async def _reestablish_project_if_missing(st, serial: str, hip: str) -> None:
         st.logs.error("routes", f"project reestablish failed for hip={hip!r}: {exc}", serial)
 
 
+async def _apply_passthrough(st, serial: str, ws) -> dict:
+    """cook 时解析写回指向；没指向/悬空的端口把 input 原样搬回 outputs。
+
+    这是用户设计的落点：「cook 请求发出时桥去找有没有指向, 如果是类似空指针的东西
+    就直接把 input 塞回去给 hda」。放在 `set_inputs` **之后**，因为要拿这一趟的
+    inputs；放在返回**之前**，因为 HDA 紧接着就会 GET /outputs 取结果。
+
+    **best-effort**：任何异常只记日志（照 `_reestablish_project_if_missing` 的先例）。
+    passthrough 是便利功能，绝不能让它把几何推送本身弄失败——用户明确要求
+    「never fail the cook」。
+    """
+    try:
+        existing = {int(b.index) for b in ws.all_outputs()}
+        plan = await asyncio.to_thread(
+            passthrough_outputs, serial, ws.inputs, existing_ports=existing
+        )
+        if plan.get("skipped") or not plan.get("buffers"):
+            return {"applied": [], "reason": plan.get("reason") or "", "resolved": plan.get("resolved") or []}
+        rev, accepted = ws.put_outputs(plan["buffers"])
+        ports = [int(b.index) for b in accepted]
+        if accepted:
+            st.logs.info("routes", f"passthrough outputs {ports} (no writeback pointer), rev={rev}", serial)
+            st.trace.add(
+                actor="bridge-passthrough", action="outputs-passthrough", channel=serial,
+                target=f"out[{','.join(str(p) for p in ports)}]", digest=f"rev={rev}, {len(accepted)} inputs handed back",
+            )
+            st.notify_stream(serial)
+        return {"applied": ports, "rev": rev, "reason": plan.get("reason") or "", "resolved": plan.get("resolved") or []}
+    except Exception as exc:  # noqa: BLE001 - passthrough 失败绝不打断 cook
+        st.logs.error("routes", f"passthrough failed: {exc}", serial)
+        return {"applied": [], "error": str(exc)[:200]}
+
+
 @router.put("/api/hda/{serial}/inputs")
 async def put_inputs(serial: str, payload: InputsPut) -> dict:
     _check_serial(serial)
@@ -111,8 +145,11 @@ async def put_inputs(serial: str, payload: InputsPut) -> dict:
     rec = st.registry.register(
         serial, hip=payload.hip, nodePath=payload.nodePath, label=payload.label
     )
-    rev = st.workspaces.get_or_create(serial).set_inputs(payload.inputs, payload.frame)
+    ws = st.workspaces.get_or_create(serial)
+    rev = ws.set_inputs(payload.inputs, payload.frame)
     st.registry.mark_activity(serial)
+    # 写回指向解析 + passthrough（空指针 -> 把 input 搬回去），见 _apply_passthrough
+    writeback = await _apply_passthrough(st, serial, ws)
     await _reestablish_project_if_missing(st, serial, payload.hip)
     st.logs.info("routes", f"inputs pushed ({len(payload.inputs)}), rev={rev}", serial)
     await manager.broadcast(
@@ -128,7 +165,7 @@ async def put_inputs(serial: str, payload: InputsPut) -> dict:
         target="inputs",
         digest=f"{len(payload.inputs)} inputs, {sum(i.pointCount for i in payload.inputs)} pts, {sum(i.primCount for i in payload.inputs)} prims",
     )
-    return {"ok": True, "serial": serial, "rev": rev}
+    return {"ok": True, "serial": serial, "rev": rev, "writeback": writeback}
 
 
 @router.get("/api/hda/{serial}/outputs")

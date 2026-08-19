@@ -21,7 +21,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from . import cook_cycle, houdini_mcp, snapshot
+from . import cook_cycle, cook_txn, houdini_mcp, snapshot
 from .data_adapters import get_adapter
 from .houdini_routes import _resolve_port
 from .protocol import (
@@ -29,6 +29,7 @@ from .protocol import (
     MappingEntry,
     MappingsResponse,
     is_valid_project_serial,
+    is_valid_serial,
 )
 from .state import get_state
 
@@ -362,3 +363,69 @@ async def delete_mapping(pid: str, name: str) -> dict:
     if not removed:
         raise HTTPException(status_code=404, detail="mapping not found")
     return {"ok": True, "removed": True}
+
+
+# --- 写回指向（output 端口 -> 逻辑名）----------------------------------------
+#
+# web 在用户改 `_output_` 的目的地时 PUT 这里；桥在 cook 时读它（routes.put_inputs
+# -> cook_txn.passthrough_outputs）。没指向/悬空 = 空指针 -> passthrough。
+#
+# 端点保持**宽容**：没注册过、甚至半打出来的 serial 也回正常 200 形状（空 targets），
+# 不回 404 —— 前端在用户边打字边渲染的时候不该看到错误（既有端点的一贯做法）。
+
+
+class WritebackPut(BaseModel):
+    project: str
+    name: str
+
+
+def _writeback_view(serial: str) -> dict:
+    """`{serial, isTag, targets, resolved}`：存了什么 + 现在解析成什么。"""
+    is_tag = cook_txn.is_tag_serial(serial)
+    stored = {} if is_tag else cook_txn.get_writeback_targets().get_all(serial)
+    return {
+        "ok": True,
+        "serial": serial,
+        "isTag": is_tag,
+        "targets": {str(p): t for p, t in sorted(stored.items())},
+        "resolved": [cook_txn.resolve_target(p, t) for p, t in sorted(stored.items())],
+    }
+
+
+@router.get("/api/hda/{serial}/writeback")
+async def get_writeback(serial: str) -> dict:
+    """这个 HDA 的每个 output 端口指向哪儿，以及现在还解析得出来吗。"""
+    if not is_valid_serial(serial):
+        # 宽容：非法/半打的 serial 回空视图，不回 400
+        return {"ok": True, "serial": serial, "isTag": False, "targets": {}, "resolved": []}
+    return _writeback_view(serial)
+
+
+@router.put("/api/hda/{serial}/writeback/{port}")
+async def put_writeback(serial: str, port: int, payload: WritebackPut) -> dict:
+    """把某个 output 端口指向 `project` 里的逻辑名 `name`。
+
+    吊牌**拒绝存指向**（409）：吊牌的写回是 Cyl1nder 经 python runtime 的单向标记，
+    「完全不用同步」，给它存几何写回指向只会让人以为有链路。
+    """
+    if not is_valid_serial(serial):
+        raise HTTPException(status_code=400, detail="invalid serial")
+    if cook_txn.is_tag_serial(serial):
+        raise HTTPException(status_code=409, detail="tag serial needs no writeback sync")
+    if not is_valid_project_serial(payload.project):
+        raise HTTPException(status_code=400, detail="invalid project serial")
+    try:
+        stored = cook_txn.get_writeback_targets().set(serial, port, payload.project, payload.name)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True, "serial": serial, "port": int(port), "target": stored,
+            "resolved": cook_txn.resolve_target(port, stored)}
+
+
+@router.delete("/api/hda/{serial}/writeback/{port}")
+async def delete_writeback(serial: str, port: int) -> dict:
+    """撤掉一个端口的指向 -> 该端口下次 cook 回到 passthrough。"""
+    if not is_valid_serial(serial):
+        raise HTTPException(status_code=400, detail="invalid serial")
+    removed = cook_txn.get_writeback_targets().clear(serial, port)
+    return {"ok": True, "serial": serial, "port": int(port), "removed": removed}
