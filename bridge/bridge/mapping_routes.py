@@ -21,7 +21,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from . import houdini_mcp
+from . import cook_cycle, houdini_mcp, snapshot
 from .data_adapters import get_adapter
 from .houdini_routes import _resolve_port
 from .protocol import (
@@ -251,9 +251,38 @@ async def get_mapping_value(pid: str, name: str) -> dict:
     return {"ok": True, "value": value}
 
 
+@router.get("/api/projects/{pid}/cook-cycles")
+async def get_cook_cycles(pid: str) -> dict:
+    """这个项目的图会不会成环（v0.1.00125）。
+
+    web 侧在 cook / 推写回**之前**问这里，从而在 UI 上标红而不是发一串必然被拒的写。
+    `cycles` 是「既被 `_input_` 读、又被 `_output_` 写」的逻辑名列表；空 = 无环。
+    """
+    _check_pid(pid)
+    st = get_state()
+    project = st.projects.get(pid)
+    if project is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    graph = snapshot.read_project_graph(st.data_dir, pid, project.get("hip") or "")
+    cycles = cook_cycle.find_cycles(graph)
+    return {"ok": True, "cycles": cycles, "message": cook_cycle.cycle_message(cycles)}
+
+
 @router.put("/api/projects/{pid}/mappings/{name:path}/value")
 async def put_mapping_value(pid: str, name: str, payload: ValuePut) -> dict:
     _check_pid(pid)
+    # **无环 cook 是硬约束**（v0.1.00125，用户要求「在桥接映射系统解决掉，做到无环 cook，
+    # 而不是让现有的 node 连接兼容」）。放在解析之前：环是图的性质，与这次写能不能解析无关。
+    #
+    # 只在**该名字自己成环**时拒绝，不因项目里别处有环就拒绝这次写 —— 否则一个无关的环
+    # 会把整个项目的写入全锁死。
+    st0 = get_state()
+    proj0 = st0.projects.get(pid)
+    if proj0 is not None:
+        graph0 = snapshot.read_project_graph(st0.data_dir, pid, proj0.get("hip") or "")
+        cycles0 = cook_cycle.find_cycles(graph0)
+        if any(c.endswith(f"::{name}") for c in cycles0):
+            raise HTTPException(status_code=409, detail=cook_cycle.cycle_message(cycles0))
     resolved = _resolved_or_404(pid, name)
     if not resolved["ok"]:
         return {"ok": False, "error": resolved["error"]}
