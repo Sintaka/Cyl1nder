@@ -983,11 +983,15 @@ function valueEqual(a: unknown, b: unknown): boolean {
 /**
  * 两组参数在**值层面**是否完全相同（纯函数，可直接单测）。
  *
- * 用来丢弃空提交（见 commitParams）。只比 name/value：`type` 由渲染决定、`default` 是
- * 代码侧常量，两者都不是"用户改了什么"的一部分；顺序按下标比，因为 applyEdit 是 map
- * 出来的，恒定保序。
+ * 用来丢弃空提交（见 commitParams）与判定"外部改值"（见 shouldDeferParamRender）。
+ * 只比 name/value：`type` 由渲染决定、`default` 是代码侧常量，两者都不是"用户改了什么"
+ * 的一部分；顺序按下标比，因为 applyEdit 是 map 出来的，恒定保序。
+ *
+ * **与 core/params.paramsEqual 的区别（别混用）**：那个用 `p.value === q.value`，对
+ * vector/color3 是**引用比** —— 而 applyEdit 每次都新建值数组，所以它会把"值没变"判成
+ * "变了"，空提交就永远拦不住。这里逐元素比，正是为了拦住它。
  */
-export function paramsEqual(a: ParamInfo[], b: ParamInfo[]): boolean {
+export function paramValuesEqual(a: ParamInfo[], b: ParamInfo[]): boolean {
   if (a === b) return true;
   if (a.length !== b.length) return false;
   return a.every((p, i) => p.name === b[i].name && valueEqual(p.value, b[i].value));
@@ -1015,17 +1019,33 @@ export function isParamEditorFocused(
 /**
  * 这次重渲染该不该推迟（**纯函数**，可直接单测）。
  *
- * 只有「同一个节点 + 面板里有聚焦编辑器」才推迟。两条例外都必须照渲：
+ * 三个条件**全中**才推迟。任一不中都必须照渲：
  *   - **换节点**（nextNodeId !== renderedNodeId）：宁可打断打字，也绝不让面板显示
  *     A 节点的标题配 B 节点的值 —— 那会让人把值改到错误的节点上。
  *   - **没有已渲染节点 / 目标为空**：没有"正在编辑的上下文"可保护。
+ *   - **值被外部改了**（valuesUnchanged === false）：这是最要紧的一条，见下。
+ *
+ * ## 为什么"聚焦"单独一条不够（v0.1.00128 修正）
+ *
+ * 只看焦点会把 undo/redo 也一起推迟掉：Ctrl+Z 让图回到 tx=0，但输入框还聚焦着，于是
+ * 面板不重画、框里仍显示 5 —— 图和界面公开地不一致，而且"撤销了但看不见"比原 bug 更
+ * 难理解。实测（探针：保持 tx 聚焦再 undo）就是 `{graphTx: 0, domTx: "5"}`。
+ *
+ * 正确的判据是**这次刷新带来的值是不是面板自己刚提交的那一份**：
+ *   - 是（valuesUnchanged）→ DOM 已经显示着这些值，重画只会白毁焦点 → 推迟；
+ *   - 不是 → 值从别处来（undo/redo / H→C 同步 / 通道回写）→ **必须**照渲。
+ * 这样 undo/redo 不需要任何特例：它天然带来不同的值。所有"外部改值"都同一条路径覆盖，
+ * 而不是只修被 spec 抓到的那一种。
  */
 export function shouldDeferParamRender(g: {
   renderedNodeId: string | null;
   nextNodeId: string | null;
   editorFocused: boolean;
+  /** 本次刷新的值与面板最后一次自己提交的值相同吗（外部改值 = false）。 */
+  valuesUnchanged: boolean;
 }): boolean {
   if (!g.editorFocused) return false;
+  if (!g.valuesUnchanged) return false; // 外部改了值 → 必须重画（undo/redo 走这条）
   if (!g.nextNodeId || !g.renderedNodeId) return false;
   return g.nextNodeId === g.renderedNodeId;
 }
@@ -1140,7 +1160,7 @@ export function renderParams(
     //   2. 白跑一次 network.run() + 推桥。
     // 判据用"值真的变了吗"，而不是"这是第几个事件"：事件序在不同浏览器/输入法下不
     // 保证，值相等则无事可做是恒真的。
-    if (paramsEqual(live, next)) return;
+    if (paramValuesEqual(live, next)) return;
     live = next;
     onChange?.(next);
   };

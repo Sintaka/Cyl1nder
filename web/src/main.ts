@@ -4,7 +4,13 @@ import { DEFAULT_LAYOUT, DEFAULT_LAYOUT_NAME } from "./app/layouts";
 import { createChannelBindManager } from "./core/channel-bind";
 import { applyLayout, channelPanelRef, setChannelValuesSink, setupDock } from "./app/dock";
 import { renderSpreadsheet, type SpreadsheetFocus } from "./app/spreadsheet";
-import { renderParams, isParamEditorFocused, shouldDeferParamRender } from "./app/param";
+import {
+  renderParams,
+  isParamEditorFocused,
+  paramValuesEqual,
+  shouldDeferParamRender,
+  type ParamInfo,
+} from "./app/param";
 import { store } from "./stores/workspace";
 import { BridgeClient } from "./bridge/client";
 // connectWs 直接取用：session 的 connectWsFn 注入口在此包一层，截 anchor-moved 刷新映射缓存。
@@ -996,6 +1002,13 @@ let selectionPanelRendered = false;
 let paramRenderedNodeId: string | null = null;
 /** 打字期间被推迟掉的重渲染（焦点离开后补）。 */
 let paramRenderPending = false;
+/** 面板**当前正在显示**的那份 params：渲染时记一次，之后每次自己提交都前进。
+ *
+ *  它是"这次刷新是我的编辑回声，还是外部改值"的判据：
+ *    - 打字/提交 → onChange 把同一个数组交给 setNodeParams 并更新这里 → 引用相等 → 推迟；
+ *    - undo/redo / H→C 同步 / 通道回写 → 节点 params 变成**另一个**数组且值不同 → 放行重画。
+ *  null = 还没渲染过任何节点。 */
+let paramDisplayedParams: ParamInfo[] | null = null;
 
 // focusout 挂在**常驻容器** paramEl 上（不是表里的控件）：renderParams 只换它的
 // innerHTML，挂在这里的监听不随重渲染消失，也就不会每次渲染叠一个。
@@ -1057,13 +1070,18 @@ function refreshSelectionPanels(): void {
   selectionPanelRendered = true;
   renderSpreadsheet(spreadsheetEl, payloads, source, focus);
   const selId = sel?.id ?? null;
-  // 聚焦保护：同一节点 + 面板里有正在编辑的控件 → 推迟重渲染（见上方设计块）。
-  // 换节点不推迟：标题配错值比打断打字严重得多。
+  // 聚焦保护：同一节点 + 有人在打字 + **值还是面板自己提交的那一份** → 推迟重渲染。
+  //
+  // 第三个条件是关键：undo/redo（以及 H→C 同步、通道回写）把 params 换成**另一个数组**，
+  // paramValuesEqual 立刻为假 → 照常重画。所以撤销永远看得见，不需要为 undo 开特例。
+  // 打字时 onChange 刚把同一个数组交给 setNodeParams，sel.params === paramDisplayedParams，
+  // 引用相等直接命中快路径 → 推迟，焦点保住。
   if (
     shouldDeferParamRender({
       renderedNodeId: paramRenderedNodeId,
       nextNodeId: selId ?? heldSelectionId,
       editorFocused: isParamEditorFocused(paramEl, document.activeElement),
+      valuesUnchanged: !!paramDisplayedParams && paramValuesEqual(sel?.params ?? [], paramDisplayedParams),
     })
   ) {
     paramRenderPending = true;
@@ -1071,6 +1089,9 @@ function refreshSelectionPanels(): void {
   }
   paramRenderPending = false;
   paramRenderedNodeId = selId ?? heldSelectionId;
+  // 重画之后，"面板正在显示的值"就是这一份。**必须在这里也记一次**，否则光标停在
+  // 输入框里但一个字都没打时，门控会认为"没有可保护的编辑"而每帧重画，焦点照样丢。
+  paramDisplayedParams = sel?.params ?? null;
   const renderedLabel = sel?.label ?? null;
   let renderedParams = sel?.params ?? null;
   renderParams(
@@ -1092,6 +1113,7 @@ function refreshSelectionPanels(): void {
           graph.setNodeParams(selId, params);
           bindMgr?.onNodeParamsCommitted(selId, params); // P5b：绑定参数节流直写 Houdini
           renderedParams = params;
+          paramDisplayedParams = params; // 门控据此认出"这只是我自己编辑的回声"
           const prevValue = new Map(prevParams.map((q) => [q.name, q.value]));
           const changed = params.find((q) => prevValue.get(q.name) !== q.value);
           store.pushLog(`[param] ${renderedLabel ?? selId} ${changed ? `${changed.name} = ${changed.value}` : "params updated"}`);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isParamEditorFocused, paramsEqual, shouldDeferParamRender } from "../src/app/param";
+import { isParamEditorFocused, paramValuesEqual, shouldDeferParamRender } from "../src/app/param";
 import type { ParamInfo } from "../src/app/param";
 
 /**
@@ -71,39 +71,43 @@ describe("isParamEditorFocused", () => {
 });
 
 describe("shouldDeferParamRender", () => {
-  // 这是修复的核心判据：同节点 + 有人在打字 → 推迟。
+  /** 默认门控入参：同节点、有人在打字、值是面板自己刚提交的（= 该推迟）。 */
+  const g = (over: Partial<Parameters<typeof shouldDeferParamRender>[0]> = {}) => ({
+    renderedNodeId: "tf1",
+    nextNodeId: "tf1",
+    editorFocused: true,
+    valuesUnchanged: true,
+    ...over,
+  });
+
   it("defers a same-node refresh while an editor is focused", () => {
-    expect(
-      shouldDeferParamRender({ renderedNodeId: "tf1", nextNodeId: "tf1", editorFocused: true }),
-    ).toBe(true);
+    expect(shouldDeferParamRender(g())).toBe(true);
   });
 
   it("never defers when no editor is focused (the normal per-frame path)", () => {
-    expect(
-      shouldDeferParamRender({ renderedNodeId: "tf1", nextNodeId: "tf1", editorFocused: false }),
-    ).toBe(false);
+    expect(shouldDeferParamRender(g({ editorFocused: false }))).toBe(false);
+  });
+
+  // **undo/redo 的那一条**：值从外部变了 → 必须重画，哪怕输入框还聚焦着。
+  // 实测过反例：只看焦点时 Ctrl+Z 后图是 0、框里仍是 5（graphTx:0 / domTx:"5"）。
+  it("does NOT defer when the values came from outside (undo / redo / H→C sync)", () => {
+    expect(shouldDeferParamRender(g({ valuesUnchanged: false }))).toBe(false);
   });
 
   // 换节点必须照渲：显示 A 的标题配 B 的值会让人把值改到错误的节点上——
   // 比打断打字严重得多。
   it("does NOT defer when the target node changed, even mid-typing", () => {
-    expect(
-      shouldDeferParamRender({ renderedNodeId: "tf1", nextNodeId: "tf2", editorFocused: true }),
-    ).toBe(false);
+    expect(shouldDeferParamRender(g({ nextNodeId: "tf2" }))).toBe(false);
   });
 
   it("does not defer without a rendered node or without a target", () => {
-    expect(
-      shouldDeferParamRender({ renderedNodeId: null, nextNodeId: "tf1", editorFocused: true }),
-    ).toBe(false);
-    expect(
-      shouldDeferParamRender({ renderedNodeId: "tf1", nextNodeId: null, editorFocused: true }),
-    ).toBe(false);
+    expect(shouldDeferParamRender(g({ renderedNodeId: null }))).toBe(false);
+    expect(shouldDeferParamRender(g({ nextNodeId: null }))).toBe(false);
   });
 });
 
 /**
- * paramsEqual 拦的是**空提交**。
+ * paramValuesEqual 拦的是**空提交**。
  *
  * 每个控件同时听 input 与 change，而 number input 的 change **在失焦时**才发、值与最后
  * 一次 input 相同。以前这条空提交跑不起来（面板每帧重渲染，input 早被换掉了）；聚焦
@@ -111,42 +115,42 @@ describe("shouldDeferParamRender", () => {
  * before === after 的空 undo 记录，害得用户按一次 Ctrl+Z"像是没反应"（e2e round7
  * param undo 正是这样红的）。
  */
-describe("paramsEqual", () => {
+describe("paramValuesEqual", () => {
   const p = (name: string, value: unknown, type = "float"): ParamInfo => ({ name, type, value });
 
   it("true for the identical array (fast path)", () => {
     const a = [p("tx", 5)];
-    expect(paramsEqual(a, a)).toBe(true);
+    expect(paramValuesEqual(a, a)).toBe(true);
   });
 
   it("true for a fresh array with the same names and values (the no-op commit)", () => {
-    expect(paramsEqual([p("tx", 5), p("ty", 0)], [p("tx", 5), p("ty", 0)])).toBe(true);
+    expect(paramValuesEqual([p("tx", 5), p("ty", 0)], [p("tx", 5), p("ty", 0)])).toBe(true);
   });
 
   it("false when any value differs", () => {
-    expect(paramsEqual([p("tx", 5)], [p("tx", 6)])).toBe(false);
+    expect(paramValuesEqual([p("tx", 5)], [p("tx", 6)])).toBe(false);
   });
 
   it("distinguishes 0 from empty string without coercing", () => {
-    expect(paramsEqual([p("g", 0, "string")], [p("g", "", "string")])).toBe(false);
+    expect(paramValuesEqual([p("g", 0, "string")], [p("g", "", "string")])).toBe(false);
   });
 
   // vector/color3 的值是数组，applyEdit 每次都新建 → 必须逐元素比，否则空提交拦不住。
   it("compares array values element-wise, not by reference", () => {
-    expect(paramsEqual([p("c", [1, 0, 0], "color3")], [p("c", [1, 0, 0], "color3")])).toBe(true);
-    expect(paramsEqual([p("c", [1, 0, 0], "color3")], [p("c", [1, 0, 1], "color3")])).toBe(false);
-    expect(paramsEqual([p("c", [1, 0], "vector2")], [p("c", [1, 0, 0], "vector3")])).toBe(false);
+    expect(paramValuesEqual([p("c", [1, 0, 0], "color3")], [p("c", [1, 0, 0], "color3")])).toBe(true);
+    expect(paramValuesEqual([p("c", [1, 0, 0], "color3")], [p("c", [1, 0, 1], "color3")])).toBe(false);
+    expect(paramValuesEqual([p("c", [1, 0], "vector2")], [p("c", [1, 0, 0], "vector3")])).toBe(false);
   });
 
   it("false when a param is renamed or the count differs", () => {
-    expect(paramsEqual([p("tx", 5)], [p("ty", 5)])).toBe(false);
-    expect(paramsEqual([p("tx", 5)], [p("tx", 5), p("ty", 0)])).toBe(false);
+    expect(paramValuesEqual([p("tx", 5)], [p("ty", 5)])).toBe(false);
+    expect(paramValuesEqual([p("tx", 5)], [p("tx", 5), p("ty", 0)])).toBe(false);
   });
 
   // type/default 不参与：它们不是"用户改了什么"的一部分。
   it("ignores type and default metadata", () => {
     expect(
-      paramsEqual([{ name: "tx", type: "float", value: 1, default: 0 }], [{ name: "tx", type: "int", value: 1 }]),
+      paramValuesEqual([{ name: "tx", type: "float", value: 1, default: 0 }], [{ name: "tx", type: "int", value: 1 }]),
     ).toBe(true);
   });
 });
