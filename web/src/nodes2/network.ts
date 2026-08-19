@@ -122,6 +122,31 @@ export function firstWiredFeeder(
   );
 }
 
+/**
+ * 槽 k 的上游：`out{k}` → `in{k}`（v0.1.00124）。
+ *
+ * null 是多条**独立**直通通道，所以「哪个输出」直接决定「读哪个输入」。
+ * 解析不出槽号时（`out0` 之外的怪键、transform 的单槽情形）退回
+ * `firstWiredFeeder`：那是"只接了 in1 也别把链判死"的兜底，与改造前一致。
+ */
+export function slotFeederFor(
+  snap: NetworkSnapshot,
+  node: { id: string; kind: string },
+  sourceOutput: string,
+): NetworkConnection | undefined {
+  if (node.kind === "null") {
+    const m = /^out(\d+)$/.exec(sourceOutput || "");
+    if (m) {
+      const k = Number(m[1]);
+      const exact = findFeeder(snap, node.id, `in${k}`);
+      // 该槽没接线 → 这条通道就是空的，**不要**去借别的槽的数据充数：
+      // 那正是「看着对、算错」。返回 undefined 让调用方按死链回退 passthrough。
+      return exact;
+    }
+  }
+  return firstWiredFeeder(snap, node.id);
+}
+
 /** One input port fed by MORE THAN ONE output (illegal: geometry has no implicit
  *  merge). `sources` lists the competing "<label>.<sourceOutput>" strings. */
 export interface MultiSourceError {
@@ -231,15 +256,18 @@ export function traceChainSpecs(
   }
 
   if (node.kind === "null" || node.kind === "transform") {
-    // `null` 的输入槽是**动态**的（in0/in1/…，v0.1.00121 起）。这里取**第一个已接线的槽**，
-    // 而不是死盯 `in0`：用户可以只接 in1（in0 空着），死盯 in0 会把那条链判成死链、
-    // 几何凭空消失。`transform` 只有 in0，行为逐字不变。
+    // `null` = **多条互相独立的直通通道**（v0.1.00124）。槽 k 的 `out{k}` 只看槽 k 的
+    // `in{k}`，槽与槽之间毫无关系 —— 所以它们各自可以是不同类型（一个 geo、一个 float）。
     //
-    // 为什么不在这里做"多槽合并"：几何合并需要定义合并顺序、属性冲突、点号重排——
-    // 那是 merge 节点的语义，不是 passthrough 的。当前 null 是**多接入点的单通道**
-    // （多个槽可接入，但只有一条数据出去），这条语义写在 graph-model 的 PortSlot 注释里。
-    // 真要做几何合并，得先有 merge 节点，别把它偷偷塞进 null。
-    const up = firstWiredFeeder(snap, node.id);
+    // 刻意**不做合并**：几何合并属于 Houdini 的 merge SOP，不该在这里重新发明
+    // （用户明确说「merge 在 houdini sop 中更多是对几何体操作, 先不考虑」）。
+    // 一旦 null 是"多通道直通"而不是"多入单出的 merge"，每槽独立类型就不再需要
+    // 任何合并语义 —— 这正是此前把它当 merge 时解不开的那个结。
+    //
+    // `sourceOutput` 现在**真的被用上了**：`out2` 追槽 2。此前恒取第一个已接线的槽，
+    // 于是 `out2` 会算出槽 0 的数据 —— 「看着对、算错」。
+    // transform 只有一个槽，`out0`→`in0`，行为逐字不变。
+    const up = slotFeederFor(snap, node, sourceOutput);
     const upNode = up ? nodeById(snap, up.source) : undefined;
     if (!up || !upNode) return null;
     const res = traceChainSpecs(upNode, up.sourceOutput, inputs, snap, visited);
