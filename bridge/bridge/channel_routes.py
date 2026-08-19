@@ -419,10 +419,15 @@ def _tag_options(serial: str) -> list[SerialPortOption]:
         name = str(ref.get("rel") or ref.get("logicalName") or "").strip()
         if not name:
             continue  # 没逻辑名的行进不了下拉：用户无从选择，也无法解析
+        # label **就用逻辑名**，不要用 ref["label"]：后者存的是**绝对路径**
+        # （实测 `/obj/cyl1nder_tag_demo/transform1/tx`）。用户要求的下拉文本是
+        # `tx: float` 这种——绝对路径既撑爆面板宽度，又把区分位（末段 tx/ty/tz）推到
+        # 最右边，正是 development-standards「过长标识串」那条要避免的形状。
+        # 完整绝对路径仍可由 web 侧从 nodePath + 逻辑名解析，或看 mappings 表。
         options.append(
             SerialPortOption(
                 key=name,
-                label=str(ref.get("label") or "").strip() or name,
+                label=name,
                 type=_norm_type(ref.get("type")),
             )
         )

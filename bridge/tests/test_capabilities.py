@@ -88,14 +88,23 @@ def test_tag_serial_lists_logical_names_with_types(tmp_path: Path) -> None:
     assert body["outputs"] == body["inputs"]
 
 
-def test_tag_option_label_falls_back_to_logical_name(tmp_path: Path) -> None:
+def test_tag_option_label_is_the_logical_name_not_the_absolute_path(tmp_path: Path) -> None:
+    """label **恒为逻辑名**，即使通道行的 `label` 字段另有内容（实测它存的是绝对路径）。
+
+    用户要求的下拉文本是 `tx: float` 这种。原实现优先用 `ref["label"]`，实机跑出来是
+    `/obj/cyl1nder_tag_demo/transform1/tx: float`——绝对路径撑爆面板宽度，还把区分位
+    （末段 tx/ty/tz）推到最右边。这条断言用**真实形状**的绝对路径当 label 钉住它；
+    原测试用的是短字符串 "Height"，那正是它没能暴露这个问题的原因。
+    """
     c = _client(tmp_path)
     serial = generate_serial()
     _register_tag(serial)
     _register_param(serial, "transform1/tx", "float")
-    _register_param(serial, "transform1/ty", "float", label="Height")
+    _register_param(
+        serial, "transform1/ty", "float", label="/obj/cyl1nder_tag_demo/transform1/ty"
+    )
     labels = {o["key"]: o["label"] for o in c.get(CAPS.format(serial)).json()["inputs"]}
-    assert labels == {"transform1/tx": "transform1/tx", "transform1/ty": "Height"}
+    assert labels == {"transform1/tx": "transform1/tx", "transform1/ty": "transform1/ty"}
 
 
 def test_tag_detected_without_registry_entry(tmp_path: Path) -> None:
