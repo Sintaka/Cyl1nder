@@ -295,6 +295,17 @@ project P1-msztfncq-1yyn | hip: beginTest-2.hip | members: hda:C1-msm6dsp7-ob6t,
   `web/e2e/waypoint-verify.spec.ts` 时刻意让它只依赖 `__cylGraph`。
 - **e2e 取线上的点之前必须先 fit**。不 fit 时线的中点会落在视口外（实测 x=1591,y=1001），
   鼠标根本碰不到，测试会以"取不到点"的形式假失败。
+- **查 FastAPI 路由表要走 `.original_router`**（v0.1.00120 实测）。本仓这个版本把
+  `include_router` 进来的路由包成 `_IncludedRouter`，**既没有 `.path` 也没有 `.routes`**，
+  所以直接遍历 `app.routes` 过滤 `.path` 会**什么都不打印**——那是过滤器空转，
+  不是「没有冲突」。以后在本仓看到「我查了路由表，是干净的」，先怀疑是踩了这个坑。
+  静态查完还要在装好的 `create_app()` 上**行为验证**一次（打一遍旧路由确认没被吞）。
+- **判定「某个 serial 是什么」绝不能拿 registry 命中当依据**：`SerialRegistry.touch()`
+  对任何合法 serial 首次接触就自动登记（`registry.py:125`，本意是让 idle HDA 在桥重启后
+  重新出现）。所以吊牌只要轮询过 `/pending` 就会进 registry。
+  正确顺序是**先看通道表里的 `kind:"tag"` 正面证据，再把 registry 命中读作 hda**。
+  `project-mapping-design.md` §5.1 说的「吊牌不在 registry 里」只对 `put_inputs` 那条路
+  成立，**不足以当判据**——按它反过来写会把所有轮询过的吊牌判成 hda。
 - **`?serial=` 打开的图里 `_input_` 是旧 4 端口形态，没有 address 参数**（实测
   `outs:["in0","in1","in2","in3"]`、`params:[]`）——它是从存档恢复的，而
   `detectLegacyPorts` 判定旧形态就原样重建。所以要测 address / 映射类型 / 引用登记
