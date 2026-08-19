@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { gotoMember } from "./fixtures";
 
 /**
  * v0.1.00119 验证 task #7：改名 → **登记过的**引用自动重写。
@@ -22,7 +23,7 @@ test.beforeAll(async () => {
 });
 
 async function boot(page: Page): Promise<void> {
-  await page.goto(`http://127.0.0.1:8376/?serial=${serial}`);
+  await gotoMember(page, serial);
   await expect(page.locator(".cyl-graph .cyl-rp-title").first()).toBeVisible({ timeout: 20000 });
 }
 
@@ -80,7 +81,7 @@ const rename = (page: Page, nodeId: string, desired: string) =>
 /**
  * 建一个**单端口 + address 形态**的 input 节点（schema 4），返回其 id。
  *
- * 为什么不复用图里现成的 `_input_`：`?serial=` 打开的图是从存档恢复的**旧 4 端口
+ * 为什么不复用图里现成的 `_input_`：成员工作区打开的图是从存档恢复的**旧 4 端口
  * 形态**（实测 `outs: ["in0","in1","in2","in3"]`、`params: []`）——它根本没有
  * address 参数，写不进去，引用也就无从登记。`makeInputNode(true)` 才是单端口形态。
  */

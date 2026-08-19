@@ -6,11 +6,18 @@
     <title>Cyl1nder</title>
     <link rel="icon" href="data:," />
     <script>
-      // 默认入口：无 ?serial= 且无 ?project= 时重定向到 Overview 总管页；有任一参数才加载主应用
-      // （?serial= = connect 视图；?project= = P2b 项目模式）。放在 module script 之前同步执行：
-      // 无参数时不会加载主应用入口脚本，也不破坏 vite 入口加载（round9 断言路径保留）。
+      // 默认入口：无 ?project= 时重定向到 Overview 总管页；有 ?project= 才加载主应用
+      // （?project=P1-… = 项目根；再带 &member=C1-… = 该成员的工作区）。
+      //
+      // v0.1.00120 起**不再放行 ?serial=**：serial 不是网页地址，只是 HDA 成员的身份，
+      // 只在所属项目下可达。老的 ?serial= 书签因此落到这里被送回 Overview——那里能查出
+      // 它属于哪个项目再进去。刻意不做 serial→project 的兼容跳转：留一条 serial 直达
+      // 页面的暗门，等于没删（而且这段是同步内联脚本，做不了桥的异步查询）。
+      //
+      // 放在 module script 之前同步执行：无参数时不会加载主应用入口脚本，也不破坏 vite
+      // 入口加载（round9 断言路径保留）。
       const _cylEntryParams = new URLSearchParams(window.location.search);
-      if (!_cylEntryParams.has("serial") && !_cylEntryParams.has("project")) {
+      if (!_cylEntryParams.has("project")) {
         location.replace("/overview.html");
       }
     </script>

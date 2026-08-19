@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { gotoMember } from "./fixtures";
 
 /**
  * v0.1.00118 验证：waypoint（连线路径中点装饰件）与双击缩放拦截。
@@ -29,7 +30,7 @@ test.beforeAll(async () => {
 });
 
 async function boot(page: Page): Promise<void> {
-  await page.goto(`http://127.0.0.1:8376/?serial=${serial}`);
+  await gotoMember(page, serial);
   await expect(page.locator(".cyl-graph .cyl-rp-title").first()).toBeVisible({ timeout: 20000 });
   await page.evaluate(async (g) => {
     await (window as never as { __cylGraph: { restoreGraph(x: unknown): Promise<void> } })

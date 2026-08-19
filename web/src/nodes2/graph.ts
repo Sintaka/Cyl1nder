@@ -128,7 +128,9 @@ export function isNodeWired(nodeId: string): boolean {
     .some((c) => c.source === nodeId || c.target === nodeId);
 }
 
-/** 当前图是否为项目根（存在 project 节点）；无图/纯旧 kinds → false（?serial= 路径不变）。 */
+/** 当前图是否为项目根（存在 project 节点）；无图/纯旧 kinds → false。
+ *  （原注释提的 `?serial=` 路径已于 v0.1.00120 删除，成员工作区现在走
+ *   `?project=<P1>&member=<C1>`；判据仍是「图里有没有 project 节点」，与入口无关。） */
 export function isProjectMode(): boolean {
   return activeGraph
     ? activeGraph.editor.getNodes().some((n) => (n as CylNode).kind === "project")
@@ -255,9 +257,24 @@ export function getNetPath(): string[] {
   return netStack.map((f) => f.label);
 }
 
-/** 当前层级：深度 0 = obj（项目根/顶层），进入任何可进入节点之后 = sop。 */
+/**
+ * 当前层级。进入任何可进入节点之后一定是 `sop`；**深度 0 要看当前装的是哪张图**：
+ *
+ * - 项目根图（有 project 节点）→ `obj`：那里只能建 geo 类容器。
+ * - 成员工作区（`?project=…&member=…` 打开某个 HDA 自己的图）→ `sop`：
+ *   它就是**一个 HDA 内部**的内容，本身已经在 sop 语义里，不是 obj 层容器。
+ *
+ * 为什么不能只看栈深度（v0.1.00120 修的真 bug）：`?serial=` 入口删除后，成员工作区
+ * 也从深度 0 打开，于是「深度 0 == obj」把成员图判成 obj 层，Tab 面板按层过滤后
+ * **只剩 geo**——transform / null / _input_ / _output_ 全被滤掉，9 个 e2e 因此挂在
+ * `createTransform` 返回 null 上。实测探针：`netKind=obj allRows=["geo"]`。
+ *
+ * 判据用 `isProjectMode()`（图里有没有 project 节点）而不是「URL 有没有 member 参数」：
+ * 层级是**图的属性**，不是入口的属性；用 URL 判会在图被换掉之后立刻失真。
+ */
 export function getCurrentNetKind(): NetKind {
-  return netStack.length === 0 ? "obj" : "sop";
+  if (netStack.length > 0) return "sop";
+  return isProjectMode() ? "obj" : "sop";
 }
 
 /** 空子图标记：**不是** null。null 会让 restoreGraph 直接 return（图纹丝不动），

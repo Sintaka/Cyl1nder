@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { BridgeClient } from "../src/bridge/client";
+import { gotoMember, projectForSerial } from "./fixtures";
 
 /**
  * Round 8 (main write-set): Enter mode follows the FIRST SELECTED node (not the
@@ -16,7 +17,7 @@ import { BridgeClient } from "../src/bridge/client";
  * - Case 3: Save Scene As uses showDirectoryPicker (mocked) to write the whole
  *   <serial>/ folder (io + scene + docking); a second save prompts overwrite.
  * - Case 4: Open Scene reads a serial-named folder via showDirectoryPicker
- *   (mocked) and navigates to ?serial=.
+ *   (mocked) and navigates to ?project=&member=.
  * Self-contained: beforeAll pushes the canonical fixture; afterAll restores it.
  */
 const client = new BridgeClient();
@@ -102,7 +103,7 @@ test.afterAll(async () => {
 });
 
 async function openGraph(page: import("@playwright/test").Page): Promise<void> {
-  await page.goto(`http://127.0.0.1:8376/?serial=${serial}`);
+  await gotoMember(page, serial);
   await expect(page.locator(".cyl-graph .cyl-rp-title").first()).toBeVisible({ timeout: 15000 });
   await expect(page.locator(".cyl-status")).toHaveClass(/ok/, { timeout: 15000 });
 }
@@ -376,13 +377,20 @@ test("Save Scene As writes the whole <serial>/ folder via showDirectoryPicker; s
   expect(dialogs[0].message).toContain("同名文件夹已存在");
 });
 
-test("Open Scene reads a serial-named folder via showDirectoryPicker and navigates to ?serial=", async ({ page }) => {
+test("Open Scene reads a serial-named folder via showDirectoryPicker and navigates to ?project=&member=", async ({
+  page,
+}) => {
   await openGraph(page);
   await seedOpenPicker(page, { serial, inputs: CANONICAL_INPUTS, graph: TWO_TF_GRAPH, docking: {} });
 
+  // v0.1.00120：文件夹名仍是 serial（磁盘布局不变），但跳转目标不再是 `?serial=`——
+  // Open Scene 先经桥把 serial 解析成所属项目，再跳 `?project=<P1>&member=<serial>`。
+  const pid = await projectForSerial(serial);
   await page.locator(".cyl-menu[data-menu='file'] .cyl-menu-label").click();
   await Promise.all([
-    page.waitForURL((url) => url.searchParams.get("serial") === serial),
+    page.waitForURL(
+      (url) => url.searchParams.get("project") === pid && url.searchParams.get("member") === serial,
+    ),
     page.locator("#cyl-menu-file button", { hasText: "Open Scene" }).click(),
   ]);
 });

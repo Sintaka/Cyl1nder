@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { gotoMember } from "./fixtures";
 
 // Round 11: 左上角品牌 "Cyl1nder 0.1" 点击跳转 Overview（用户原话）。
 // 需要在线 serial 才能进入主应用：bridge(8375) 不可用或没有 serial 时整文件跳过。
@@ -24,8 +25,8 @@ test.beforeAll(async () => {
 });
 
 test("clicking .cyl-brand opens Overview in a NEW tab (v0.1.00060)", async ({ page }) => {
-  await page.goto(`${BASE}/?serial=${serial}`);
-  // 主应用加载（带 serial 不应被重定向到 overview）
+  await gotoMember(page, serial);
+  // 主应用加载（带 ?project=&member= 不应被重定向到 overview）
   await expect(page.locator(".cyl-app")).toBeVisible({ timeout: 15000 });
   const brand = page.locator(".cyl-brand");
   await expect(brand).toContainText("Cyl1nder");

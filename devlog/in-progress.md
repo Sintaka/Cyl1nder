@@ -128,6 +128,30 @@ geo 线上的点**取白色**而非 `#ff6b6b`：同色点压在同色线上只�
 **教训**：`as` 强转会让类型删除静默失效。删联合类型成员后，别信"测试还绿"，
 要去看测试里是不是用强转绕过了类型检查。
 
+## 2.3 删掉 `?serial=` 之后暴露的层级判定 bug（v0.1.00120）
+
+**症状**：9 个 e2e 挂在 `createTransform` 返回 null 上（`round2/3/4-nodeview/5-nodeview`）。
+**根因**：`getCurrentNetKind()` 原先只看栈深度——`netStack.length === 0 ? "obj" : "sop"`。
+`?serial=` 入口删除后，成员工作区改由 `?project=…&member=…` 打开，也是**深度 0**，
+于是「深度 0 == obj」把成员图判成 obj 层；Tab 面板按层过滤后**只剩 geo**，
+`transform` / `null` / `_input_` / `_output_` 全被滤掉。
+探针实测：`netKind=obj allRows=["geo"]`。
+
+**修法**：层级是**图的属性**，不是入口或深度的属性。深度 >0 恒为 sop；深度 0 看
+`isProjectMode()`（图里有没有 project 节点）：项目根图 = `obj`，成员工作区 = `sop`
+（它就是一个 HDA 内部的内容，本身已在 sop 语义里）。
+修后探针：`netKind=sop allRows=["_input_","_output_","null","transform"]`。
+
+**不用 URL 有没有 member 参数当判据**：图被换掉之后 URL 立刻失真。
+
+**连带**：`hierarchy-verify.spec.ts:84` 原本断言成员工作区是 `"obj"` ——
+那条断言把 bug 写进了测试。已改为 `"sop"` 并注明原因。
+全量 e2e 因此从 **9 failed / 91 passed** 变成 **100 passed / 0 failed**
+（本轮开工前的基线是 10 failed / 89 passed）。
+
+**教训**：删掉一个入口会让「深度 0」的含义悄悄改变。凡是从「有几层」推断「这是什么层」
+的地方，都要问一句「新入口会不会也从第 0 层进来」。
+
 ## 2.4 层级实现里顺带修掉的一个潜伏 bug
 
 `enterByName` 原先的顺序是**先注册层级变化等待者、再调 `enterNode`**。

@@ -14,6 +14,17 @@
 
 import { attachScrub, format4 } from "./scrub";
 import { openColorPicker, rgbToHex, hexToRgb, fitInViewport, type RGB } from "./color";
+// PORT_PARAM 是跨写集契约（graph-model 序列化 / 本面板渲染下拉 / capabilities 回写
+// 三处必须逐字一致）——**import 而不是重打一遍字面量**，拼错的可能性直接归零。
+import { PORT_PARAM } from "../nodes2/graph-model";
+import {
+  cachedCapabilities,
+  cachedPortType,
+  cachedPorts,
+  loadCapabilities,
+  normalizeSerial,
+  type PortSide,
+} from "../nodes2/serial-capabilities";
 
 export interface ParamInfo {
   name: string;
@@ -93,11 +104,111 @@ const MENU_OPTIONS: Record<string, readonly string[]> = {
   type: ["geo", "float", "vec3"],
 };
 
+// ---------------------------------------------------------------------------
+// `port` 动态下拉（v0.1.00120）：选项**来自桥**，不是写死的 in1..in4
+//
+// 端口不再是固定 4 个。用户只填**一个地址 = 一个 serial**（`address` 参数），桥的
+// `GET /api/serials/{serial}/capabilities` 回答"它提供什么"：
+//   - SOP HDA → `_input_` 给 in0..in3（显示 "In 1".."In 4"）、`_output_` 给 out0..out3
+//   - 吊牌 tag → 该 tag 的逻辑名清单，每项带自己的类型（显示 `tx: float`）
+// 为什么必须问桥：多个 HDA 可以**故意共用一个 serial**，好让参数被关联、由桥集中托管，
+// 那"这个 serial 提供哪些端口"只有桥知道。
+//
+// 机制形状（三条，缺一不可）：
+//   1. **同步渲染 + 异步补**：controlHtml 是同步的（整个面板一次 innerHTML），所以先用
+//      缓存（可能没有）渲染，没缓存就渲染一个占位 option，再由 wirePortMenu 异步取回
+//      并**原地重填** <select>。绝不为了等网络把面板渲染改成 async——那会让每次选中
+//      节点都闪一下空白。
+//   2. **地址改了就重取**：地址框与端口下拉在同一个面板里，但 main.ts 不会因为改
+//      address 而重渲染面板。于是这里自己监听 address 的 input 事件 → 重新取 → 重填。
+//   3. **当前值恒被并入选项**（与 MENU_OPTIONS 同一条性质，见上）：桥暂时给不出清单
+//      （离线 / 半截地址 / 未注册）时，已选中的 port **不会被悄悄改掉**。这一条是硬要求：
+//      静默改值 = 用户以为还连着原端口，实际图已经变了。
+// ---------------------------------------------------------------------------
+
+/** 地址参数名（与 graph-model 的 addressParams 同名；那边没导出常量，故就近定义）。 */
+const ADDRESS_PARAM = "address";
+
+/** 节点 kind → 查能力的哪一侧。`_input_` 从 serial **读**（inputs），`_output_` 往它**写**
+ *  （outputs）。吊牌两侧同一份清单（参数双向），所以 tag 走哪侧都一样。
+ *  其它 kind（null/transform/geo…）→ null：它们没有 port 参数，不该触发能力请求。 */
+function portSideOf(kind: string | null): PortSide | null {
+  if (kind === "input") return "inputs";
+  if (kind === "output") return "outputs";
+  return null;
+}
+
+/** 面板里 `address` 参数的当前值（归一后的 serial）。 */
+function serialOf(info: ParamPanelInfo): string {
+  return normalizeSerial(info.params.find((p) => p.name === ADDRESS_PARAM)?.value);
+}
+
+/** 一个 <option> 的显示文本：`label: type`（类型已知）或裸 label（类型未知）。
+ *
+ *  为什么把类型显示在选项里：用户明确要求"挑一个之后能看到它的类型（`tx: float`）"。
+ *  而且类型决定连线合不合法，藏起来等于让人盲选——正是映射系统当初要修的病。
+ *  HDA 侧 label 已是人话（"In 1"）且类型基本恒为 geo，同样带上：一致比省字重要。 */
+export function portOptionText(o: { key: string; label: string; type: string }): string {
+  return o.type ? `${o.label}: ${o.type}` : o.label;
+}
+
+/** `port` 下拉的 <option> 串。`ports === null` = 清单还不知道（未缓存/在途）。
+ *
+ *  当前值 `current` 不在清单里时**追加**在末尾（title 标注"不在桥给出的清单里"），
+ *  绝不丢弃——见上方机制第 3 条。current 为空则给一个禁用占位（提示当前状态），
+ *  占位 value="" 与"未选择"同值，所以不会把空值变成一个假端口。 */
+export function portOptionsHtml(
+  ports: { key: string; label: string; type: string }[] | null,
+  current: string,
+  placeholder: string,
+): string {
+  const opts: string[] = [];
+  if (current === "") {
+    // 未选择：占位不可选中（selected + disabled），避免"看起来选了个空端口"
+    opts.push(`<option value="" selected disabled>${esc(placeholder)}</option>`);
+  }
+  for (const o of ports ?? []) {
+    const sel = o.key === current ? " selected" : "";
+    opts.push(
+      `<option value="${attrEscape(o.key)}"${sel} title="${attrEscape(o.key)}">${esc(portOptionText(o))}</option>`,
+    );
+  }
+  if (current !== "" && !(ports ?? []).some((o) => o.key === current)) {
+    // 清单里没有当前值（桥离线 / 地址变了 / 端口被删）→ 保留它并说明，绝不静默改值
+    const note = ports === null ? "端口清单加载中" : "不在桥给出的清单里";
+    opts.push(`<option value="${attrEscape(current)}" selected title="${attrEscape(note)}">${esc(current)}</option>`);
+  }
+  return opts.join("");
+}
+
+/** 占位文案：区分"还没填地址"/"加载中"/"桥不认识这个 serial"/"该 serial 无端口"。
+ *  四态分开说，因为用户能做的事完全不同（填地址 / 等 / 检查地址 / 检查 Houdini 侧）。 */
+export function portPlaceholder(serial: string, ports: { key: string }[] | null): string {
+  if (serial === "") return "先填 address（一个 serial）";
+  if (ports === null) return "加载端口清单…";
+  if (ports.length === 0) {
+    return cachedCapabilities(serial)?.known ? "该 serial 未提供端口" : "桥未识别该 serial";
+  }
+  return "未选择端口";
+}
+
+/** `port` 的 <select> 标记（同步：只用缓存；没缓存时渲染占位，wirePortMenu 随后补）。 */
+function portControlHtml(p: ParamInfo, info: ParamPanelInfo): string {
+  const side = portSideOf(info.kind);
+  const serial = serialOf(info);
+  const ports = side && serial ? cachedPorts(serial, side) : null;
+  const current = String(p.value ?? "");
+  return `<select data-name="${attrEscape(p.name)}" data-port-menu="1">${portOptionsHtml(ports, current, portPlaceholder(serial, ports))}</select>`;
+}
+
 /** Editable control markup for one param row: float/int -> number input, class -> select,
- *  name-driven menu (see MENU_OPTIONS) -> select, color3 -> swatch button + hex text,
+ *  `port` -> **桥驱动的动态下拉**（见上方 `port` 动态下拉块），name-driven menu
+ *  (see MENU_OPTIONS) -> select, color3 -> swatch button + hex text,
  *  other strings -> text input. */
-function controlHtml(p: ParamInfo): string {
+function controlHtml(p: ParamInfo, info: ParamPanelInfo): string {
   const name = attrEscape(p.name);
+  // port 先判：它也在 MENU_OPTIONS 之外，且选项来自桥而非常量表
+  if (p.name === PORT_PARAM && portSideOf(info.kind)) return portControlHtml(p, info);
   if (p.type === "float" || p.type === "int") {
     return `<input type="number" step="any" data-name="${name}" value="${attrEscape(String(p.value))}">`;
   }
@@ -134,6 +245,22 @@ function controlHtml(p: ParamInfo): string {
  *  (float/int -> number; color3 -> [r,g,b] 0..1 parsed from "r,g,b" or "#rrggbb";
  *  invalid color3 keeps the previous value). */
 function applyEdit(info: ParamPanelInfo, name: string, raw: string): ParamInfo[] {
+  const next = applyEditRaw(info, name, raw);
+  // 选了端口 → 同时把该端口的类型写进 `type`。**类型的真源是桥**（capabilities），
+  // 由"解析 capabilities 的这一侧"负责写入；graph-model 的 syncPortSocketType 随后读
+  // `type` 换 socket（那条通路一个字没动）。查不到类型（未缓存 / 桥说 ""）→ **不动
+  // type**：绝不猜默认 geo，静默补类型会让连线校验放行错配的线。
+  if (name !== PORT_PARAM) return next;
+  const side = portSideOf(info.kind);
+  const serial = serialOf(info);
+  if (!side || !serial || raw === "") return next;
+  const t = cachedPortType(serial, side, raw);
+  if (!t) return next;
+  return next.map((p) => (p.name === "type" ? { ...p, value: t } : p));
+}
+
+/** applyEdit 的单参数核心（原 applyEdit 主体）：只改 `name` 那一行，不做联动。 */
+function applyEditRaw(info: ParamPanelInfo, name: string, raw: string): ParamInfo[] {
   return info.params.map((p) => {
     if (p.name !== name) return p;
     if (p.type === "float" || p.type === "int") {
@@ -154,6 +281,63 @@ function applyEdit(info: ParamPanelInfo, name: string, raw: string): ParamInfo[]
     }
     return { ...p, value: raw };
   });
+}
+
+/**
+ * 把 `port` 下拉接到桥：渲染后取一次能力，并在 `address` 被编辑时重取 + 原地重填。
+ *
+ * 竞态处理（两道闸，都是必需的）：
+ *   1. **DOM 还在吗**：`sel.isConnected` —— 面板可能已因切换选中而重渲染，往一个已被
+ *      丢弃的 <select> 里填选项是无声的浪费，还会覆盖新面板的状态（如果引用串了）。
+ *   2. **地址还是它吗**：回来时重读地址框，与请求时的 serial 比对；不同则丢弃。用户
+ *      打字比网络快，先发的短地址后回来会把正确清单覆盖成空——latest-wins 靠这一句落地。
+ * 请求本身的合并/防抖/纪元作废在 serial-capabilities.loadCapabilities 里，这里不重复做。
+ *
+ * **只重填选项，不改值**：重填后把 `sel.value` 设回原值（原值总在选项里，见
+ * portOptionsHtml），且不派发 input/change ——重填是"看见更多可选项"，不是一次编辑，
+ * 不该进 undo、不该触发 network.run()。
+ */
+function wirePortMenu(el: HTMLElement, info: ParamPanelInfo): void {
+  const side = portSideOf(info.kind);
+  if (!side) return;
+  const sel = el.querySelector<HTMLSelectElement>("select[data-port-menu]");
+  if (!sel) return;
+  // ADDRESS_PARAM 是固定字面量（无需 CSS.escape：常量里没有选择器特殊字符）
+  const addressInput = el.querySelector<HTMLInputElement>(`input[data-name="${ADDRESS_PARAM}"]`);
+
+  const refresh = (serial: string): void => {
+    if (serial === "") {
+      // 地址被清空：回到"先填 address"占位（不发请求）
+      repaint(sel, [], serial);
+      return;
+    }
+    if (cachedPorts(serial, side)) {
+      repaint(sel, cachedPorts(serial, side)!, serial);
+      return;
+    }
+    repaint(sel, null, serial); // 先显示"加载端口清单…"
+    void loadCapabilities(serial).then(() => {
+      if (!sel.isConnected) return; // 闸 1：面板已重渲染
+      const now = normalizeSerial(addressInput ? addressInput.value : serial);
+      if (now !== serial) return; // 闸 2：地址已被改成别的，这份答案过期了
+      repaint(sel, cachedPorts(serial, side) ?? [], serial);
+    });
+  };
+
+  refresh(serialOf(info));
+  // address 是普通 text input，main.ts 不会因为它变化而重渲染面板 → 自己听
+  addressInput?.addEventListener("input", () => refresh(normalizeSerial(addressInput.value)));
+}
+
+/** 原地重填 `port` 下拉的选项，保持当前值不变（见 wirePortMenu 的"只重填不改值"）。 */
+function repaint(
+  sel: HTMLSelectElement,
+  ports: { key: string; label: string; type: string }[] | null,
+  serial: string,
+): void {
+  const current = sel.value;
+  sel.innerHTML = portOptionsHtml(ports, current, portPlaceholder(serial, ports));
+  if (sel.value !== current) sel.value = current; // 防浏览器把 selected 落在别处
 }
 
 /** Default value for a param: explicit `default` first, then a type fallback. */
@@ -312,7 +496,7 @@ export function renderParams(
       const linkBtn = bindCtx
         ? `<button type="button" class="cyl-param-link${boundPath ? " bound" : ""}" data-link-name="${attrEscape(p.name)}" title="${boundPath ? attrEscape(boundPath) : "绑定到通道（channel reference）"}" aria-label="绑定 ${esc(p.name)} 到通道">⛓</button>`
         : "";
-      return `<tr><td>${linkBtn}${esc(p.name)}</td><td>${esc(p.type)}</td><td>${controlHtml(p)}</td></tr>`;
+      return `<tr><td>${linkBtn}${esc(p.name)}</td><td>${esc(p.type)}</td><td>${controlHtml(p, info)}</td></tr>`;
     })
     .join("");
   el.innerHTML = `<div class="cyl-param">
@@ -322,6 +506,9 @@ export function renderParams(
       <tbody>${rows}</tbody>
     </table>
   </div>`;
+
+  // `port` 动态下拉：接桥取端口清单（onChange 之外也要接——只读面板同样该显示真清单）
+  wirePortMenu(el, info);
 
   if (onChange) {
     const controls = Array.from(

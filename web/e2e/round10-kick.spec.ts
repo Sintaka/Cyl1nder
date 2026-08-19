@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { BridgeClient } from "../src/bridge/client";
-import { toggleSyncEnabled } from "./fixtures";
+import { gotoMember, toggleSyncEnabled } from "./fixtures";
 
 /**
  * Round 10: HDA kick on first connect.
@@ -63,7 +63,7 @@ test("first connect kicks; reconnects within 5s do NOT re-kick, after 5s they do
       /* fresh context -> leave as-is */
     }
   }, serial);
-  await page.goto(`http://127.0.0.1:8376/?serial=${serial}`);
+  await gotoMember(page, serial);
 
   // dockview lazily mounts inactive tab content: activate the Log tab to surface
   // .cyl-log. The panel only renders the LAST 40 lines, so accumulate every line

@@ -614,8 +614,27 @@ if (typeof document !== "undefined") {
     banner.className = `ov-banner ${kind === "ok" ? "hidden" : kind}`;
   }
 
-  function openSerial(serial: string): void {
-    location.href = `/?serial=${encodeURIComponent(serial)}`;
+  /** 打开某个 HDA（serial）：**先问桥它属于哪个项目**，再跳 `?project=&member=`。
+   *
+   *  v0.1.00120 起 `/?serial=` 页面入口已删除——serial 只是成员身份，不是网页地址。
+   *  这里的 `ensureProject` 就是桥的 serial→项目映射（该 serial 还没归属时隐式建一个
+   *  单成员项目），因此"打开这个 HDA"= "打开它所在的项目并激活它"。
+   *
+   *  解析失败（桥离线等）时**留在本页并报错**：跳一个解析不出项目的地址只会被
+   *  index.html 的入口守卫弹回来，用户看到的是一次莫名闪烁。 */
+  async function openSerial(serial: string): Promise<void> {
+    if (!serial) return;
+    try {
+      const r = await projectsClient.ensureProject(serial);
+      const pid = r.ok ? r.project?.projectSerial : "";
+      if (pid) {
+        location.href = `/?project=${encodeURIComponent(pid)}&member=${encodeURIComponent(serial)}`;
+        return;
+      }
+      setBanner("error", `无法确定 ${serial} 所属项目——请刷新后从项目列表进入`);
+    } catch (err) {
+      setBanner("error", `打开 ${serial} 失败：${errText(err)}（桥 127.0.0.1:8375 是否在运行？）`);
+    }
   }
 
   function openProject(pid: string): void {
@@ -811,15 +830,29 @@ if (typeof document !== "undefined") {
     projectsList.innerHTML = list.map(projectRowHtml).join("");
     projectsHint.classList.toggle("hidden", list.length > 0);
     projectsHint.textContent = list.length ? "" : "暂无项目（点「新建项目」开始）";
-    // 顶部「打开主应用」指向最近更新的项目；完全没有项目时才回退空 ?serial=
-    // （index.html 的入口守卫用 has() 判定，空值仍会加载主应用而不重定向回本页）。
+    // 顶部「打开主应用」指向最近更新的项目。
+    //
+    // 完全没有项目时**留在 Overview**（href 指向本页），不再回退空 `/?serial=`：
+    //  1. `?serial=` 页面入口已删，空 serial 更是无意义——入口守卫会把它弹回本页，
+    //     用户点了只看到一次闪烁，比"点了没反应"更费解；
+    //  2. 没有项目时主应用**无事可做**（它现在只能按项目打开），而"新建项目"就在本页，
+    //     所以停在本页正是用户下一步该在的地方。
+    // 同时置 aria-disabled + 灰显，让"现在点不动"这件事对读屏器与眼睛都成立。
     const openApp = document.getElementById("ov-open-app") as HTMLAnchorElement | null;
     if (openApp) {
       const newest = list.reduce<ProjectRef | null>(
         (best, p) => (best === null || epochMs(p.updatedAt) > epochMs(best.updatedAt) ? p : best),
         null,
       );
-      openApp.href = newest ? `/?project=${encodeURIComponent(newest.projectSerial)}` : "/?serial=";
+      openApp.href = newest ? `/?project=${encodeURIComponent(newest.projectSerial)}` : "/overview.html";
+      // 灰显走内联 opacity 而不是加个 class：overview.css 不在本次写集内，加一个没有样式
+      // 规则的类名只会看起来"写了但没生效"。
+      openApp.style.opacity = newest ? "" : "0.5";
+      if (newest) openApp.removeAttribute("aria-disabled");
+      else openApp.setAttribute("aria-disabled", "true");
+      openApp.title = newest
+        ? "打开主应用（自动带上最近更新的项目）"
+        : "暂无项目——先在本页「新建项目」";
     }
     if (editingProject) {
       const input = findByData<HTMLInputElement>(projectsList, "input[data-rename-input]", "renameInput", editingProject);
@@ -1287,7 +1320,7 @@ if (typeof document !== "undefined") {
     list.addEventListener("click", (e) => {
       const btn = (e.target as HTMLElement).closest?.("button[data-serial]");
       if (!btn) return;
-      openSerial((btn as HTMLElement).dataset.serial ?? "");
+      void openSerial((btn as HTMLElement).dataset.serial ?? "");
     });
   }
 
@@ -1304,7 +1337,7 @@ if (typeof document !== "undefined") {
       });
       if (!res.ok) throw new HttpError(res.status);
       const data = (await res.json()) as { serial: string };
-      openSerial(data.serial); // 即使没有 Houdini，web 也可打开空 workspace 编辑
+      await openSerial(data.serial); // 即使没有 Houdini，web 也可打开空 workspace 编辑
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       failMessage(err);

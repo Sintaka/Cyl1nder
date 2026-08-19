@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { BridgeClient } from "../src/bridge/client";
-import { toggleSyncEnabled } from "./fixtures";
+import { gotoMember, toggleSyncEnabled } from "./fixtures";
 
 /**
  * Round 2 integrated E2E. Self-contained: beforeAll pushes a canonical input
@@ -60,7 +60,7 @@ test.afterAll(async () => {
 });
 
 async function openGraph(page: import("@playwright/test").Page): Promise<void> {
-  await page.goto(`http://127.0.0.1:8376/?serial=${serial}`);
+  await gotoMember(page, serial);
   await expect(page.locator(".cyl-graph .cyl-rp-title").first()).toBeVisible({ timeout: 15000 });
   await expect(page.locator(".cyl-status")).toHaveClass(/ok/, { timeout: 15000 });
 }

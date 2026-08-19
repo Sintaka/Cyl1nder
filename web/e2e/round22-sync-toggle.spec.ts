@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { gotoMember } from "./fixtures";
 
 /**
  * Round 22 (Phase B 手动双向同步开关 web UI 骨架): 底部栏出现
@@ -10,8 +11,9 @@ import { expect, test } from "@playwright/test";
  */
 
 async function gotoApp(page: import("@playwright/test").Page): Promise<void> {
-  // index.html 在无 ?serial= 时重定向 Overview；带稳定 e2e serial 才进入主应用
-  await page.goto("http://127.0.0.1:8376/?serial=C1-e2etest0001-aaaa");
+  // index.html 在无 ?project= 时重定向 Overview；gotoMember 先经桥解析出该 serial
+  // 所属项目（没有则隐式建单成员项目），再进 `?project=&member=` 才进入主应用。
+  await gotoMember(page, "C1-e2etest0001-aaaa");
 }
 
 async function readPrefsSyncEnabled(page: import("@playwright/test").Page): Promise<boolean | undefined> {

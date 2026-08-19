@@ -11,7 +11,12 @@
     <header class="ov-header">
       <span class="ov-brand">Cyl1nder 总管 <small>/ Overview</small></span>
       <span class="ov-spacer"></span>
-      <a class="ov-link" id="ov-open-app" href="/?serial=" title="打开主应用（自动带上最近更新的项目）">打开主应用</a>
+      <!-- href 是**无项目时的兜底**：主应用只能按 `?project=` 打开（v0.1.00120 删掉了
+           `?serial=` 网页入口），没有项目时点进去只会被 index.html 的守卫弹回本页，
+           用户只看到一次闪烁。有项目时 renderProjects 会把它改写成
+           `/?project=<最近更新的项目>`。这里不留 `?serial=` 字样：那条入口已删，
+           留着字面量只会让人以为它还能用。 -->
+      <a class="ov-link" id="ov-open-app" href="/overview.html" title="打开主应用（自动带上最近更新的项目）">打开主应用</a>
       <button class="ov-refresh" id="ov-refresh" type="button">刷新</button>
     </header>
     <div id="ov-banner" class="ov-banner hidden"></div>

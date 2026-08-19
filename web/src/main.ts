@@ -16,12 +16,17 @@ import { isEnterableKind, type CylNode } from "./nodes2/graph-model";
 // task #8 映射类型缓存：_input_/_output_ 端口类型的唯一真源，生命周期由本文件驱动
 //（进项目 prime / anchor-moved 与切项目 invalidate）——不接就永远报「映射表未加载」。
 import { invalidateMappingTypes, primeMappingTypes } from "./nodes2/mapping-types";
+// _input_/_output_ 地址下拉的端口清单缓存。与 mapping-types 一样以「当前项目上下文」为键，
+// 因此**总是与 invalidateMappingTypes 成对作废**（见各调用点注释）。
+// 刻意不做 prime：端口清单只在用户打开带 address 的 param 面板时才需要，模块内已
+// debounce + single-flight，按需取比进项目就预取全部成员划算。
+import { invalidateCapabilities } from "./nodes2/serial-capabilities";
 import { computeOutputsDetailed } from "./nodes2/network";
 import type { ActiveChains } from "./core/network";
 import { Viewport } from "./viewport/renderer";
 import { APP_VERSION } from "./app/app-config";
 import { inputsEqual } from "./protocol/compare";
-import { PROJECT_SERIAL_RE } from "./protocol/types";
+import { PROJECT_SERIAL_RE, SERIAL_RE } from "./protocol/types";
 import type { InputPayload, OutputBuffer, ProjectRef, UpdateMode } from "./protocol/types";
 import {
   applyPreferences,
@@ -138,8 +143,12 @@ let sessionCtl: SessionManager | null = null; // late-bound（sessionMgr 声明�
 /** P5b 通道引用绑定管理器（创建于 syncMaxFps 声明后；调用点均 late-bound 引用）。 */
 let bindMgr: ReturnType<typeof createChannelBindManager> | null = null;
 let lastAddress = "";
-/** P2b 项目模式状态（模块级）：currentProjectId 由 enterProjectMode 设置、?serial= boot /
- *  Connect / 1 段 C1- 导航清空；getAddress / navigate / 保存路径据此分流。
+/** P2b 项目模式状态（模块级）：currentProjectId 由 enterProjectMode 设置；
+ *  getAddress / navigate / 保存路径据此分流。
+ *
+ *  v0.1.00120 起**不再有清空它的路径**：serial 页面入口删除后，"serial 模式"这个
+ *  概念也没了 —— Connect / 1 段 C1- 导航都会解析出所属项目再进成员工作区，
+ *  于是它一旦设上就始终指向"当前在哪个项目里"。
  *
  *  注意：**它只表示「归属哪个项目」，不表示「当前图就是项目根图」**。进入成员工作区后
  *  它依然非空。判定"图是谁的"一律用 `graphScope`（见 app/graph-scope.ts）——
@@ -196,15 +205,12 @@ const addressBar = createAddressBar(graphAddr, {
         graph.frameSelection(); // 当前地址：跳到本图
         return true;
       }
-      if (sessionCtl) {
-        layout.serialInput.value = segs[0];
-        if (currentProjectId !== null) invalidateMappingTypes(); // 离开项目 → 映射缓存作废
-        currentProjectId = null; // 1 段 C1- 导航 = 退出项目模式（serial 模式）
-        graphScope = { kind: "serial", serial: segs[0] };
-        sessionCtl.activateSession(segs[0]); // 跳转到另一个 serial（页面级导航）
-        return true;
-      }
-      return false;
+      // 1 段 `/C1-…/` 指向**另一个**成员：v0.1.00120 起不再退成 serial 模式，而是经桥的
+      // serial→项目映射解析出它所属的项目，进那个项目下的成员工作区（地址随之变成
+      // 两段 /P1-…/C1-…/）。理由与删 `?serial=` 一致：serial 只是成员身份，不是一个
+      // 可以独立存在的"模式"；留着旧分支就等于把刚拆掉的暗门原样搬进地址栏。
+      void openProjectMember(segs[0]);
+      return true;
     }
     if (isProject(segs[0])) {
       // 已在该项目**且身处子网络**时：只是往上退层，绝不重进项目模式。
@@ -262,7 +268,7 @@ const dv = setupDock(layout.dockContainer, {
   param: paramEl,
 });
 (window as unknown as Record<string, unknown>).__cylDv = dv;
-// Initial serial may already be set (?serial=...); paint address + panel title now.
+// Initial serial may already be set (?project=&member=...); paint address + panel title now.
 updateGraphAddress();
 // dockview lazily mounts inactive tab content: the Log panel's .cyl-log element is NOT in
 // the DOM until its tab is activated. Re-render accumulated logs when it comes on screen.
@@ -460,12 +466,16 @@ async function readJsonFromDir(dir: FileSystemDirectoryHandle, relPath: string):
 /** Save Scene As: File System Access first (write <serial>/ under the picked dir,
  *  overwrite confirm when the serial folder exists), falls back to the bridge path. */
 async function saveSceneAs(): Promise<void> {
-  if (currentProjectId) {
-    saveProjectGraph(); // 项目模式：Save As = 保存项目图快照
+  // 分流判据是 `graphScope`（**不是** `currentProjectId`）：v0.1.00120 起成员工作区也
+  // 有 currentProjectId（serial 页面入口删除后，成员一律在项目下打开），拿它判就会把
+  // 「另存这个成员的场景文件夹」误判成「保存项目图」——Save As 于是一个文件都不写。
+  // 这正是 graph-scope.ts 头部警告的那种混用：「归属哪个项目」≠「这张图是项目根」。
+  if (canWriteProjectGraph(graphScope)) {
+    saveProjectGraph(); // 项目根：Save As = 保存项目图快照
     store.pushLog("[file] project graph saved");
     return;
   }
-  const serial = store.serial;
+  const serial = snapshotSerialOf(graphScope) ?? store.serial;
   if (!serial) return;
   try {
     await client.putSnapshot(serial, { graph: graph.serializeGraph(), docking: getDockJson(), preference: prefs });
@@ -516,6 +526,29 @@ async function saveSceneAs(): Promise<void> {
   }
 }
 
+/** 跳转到「该成员的页面」：先问桥这个 serial 属于哪个项目，再整页导航到
+ *  `?project=<P1>&member=<C1>`（v0.1.00120 取代 `location.href = "?serial=…"`）。
+ *
+ *  这里保留**整页导航**（而不是就地 openProjectMember）：Open Scene 刚把一整套
+ *  inputs/graph/docking 推给桥，换的是整个场景，重新 boot 一次最干净——也让地址栏、
+ *  prefs（LAST_SERIAL_KEY 比对）与会话都从同一个起点重建。
+ *
+ *  解析不出项目时不跳转，只 log：宁可停在原地并说清原因，也不跳到一个 serial 形状的
+ *  地址（那条入口已经不存在，跳过去只会被入口守卫弹回 Overview，用户看不懂）。 */
+async function navigateToMemberPage(serial: string): Promise<void> {
+  try {
+    const r = await client.ensureProject(serial);
+    const pid = r.ok ? r.project?.projectSerial : "";
+    if (pid) {
+      location.href = `?project=${encodeURIComponent(pid)}&member=${encodeURIComponent(serial)}`;
+      return;
+    }
+    store.pushLog(`[file] 无法解析 ${serial} 所属项目——请从 Overview 打开`);
+  } catch (e) {
+    store.pushLog(`[file] 解析 ${serial} 所属项目失败: ${String(e)}`);
+  }
+}
+
 /** Open Scene: File System Access first (pick a serial-named folder, read io +
  *  graph + docking, push to the bridge), falls back to the bridge server path. */
 async function openSceneFromDir(): Promise<void> {
@@ -550,7 +583,7 @@ async function openSceneFromDir(): Promise<void> {
           preference: prefs,
         })
         .catch((e) => store.pushLog(`[file] push snapshot failed: ${String(e)}`));
-      location.href = `?serial=${encodeURIComponent(serial)}`;
+      await navigateToMemberPage(serial);
       return;
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return; // user cancelled
@@ -563,7 +596,7 @@ async function openSceneFromDir(): Promise<void> {
   void client
     .openSceneFolder(folderPath.trim())
     .then((r) => {
-      if (r.ok && r.serial) location.href = `?serial=${encodeURIComponent(r.serial)}`;
+      if (r.ok && r.serial) void navigateToMemberPage(r.serial);
       else store.pushLog(`[file] open scene failed: ${r.error ?? "no serial returned"}`);
     })
     .catch((e) => store.pushLog(`[file] open scene error: ${String(e)}`));
@@ -581,7 +614,24 @@ const dataflow = createDataflow({
     activeChains = next;
   },
 });
-const graph = await createReteGraph(layout.graphContainer, dataflow.handlers);
+// 默认 `_input_`/`_output_` 对建不建，**由 boot 形态显式决定**（v0.1.00120）。
+//
+// 为什么必须显式传：graph.ts 的自动判定 `wantsEmptyRootGraph()` 只看 URL 里有没有
+// `?project=`，而"项目根"曾经与"带 project 参数"是同一件事。加了 `&member=` 之后这条
+// 等价关系断了——成员工作区也带 `?project=`，却**需要**默认对（成员没有存图时，图必须
+// 是那张默认 in/out 图，否则 nodeview 一片空白，正是这次迁移最先撞上的回归）。
+// 判据因此收敛到这里：只有"项目根"（有 project、无 member）才要空图。
+const bootIsMemberEntry = (() => {
+  try {
+    const p = new URLSearchParams(location.search);
+    return PROJECT_SERIAL_RE.test(p.get("project") ?? "") && SERIAL_RE.test(p.get("member") ?? "");
+  } catch {
+    return false;
+  }
+})();
+const graph = await createReteGraph(layout.graphContainer, dataflow.handlers, {
+  emptyRootGraph: bootIsMemberEntry ? false : undefined, // 成员入口 → 保留默认对；其余沿用自动判定
+});
 graphReady = true; // updateGraphAddress / isProjectModeActive 现可安全引用 graph
 // 层级变化（双击进入 / Tab-U 退出 / 地址栏按名导航）**换完之后**才回调 —— 地址栏据此
 // 跟随。刻意不在 enterNode 调用点自己刷地址：那又会变成"地址先变、图后换"（task #7）。
@@ -591,8 +641,10 @@ const autosave = createAutosave({
   getPrefs: () => prefs,
   getSerial: () => store.serial,
   saveSnapshot: () => {
-    if (currentProjectId) {
-      saveProjectGraph(); // 项目模式：图快照存项目，不写 per-serial snapshot
+    // 同 saveSceneAs / quickSave：判据用 graphScope（成员工作区的自动保存必须写它自己的
+    // snapshot，而不是把成员图写进项目槽位）。
+    if (canWriteProjectGraph(graphScope)) {
+      saveProjectGraph(); // 项目根：图快照存项目，不写 per-serial snapshot
       return;
     }
     const serial = store.serial;
@@ -715,10 +767,17 @@ const sessionMgr = createSessionManager({
       serial,
       (msg) => {
         if ((msg as { type?: unknown } | null)?.type === "anchor-moved") {
+          // 这两个缓存**成对作废**：都以「当前项目上下文」为键（映射类型表是项目内的
+          // 逻辑名命名空间，端口清单是这些 serial 在本次 Houdini 会话里的解析结果）。
+          // 吊牌一挪，同一个逻辑名可能解析到另一个 serial，两者同时过期——只清一个，
+          // 另一个就会拿旧项目/旧解析的数据继续作答。别把其中一句"顺手清理"掉。
           invalidateMappingTypes();
+          invalidateCapabilities();
           // 重取：只作废不重取的话，缓存会一直停在未加载态，直到下次切项目才恢复。
+          // 端口清单刻意**不**在此预取：只有用户打开填了 address 的 param 面板才需要，
+          // 模块自身已 debounce + single-flight，按需取即可（预取 = N 次无人看的往返）。
           if (currentProjectId) void primeMappingTypes(currentProjectId);
-          store.pushLog(`[mapping] anchor-moved → 映射类型缓存已刷新 (${serial})`);
+          store.pushLog(`[mapping] anchor-moved → 映射类型 + 端口清单缓存已作废 (${serial})`);
         }
         onMessage(msg);
       },
@@ -1216,9 +1275,20 @@ function saveProjectGraph(): void {
  *  1. store.serial 置空（项目模式无单一活动成员镜像）；2. 取项目；3. 取图快照（失败当 null）；
  *  4. loadProjectGraph；5. 对全部 tag/hda 成员 ensureSession（不激活）；6. 挂 channel display
  *  点击 → 激活成员 + 地址刷新；7. 地址更新。失败 log 提示不崩。已在目标项目时走 fast path
- *  （仅清空活动成员回项目根，不重载图以免覆盖未保存编辑）。 */
-async function enterProjectMode(projectId: string): Promise<void> {
-  if (currentProjectId === projectId && graphReady && graph.isProjectMode()) {
+ *  （仅清空活动成员回项目根，不重载图以免覆盖未保存编辑）。
+ *
+ *  `opts.loadGraph === false`：**只建立项目上下文，不把图换成项目根**（v0.1.00120
+ *  `?project=&member=` 直达成员用）。为什么需要这个开关：直达某个成员时，用户要的是
+ *  **那个成员的工作区**，项目根图只会一闪而过再被成员图盖掉；更要紧的是 `graphScope`
+ *  会先落成 `project`，而成员没有存图时 pending 不兑现、scope 就**留在** project —— 此后
+ *  Ctrl+S 走 putProjectGraph，把成员的编辑写进项目槽位（正是 graph-scope.ts 头部那场
+ *  数据丢失事故的形状）。跳过换图，scope 从一开始就是 member，保存永远落在成员自己的
+ *  snapshot 上。 */
+async function enterProjectMode(projectId: string, opts?: { loadGraph?: boolean }): Promise<void> {
+  const loadGraph = opts?.loadGraph !== false;
+  // fast path 只在"要回项目根"时成立：loadGraph=false 的调用方（直达成员）绝不能被
+  // 这里把 scope 拽回 project —— 那正是它要避免的事。
+  if (loadGraph && currentProjectId === projectId && graphReady && graph.isProjectMode()) {
     store.setSerial("");
     // 回到项目根：图确实是项目根图（isProjectMode 已确认），scope 必须跟着回来，
     // 否则残留的 member scope 会让 Save 一直拒写项目图。
@@ -1228,7 +1298,9 @@ async function enterProjectMode(projectId: string): Promise<void> {
     updateGraphAddress();
     return;
   }
-  store.setSerial("");
+  // 项目根无单一活动成员 → 清空镜像；直达成员（loadGraph=false）不清：紧随其后的
+  // activateSession 会把它设成该成员，中间清一次只会让视口白闪一帧。
+  if (loadGraph) store.setSerial("");
   store.pushLog(`[project] 项目模式 ${projectId} …`);
   let project: ProjectRef | null = null;
   try {
@@ -1244,13 +1316,21 @@ async function enterProjectMode(projectId: string): Promise<void> {
   }
   // 切项目 = 映射表换了一整张（逻辑名是项目内的命名空间）→ 旧缓存必须先作废，
   // 否则新项目的第一批查表会命中上一个项目的类型，静默算错（比报「未加载」糟得多）。
-  if (currentProjectId !== null && currentProjectId !== projectId) invalidateMappingTypes();
+  // 成对作废（务必保持相邻）：两个缓存都以「当前项目上下文」为键——映射类型表是项目内的
+  // 逻辑名命名空间，端口清单是成员 serial 的端口解析结果。换项目时两者同时过期；只清一个
+  // 的话，另一个会用**上一个项目**的数据继续作答（端口下拉里冒出前一个项目的端口，正是
+  // 这次要堵的洞），而且是静默错答，比报「未加载」难查得多。
+  if (currentProjectId !== null && currentProjectId !== projectId) {
+    invalidateMappingTypes();
+    invalidateCapabilities();
+  }
   currentProjectId = projectId;
   currentProject = project;
-  graphScope = { kind: "project", projectId }; // 图即将被换成项目根图
-  // 进项目模式时地址栏同步成 ?project=（此处模式与地址一致，改写是诚实的；
-  // 对比 ?serial= 分支：那条不改地址，见该处注释）。
-  syncProjectInAddress(projectId);
+  if (loadGraph) {
+    graphScope = { kind: "project", projectId }; // 图即将被换成项目根图
+    // 进项目模式时地址栏同步成 ?project=（此处模式与地址一致，改写是诚实的）。
+    syncProjectInAddress(projectId);
+  }
   // task #8：映射类型缓存与项目图**并发**取，然后一起 await。
   //
   // 为什么要 await（而不是 fire-and-forget）：端口类型的唯一真源就是这张表，第一次 cook
@@ -1268,10 +1348,14 @@ async function enterProjectMode(projectId: string): Promise<void> {
     graphJson = null; // 读取失败当 null（如新项目尚无图快照）
   }
   await primed;
-  graph.loadProjectGraph(
-    { projectSerial: project.projectSerial, label: project.label, members: project.members },
-    graphJson,
-  );
+  // loadGraph=false：图留给调用方（直达成员时由 activateSession 的 loadSnapshot 决定，
+  // 无存图则保持默认 in/out 对——与旧 `?serial=` 启动逐字同形）。
+  if (loadGraph) {
+    graph.loadProjectGraph(
+      { projectSerial: project.projectSerial, label: project.label, members: project.members },
+      graphJson,
+    );
+  }
   for (const m of project.members) {
     if ((m.kind === "tag" || m.kind === "hda") && m.serial) {
       sessionMgr.ensureSession(m.serial); // 不激活：仅确保该成员 workspace/轮询存在
@@ -1291,6 +1375,66 @@ async function enterProjectMode(projectId: string): Promise<void> {
     sessionMgr.activateSession(serial); // channel display 点击 = 激活成员
   });
   updateGraphAddress();
+}
+
+/**
+ * 「打开某个 HDA 成员」的**唯一**入口（v0.1.00120 删除 `?serial=` 页面入口后新增）。
+ *
+ * ## 为什么存在
+ *
+ * serial 不再是页面地址：成员只作为**项目的成员**可达。于是「打开这个 HDA」必须先问桥
+ * 「它属于哪个项目」（`ensureProject` = 桥的 serial→项目映射，没有则隐式建单成员项目），
+ * 再进那个项目、激活该成员。这条解析**只有桥说得准**，前端不猜、也不自己拼项目号。
+ *
+ * ## 为什么用 `loadGraph:false` 而不是「进项目根再激活成员」
+ *
+ * 直达成员时用户要的是**那个成员的工作区**。若先换成项目根图：
+ *  - 成员**有**存图 → 项目根图一闪而过再被盖掉（白闪一帧，纯浪费）；
+ *  - 成员**没有**存图 → pending 不兑现，`graphScope` 留在 `project`，此后 Ctrl+S 会把
+ *    这张（其实是默认 in/out 对的）图 `putProjectGraph` 写进**项目槽位**，覆盖项目根
+ *    结构 —— graph-scope.ts 头部记的那场真实数据丢失，换个入口重演。
+ * 跳过换图后 scope 一开始就是 `member`，保存必然落在成员自己的 snapshot 上。
+ *
+ * 与地址栏 2 段 `/P1-…/C1-…/` 分支的差别是**故意的**：那条分支眼前已有一张项目根图
+ * （可能带未保存编辑），所以必须走 pending、等图真的换了才改地址；而本函数跑在页面
+ * 启动/显式跳转时，手上只有一张空的默认图，没有"图没换"的歧义，可以直接写 scope。
+ *
+ * @returns 解析到的 projectId；桥不可达/解析失败则 null（调用方据此回退）。
+ */
+async function openProjectMember(serial: string): Promise<string | null> {
+  let projectId: string | null = null;
+  try {
+    const r = await client.ensureProject(serial);
+    if (r.ok && r.project?.projectSerial) projectId = r.project.projectSerial;
+  } catch (e) {
+    store.pushLog(`[project] 解析 ${serial} 所属项目失败: ${String(e)}`);
+  }
+  if (!projectId) {
+    // 桥不可达时不能假装进了项目：serial 模式已不存在，诚实地停在"未连接"并说清原因，
+    // 比伪造一个项目号更好——后者会让地址栏指向一个并不存在的地方。
+    store.pushLog(`[project] 无法解析 ${serial} 所属项目（桥离线？）——请从 Overview 进入`);
+    store.setStatus("offline");
+    return null;
+  }
+  const ok = await enterMemberWorkspace(projectId, serial);
+  return ok ? projectId : null;
+}
+
+/** 进入「项目 P 下成员 C 的工作区」——`openProjectMember`（serial 已解析出项目）与
+ *  `?project=&member=` 启动**共用**这一段，两条入口因此不可能行为漂移。
+ *  @returns 是否真的进去了（读项目失败 → false，调用方不再激活会话）。 */
+async function enterMemberWorkspace(projectId: string, serial: string): Promise<boolean> {
+  layout.serialInput.value = serial;
+  // scope 先落 member：enterProjectMode(loadGraph:false) 不碰 scope，图也不换，
+  // 因此这里写下的归属从第一帧起就描述眼前这张图。
+  graphScope = { kind: "member", projectId, serial };
+  syncMemberInAddress(projectId, serial);
+  await enterProjectMode(projectId, { loadGraph: false });
+  // enterProjectMode 失败（读项目失败）时 currentProjectId 不会被设上 → 不再激活，
+  // 避免"会话连上了但项目上下文是空的"这种半吊子状态。
+  if (currentProjectId !== projectId) return false;
+  sessionMgr.activateSession(serial);
+  return true;
 }
 
 /** 待兑现的成员归属（channel display 点击登记 → 图确实换成该成员图后才落地）。 */
@@ -1452,30 +1596,35 @@ function applyLoadedPreference(json: unknown): void {
 }
 
 
-/** 把地址栏的 ?serial= 同步成当前连接的 serial（不重载、不新增历史条目）。
- *  Connect 是原地换会话（无跳转），此前地址栏会一直留着旧的 / 空的 ?serial=，
- *  刷新或复制链接就回到错的目标。project 参数在 serial 模式下一并清掉。 */
-function syncSerialInAddress(serial: string): void {
+/** 把地址栏同步成 `?project=<P1>&member=<C1>`（不重载、不新增历史条目）。
+ *
+ *  v0.1.00120 取代 `syncSerialInAddress`：serial 不再是页面地址，成员只在项目下可达，
+ *  所以"当前正连着谁"这件事也必须两段都写——只写 member 就又造出一个 serial 形状的
+ *  页面入口，刷新时无从得知它属于哪个项目。 */
+function syncMemberInAddress(projectId: string, serial: string): void {
   try {
     const url = new URL(location.href);
-    if (url.searchParams.get("serial") === serial) return;
-    url.searchParams.delete("project");
-    url.searchParams.set("serial", serial);
+    if (url.searchParams.get("project") === projectId && url.searchParams.get("member") === serial) return;
+    url.searchParams.delete("serial"); // 清掉遗留的旧参数（老书签/老标签页）
+    url.searchParams.set("project", projectId);
+    url.searchParams.set("member", serial);
     history.replaceState(history.state, "", `${url.pathname}${url.search}${url.hash}`);
   } catch {
     /* 地址同步失败不影响连接本身 */
   }
 }
 
-/** 把地址栏换成 ?project=（不重载、不新增历史条目）。
+/** 把地址栏换成 `?project=`（项目根，不重载、不新增历史条目）。
  *
- *  项目优先（v0.1.00114）：`?serial=` 进来时 ensure 出所属项目后调用本函数，
- *  地址栏统一成项目形态；`serial` 参数一并清掉，避免刷新时又走回 serial 分支。 */
+ *  `member` 必须一并清掉：回到项目根后还留着 member= 的话，刷新会又跳进成员工作区，
+ *  地址与眼前的图就对不上了（地址栏永远描述眼前这张图，见 graph-scope.ts）。
+ *  `serial` 同理清掉——老书签留下的遗留参数。 */
 function syncProjectInAddress(projectId: string): void {
   try {
     const url = new URL(location.href);
-    if (url.searchParams.get("project") === projectId) return;
+    if (url.searchParams.get("project") === projectId && !url.searchParams.has("member")) return;
     url.searchParams.delete("serial");
+    url.searchParams.delete("member");
     url.searchParams.set("project", projectId);
     history.replaceState(history.state, "", `${url.pathname}${url.search}${url.hash}`);
   } catch {
@@ -1484,39 +1633,59 @@ function syncProjectInAddress(projectId: string): void {
 }
 
 const connectSerial = () => {
-  // 离开项目模式 = 映射表所属的命名空间没了 → 缓存作废（留着会被下一个项目误命中）。
-  if (currentProjectId !== null) invalidateMappingTypes();
-  currentProjectId = null; // Connect = serial 模式动作（退出项目模式）
   const v = layout.serialInput.value.trim();
   if (!v) return;
-  graphScope = { kind: "serial", serial: v };
+  // 成对作废（务必保持相邻）：显式 Connect = 「重新从桥读一遍」。用户会去点它，通常正是
+  // 因为 Houdini 那边重启/换了 hip/挪了吊牌——此刻两个以项目上下文为键的缓存都可能已经
+  // 过期（映射类型表 + 端口清单）。serial-capabilities 自己的文档也把「桥重连」列为作废
+  // 时机之一。只清一个 → 另一个继续用上一次会话的解析结果静默作答。
+  //
+  // 放在分支**之前**、且都是 fire-and-forget：下面那条快路径必须保持"close → 立刻
+  // activate"的同步性（round10 的 kick 速率断言踩在这上面），所以这里不 await 任何东西。
+  invalidateMappingTypes();
+  invalidateCapabilities();
+  // 映射类型表重取（端口清单不预取：按需 + 已 debounce/single-flight，见 import 处注释）。
+  if (currentProjectId) void primeMappingTypes(currentProjectId);
   // 显式重连语义（对齐旧 connect()：先拆旧 WS 再开新 WS）——round10 依赖每次
   // Connect 点击都产生一条新 WebSocket（kick 速率限流断言）。
   sessionMgr.closeSession(v);
-  sessionMgr.activateSession(v);
-  syncSerialInAddress(v);
+  // 已经在这个成员的工作区里 → **纯重连**：项目归属早就知道了，不必再问桥一次。
+  // 这条快路径不只是省一次往返，它保证「重连」仍是同步动作（close → 立刻 activate）：
+  // 走下面的解析路径会在拆掉 WS 与建新 WS 之间插进 3 次 HTTP 往返，把"点一次 Connect
+  // 立刻换一条 WS"这个语义拖成异步，round10 的 kick 速率断言正是踩在这上面。
+  if (graphScope.kind === "member" && graphScope.serial === v && currentProjectId === graphScope.projectId) {
+    sessionMgr.activateSession(v);
+    return;
+  }
+  // v0.1.00120：Connect 不再是"serial 模式"动作 —— 换成另一个 serial 时同样经桥的
+  // serial→项目映射解析，落到该成员的工作区（地址 /P1-…/C1-…/）。
+  void openProjectMember(v);
 };
 layout.connectBtn.addEventListener("click", connectSerial);
 layout.serialInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") connectSerial();
 });
 
-const qs = new URLSearchParams(location.search).get("serial");
-const qp = new URLSearchParams(location.search).get("project");
-if (qs) {
-  layout.serialInput.value = qs;
-  currentProjectId = null; // ?serial= 路径 = serial 模式（退出项目模式）
-  graphScope = { kind: "serial", serial: qs };
-  sessionMgr.activateSession(qs); // 原 session.connect(qs) 语义（ensure + activate + loadSnapshot）
-  syncSerialInAddress(qs);
-  // P2a 隐式项目：后台 ensure（无含该 serial 通道的项目则自动建 P1- 单成员项目）。
-  //
-  // 刻意**不**把地址栏改写成 ?project=（v0.1.00114 一度这么做过，是错的）：
-  // 这条分支跑的是 serial 模式（currentProjectId=null、会话 = 该 serial），
-  // 改成 ?project= 会让地址栏与实际模式不符——刷新后进的是项目模式，看到的东西不一样。
-  // 「项目优先」由 overview 的入口（打开 -> ?project=）实现；`?serial=` 保持旧语义，
-  // 老书签行为不变。
-  void client.ensureProject(qs).catch(() => undefined);
+// ---------------------------------------------------------------------------
+// 页面入口（v0.1.00120）：**只认 `?project=`**。
+//
+// `?serial=` 页面入口已删除 —— serial 不再是网页地址，它只是「HDA 成员的身份」，
+// 只在所属项目下可达。于是入口只有两种形态：
+//   `?project=P1-…`              → 项目根
+//   `?project=P1-…&member=C1-…`  → 该项目下这个成员的工作区（地址 /P1-…/C1-…/）
+// 老的 `?serial=…` 书签会被 index.html 的入口守卫送回 Overview（那里能查到它属于
+// 哪个项目再进）——刻意不在这里做兼容跳转：留一条 serial→页面的暗门，等于没删。
+//
+// 注意：桥的**数据通道**仍然按 serial 路由（`ws://…/ws?serial=`、
+// `PUT /api/hda/<serial>/…`）。删掉的只是"页面地址按 serial 寻址"这件事。
+// ---------------------------------------------------------------------------
+const bootParams = new URLSearchParams(location.search);
+const qp = bootParams.get("project");
+const qm = bootParams.get("member");
+if (qp && PROJECT_SERIAL_RE.test(qp) && qm && SERIAL_RE.test(qm)) {
+  // 直达成员：与 openProjectMember 共用 enterMemberWorkspace（此处项目已在地址里，
+  // 无需再问桥要映射）。
+  void enterMemberWorkspace(qp, qm);
 } else if (qp && PROJECT_SERIAL_RE.test(qp)) {
   // P2b 项目模式：?project=P1-… 直接进入项目根（index.html 已放行，不重定向 overview）。
   void enterProjectMode(qp);
@@ -1540,7 +1709,9 @@ bindShortcuts({
   // B 键优先级：有选中线段 → 切换 bypass（返回 true 吃掉按键）；否则保持 debug 盒行为。
   tryWireBypass: () => graph.toggleSelectedConnectionBypass(),
   quickSave: () => {
-    if (currentProjectId) {
+    // 同 saveSceneAs：判据用 graphScope，不用 currentProjectId（见那里的注释）。
+    // 走到这条 else 时 scope 是 member/serial → 存该成员自己的 snapshot。
+    if (canWriteProjectGraph(graphScope)) {
       saveProjectGraph();
       store.pushLog("[file] project graph saved (Ctrl+S)");
       return;

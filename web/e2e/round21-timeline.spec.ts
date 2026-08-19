@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { gotoMember } from "./fixtures";
 
 /**
  * Round 21 (Phase A 本地时间轴 web UI 骨架): 页面加载后底部栏出现
@@ -19,9 +20,10 @@ const FAKE_INPUT = {
 };
 
 async function gotoApp(page: import("@playwright/test").Page): Promise<void> {
-  // index.html 在无 ?serial= 时重定向 Overview；用未注册的合法 serial 进入主应用，
-  // 桥 touch auto-register 空 workspace → store 从 0 inputs 开始（测试假设空 store）。
-  await page.goto("http://127.0.0.1:8376/?serial=C1-e2etest9999-zzzz");
+  // index.html 在无 ?project= 时重定向 Overview。用未注册的合法 serial：桥的
+  // `ensureProject` 会为它隐式建一个单成员项目（gotoMember 内部走这条映射），
+  // touch auto-register 出空 workspace → store 从 0 inputs 开始（测试假设空 store）。
+  await gotoMember(page, "C1-e2etest9999-zzzz");
 }
 
 test("bottom bar timeline renders; captureFrame + setFrame updates store inputs; step advances frame", async ({ page }) => {

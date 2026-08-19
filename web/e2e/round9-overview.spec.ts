@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { projectForSerial } from "./fixtures";
 
 // Round 9: Overview 总管页迭代 —— 默认入口重定向 / 新建区块置顶 / 三态状态 / 清理无效场景 / 主应用链接。
 // bridge 的 lastActivity 字段与 POST /api/scenes/cleanup 由并行 agent 实现中：
@@ -39,13 +40,25 @@ test("bare / redirects to /overview.html (default entry)", async ({ page }) => {
   await expect(page.locator(".cyl-app")).toHaveCount(0);
 });
 
-test("/?serial=C1-... does NOT redirect (main app connect view loads)", async ({ page }) => {
+test("/?serial=C1-... IS redirected to Overview (serial is no longer a page address)", async ({ page }) => {
+  // v0.1.00120 的核心断言：基于 serial 的页面入口已删除。老书签落到入口守卫上被送回
+  // Overview（那里能查出它属于哪个项目再进），**不会**再加载主应用。
+  await page.goto(`${BASE}/?serial=C1-e2eround9-0001`);
+  await expect(page).toHaveURL(/\/overview\.html/, { timeout: 15000 });
+  await expect(page.locator(".ov-brand")).toContainText("Cyl1nder 总管");
+  await expect(page.locator(".cyl-app")).toHaveCount(0);
+});
+
+test("/?project=P1-…&member=C1-… loads the member workspace (the replacement entry)", async ({ page }) => {
   const serial = "C1-e2eround9-0001";
-  await page.goto(`${BASE}/?serial=${serial}`);
-  await expect(page).toHaveURL(new RegExp(`[?&]serial=${serial}`), { timeout: 15000 });
+  const pid = await projectForSerial(serial);
+  await page.goto(`${BASE}/?project=${pid}&member=${serial}`);
+  await expect(page).toHaveURL(new RegExp(`[?&]member=${serial}`), { timeout: 15000 });
   await expect(page.locator(".cyl-app")).toBeVisible({ timeout: 15000 });
   await expect(page.locator("#cyl-serial")).toHaveValue(serial);
   await expect(page.locator(".ov-brand")).toHaveCount(0);
+  // 地址栏两段 /P1-…/C1-…/：成员只作为「项目的成员」可达，这正是替代 serial 页面入口的形态
+  await expect(page.locator(".cyl-graph-addr")).toContainText(`${pid}/${serial}`, { timeout: 15000 });
 });
 
 test("projects block is on top; mappings second; scenes demoted to a collapsed diag section", async ({ page }) => {
@@ -75,8 +88,9 @@ test("scenes diag section expands to reveal the scene controls", async ({ page }
 test("main-app link opens the app without bouncing back to overview", async ({ page }) => {
   await page.goto(`${BASE}/overview.html`);
   await page.locator("a.ov-link").click();
-  // 有项目 -> ?project=P1-…；无项目 -> 回退空 ?serial=（index.html 的 has() 守卫都放行）
-  await expect(page).toHaveURL(/\/\?(project=P1-|serial=)/, { timeout: 15000 });
+  // 有项目 -> /?project=P1-…；完全没有项目 -> 留在 Overview（主应用现在只能按项目打开，
+  // 而「新建项目」就在本页，停在这里正是用户下一步该在的地方）。
+  await expect(page).toHaveURL(/(\/\?project=P1-|\/overview\.html)/, { timeout: 15000 });
   await expect(page.locator(".cyl-app")).toBeVisible({ timeout: 15000 });
 });
 

@@ -30,7 +30,7 @@ async function openScenesDiag(page: import("@playwright/test").Page): Promise<vo
 test("overview page loads with title, refresh and main-app link", async ({ page }) => {
   await page.goto(`${BASE}/overview.html`);
   await expect(page.locator(".ov-brand")).toContainText("Cyl1nder 总管");
-  // 顶栏链接改指最近更新的项目（无项目时回退空 ?serial=）——只断言存在，不锁 href
+  // 顶栏链接改指最近更新的项目（无项目时留在 Overview）——只断言存在，不锁 href
   await expect(page.locator("a.ov-link")).toBeVisible();
   await expect(page.locator("button.ov-refresh")).toBeVisible();
   // 新建场景控件搬进折叠的诊断区
@@ -47,10 +47,11 @@ test("overview renders scene lists and creates a new scene", async ({ page }) =>
   await waitLoaded(page);
   // 桥在线且列表可用 -> 无离线/错误横幅
   await expect(page.locator("#ov-banner")).toHaveClass(/hidden/, { timeout: 15000 });
-  // 新建场景 -> 跳转主应用 /?serial=...
+  // 新建场景 -> 跳转主应用。v0.1.00120：不再是 /?serial=C1-…，而是先经桥把新 serial
+  // 解析成所属项目（隐式建单成员项目）再跳 /?project=P1-…&member=C1-…。
   await page.locator("input.ov-new-input").fill(`e2e-overview-${Date.now()}`);
   await page.locator("button.ov-new-button").click();
-  await expect(page).toHaveURL(/\/\?serial=C1-/, { timeout: 15000 });
+  await expect(page).toHaveURL(/\/\?project=P1-[0-9a-z]+-[0-9a-z]+&member=C1-/, { timeout: 15000 });
 });
 
 test("overview open buttons navigate to the main app", async ({ page }) => {
@@ -61,7 +62,8 @@ test("overview open buttons navigate to the main app", async ({ page }) => {
   const openBtn = page.locator("#active-list .ov-open, #history-list .ov-open").first();
   test.skip((await openBtn.count()) === 0, "no scenes listed");
   await openBtn.click();
-  await expect(page).toHaveURL(/\/\?serial=C1-/, { timeout: 15000 });
+  // 「打开」= 打开该 HDA 所属项目并激活它（serial 不再是页面地址）
+  await expect(page).toHaveURL(/\/\?project=P1-[0-9a-z]+-[0-9a-z]+&member=C1-/, { timeout: 15000 });
 });
 
 test("overview shows a banner when /api/scenes is unavailable", async ({ page }) => {

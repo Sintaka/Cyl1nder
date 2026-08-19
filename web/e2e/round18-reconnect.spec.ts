@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { BridgeClient } from "../src/bridge/client";
+import { gotoMember } from "./fixtures";
 
 /**
  * Round 18 (nodeview reconnect + waypoint + Esc + Delete write-set):
@@ -62,7 +63,7 @@ test.afterAll(async () => {
 type Page = import("@playwright/test").Page;
 
 async function openGraph(page: Page): Promise<void> {
-  await page.goto(`http://127.0.0.1:8376/?serial=${serial}`);
+  await gotoMember(page, serial);
   await expect(page.locator(".cyl-graph .cyl-rp-title").first()).toBeVisible({ timeout: 15000 });
   await expect(page.locator(".cyl-status")).toHaveClass(/ok/, { timeout: 15000 });
 }

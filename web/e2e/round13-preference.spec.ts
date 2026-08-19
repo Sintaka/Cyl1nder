@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { BridgeClient } from "../src/bridge/client";
+import { gotoMember } from "./fixtures";
 
 /**
  * Round 13 (preferences write-set): Edit -> Preference floating (non-modal)
@@ -41,7 +42,7 @@ test.beforeAll(async () => {
 
 /** Load the main app with the live serial (bridge + WS must come up). */
 async function openGraph(page: import("@playwright/test").Page): Promise<void> {
-  await page.goto(`http://127.0.0.1:8376/?serial=${serial}`);
+  await gotoMember(page, serial);
   await expect(page.locator(".cyl-app")).toBeVisible({ timeout: 15000 });
   await expect(page.locator(".cyl-status")).toHaveClass(/ok/, { timeout: 15000 });
 }

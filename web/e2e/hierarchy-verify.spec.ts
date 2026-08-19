@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { gotoMember } from "./fixtures";
 
 /**
  * v0.1.00119 验证：obj/sop 层级（task #4）在**真实浏览器**里的往返。
@@ -22,7 +23,7 @@ test.beforeAll(async () => {
 });
 
 async function boot(page: Page): Promise<void> {
-  await page.goto(`http://127.0.0.1:8376/?serial=${serial}`);
+  await gotoMember(page, serial);
   await expect(page.locator(".cyl-graph .cyl-rp-title").first()).toBeVisible({ timeout: 20000 });
 }
 
@@ -80,11 +81,16 @@ test("进入 geo 子网络 → 空图（不是默认 in/out 对），退出后�
   const geoId = await addGeo(page, "geoHier1");
   expect(await netPath(page)).toEqual([]); // 顶层
 
-  expect(await hier(page).netKind()).toBe("obj"); // 顶层是 obj 层
+  // 本 spec 用 gotoMember 打开的是**成员工作区**（v0.1.00120 起唯一的成员入口），
+  // 它就是「一个 HDA 内部」的图，所以深度 0 也是 **sop**——不是 obj。
+  // 原断言写 "obj" 是因为当时 getCurrentNetKind 只看栈深度，把成员图误判成 obj 层，
+  // Tab 面板按层过滤后只剩 geo（9 个 e2e 因此挂在 createTransform 上）。
+  // 「深度 0 == obj」只对**项目根图**成立，判据是图里有没有 project 节点。
+  expect(await hier(page).netKind()).toBe("sop");
 
   expect(await enter(page, geoId)).toBe(true);
   expect(await netPath(page)).toEqual(["geoHier1"]);
-  expect(await hier(page).netKind()).toBe("sop"); // 进 geo 之后才是 sop
+  expect(await hier(page).netKind()).toBe("sop"); // 进入可进入节点之后恒为 sop
   // 首次进入必须是**空图**：用户要求新场景下面不自动创建任何东西
   expect(await nodeLabels(page)).toEqual([]);
 

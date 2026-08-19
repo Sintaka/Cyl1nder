@@ -1,4 +1,4 @@
-import { BRIDGE_URL, ChannelRef, InputPayload, LogEntry, OutputBuffer, ProjectRef, StatusResponse, TraceEvent } from "../protocol/types";
+import { BRIDGE_URL, ChannelRef, InputPayload, LogEntry, OutputBuffer, ProjectRef, SerialCapabilities, StatusResponse, TraceEvent } from "../protocol/types";
 import { encode, decode } from "@msgpack/msgpack";
 
 export interface HealthResponse {
@@ -34,6 +34,37 @@ export class BridgeClient {
 
   async getStatus(serial: string): Promise<StatusResponse> {
     return json<StatusResponse>(await fetch(`${this.base}/api/hda/${serial}/status`));
+  }
+
+  /**
+   * GET /api/serials/{serial}/capabilities —— 「这个 serial 提供什么端口」。
+   *
+   * 用户在 `_input_`/`_output_` 里只填**一个地址 = 一个 serial**，由桥回答它是 SOP HDA
+   * （in0..in3 / out0..out3）还是吊牌（该 tag 的逻辑名 + 各自类型）。多个 HDA 可以**故意**
+   * 共用一个 serial 把参数集中托管，所以「serial → 端口清单」只有桥知道，前端不能推。
+   *
+   * **不抛、恒回一个对象**：地址是逐字输入的，半截地址（`C`、`C1-msm6`…）在桥侧同样是
+   * 200 + `known:false`——那是**正常中间态不是错误**。断连 / 旧桥 404 也归一成
+   * `known:false` 空清单：下拉暂时没得选，而不是把异常抛进参数面板的渲染路径。
+   */
+  async getSerialCapabilities(serial: string): Promise<SerialCapabilities> {
+    const empty: SerialCapabilities = {
+      serial,
+      kind: "",
+      known: false,
+      nodePath: "",
+      hip: "",
+      inputs: [],
+      outputs: [],
+    };
+    try {
+      const res = await fetch(`${this.base}/api/serials/${encodeURIComponent(serial)}/capabilities`);
+      if (!res.ok) return empty;
+      const body = (await res.json().catch(() => null)) as SerialCapabilities | null;
+      return body ?? empty;
+    } catch {
+      return empty;
+    }
   }
 
   /**
