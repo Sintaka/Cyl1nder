@@ -286,42 +286,78 @@ describe("planProjectGraph（loadProjectGraph 纯规划）", () => {
     ],
   };
 
-  it("project 根 + tag/hda 成员各一 channel；param 成员跳过；label 回退 serial", () => {
+  // v0.1.00127 契约变更（用户要求）：「默认项目根目录只有一个黄色高亮文字说明这是哪个
+  // 项目, 然后就是空的, 需要用户手动创建 geo 进去放 input output……而不是在根目录这里
+  // 每个注册通道有个奇怪的节点」「这些是古早的设计, 应该被根除」。
+  //
+  // 这条设计同时是「保存后 reload 变回默认场景」的根因：原实现只从 saved 取**坐标**，
+  // 节点一律按 members 重新生成，于是用户存的 geo/子网络每次加载都被覆盖。
+  it("无存图 → 只有项目根一个节点（成员不再各生成一个 channel）", () => {
     const plan = planProjectGraph(input);
-    expect(plan.nodes.length).toBe(3); // project + 2 channel
+    expect(plan.nodes.length).toBe(1);
     expect(plan.nodes[0]).toMatchObject({ id: "P1-aaaa-0000", kind: "project", label: "Proj", channel: null });
-    const chans = plan.nodes.filter((n) => n.kind === "channel");
-    expect(chans.map((n) => n.id).sort()).toEqual(["C1-aaaa-0000-0000", "C1-bbbb-0000-0000"]);
+    expect(plan.nodes.some((n) => n.kind === "channel")).toBe(false);
     expect(plan.connections).toEqual([]);
     expect(plan.viewport).toBeNull();
   });
 
-  it("label 为空 → 回退 projectSerial / serial", () => {
+  it("label 为空 → 回退 projectSerial", () => {
     const plan = planProjectGraph({ projectSerial: "P1-aaaa-0000", label: "", members: [channelRef("C1-aaaa-0000-0000")] });
     expect(plan.nodes[0].label).toBe("P1-aaaa-0000");
-    expect(plan.nodes[1].label).toBe("C1-aaaa-0000-0000");
+    expect(plan.nodes.length).toBe(1);
   });
 
-  it("saved 恢复位置/连接/viewport；缺失成员跳过；连接防御性过滤", () => {
+  it("存图里的 geo **必须带回来**（含 children）——这正是 reload 变回默认场景的那个 bug", () => {
+    const saved = {
+      schemaVersion: 5,
+      viewport: { k: 1, x: 0, y: 0 },
+      nodes: [
+        { id: "P1-aaaa-0000", kind: "project", x: 24, y: 40 },
+        { id: "g1", kind: "geo", label: "geo1", x: 300, y: 40, children: { schemaVersion: 5, nodes: [], connections: [] } },
+      ],
+      connections: [],
+    };
+    const plan = planProjectGraph(input, saved);
+    const geo = plan.nodes.find((n) => n.id === "g1");
+    expect(geo).toBeDefined();
+    expect(geo).toMatchObject({ kind: "geo", label: "geo1", x: 300 });
+    expect((geo as { children?: unknown }).children).toBeDefined();
+  });
+
+  it("旧存档里的 channel 节点被丢弃（就是要根除的那种）", () => {
     const saved = {
       schemaVersion: 3,
+      nodes: [
+        { id: "P1-aaaa-0000", kind: "project", x: 24, y: 40 },
+        { id: "C1-aaaa-0000-0000", kind: "channel", x: 500, y: 300 },
+      ],
+      connections: [],
+    };
+    const plan = planProjectGraph(input, saved);
+    expect(plan.nodes.map((n) => n.kind)).toEqual(["project"]);
+  });
+
+  it("saved 恢复位置/连接/viewport；channel 丢弃；连接防御性过滤", () => {
+    const saved = {
+      schemaVersion: 5,
       viewport: { k: 2, x: 10, y: 20 },
       nodes: [
         { id: "P1-aaaa-0000", kind: "project", x: 100, y: 200 },
-        { id: "C1-aaaa-0000-0000", kind: "channel", x: 500, y: 300 },
-        { id: "C1-zzzz-0000-0000", kind: "channel", x: 999, y: 999 }, // 缺失成员（不在 members）→ 跳过
+        { id: "g1", kind: "geo", label: "geo1", x: 500, y: 300 },
+        { id: "g2", kind: "geo", label: "geo2", x: 700, y: 300 },
+        { id: "C1-aaaa-0000-0000", kind: "channel", x: 999, y: 999 }, // 旧 channel → 丢弃
       ],
       connections: [
-        { source: "C1-aaaa-0000-0000", sourceOutput: "out0", target: "C1-bbbb-0000-0000", targetInput: "in0" },
-        { source: "C1-zzzz-0000-0000", sourceOutput: "out0", target: "C1-aaaa-0000-0000", targetInput: "in0" }, // 端点缺失 → 过滤
+        { source: "g1", sourceOutput: "out0", target: "g2", targetInput: "in0" },
+        { source: "C1-aaaa-0000-0000", sourceOutput: "out0", target: "g1", targetInput: "in0" }, // 端点被丢 → 过滤
       ],
     };
     const plan = planProjectGraph(input, saved);
     expect(plan.nodes.find((n) => n.id === "P1-aaaa-0000")).toMatchObject({ x: 100, y: 200 });
-    expect(plan.nodes.find((n) => n.id === "C1-aaaa-0000-0000")).toMatchObject({ x: 500, y: 300 });
-    expect(plan.nodes.some((n) => n.id === "C1-zzzz-0000-0000")).toBe(false);
+    expect(plan.nodes.find((n) => n.id === "g1")).toMatchObject({ x: 500, y: 300, kind: "geo" });
+    expect(plan.nodes.some((n) => n.kind === "channel")).toBe(false);
     expect(plan.connections).toEqual([
-      { source: "C1-aaaa-0000-0000", sourceOutput: "out0", target: "C1-bbbb-0000-0000", targetInput: "in0" },
+      { source: "g1", sourceOutput: "out0", target: "g2", targetInput: "in0" },
     ]);
     expect(plan.viewport).toEqual({ k: 2, x: 10, y: 20 });
   });

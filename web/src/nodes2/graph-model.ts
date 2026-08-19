@@ -2446,20 +2446,39 @@ export function planProjectGraph(input: ProjectGraphInput, saved?: unknown): Pro
     channel: null,
     ...(posOf(input.projectSerial) ?? { x: 24, y: 40 }),
   });
-  let channelIndex = 0;
-  for (const m of input.members) {
-    if (m.kind !== "tag" && m.kind !== "hda") continue; // param 成员跳过（v1）
-    const id = m.serial ?? "";
-    if (!id) continue; // tag/hda 必有 serial；缺则防御性跳过
+
+  // **每个成员一个 channel 节点」这个设计已根除**（v0.1.00127，用户要求）。
+  //
+  // 用户原话：「默认项目根目录只有一个黄色高亮文字说明这是哪个项目, 然后就是空的,
+  // 需要用户手动创建 geo 进去放 input output……而不是在根目录这里每个注册通道有个
+  // 奇怪的节点」「这些是古早的设计, 应该被根除」。
+  //
+  // 它同时是「保存后 reload 又变回默认场景」的**根因**：本函数原先只从 saved 里取
+  // **坐标**（posOf），节点本身一律按 members 重新生成 —— 于是用户存的那张图
+  // （建好的 geo / 子网络）在每次加载时被生成内容覆盖，schema 5 变回 schema 3。
+  //
+  // 现在：**有存图就照存图恢复**（saved.nodes 逐个带回，含 geo 及其 children），
+  // 没有存图就只给项目根 + 空图（NodeView 画那行黄色提示）。
+  // 成员信息不再进图 —— 它属于「桥知道有哪些成员」，不属于「用户搭的那张图」。
+  const savedNodes = (s?.nodes ?? []) as Array<Record<string, unknown>>;
+  for (const sn of savedNodes) {
+    const id = typeof sn.id === "string" ? sn.id : "";
+    const kind = typeof sn.kind === "string" ? sn.kind : "";
+    if (!id || id === input.projectSerial) continue; // 项目根已在上面
+    if (kind === "channel") continue; // 旧存档里的 channel 节点：读到也丢弃（就是要根除的那种）
     nodes.push({
       id,
-      kind: "channel",
-      label: m.label || id,
-      channel: m,
-      ...(posOf(id) ?? { x: 340, y: 40 + channelIndex * 80 }), // 默认：项目根右侧纵向排列
-    });
-    channelIndex += 1;
+      kind: kind as ProjectGraphPlanNode["kind"],
+      label: typeof sn.label === "string" ? sn.label : id,
+      channel: null,
+      ...(posOf(id) ?? { x: 340, y: 40 }),
+      ...(sn.children !== undefined ? { children: sn.children } : {}),
+      ...(sn.params !== undefined ? { params: sn.params } : {}),
+      ...(sn.flags !== undefined ? { flags: sn.flags } : {}),
+      ...(sn.baseLabel !== undefined ? { baseLabel: sn.baseLabel } : {}),
+    } as ProjectGraphPlanNode);
   }
+
   const ids = new Set(nodes.map((n) => n.id));
   const connections = (s?.connections ?? []).filter((c) => ids.has(c.source) && ids.has(c.target));
   const viewport = s?.viewport && s.viewport.k ? s.viewport : null;

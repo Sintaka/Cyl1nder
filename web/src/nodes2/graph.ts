@@ -44,6 +44,7 @@ import {
   makeInputNode,
   makeOutputNode,
   makeProjectNode,
+  restoreNodeForKind,
   nodeByKind,
   nodeFromTarget,
   nodeParamBindingsView,
@@ -159,12 +160,28 @@ export function loadProjectGraph(input: ProjectGraphInput, saved: unknown): void
     for (const c of g.editor.getConnections()) await g.editor.removeConnection(c.id);
     for (const n of g.editor.getNodes()) await g.editor.removeNode(n.id);
     for (const pn of plan.nodes) {
+      // project / channel 走各自的工厂；**其余 kind（geo 等）走 restoreNodeForKind**
+      // ——v0.1.00127 修「保存后 reload 变回默认场景」：原先这里对非 project/channel
+      // 一律 `null` 然后 `continue`，于是用户存的 geo（及其 children 子网络）在加载时
+      // 被**静默丢弃**，图退回「项目根 + 每个成员一个 channel 节点」的生成结果。
       const n =
         pn.kind === "project"
           ? makeProjectNode(pn.id, pn.label, pn.x, pn.y)
           : pn.channel
             ? makeChannelNode(pn.id, pn.channel, pn.label, pn.x, pn.y)
-            : null;
+            : (restoreNodeForKind(
+                {
+                  id: pn.id,
+                  kind: pn.kind,
+                  label: pn.label,
+                  baseLabel: (pn as { baseLabel?: string }).baseLabel,
+                  params: (pn as { params?: ParamSpec[] }).params,
+                  children: (pn as { children?: unknown }).children,
+                  x: pn.x,
+                  y: pn.y,
+                } as never,
+                false,
+              ) as CylNode | null);
       if (!n) continue;
       await g.editor.addNode(n);
       await g.area.translate(n.id, { x: pn.x, y: pn.y });
