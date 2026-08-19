@@ -9,8 +9,10 @@ import { computeNodeResult, findMultiSourceErrors, type NetworkSnapshot } from "
 import {
   duplicateOutputPortsToNodeErrors,
   findDuplicateOutputPorts,
+  findPortTypeConflicts,
   mergeNodeErrorMaps,
   multiSourceErrorsToNodeErrors,
+  portTypeConflictsToNodeErrors,
   type NodeErrorMap,
 } from "../nodes2/graph-model";
 import { mappingAddressErrors } from "../nodes2/mapping-types";
@@ -251,7 +253,19 @@ export function createDataflow(deps: DataflowDeps): Dataflow {
         const dupOut: NodeErrorMap = duplicateOutputPortsToNodeErrors(
           findDuplicateOutputPorts(snap.nodes),
         );
-        g.setNodeErrors(mergeNodeErrorMaps(structural, mapping, dupOut));
+        // v0.1.00121：动态输入端口（null 节点）上的类型冲突。
+        //
+        // 正常连线时冲突进不来——`canConnectSockets` 在插件层就拒了，用户看到的是
+        // 「连不上」（Houdini 本身也是这个行为）。但有两条路**绕过插件**：
+        // restoreGraph（读档直接 addConnection）与 undo 重放。那两条路上一条冲突的线
+        // 会真的存在，所以这里补一个**只报告、不删线**的检测：删线等于替用户丢数据，
+        // 而红三角 + 原因让他自己决定。
+        //
+        // 它要 editor（不是快照）：类型冲突是 socket 层的事实，快照只带 params。
+        const typeConflicts: NodeErrorMap = portTypeConflictsToNodeErrors(
+          findPortTypeConflicts(g.editor),
+        );
+        g.setNodeErrors(mergeNodeErrorMaps(structural, mapping, dupOut, typeConflicts));
       }
     } catch {
       /* 错误上报本身绝不能打断 cook */

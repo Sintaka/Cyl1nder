@@ -35,6 +35,10 @@ import {
   HIER_GRAPH_SCHEMA,
   socketNameOf,
   syncPortSocketType,
+  applyDerivedPortType,
+  derivePortType,
+  hasDynamicInputs,
+  propagateDynamicTypes,
   listNodeParamBindingsView,
   makeChannelNode,
   makeInputNode,
@@ -80,6 +84,9 @@ import { createGraphUndoManager } from "./graph-undo";
 import { makeRefRegistry, type RefRegistry } from "./ref-registry";
 // task #8：端口类型的唯一真源是映射系统（手打的 type 参数只作回退），见 setNodeParams。
 import { resolveAddressType } from "./mapping-types";
+// 端口类型的**权威来源**：桥对该 serial 的 capabilities 答复（同步查缓存，不发请求）。
+// 参数面板（另一写集）用同一个函数把类型显示在下拉选项里，于是"看见的"与"生效的"同源。
+import { cachedPortType } from "./serial-capabilities";
 
 export type { NodeKind, NodeFlags, ParamSpec, SelectedNodeInfo, ReteGraphHandlers, ReteGraph } from "./graph-model";
 export type { ProjectGraphInput } from "./graph-model";
@@ -574,6 +581,15 @@ async function buildGraph(
         applyConnectionTypeVisual(area, d.id, socketNameOf(editor, d.source, "output", d.sourceOutput));
       }
     }
+    // 动态端口 + 类型推导（v0.1.00121）：拓扑一变就重算「该有几个端口、都是什么类型」。
+    //
+    // 挂在 `*ed`（已完成）而不是 `*e`（可取消）事件上：推导读的是**最终**连接表，
+    // 在可取消阶段跑会看到一根可能被否掉的线。所有连线路径（拖拽 / 插入 / 重连 /
+    // restoreGraph / undo 重放）都经过这里，所以只在这一处推导 —— 与上面按类型着色
+    // 同一条理由。restoreGraph 末尾另有一次显式推导，是为了覆盖"整批连接加完"的时点。
+    if (ctx.type === "connectioncreated" || ctx.type === "connectionremoved") {
+      if (propagateDynamicTypes(editor).size > 0) notifyNodeChanged();
+    }
     if (ctx.type === "connectioncreated" || ctx.type === "connectionremoved" || ctx.type === "nodecreated" || ctx.type === "noderemoved") {
       scheduleTopologyCook();
     }
@@ -1030,15 +1046,20 @@ export async function createReteGraph(
         // 的三态诚实注释），两者都**保持当前类型不变**——绝不静默回落到 geo。地址无效
         // 的红三角由错误系统（mappingAddressErrors → setNodeErrors）负责，不是这里。
         // ------------------------------------------------------------------
-        if (address !== "") {
-          const resolved = resolveAddressType(address);
-          if (resolved !== null) {
-            const tp = n.params?.find((p) => p.name === "type");
-            if (tp && tp.value !== resolved) {
-              log(`port type of ${n.label} <- mapping system: ${String(tp.value)} -> ${resolved} (${address})`);
-              tp.value = resolved;
-            }
-          }
+        // v0.1.00121（用户要求 #2）：`type` 现在是**纯派生值**。面板里它是只读控件
+        // （isDerivedParam），但即便有人硬塞一个值进来，这里也会用派生结果覆盖掉 ——
+        // 「只读」必须由数据层兜底，不能只靠 UI 不给编辑（旧图/脚本/undo 都能绕过 UI）。
+        //
+        // 优先级：所选端口的 capabilities 类型 > 地址的映射表类型。前者才是用户在下拉里
+        // 看见的那个（`tx: float`），也是桥对该 serial 的权威答复；后者只是端口还没选时
+        // 的回退。两者都答不出（未缓存 / 表里没有）→ derivePortType 返回 null →
+        // **保持当前类型不变**，绝不回落 geo（静默补类型会放行错配的线）。
+        const derived = derivePortType(n, {
+          portType: (serial, side, key) => cachedPortType(serial, side, key),
+          addressType: (addr) => resolveAddressType(addr),
+        });
+        if (applyDerivedPortType(n, derived)) {
+          log(`port type of ${n.label} <- derived: ${derived} (${address || "no address"})`);
         }
         if (syncPortSocketType(n)) {
           // 端口类型变了：既有连线可能已非法（类型不再相等）→ 拆掉并报明，避免留下
