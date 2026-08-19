@@ -183,3 +183,16 @@ geo 线上的点**取白色**而非 `#ff6b6b`：同色点压在同色线上只�
 - **`npx --prefix web` 在管道下会报 `$LASTEXITCODE` 未设置并吞掉输出**；
   跑 playwright 直接 `cd web ; node node_modules/@playwright/test/cli.js`。
 - 写文件超过 ~50 行会被静默截断成 `...[N chars omitted]...`，分块写完 grep 一遍。
+- **注释里写 `*/` 会提前终止 JSDoc 块**。本轮实例：在 `/** */` 里写
+  `cyl-wire-*/drop-target` 直接产生 33 个解析错误。要列举类名模式时写成
+  `cyl-wire-x / drop-target / reconnect-x 等`，别用 glob 星号紧跟斜杠。
+- **`useConnection` 不在 `rete-react-plugin` 包根导出**，只能取
+  `Presets.classic.useConnection`（与 `NodeView.tsx` 取 `RefSocket` 同款写法）。
+  按直觉写 `import { useConnection } from "rete-react-plugin"` 编译不过。
+- **`git` 也是受信前缀，但 PowerShell 没有 heredoc**：写多行中文 commit message
+  用 `write` 工具落到文件再 `git commit -F <file>`（放 `bridge/data/` 下，已 gitignore，
+  提交后删）。`git commit -F - <<'EOF'` 会被 PowerShell 解析器直接拒。
+- **编辑工具会连带吃掉 UTF-8 BOM**。本仓库 `web/src` 是 BOM 混用状态（12 有 / 56 无），
+  改一行版本号却出现 `-\uFEFF...` 的首行 diff 就是它。功能上无害，但会把
+  「纯删除」的 diff 污染成看不清的改动——提交前用
+  `foreach($f in (git diff --cached --name-only)){ ... "^-\uFEFF" ... }` 扫一遍并补回。
