@@ -647,6 +647,21 @@ export function buildRefMenuItems(
       items.push({ id, label, enabled: false, title: "剪贴板为空：先右键某个 param「复制当前 param」" });
       continue;
     }
+    // **不能粘给自己**（v0.1.00127，用户明确要求：「注意它不能粘贴给自己, 否则报错」）。
+    //
+    // 自引用是一条恒等依赖：这个参数的值等于它自己 —— 求值时要么原地不动、要么在
+    // 「读快照 + 末尾 flush」语义下把自己写成上一趟的值，两种都只会让人困惑。
+    // 判据用 `clip.relative === target.name`（同一节点同一参数），而不是比 kind 或
+    // 绝对路径：绝对路径在 netPath 未知时是空的，拿它判会漏。
+    if (clip.relative === target.name) {
+      items.push({
+        id,
+        label,
+        enabled: false,
+        title: `不能把「${target.name}」粘贴给自己（自引用）——请选另一个参数`,
+      });
+      continue;
+    }
     const adapted = adaptRefToTarget(clip, target, form);
     if (!adapted.ok) {
       items.push({ id, label, enabled: false, title: adapted.reason });

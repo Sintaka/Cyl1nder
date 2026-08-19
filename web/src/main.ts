@@ -20,7 +20,7 @@ import { invalidateMappingTypes, primeMappingTypes } from "./nodes2/mapping-type
 // 因此**总是与 invalidateMappingTypes 成对作废**（见各调用点注释）。
 // 刻意不做 prime：端口清单只在用户打开带 address 的 param 面板时才需要，模块内已
 // debounce + single-flight，按需取比进项目就预取全部成员划算。
-import { cachedCapabilities, invalidateCapabilities } from "./nodes2/serial-capabilities";
+import { cachedCapabilities, invalidateCapabilities, loadCapabilities } from "./nodes2/serial-capabilities";
 import { computeOutputsDetailed } from "./nodes2/network";
 import type { ActiveChains } from "./core/network";
 import { Viewport } from "./viewport/renderer";
@@ -1136,7 +1136,21 @@ function anchorNetPathOf(serial: string | null): string | undefined {
   // 不另开一份缓存：两份缓存必然漂移，而这里要的正是它已经有的那个事实。
   const caps = cachedCapabilities(serial);
   const p = caps?.nodePath ?? "";
-  if (p === "") return undefined; // 还没取到 / 桥不认识 → 让绝对项禁用，不拼半截路径
+  if (p === "") {
+    // **缓存未命中就去取一次**（v0.1.00127 修 bug #4「不能粘贴绝对地址」）。
+    //
+    // 此前只读缓存：而缓存只在「打开 _input_/_output_ 的端口下拉」时才被填。
+    // 用户右键的是 transform 的 tx —— 那条路径从不碰下拉，于是 netPath 永远是空，
+    // 「粘贴绝对 param 地址」永远禁用（菜单 title 实录：「该引用没有绝对地址
+    // （网络路径未知）」—— 提示是对的，缺的是有人去取）。
+    //
+    // fire-and-forget + 取回后刷新面板：本函数在同步渲染路径上，不能 await。
+    // loadCapabilities 自带去抖与单飞，所以每帧调用不会打爆桥。
+    void loadCapabilities(serial).then((caps2) => {
+      if (caps2?.nodePath) refreshSelectionPanels();
+    });
+    return undefined; // 这一帧仍然禁用（诚实：现在确实还不知道）
+  }
   const cut = p.lastIndexOf("/");
   return cut > 0 ? p.slice(0, cut) : undefined;
 }

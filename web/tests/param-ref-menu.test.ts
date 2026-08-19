@@ -202,6 +202,26 @@ describe("buildRefMenuItems（三个菜单项）", () => {
     expect(find(items, "paste-absolute").label).toBe("粘贴绝对 param 地址");
   });
 
+  it("**不能粘给自己**：同名参数两个粘贴项都禁用并说明自引用（用户明确要求）", () => {
+    // 自引用是恒等依赖：值等于它自己 —— 要么原地不动、要么在「读快照 + 末尾 flush」
+    // 语义下写成上一趟的值，两种都只会让人困惑。
+    const selfClip = { ...floatClip, relative: "tx" };
+    const items = buildRefMenuItems(floatTarget("tx", 0), selfClip);
+    for (const id of ["paste-relative", "paste-absolute"]) {
+      const it = find(items, id);
+      expect(it.enabled, id).toBe(false);
+      expect(it.title).toContain("自引用");
+    }
+    // 复制仍然可用（复制自己没有问题，只是不能粘回自己）
+    expect(find(items, "copy").enabled).toBe(true);
+  });
+
+  it("粘给**别的**参数不受自引用规则影响", () => {
+    const clipTx = { ...floatClip, relative: "tx" };
+    const items = buildRefMenuItems(floatTarget("ty", 1), clipTx);
+    expect(find(items, "paste-relative").enabled).toBe(true);
+  });
+
   it("复制项**恒可用**（只读面板也该能复制），标签带参数名", () => {
     const items = buildRefMenuItems(floatTarget("tx", 0), null);
     expect(find(items, "copy").enabled).toBe(true);
