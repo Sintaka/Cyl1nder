@@ -306,6 +306,13 @@ export function computeOutputsCached(
   ctx: ChainCtx,
 ): ComputeResult {
   if (inputs.length === 0) return { outputs: [], changes: [] };
+  // 注意与 network.ts:324 的**不对称**（v0.1.00119 记录，刻意不动行为）：
+  // 那边选 outNode 时带 `&& isGeoPort(n)`，这里没有。当前**结果等价**——两条路径
+  // 追链都经 traceChainSpecs，它在 `_input_` 叶子处 `if (!isGeoPort(node)) return null`
+  // （network.ts:208）就把非 geo 端口当死链断掉了，所以这里少一道过滤不产生差异。
+  // 但这是**巧合而非设计**：若将来放宽那个叶子检查（例如让 float/vec3 真的流过几何
+  // 追链），两条路径会立刻分叉——带 ctx 的缓存路径会把一个非 geo 的 _output_ 选成
+  // 追链目标，而无 ctx 路径不会。届时要么两边都加过滤，要么两边都去掉，别只改一边。
   const outNode = snap.nodes.find((n) => n.kind === "output");
   const outputs: OutputBuffer[] = [];
   const changes: ChainChange[] = [];
