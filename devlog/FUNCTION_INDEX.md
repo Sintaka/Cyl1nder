@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-19），由 `node scripts/gen-index.mjs` 产出。共 **1199** 个函数/类。
+> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1245** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -82,6 +82,46 @@
 |---|---|---|---|---|
 | `PassthroughExecutor` | 8 | class |  | 1 |
 | `run` | 11 | def |  | 1 |
+
+## bridge/bridge/cook_cycle.py（119 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `logical_key` | 45 | def |  | 2 |
+| `_params_of` | 58 | def |  | 2 |
+| `graph_io_names` | 67 | def |  | 2 |
+| `_walk` | 80 | def |  | 3 |
+| `find_cycles` | 95 | def |  | 2 |
+| `cycle_message` | 101 | def |  | 2 |
+| `assert_acyclic` | 114 | def |  | 1 |
+
+## bridge/bridge/cook_txn.py（461 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `FlushResult` | 65 | class |  | 2 |
+| `CookTxn` | 69 | class |  | 1 |
+| `__init__` | 79 | def |  | 2 |
+| `begin` | 90 | def |  | 3 |
+| `read` | 96 | def |  | 5 |
+| `read_own` | 108 | def |  | 3 |
+| `write` | 117 | def |  | 4 |
+| `pending` | 122 | def |  | 1 |
+| `flush` | 126 | def |  | 2 |
+| `WritebackTargets` | 181 | class |  | 1 |
+| `get_all` | 196 | def |  | 2 |
+| `get` | 201 | def |  | 14 |
+| `set` | 206 | def |  | 4 |
+| `clear` | 218 | def |  | 4 |
+| `clear_serial` | 230 | def |  | 1 |
+| `serials` | 238 | def |  | 1 |
+| `_save` | 244 | def |  | 4 |
+| `_load` | 265 | def |  | 2 |
+| `get_writeback_targets` | 298 | def |  | 2 |
+| `is_tag_serial` | 314 | def |  | 2 |
+| `resolve_target` | 343 | def |  | 3 |
+| `_input_to_output` | 400 | def |  | 2 |
+| `passthrough_outputs` | 416 | def |  | 1 |
 
 ## bridge/bridge/data_adapters/__init__.py（14 行）
 
@@ -189,25 +229,31 @@
 | `lifespan` | 24 | def |  | 1 |
 | `create_app` | 38 | def |  | 2 |
 
-## bridge/bridge/mapping_routes.py（336 行）
+## bridge/bridge/mapping_routes.py（431 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_check_pid` | 38 | def |  | 7 |
-| `_resolved_or_404` | 43 | def |  | 3 |
-| `_split_target` | 50 | def |  | 3 |
-| `_resolve_port_for_anchor` | 58 | def |  | 1 |
-| `_port_for` | 99 | def |  | 5 |
-| `_trace` | 103 | def |  | 3 |
-| `ValuePut` | 113 | class |  | 1 |
-| `_find_port_by_pid` | 135 | def |  | 2 |
-| `_probe_health` | 153 | def |  | 4 |
-| `probe_anchor` | 158 | def |  | 1 |
-| `get_mapping_value` | 217 | def |  | 1 |
-| `put_mapping_value` | 255 | def |  | 1 |
-| `list_mappings` | 292 | def |  | 1 |
-| `put_mapping` | 319 | def |  | 1 |
-| `delete_mapping` | 330 | def |  | 1 |
+| `_check_pid` | 39 | def |  | 8 |
+| `_resolved_or_404` | 44 | def |  | 3 |
+| `_split_target` | 51 | def |  | 3 |
+| `_resolve_port_for_anchor` | 59 | def |  | 1 |
+| `_port_for` | 100 | def |  | 5 |
+| `_trace` | 104 | def |  | 3 |
+| `ValuePut` | 114 | class |  | 1 |
+| `_find_port_by_pid` | 136 | def |  | 2 |
+| `_probe_health` | 154 | def |  | 4 |
+| `probe_anchor` | 159 | def |  | 1 |
+| `get_mapping_value` | 218 | def |  | 1 |
+| `get_cook_cycles` | 256 | def |  | 1 |
+| `put_mapping_value` | 273 | def |  | 1 |
+| `list_mappings` | 321 | def |  | 1 |
+| `put_mapping` | 348 | def |  | 1 |
+| `delete_mapping` | 359 | def |  | 1 |
+| `WritebackPut` | 376 | class |  | 1 |
+| `_writeback_view` | 381 | def |  | 2 |
+| `get_writeback` | 395 | def |  | 1 |
+| `put_writeback` | 404 | def |  | 1 |
+| `delete_writeback` | 425 | def |  | 1 |
 
 ## bridge/bridge/mapping.py（337 行）
 
@@ -371,42 +417,43 @@
 | `_save` | 185 | def |  | 6 |
 | `_load` | 209 | def |  | 2 |
 
-## bridge/bridge/routes.py（477 行）
+## bridge/bridge/routes.py（514 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `root` | 39 | def |  | 1 |
-| `_check_serial` | 46 | def |  | 15 |
-| `health` | 52 | def |  | 1 |
-| `list_serials` | 58 | def |  | 1 |
-| `status` | 63 | def |  | 2 |
-| `_reestablish_project_if_missing` | 75 | def |  | 2 |
-| `put_inputs` | 108 | def |  | 1 |
-| `get_outputs` | 135 | def |  | 1 |
-| `put_outputs` | 153 | def |  | 2 |
-| `_parse_outputs_body` | 184 | def |  | 2 |
-| `SyncFpsPut` | 209 | class |  | 1 |
-| `put_sync_fps` | 215 | def |  | 1 |
-| `put_sync_enabled` | 224 | def |  | 1 |
-| `pending` | 233 | def |  | 1 |
-| `_ndjson` | 255 | def |  | 9 |
-| `stream` | 261 | def |  | 1 |
-| `kick` | 308 | def |  | 1 |
-| `serial_logs` | 330 | def |  | 1 |
-| `get_snapshot` | 340 | def |  | 1 |
-| `get_ui_layout` | 351 | def |  | 1 |
-| `put_ui_layout` | 358 | def |  | 1 |
-| `put_snapshot` | 366 | def |  | 1 |
-| `ui_layouts` | 391 | def |  | 1 |
-| `ui_layout_save` | 397 | def |  | 1 |
-| `ui_layout_load` | 404 | def |  | 1 |
-| `global_logs` | 411 | def |  | 1 |
-| `scenes_list` | 422 | def |  | 1 |
-| `scenes_create` | 428 | def |  | 1 |
-| `scenes_cleanup` | 435 | def |  | 1 |
-| `scene_save` | 441 | def |  | 1 |
-| `scenes_open` | 452 | def |  | 1 |
-| `get_usdz` | 465 | def |  | 1 |
+| `root` | 40 | def |  | 1 |
+| `_check_serial` | 47 | def |  | 15 |
+| `health` | 53 | def |  | 1 |
+| `list_serials` | 59 | def |  | 1 |
+| `status` | 64 | def |  | 2 |
+| `_reestablish_project_if_missing` | 76 | def |  | 2 |
+| `_apply_passthrough` | 108 | def |  | 2 |
+| `put_inputs` | 142 | def |  | 1 |
+| `get_outputs` | 172 | def |  | 1 |
+| `put_outputs` | 190 | def |  | 3 |
+| `_parse_outputs_body` | 221 | def |  | 2 |
+| `SyncFpsPut` | 246 | class |  | 1 |
+| `put_sync_fps` | 252 | def |  | 1 |
+| `put_sync_enabled` | 261 | def |  | 1 |
+| `pending` | 270 | def |  | 1 |
+| `_ndjson` | 292 | def |  | 9 |
+| `stream` | 298 | def |  | 1 |
+| `kick` | 345 | def |  | 1 |
+| `serial_logs` | 367 | def |  | 1 |
+| `get_snapshot` | 377 | def |  | 1 |
+| `get_ui_layout` | 388 | def |  | 1 |
+| `put_ui_layout` | 395 | def |  | 1 |
+| `put_snapshot` | 403 | def |  | 1 |
+| `ui_layouts` | 428 | def |  | 1 |
+| `ui_layout_save` | 434 | def |  | 1 |
+| `ui_layout_load` | 441 | def |  | 1 |
+| `global_logs` | 448 | def |  | 1 |
+| `scenes_list` | 459 | def |  | 1 |
+| `scenes_create` | 465 | def |  | 1 |
+| `scenes_cleanup` | 472 | def |  | 1 |
+| `scene_save` | 478 | def |  | 1 |
+| `scenes_open` | 489 | def |  | 1 |
+| `get_usdz` | 502 | def |  | 1 |
 
 ## bridge/bridge/scenes.py（207 行）
 
@@ -893,12 +940,12 @@
 |---|---|---|---|---|
 | `formatLog` | 2 | function | export | 1 |
 
-## web/src/app/param.ts（1148 行）
+## web/src/app/param.ts（1296 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `esc` | 59 | function |  | 12 |
-| `attrEscape` | 64 | function |  | 18 |
+| `attrEscape` | 64 | function |  | 19 |
 | `color3ToRgb` | 71 | function |  | 3 |
 | `color3Hex` | 83 | function |  | 4 |
 | `parseColor3` | 89 | function |  | 3 |
@@ -923,17 +970,21 @@
 | `resolvePasteSink` | 584 | function | export | 2 |
 | `pasteDisabledReason` | 600 | function | export | 2 |
 | `buildRefMenuItems` | 629 | function | export | 2 |
-| `closeLinkPop` | 695 | function |  | 10 |
-| `tailOfPath` | 704 | function |  | 2 |
-| `openLinkPop` | 709 | function |  | 2 |
-| `loadChannelItems` | 745 | function |  | 2 |
-| `closeRefMenu` | 791 | function |  | 7 |
-| `refTargetFromEvent` | 811 | function |  | 2 |
-| `copyParamRef` | 837 | function |  | 2 |
-| `openRefMenu` | 854 | function |  | 2 |
-| `wireRefMenu` | 917 | function |  | 2 |
-| `renderParams` | 947 | function | export | 1 |
-| `commit` | 1033 | arrow |  | 1 |
+| `closeLinkPop` | 710 | function |  | 10 |
+| `tailOfPath` | 719 | function |  | 2 |
+| `openLinkPop` | 724 | function |  | 2 |
+| `loadChannelItems` | 760 | function |  | 2 |
+| `closeRefMenu` | 806 | function |  | 7 |
+| `refTargetFromEvent` | 826 | function |  | 2 |
+| `copyParamRef` | 852 | function |  | 2 |
+| `openRefMenu` | 869 | function |  | 2 |
+| `wireRefMenu` | 932 | function |  | 2 |
+| `valueEqual` | 976 | function |  | 2 |
+| `paramValuesEqual` | 994 | function | export | 2 |
+| `isParamEditorFocused` | 1008 | function | export | 1 |
+| `shouldDeferParamRender` | 1040 | function | export | 1 |
+| `renderParams` | 1062 | function | export | 2 |
+| `commit` | 1181 | arrow |  | 1 |
 
 ## web/src/app/preference.ts（343 行）
 
@@ -991,13 +1042,13 @@
 | `createDropdown` | 46 | function | export | 1 |
 | `createStepper` | 130 | function | export | 1 |
 
-## web/src/bridge/client.ts（590 行）
+## web/src/bridge/client.ts（670 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `BridgeClient` | 24 | class | export | 0 |
-| `connectWs` | 547 | function | export | 1 |
-| `connect` | 552 | arrow |  | 1 |
+| `connectWs` | 627 | function | export | 1 |
+| `connect` | 632 | arrow |  | 1 |
 
 ## web/src/color/color-math.ts（147 行）
 
@@ -1058,17 +1109,19 @@
 | `flushNow` | 164 | function |  | 2 |
 | `dispose` | 171 | function |  | 2 |
 
-## web/src/core/dataflow.ts（317 行）
+## web/src/core/dataflow.ts（396 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `displayNodeOutputIndex` | 51 | function | export | 2 |
 | `collectAddressEntries` | 74 | function | export | 2 |
-| `createDataflow` | 85 | function | export | 1 |
-| `getDisplayNodeInfo` | 106 | function |  | 4 |
-| `refreshNodeFlags` | 128 | function |  | 5 |
-| `flush` | 234 | function |  | 5 |
-| `wireSelection` | 307 | function |  | 2 |
+| `collectWritebackTargets` | 102 | function | export | 1 |
+| `resolveWritebackValue` | 134 | function | export | 1 |
+| `createDataflow` | 164 | function | export | 1 |
+| `getDisplayNodeInfo` | 185 | function |  | 4 |
+| `refreshNodeFlags` | 207 | function |  | 5 |
+| `flush` | 313 | function |  | 5 |
+| `wireSelection` | 386 | function |  | 2 |
 
 ## web/src/core/gizmo.ts（162 行）
 
@@ -1128,54 +1181,57 @@
 |---|---|---|---|---|
 | `createTimelineController` | 43 | function | export | 1 |
 
-## web/src/main.ts（1841 行）
+## web/src/main.ts（2031 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `matchLogFilter` | 79 | arrow |  | 0 |
-| `renderLog` | 80 | arrow |  | 3 |
-| `isSerial` | 167 | arrow |  | 2 |
-| `isProject` | 168 | arrow |  | 2 |
-| `toggle` | 289 | arrow |  | 8 |
-| `updateLayoutMenuLabel` | 321 | function |  | 5 |
-| `getDockJson` | 324 | arrow |  | 7 |
-| `saveCurrentLayout` | 328 | arrow |  | 2 |
-| `refreshLayoutPresets` | 337 | arrow |  | 1 |
-| `writeJsonToDir` | 448 | function |  | 7 |
-| `readJsonFromDir` | 459 | function |  | 5 |
-| `saveSceneAs` | 473 | function |  | 3 |
-| `navigateToMemberPage` | 543 | function |  | 3 |
-| `openSceneFromDir` | 559 | function |  | 2 |
-| `bootIsMemberEntry` | 629 | arrow |  | 0 |
-| `applyLayoutSettings` | 965 | function |  | 4 |
-| `refreshSelectionPanels` | 980 | function |  | 3 |
-| `anchorNetPathOf` | 1133 | function |  | 2 |
-| `inputStatsText` | 1144 | function |  | 2 |
-| `outputStatsText` | 1153 | function |  | 2 |
-| `renderInspector` | 1162 | function |  | 2 |
-| `isProjectModeActive` | 1180 | function |  | 3 |
-| `projectAddress` | 1186 | function |  | 3 |
-| `onNetPathChanged` | 1205 | function |  | 1 |
-| `waitNetPath` | 1215 | function |  | 5 |
-| `enterableNodeNames` | 1229 | function |  | 3 |
-| `enterNodeAwaited` | 1240 | function |  | 3 |
-| `enterByName` | 1253 | function |  | 3 |
-| `exitToDepth` | 1260 | function |  | 5 |
-| `navigateByName` | 1278 | function |  | 2 |
-| `saveProjectGraph` | 1306 | function |  | 5 |
-| `enterProjectMode` | 1353 | function |  | 7 |
-| `openProjectMember` | 1470 | function |  | 2 |
-| `enterMemberWorkspace` | 1492 | function |  | 3 |
-| `commitPendingMemberScope` | 1512 | function |  | 3 |
-| `updateGraphAddress` | 1525 | function |  | 7 |
-| `scheduleNetwork` | 1553 | function |  | 1 |
-| `flushStoreView` | 1556 | function |  | 2 |
-| `loadSnapshotIntoStore` | 1583 | function |  | 3 |
-| `applyLoadedPreference` | 1628 | function |  | 3 |
-| `syncMemberInAddress` | 1670 | function |  | 2 |
-| `syncProjectInAddress` | 1690 | function |  | 2 |
-| `connectSerial` | 1703 | arrow |  | 1 |
-| `markGraphDirty` | 1834 | function |  | 2 |
+| `matchLogFilter` | 85 | arrow |  | 0 |
+| `renderLog` | 86 | arrow |  | 3 |
+| `isSerial` | 173 | arrow |  | 2 |
+| `isProject` | 174 | arrow |  | 2 |
+| `toggle` | 295 | arrow |  | 8 |
+| `updateLayoutMenuLabel` | 327 | function |  | 5 |
+| `getDockJson` | 330 | arrow |  | 7 |
+| `saveCurrentLayout` | 334 | arrow |  | 2 |
+| `refreshLayoutPresets` | 343 | arrow |  | 1 |
+| `writeJsonToDir` | 454 | function |  | 7 |
+| `readJsonFromDir` | 465 | function |  | 5 |
+| `saveSceneAs` | 479 | function |  | 3 |
+| `navigateToMemberPage` | 549 | function |  | 3 |
+| `openSceneFromDir` | 565 | function |  | 2 |
+| `bootIsMemberEntry` | 635 | arrow |  | 0 |
+| `applyLayoutSettings` | 971 | function |  | 4 |
+| `refreshSelectionPanels` | 1026 | function |  | 5 |
+| `scheduleWriteback` | 1221 | function |  | 2 |
+| `pushWritebackOnce` | 1230 | function |  | 2 |
+| `syncWritebackPointer` | 1273 | function |  | 2 |
+| `anchorNetPathOf` | 1308 | function |  | 2 |
+| `inputStatsText` | 1333 | function |  | 2 |
+| `outputStatsText` | 1342 | function |  | 2 |
+| `renderInspector` | 1351 | function |  | 2 |
+| `isProjectModeActive` | 1369 | function |  | 3 |
+| `projectAddress` | 1375 | function |  | 3 |
+| `onNetPathChanged` | 1394 | function |  | 1 |
+| `waitNetPath` | 1404 | function |  | 5 |
+| `enterableNodeNames` | 1418 | function |  | 3 |
+| `enterNodeAwaited` | 1429 | function |  | 3 |
+| `enterByName` | 1442 | function |  | 3 |
+| `exitToDepth` | 1449 | function |  | 5 |
+| `navigateByName` | 1467 | function |  | 2 |
+| `saveProjectGraph` | 1495 | function |  | 5 |
+| `enterProjectMode` | 1542 | function |  | 7 |
+| `openProjectMember` | 1659 | function |  | 2 |
+| `enterMemberWorkspace` | 1681 | function |  | 3 |
+| `commitPendingMemberScope` | 1701 | function |  | 3 |
+| `updateGraphAddress` | 1714 | function |  | 7 |
+| `scheduleNetwork` | 1742 | function |  | 1 |
+| `flushStoreView` | 1745 | function |  | 2 |
+| `loadSnapshotIntoStore` | 1773 | function |  | 3 |
+| `applyLoadedPreference` | 1818 | function |  | 3 |
+| `syncMemberInAddress` | 1860 | function |  | 2 |
+| `syncProjectInAddress` | 1880 | function |  | 2 |
+| `connectSerial` | 1893 | arrow |  | 1 |
+| `markGraphDirty` | 2024 | function |  | 2 |
 
 ## web/src/nodes2/chain-cache.ts（365 行）
 
@@ -1265,7 +1321,7 @@
 | `onWaypointMove` | 1545 | arrow |  | 2 |
 | `bindWaypointWindowMove` | 1564 | arrow |  | 1 |
 
-## web/src/nodes2/graph-model.ts（2468 行）
+## web/src/nodes2/graph-model.ts（2487 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -1382,36 +1438,36 @@
 | `lbl` | 52 | arrow |  | 4 |
 | `createGraphUndoManager` | 130 | function | export | 1 |
 
-## web/src/nodes2/graph.ts（1109 行）
+## web/src/nodes2/graph.ts（1126 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `setChannelDisplayHandler` | 120 | function | export | 2 |
-| `getChannelDisplaySerial` | 125 | function | export | 1 |
-| `isNodeWired` | 131 | function | export | 1 |
-| `isProjectMode` | 141 | function | export | 5 |
-| `loadProjectGraph` | 153 | function | export | 2 |
-| `projectGraphSnapshot` | 203 | function | export | 2 |
-| `setNetPathChangedHandler` | 235 | function | export | 1 |
-| `serializeGraphFromRoot` | 254 | function | export | 3 |
-| `getNetPath` | 272 | function | export | 3 |
-| `getCurrentNetKind` | 291 | function | export | 4 |
-| `emptyChildGraph` | 298 | function |  | 2 |
-| `enterNode` | 308 | function | export | 2 |
-| `exitNode` | 341 | function | export | 1 |
-| `getRefRegistry` | 375 | function | export | 1 |
-| `refPathOf` | 387 | function |  | 3 |
-| `registerAddressRef` | 396 | function |  | 2 |
-| `rewriteRefsForRename` | 410 | function |  | 2 |
-| `getNodeParamBindings` | 437 | function | export | 1 |
-| `listNodeParamBindings` | 444 | function | export | 1 |
-| `setNodeBindings` | 455 | function | export | 1 |
-| `setNodeErrors` | 471 | function | export | 1 |
-| `getNodeErrors` | 479 | function | export | 1 |
-| `displayChainConnectionIds` | 486 | function |  | 2 |
-| `wantsEmptyRootGraph` | 526 | function |  | 3 |
-| `buildGraph` | 536 | function |  | 2 |
-| `createReteGraph` | 741 | function | export | 1 |
+| `setChannelDisplayHandler` | 121 | function | export | 2 |
+| `getChannelDisplaySerial` | 126 | function | export | 1 |
+| `isNodeWired` | 132 | function | export | 1 |
+| `isProjectMode` | 142 | function | export | 5 |
+| `loadProjectGraph` | 154 | function | export | 2 |
+| `projectGraphSnapshot` | 220 | function | export | 2 |
+| `setNetPathChangedHandler` | 252 | function | export | 1 |
+| `serializeGraphFromRoot` | 271 | function | export | 3 |
+| `getNetPath` | 289 | function | export | 3 |
+| `getCurrentNetKind` | 308 | function | export | 4 |
+| `emptyChildGraph` | 315 | function |  | 2 |
+| `enterNode` | 325 | function | export | 2 |
+| `exitNode` | 358 | function | export | 1 |
+| `getRefRegistry` | 392 | function | export | 1 |
+| `refPathOf` | 404 | function |  | 3 |
+| `registerAddressRef` | 413 | function |  | 2 |
+| `rewriteRefsForRename` | 427 | function |  | 2 |
+| `getNodeParamBindings` | 454 | function | export | 1 |
+| `listNodeParamBindings` | 461 | function | export | 1 |
+| `setNodeBindings` | 472 | function | export | 1 |
+| `setNodeErrors` | 488 | function | export | 1 |
+| `getNodeErrors` | 496 | function | export | 1 |
+| `displayChainConnectionIds` | 503 | function |  | 2 |
+| `wantsEmptyRootGraph` | 543 | function |  | 3 |
+| `buildGraph` | 553 | function |  | 2 |
+| `createReteGraph` | 758 | function | export | 1 |
 
 ## web/src/nodes2/groups.ts（32 行）
 
