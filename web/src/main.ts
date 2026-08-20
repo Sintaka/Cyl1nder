@@ -18,7 +18,7 @@ import { connectWs } from "./bridge/client";
 import { createReteGraph, getNodeParamBindings, listNodeParamBindings, setNodeBindings, type ReteGraphHandlers } from "./nodes2/graph";
 // obj/sop 层级导航（v0.1.00119）：模块级层级 API（graph.ts 下方实现），地址栏按名下沉用。
 import { enterNode, exitNode, getCurrentNetKind, getNetPath, setNetPathChangedHandler } from "./nodes2/graph";
-import { isEnterableKind, type CylNode } from "./nodes2/graph-model";
+import { REF_PARAM_PREFIX, isEnterableKind, type CylNode, type ParamSpec } from "./nodes2/graph-model";
 // task #8 映射类型缓存：_input_/_output_ 端口类型的唯一真源，生命周期由本文件驱动
 //（进项目 prime / anchor-moved 与切项目 invalidate）——不接就永远报「映射表未加载」。
 import { invalidateMappingTypes, primeMappingTypes } from "./nodes2/mapping-types";
@@ -42,7 +42,7 @@ import {
   savePreferences,
   type Preferences,
 } from "./app/preference";
-import { createDataflow } from "./core/dataflow";
+import { collectWritebackTargets, createDataflow, resolveWritebackValue } from "./core/dataflow";
 import { createAutosave, createHdaWatchdog } from "./core/lifecycle";
 import { bindShortcuts } from "./core/shortcuts";
 import { cloneParams, paramsEqual, readParamFloats, type ParamLike } from "./core/params";
@@ -1112,6 +1112,10 @@ function refreshSelectionPanels(): void {
           paramUndo.startOrMerge(selId, prevParams, params);
           graph.setNodeParams(selId, params);
           bindMgr?.onNodeParamsCommitted(selId, params); // P5b：绑定参数节流直写 Houdini
+          // `_output_` 改了目的地 → **同步桥里的写回指针**（v0.1.00129，用户 #2）。
+          // 桥 cook 时按这个指针决定：有指向就等 Cyl1nder 写回，没有就把 input 原样搬回。
+          // 不登记的话桥永远以为"用户还没搭链路"，写回永远不会发生。
+          if (sel?.kind === "output") void syncWritebackPointer(params);
           renderedParams = params;
           paramDisplayedParams = params; // 门控据此认出"这只是我自己编辑的回声"
           const prevValue = new Map(prevParams.map((q) => [q.name, q.value]));
@@ -1180,9 +1184,19 @@ function refreshSelectionPanels(): void {
               // 相对：写进节点的 refs 参数（每个分量一条），并登记进 ref-registry，
               // 这样改名时它会被自动重写（Houdini 的登记制语义）。
               const cur = renderedParams ?? [];
-              const next = cur.map((p) =>
-                names.includes(p.name) ? { ...p, ref: clip.relative } : p,
-              );
+              // **引用槽参数（`ref_slot{k}`）把地址写进 `value`，其余写进 `ref`**
+              // （v0.1.00129 修「无法把 transform.tx 粘到 null 的 float 槽」）。
+              //
+              // 差别是本质的：`ref_slot0` **本身就是那个地址输入框** —— 用户手打的就是
+              // 它的 value，`resolveWritebackValue` 读的也是 value。往它的 `.ref` 上写
+              // 等于把地址存进一个没人读、界面也不显示的位置：粘贴"成功"了却什么都没发生。
+              // 普通参数（tx/ty）反过来：value 是数值，引用只能挂在 `.ref` 上。
+              const next = cur.map((p) => {
+                if (!names.includes(p.name)) return p;
+                return p.name.startsWith(REF_PARAM_PREFIX)
+                  ? { ...p, value: clip.relative }
+                  : { ...p, ref: clip.relative };
+              });
               graph.setNodeParams(selId, next);
               renderedParams = next;
               store.pushLog(`[param] 粘贴相对引用 ${names.join(",")} <- ${clip.relative}`);
@@ -1191,6 +1205,98 @@ function refreshSelectionPanels(): void {
           },
         }
       : undefined,
+  );
+}
+
+// --- 写回执行（v0.1.00129，用户需求 #2）------------------------------------
+// 已发过的值，按 `<pid>:<逻辑名>` 记账。**只推变化的**：反复写同一个值会刷掉用户在
+// Houdini 里的撤销栈、让它白重算（与 CookTxn.flush 的"值未变则跳过"同一个理由）。
+const writebackSent = new Map<string, unknown>();
+/** 成环/被拒的名字：**不重试**。环不会因为再发一次就消失，重试只会每帧刷日志。 */
+const writebackRefused = new Set<string>();
+let writebackTimer: number | null = null;
+
+/** 推一次写回（去抖 120ms）。fire-and-forget：flush 是同步热路径，绝不 await。
+ *  已排队时直接返回（**latest-wins**：值在定时器触发的那一刻才读，所以不必续期）。 */
+function scheduleWriteback(): void {
+  if (writebackTimer !== null) return;
+  writebackTimer = window.setTimeout(() => {
+    writebackTimer = null;
+    void pushWritebackOnce();
+  }, 120);
+}
+
+/** 扫一遍当前图的 `_output_`，把有值的推到桥的映射端点。 */
+async function pushWritebackOnce(): Promise<void> {
+  const pid = currentProjectId;
+  if (!pid) return; // 逻辑名只在项目内唯一，没项目无从解析
+  let snap: ReturnType<typeof graph.getNetworkSnapshot>;
+  try {
+    snap = graph.getNetworkSnapshot();
+  } catch {
+    return; // 图还没就绪
+  }
+  for (const t of collectWritebackTargets(snap)) {
+    const key = `${pid}:${t.port}`;
+    if (writebackRefused.has(key)) continue;
+    const value = resolveWritebackValue(snap, t);
+    if (value === undefined) continue; // 没算出值 ≠ 值是 0，绝不兜底写 0
+    if (writebackSent.get(key) === value) continue; // 值没变：别刷用户的撤销栈
+    const r = await client.putMappingValue(pid, t.port, value);
+    if (r.ok) {
+      writebackSent.set(key, value);
+      store.pushLog(`[writeback] ${t.port} = ${JSON.stringify(value)}`);
+    } else if (r.cycle) {
+      writebackRefused.add(key);
+      store.pushLog(`[writeback] 桥拒绝（成环）：${t.port} —— ${r.error ?? ""}`);
+    } else {
+      store.pushLog(`[writeback] 失败 ${t.port}: ${r.error ?? "未知"}`);
+    }
+  }
+}
+
+/**
+ * 把 `_output_` 的目的地同步成桥里的写回指针（v0.1.00129，用户需求 #2）。
+ *
+ * 指针的键是**当前 cook 的那个 HDA 的 serial + 输出槽序号**，值是「写到哪个项目的哪个
+ * 逻辑名」。所以：
+ * - `store.serial` = 正在 cook 的 HDA（指针的主人，不是目的地）；
+ * - `address` = 目的地所在的**吊牌** serial，它只用来查项目，不进指针；
+ * - `port` = 目的地逻辑名（`transform1/tx`），这才是要写的东西。
+ *
+ * 目的地填不全（address 或 port 为空）→ **删指针**，让桥回落 passthrough。
+ * 「清空目的地」与「从未设过」在语义上必须一样，否则删掉地址之后桥还在等一个永远
+ * 不会来的写回。
+ *
+ * 失败只记日志：登记指针是编辑的副作用，桥离线不该让改图看起来失败。
+ */
+async function syncWritebackPointer(params: ParamSpec[]): Promise<void> {
+  const serial = store.serial;
+  if (!serial) return;
+  const val = (n: string): string => {
+    const v = params.find((p) => p.name === n)?.value;
+    return typeof v === "string" ? v.trim() : "";
+  };
+  const port = val("port");
+  const address = val("address");
+  // 单端口形态：槽序号恒 0。多输出槽真正落地后这里要改成读该节点的槽序号。
+  const slot = 0;
+  if (!address || !port) {
+    const r = await client.deleteWritebackTarget(serial, slot);
+    if (!r.ok && r.error) store.pushLog(`[writeback] 清指针失败: ${r.error}`);
+    else store.pushLog(`[writeback] 目的地为空 → 清指针（桥回落 passthrough）`);
+    return;
+  }
+  const pid = currentProjectId;
+  if (!pid) {
+    store.pushLog(`[writeback] 未在项目模式，无法登记指针（逻辑名只在项目内唯一）`);
+    return;
+  }
+  const r = await client.putWritebackTarget(serial, slot, pid, port);
+  store.pushLog(
+    r.ok
+      ? `[writeback] 指针已登记 ${serial}#${slot} → ${pid}:${port}`
+      : `[writeback] 登记失败: ${r.error ?? "未知原因"}`,
   );
 }
 
@@ -1644,6 +1750,7 @@ function flushStoreView(): void {
   renderLog();
   layout.statusDot.className = `cyl-status ${store.status}`;
   dataflow.flush();
+  scheduleWriteback(); // 非 geo `_output_` 的值 → 桥 → Houdini（去抖，见该函数）
   markGraphDirty();
   const showHint = !store.serial || store.status === "offline";
   layout.hintEl.classList.toggle("hidden", !showHint);

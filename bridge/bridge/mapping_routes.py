@@ -272,18 +272,17 @@ async def get_cook_cycles(pid: str) -> dict:
 @router.put("/api/projects/{pid}/mappings/{name:path}/value")
 async def put_mapping_value(pid: str, name: str, payload: ValuePut) -> dict:
     _check_pid(pid)
-    # **无环 cook 是硬约束**（v0.1.00125，用户要求「在桥接映射系统解决掉，做到无环 cook，
-    # 而不是让现有的 node 连接兼容」）。放在解析之前：环是图的性质，与这次写能不能解析无关。
+    # **不再因「读写同名」拒绝写入**（v0.1.00129 撤掉 v0.1.00125 那道 409 守卫）。
     #
-    # 只在**该名字自己成环**时拒绝，不因项目里别处有环就拒绝这次写 —— 否则一个无关的环
-    # 会把整个项目的写入全锁死。
-    st0 = get_state()
-    proj0 = st0.projects.get(pid)
-    if proj0 is not None:
-        graph0 = snapshot.read_project_graph(st0.data_dir, pid, proj0.get("hip") or "")
-        cycles0 = cook_cycle.find_cycles(graph0)
-        if any(c.endswith(f"::{name}") for c in cycles0):
-            raise HTTPException(status_code=409, detail=cook_cycle.cycle_message(cycles0))
+    # 撤销的依据是用户的 A/B 实测（`/obj/geo1/execting_test1` 与 `execting_test2`）：
+    # wrangle 里 `vector t1=@P; setpointattrib(...); vector t2=@P;` 得到 t1==t2 ——
+    # **读写同一个名字是合法形状**，因为写在整趟跑完之后才落地（见 cook_txn.py）。
+    # v0.1.00126 已按这个语义把执行顺序的保证移到 CookTxn，本处的守卫就成了残留：
+    # 它会把用户「_input_ 读 tx、_output_ 写 tx」这种**正常**用法一律 409，
+    # 实测正是它挡住了写回（`transform1/tx` -> 409）。
+    #
+    # 环仍然可查、可提示，只是不再拦人：`GET /api/projects/{pid}/cook-cycles`
+    # 仍返回同名读写清单，UI 可据此提示「本趟结束后才生效」。
     resolved = _resolved_or_404(pid, name)
     if not resolved["ok"]:
         return {"ok": False, "error": resolved["error"]}

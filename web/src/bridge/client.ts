@@ -384,6 +384,49 @@ export class BridgeClient {
   }
 
   /**
+   * PUT /api/hda/{serial}/writeback/{port} — 登记「这个 HDA 的第 port 个输出写到哪」。
+   *
+   * 桥据此在 cook 时决定：有指向就等 Cyl1nder 写回，**没有指向就把 input 原样搬回给
+   * HDA**（passthrough）。所以 `_output_` 改目的地必须调这里，否则桥永远以为没搭链路。
+   * tag serial 会得到 409 —— 吊牌是标记设计、不参与同步，那是正确拒绝而不是错误。
+   */
+  async putWritebackTarget(
+    serial: string,
+    port: number,
+    project: string,
+    name: string,
+  ): Promise<{ ok: boolean; error?: string }> {
+    return this.writebackReq("PUT", serial, port, { project, name });
+  }
+
+  /** DELETE /api/hda/{serial}/writeback/{port} — 清掉指向（回落 passthrough）。 */
+  async deleteWritebackTarget(serial: string, port: number): Promise<{ ok: boolean; error?: string }> {
+    return this.writebackReq("DELETE", serial, port);
+  }
+
+  /** 写回指针端点共用实现。**任何失败都归一成 `{ok:false}` 且不抛**：登记指针是编辑的
+   *  副作用，桥离线不该让用户的改图操作看起来失败（桥恢复后重登记即可）。 */
+  private async writebackReq(
+    method: "PUT" | "DELETE",
+    serial: string,
+    port: number,
+    body?: { project: string; name: string },
+  ): Promise<{ ok: boolean; error?: string }> {
+    try {
+      const res = await fetch(`${this.base}/api/hda/${encodeURIComponent(serial)}/writeback/${port}`, {
+        method,
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const j = (await res.json().catch(() => ({}))) as { ok?: boolean; detail?: unknown };
+      if (!res.ok) return { ok: false, error: String(j.detail ?? `HTTP ${res.status}`) };
+      return { ok: j.ok !== false };
+    } catch (e) {
+      return { ok: false, error: String(e) };
+    }
+  }
+
+  /**
    * PUT /api/projects/{pid}/mappings/{name}/value — **把图算出的值写回 Houdini**
    * （v0.1.00125，非 geo `_output_` 的落地通路）。
    *

@@ -1117,7 +1117,13 @@ export function renderParams(
       const cells = row.params
         .map(
           (p, i) =>
-            `<span class="cyl-param-vec-comp">${linkBtnHtml(p.name)}${refAnchor(p.name, "xyz"[i], "float")}${controlHtml(p, info)}</span>`,
+            // `data-ref-name` 挂在**整个分量格**上（v0.1.00129，用户 #1a）：
+            // 此前只有那个极小的 `x` 标签带锚点，于是右键分量格的空白处
+            // `closest("[data-ref-name]")` 什么都找不到 —— 用户被迫去点那个小 x。
+            // 挂在**每个分量各自的**包裹 span 上是安全的：它解析出的仍是 `tx`，
+            // 而组锚点（`T` → vec3）在另一个 `<td>` 里，两者不会互相吃掉。
+            `<span class="cyl-param-vec-comp" data-ref-name="${attrEscape(p.name)}" data-ref-kind="float">` +
+              `${linkBtnHtml(p.name)}${refAnchor(p.name, "xyz"[i], "float")}${controlHtml(p, info)}</span>`,
         )
         .join("");
       return `<tr class="cyl-param-vec-row"><td>${refAnchor(g.name, g.label, "vec3", g.members)}</td><td>vec3</td><td><span class="cyl-param-vec" data-vec-group="${attrEscape(g.name)}">${cells}</span></td></tr>`;
