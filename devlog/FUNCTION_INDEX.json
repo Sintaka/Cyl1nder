@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-20T14:55:11.147Z",
-  "totalFunctions": 1267,
+  "generatedAt": "2026-08-20T15:14:38.434Z",
+  "totalFunctions": 1268,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -1128,7 +1128,7 @@
     },
     {
       "file": "bridge/bridge/mapping_routes.py",
-      "lineCount": 519,
+      "lineCount": 561,
       "functions": [
         {
           "name": "_check_pid",
@@ -1159,134 +1159,141 @@
           "calls": 1
         },
         {
+          "name": "_fallback_port_warned",
+          "line": 106,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "_port_for",
-          "line": 102,
+          "line": 144,
           "kind": "def",
           "exported": false,
           "calls": 5
         },
         {
           "name": "_trace",
-          "line": 106,
+          "line": 148,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "ValuePut",
-          "line": 116,
+          "line": 158,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_find_port_by_pid_cached",
-          "line": 145,
+          "line": 187,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_find_port_by_pid",
-          "line": 172,
+          "line": 214,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_probe_health",
-          "line": 200,
+          "line": 242,
           "kind": "def",
           "exported": false,
-          "calls": 3
+          "calls": 4
         },
         {
           "name": "probe_anchor",
-          "line": 205,
+          "line": 247,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get_mapping_value",
-          "line": 264,
+          "line": 306,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_read_vec3_components",
-          "line": 318,
+          "line": 360,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "get_cook_cycles",
-          "line": 344,
+          "line": 386,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_mapping_value",
-          "line": 361,
+          "line": 403,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "list_mappings",
-          "line": 409,
+          "line": 451,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_mapping",
-          "line": 436,
+          "line": 478,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "delete_mapping",
-          "line": 447,
+          "line": 489,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "WritebackPut",
-          "line": 464,
+          "line": 506,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_writeback_view",
-          "line": 469,
+          "line": 511,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "get_writeback",
-          "line": 483,
+          "line": 525,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_writeback",
-          "line": 492,
+          "line": 534,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "delete_writeback",
-          "line": 513,
+          "line": 555,
           "kind": "def",
           "exported": false,
           "calls": 1

@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1267** 个函数/类。
+> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1268** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -230,7 +230,7 @@
 | `lifespan` | 24 | def |  | 1 |
 | `create_app` | 38 | def |  | 2 |
 
-## bridge/bridge/mapping_routes.py（519 行）
+## bridge/bridge/mapping_routes.py（561 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -238,25 +238,26 @@
 | `_resolved_or_404` | 46 | def |  | 3 |
 | `_split_target` | 53 | def |  | 3 |
 | `_resolve_port_for_anchor` | 61 | def |  | 1 |
-| `_port_for` | 102 | def |  | 5 |
-| `_trace` | 106 | def |  | 3 |
-| `ValuePut` | 116 | class |  | 1 |
-| `_find_port_by_pid_cached` | 145 | def |  | 2 |
-| `_find_port_by_pid` | 172 | def |  | 2 |
-| `_probe_health` | 200 | def |  | 3 |
-| `probe_anchor` | 205 | def |  | 1 |
-| `get_mapping_value` | 264 | def |  | 1 |
-| `_read_vec3_components` | 318 | def |  | 2 |
-| `get_cook_cycles` | 344 | def |  | 1 |
-| `put_mapping_value` | 361 | def |  | 1 |
-| `list_mappings` | 409 | def |  | 1 |
-| `put_mapping` | 436 | def |  | 1 |
-| `delete_mapping` | 447 | def |  | 1 |
-| `WritebackPut` | 464 | class |  | 1 |
-| `_writeback_view` | 469 | def |  | 2 |
-| `get_writeback` | 483 | def |  | 1 |
-| `put_writeback` | 492 | def |  | 1 |
-| `delete_writeback` | 513 | def |  | 1 |
+| `_fallback_port_warned` | 106 | def |  | 2 |
+| `_port_for` | 144 | def |  | 5 |
+| `_trace` | 148 | def |  | 3 |
+| `ValuePut` | 158 | class |  | 1 |
+| `_find_port_by_pid_cached` | 187 | def |  | 2 |
+| `_find_port_by_pid` | 214 | def |  | 2 |
+| `_probe_health` | 242 | def |  | 4 |
+| `probe_anchor` | 247 | def |  | 1 |
+| `get_mapping_value` | 306 | def |  | 1 |
+| `_read_vec3_components` | 360 | def |  | 2 |
+| `get_cook_cycles` | 386 | def |  | 1 |
+| `put_mapping_value` | 403 | def |  | 1 |
+| `list_mappings` | 451 | def |  | 1 |
+| `put_mapping` | 478 | def |  | 1 |
+| `delete_mapping` | 489 | def |  | 1 |
+| `WritebackPut` | 506 | class |  | 1 |
+| `_writeback_view` | 511 | def |  | 2 |
+| `get_writeback` | 525 | def |  | 1 |
+| `put_writeback` | 534 | def |  | 1 |
+| `delete_writeback` | 555 | def |  | 1 |
 
 ## bridge/bridge/mapping.py（337 行）
 
