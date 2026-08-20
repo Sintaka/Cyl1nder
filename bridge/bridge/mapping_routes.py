@@ -96,7 +96,49 @@ def _resolve_port_for_anchor(serial: str) -> int:
         # 没有 pid（旧吊牌构建）时只能信记录的端口——通就用，不猜别的实例
         if _probe_health(recorded_port) is not None:
             return recorded_port
-    return _resolve_port(serial)
+    return _fallback_port_warned(serial, expected_pid)
+
+
+_PID_MISMATCH_WARNED: set[tuple[str, int, int]] = set()
+"""已警告过的 (serial, 期望 pid, 落到的 pid)，避免每次读都刷同一条。"""
+
+
+def _fallback_port_warned(serial: str, expected_pid: int) -> int:
+    """退回 `_resolve_port`，但**把 pid 不符说出来**（v0.1.00136）。
+
+    这条路径存在一个真实的张力：本函数的立身理由（见上方 docstring）正是
+    「不要用 `discover_first()` 拿第一个活口当答案」，可它的第 3 步退回 `_resolve_port`，
+    而那里恰恰会调 `discover_first()`。于是**陈旧 pid 的锚点**会静默落到别的实例上。
+
+    实测这个状态就存在：锚点 `C1-msz03wf5-u0ym` 记的是 pid 28720（Houdini 重启前），
+    而 8100 上现在是 pid 57720 —— 读**成功了**，只是打在了另一个 pid 上。
+
+    为什么不改成拒绝：单实例场景（Houdini 重启、还是同一个逻辑实例）是最常见的用法，
+    拒绝会把一个能用的东西弄坏。
+    为什么不自动采纳活着的 pid：那正是被明令禁止的猜测 —— 多开 Houdini 时会写错实例。
+    所以选第三条：**照旧解析，但只要落到的 pid 与锚点记录不符就 WARN 一次**。
+    吊牌下次 cook 时会自报新 pid，锚点自愈，警告随之消失。
+    """
+    port = _resolve_port(serial)
+    if not port or not expected_pid:
+        return port
+    h = _probe_health(port)
+    actual_pid = int((h or {}).get("pid") or 0)
+    if actual_pid and actual_pid != expected_pid:
+        key = (serial, expected_pid, actual_pid)
+        if key not in _PID_MISMATCH_WARNED:
+            _PID_MISMATCH_WARNED.add(key)
+            # `LogRing` **没有 warn()**，且 LEVELS 里是 `"warning"` 不是 `"warn"`
+            # （传错的 level 会被静默降级成 info —— 那样这条警告就淹在信息流里）。
+            get_state().logs.add(
+                "warning",
+                "mapping",
+                f"锚点 {serial} 记录 pid={expected_pid}，但解析到的端口 {port} 上是 "
+                f"pid={actual_pid}：该吊牌自 Houdini 重启后未再 cook，锚点是陈旧的。"
+                f"读写会打在 pid={actual_pid} 这个实例上；cook 一次该吊牌即可自愈。",
+                serial,
+            )
+    return port
 
 
 async def _port_for(resolved: dict) -> int:
