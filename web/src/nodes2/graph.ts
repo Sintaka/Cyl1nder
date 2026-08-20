@@ -77,6 +77,7 @@ import {
   initTooltip,
   setApplyNodeParamsHandler,
   setEnterNodeHandler,
+  setShiftEnterUndoHandler,
   setNetKindProvider,
   setNodeStateHandler,
   setRenameHandler,
@@ -1134,5 +1135,18 @@ export async function createReteGraph(
   //
   // 必须放在 `api` 建好之后：`setNodeParams` 是它的**方法**，不是模块函数。
   setApplyNodeParamsHandler((id, p) => api.setNodeParams(id, p));
+
+  // Shift+Enter 自动接线可撤销（v0.1.00132，子智能体交接项 b）。
+  //
+  // 用 `shake` 这个既有 action 形状：`cut: []` + `added: [...]` 就是「只加了线」，
+  // 撤销时按 added 逐条删。不新造 action 类型 —— graph-undo 已经会处理 shake，
+  // 加一个只会多一处要同步的分支。
+  //
+  // 只有真的接上了线才会被调到（见 graph-interact 的 addedRefs 判定），
+  // 所以这里不必再判空。
+  setShiftEnterUndoHandler((added) => {
+    undoManager.push({ type: "shake", cut: [], added });
+    handlers.onNetworkChanged?.();
+  });
   return api;
 }

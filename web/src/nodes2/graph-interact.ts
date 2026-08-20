@@ -1956,6 +1956,21 @@ export function setApplyNodeParamsHandler(fn: ((nodeId: string, params: ParamSpe
   applyNodeParamsHandler = fn;
 }
 
+/**
+ * Shift+Enter 自动接线的撤销登记（v0.1.00132）。
+ *
+ * 为什么用模块级 setter 而不是把 `undoManager` 一路穿过三层签名
+ * （attachTabSearch → startShiftEnterWire → runShiftEnterWire）：本文件已经为
+ * `setApplyNodeParamsHandler` / `setRenameHandler` / `setNodeStateHandler` 立了同一个
+ * 模式，穿参会让三个签名都被这一个功能污染。
+ *
+ * **不传也能用**：没登记时手势照常接线，只是没有撤销条目 —— 保底不因为调用方漏接就丢功能。
+ */
+let shiftEnterUndo: ((added: ConnectionRef[]) => void) | null = null;
+export function setShiftEnterUndoHandler(fn: ((added: ConnectionRef[]) => void) | null): void {
+  shiftEnterUndo = fn;
+}
+
 /** 把 address/port/type 写进一个 `_output_`（type 为 null 时**不动**该参数）。 */
 function applyMirroredParams(node: CylNode, pair: ShiftEnterPair): void {
   const next: ParamSpec[] = (node.params ?? []).map((p) => {
@@ -2053,6 +2068,9 @@ async function runShiftEnterWire(
   // 真正接上的根数（≠ plan.pairs.length）：目标口被占、或编辑器管道否掉，都会少一根。
   // 汇总日志报**事实**而不是意图 —— 报计划数会让"接了 0 根"看起来像"接了 3 根"。
   let wired = 0;
+  /** 真正接上的线，供撤销登记（v0.1.00132）。只记 `addConnection` 返回 true 的那些 ——
+   *  把被拒的线也记进去，Ctrl+Z 就会去删一根不存在的线。 */
+  const addedRefs: ConnectionRef[] = [];
   for (const pair of plan.pairs) {
     const src = editor.getNode(pair.inputId) as CylNode | undefined;
     const dst = editor.getNode(pair.outputId) as CylNode | undefined;
@@ -2082,8 +2100,17 @@ async function runShiftEnterWire(
       continue;
     }
     wired += 1;
+    addedRefs.push({
+      source: src.id,
+      sourceOutput: pair.sourceOutput,
+      target: dst.id,
+      targetInput: pair.targetInput,
+    });
     log(`shift+enter wired ${pair.inputLabel} -> ${pair.outputLabel} (${pair.address} ${pair.port})`);
   }
+  // 撤销登记（v0.1.00132）：只在**真的接上了线**时推。接了 0 根还推一条空条目，
+  // 会让用户按一次 Ctrl+Z 什么都没发生 —— 那比没有撤销更让人困惑。
+  if (addedRefs.length > 0) shiftEnterUndo?.(addedRefs);
   notifyNodeChanged(); // 参数/端口类型变了：让 NodeView 重画
   // 参数面板订阅的是**选择变化**（main.ts 经 onSelectionChanged 重渲染），不是节点重画。
   // 少了这一行，被镜像的那个 output 若正好是当前选中项，面板会继续显示改之前的空
