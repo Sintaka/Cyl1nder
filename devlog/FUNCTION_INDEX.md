@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1277** 个函数/类。
+> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1278** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -649,7 +649,7 @@
 | `build_tag` | 189 | def |  | 2 |
 | `build` | 254 | def |  | 2 |
 
-## hda/scripts/hython_smoke.py（1041 行）
+## hda/scripts/hython_smoke.py（1075 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -695,8 +695,9 @@
 | `_Client` | 795 | class |  | 1 |
 | `heartbeat_channels` | 800 | def |  | 1 |
 | `_test_tag_entries` | 831 | def |  | 2 |
-| `main` | 843 | def |  | 2 |
-| `_stats` | 934 | def |  | 5 |
+| `_test_tag_status_comment` | 843 | def |  | 2 |
+| `main` | 876 | def |  | 2 |
+| `_stats` | 967 | def |  | 5 |
 
 ## hda/scripts/reload_hda.py（121 行）
 
@@ -811,24 +812,24 @@
 | `stop_all_sync` | 203 | def |  | 1 |
 | `ensure_sync` | 216 | def |  | 4 |
 
-## hda/src/cyl1nder_tag.py（426 行）
+## hda/src/cyl1nder_tag.py（446 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `_set_status` | 36 | def |  | 5 |
-| `_parse_entries` | 45 | def |  | 2 |
-| `_resolve` | 60 | def |  | 3 |
-| `_read_mode` | 77 | def |  | 2 |
-| `_network_of` | 92 | def |  | 3 |
-| `_rel_to_network` | 103 | def |  | 4 |
-| `_parse_entry` | 114 | def |  | 2 |
-| `_parm_value_type` | 179 | def |  | 2 |
-| `_fingerprint` | 217 | def |  | 2 |
-| `register_channels` | 230 | def |  | 2 |
-| `_read_param_values` | 295 | def |  | 2 |
-| `_instance_identity` | 308 | def |  | 2 |
-| `heartbeat` | 331 | def |  | 2 |
-| `cook` | 375 | def |  | 3 |
+| `_parse_entries` | 65 | def |  | 2 |
+| `_resolve` | 80 | def |  | 3 |
+| `_read_mode` | 97 | def |  | 2 |
+| `_network_of` | 112 | def |  | 3 |
+| `_rel_to_network` | 123 | def |  | 4 |
+| `_parse_entry` | 134 | def |  | 2 |
+| `_parm_value_type` | 199 | def |  | 2 |
+| `_fingerprint` | 237 | def |  | 2 |
+| `register_channels` | 250 | def |  | 2 |
+| `_read_param_values` | 315 | def |  | 2 |
+| `_instance_identity` | 328 | def |  | 2 |
+| `heartbeat` | 351 | def |  | 2 |
+| `cook` | 395 | def |  | 3 |
 
 ## web/src/app/address-bar.ts（310 行）
 

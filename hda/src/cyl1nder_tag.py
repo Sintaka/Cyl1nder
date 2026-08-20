@@ -34,11 +34,31 @@ _FINGERPRINTS: dict[str, str] = {}
 
 
 def _set_status(root: hou.Node, text: str) -> None:
-    """Write the last cook outcome to the subnet's userData (no status parm)."""
+    """Write the last cook outcome to userData **and surface it in the network editor**.
+
+    v0.1.00146: userData alone has **no UI surface in Houdini** —— 用户放下一个吊牌、
+    忘了填 entries，界面上看不出任何区别，而 Cyl1nder 侧什么都不会发生（实测
+    `/obj/geo1/Cyl1nderTag1`：`entries=''`、无错误、无通道行，一切静默）。
+    五种状态里有四种是问题（no-upstream / no-entries / bad-entry / offline），
+    全都看不见 —— **看不见的失败比报错难查得多**。
+
+    节点注释是纯 HOM，不必改 `.hda` 二进制定义，所以这条能立刻做。
+    `ok` 时清掉注释：常态不该在网络里留字，否则注释会变成背景噪音而被忽略。
+    """
     try:
         if root.userData("cyl1nder_tag_status") != text:
             root.setUserData("cyl1nder_tag_status", text)
     except Exception:  # noqa: BLE001 - status must never affect the cook
+        pass
+    # 注释与 userData 分开 try：其中一个失败不该让另一个也不写。
+    try:
+        want = "" if text == "ok" else f"Cyl1nder: {text}"
+        if root.comment() != want:
+            root.setComment(want)
+        # 只有有话说时才显示气泡，`ok` 时连气泡一起收掉。
+        if root.isGenericFlagSet(hou.nodeFlag.DisplayComment) != bool(want):
+            root.setGenericFlag(hou.nodeFlag.DisplayComment, bool(want))
+    except Exception:  # noqa: BLE001 - 呈现失败绝不影响 cook（与上面同一约定）
         pass
 
 

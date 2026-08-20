@@ -840,6 +840,39 @@ def _test_tag_entries() -> None:
     print("entries parse (lines / ; / comments / blanks) OK")
 
 
+def _test_tag_status_comment() -> None:
+    """_set_status 把状态**呈现出来**（v0.1.00146）。
+
+    此前只写 userData，而 Houdini 对 userData **没有任何 UI 呈现** —— 用户放下吊牌、
+    忘了填 entries，界面上看不出区别，Cyl1nder 侧也什么都不发生（实测
+    `/obj/geo1/Cyl1nderTag1`：entries='' / 无错误 / 无通道行，全程静默）。
+    五种状态里四种是问题（no-upstream / no-entries / bad-entry / offline），全都看不见。
+    """
+    geo = hou.node("/obj").createNode("geo", "cyl1nder_status_smoke")
+    try:
+        n = geo.createNode("null", "probe")
+        s = cyl1nder_tag._set_status
+
+        s(n, "no-entries")
+        assert n.userData("cyl1nder_tag_status") == "no-entries"
+        assert n.comment() == "Cyl1nder: no-entries", n.comment()
+        assert n.isGenericFlagSet(hou.nodeFlag.DisplayComment) is True, "气泡要开，否则等于没写"
+
+        # **ok 要把注释和气泡一起收掉**：常态在网络里留字会变成背景噪音而被忽略。
+        s(n, "ok")
+        assert n.userData("cyl1nder_tag_status") == "ok"
+        assert n.comment() == "", n.comment()
+        assert n.isGenericFlagSet(hou.nodeFlag.DisplayComment) is False
+
+        # 问题 -> ok -> 问题 的往返：注释必须跟着回来（写一次就不管会漏掉这条）
+        s(n, "bad-entry: nope")
+        assert n.comment() == "Cyl1nder: bad-entry: nope", n.comment()
+        assert n.isGenericFlagSet(hou.nodeFlag.DisplayComment) is True
+        print("tag status comment (surface / clear on ok / round-trip) OK")
+    finally:
+        geo.destroy()
+
+
 def main() -> int:
     if HDA not in hou.hda.loadedFiles():
         hou.hda.installFile(HDA)
@@ -1032,6 +1065,7 @@ def main() -> int:
     _test_tag_fingerprint()
     _test_tag_heartbeat_throttle()
     _test_tag_entries()
+    _test_tag_status_comment()
 
     print("SMOKE OK")
     return 0

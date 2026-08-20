@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-20T18:20:43.920Z",
-  "totalFunctions": 1277,
+  "generatedAt": "2026-08-20T18:32:06.749Z",
+  "totalFunctions": 1278,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -3481,7 +3481,7 @@
     },
     {
       "file": "hda/scripts/hython_smoke.py",
-      "lineCount": 1041,
+      "lineCount": 1075,
       "functions": [
         {
           "name": "_req",
@@ -3778,15 +3778,22 @@
           "calls": 2
         },
         {
-          "name": "main",
+          "name": "_test_tag_status_comment",
           "line": 843,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
+          "name": "main",
+          "line": 876,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "_stats",
-          "line": 934,
+          "line": 967,
           "kind": "def",
           "exported": false,
           "calls": 5
@@ -4325,7 +4332,7 @@
     },
     {
       "file": "hda/src/cyl1nder_tag.py",
-      "lineCount": 426,
+      "lineCount": 446,
       "functions": [
         {
           "name": "_set_status",
@@ -4336,91 +4343,91 @@
         },
         {
           "name": "_parse_entries",
-          "line": 45,
+          "line": 65,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_resolve",
-          "line": 60,
+          "line": 80,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_read_mode",
-          "line": 77,
+          "line": 97,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_network_of",
-          "line": 92,
+          "line": 112,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_rel_to_network",
-          "line": 103,
+          "line": 123,
           "kind": "def",
           "exported": false,
           "calls": 4
         },
         {
           "name": "_parse_entry",
-          "line": 114,
+          "line": 134,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_parm_value_type",
-          "line": 179,
+          "line": 199,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_fingerprint",
-          "line": 217,
+          "line": 237,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "register_channels",
-          "line": 230,
+          "line": 250,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_read_param_values",
-          "line": 295,
+          "line": 315,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_instance_identity",
-          "line": 308,
+          "line": 328,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "heartbeat",
-          "line": 331,
+          "line": 351,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "cook",
-          "line": 375,
+          "line": 395,
           "kind": "def",
           "exported": false,
           "calls": 3
