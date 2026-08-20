@@ -243,13 +243,55 @@ async def get_mapping_value(pid: str, name: str) -> dict:
             )
         except Exception as exc:  # noqa: BLE001 - 归一到 ok=False
             return {"ok": False, "error": str(exc)[:200]}
-        if not isinstance(envelope, dict) or envelope.get("status") == "error":
-            return {"ok": False, "error": str(envelope)[:200]}
-        data = envelope.get("data")
+        failed = not isinstance(envelope, dict) or envelope.get("status") == "error"
+        data = None if failed else envelope.get("data")
         # 值提取宽容（照 houdini_routes.get_channel_values）：dict 取 value，否则 data 本身
-        value = data.get("value") if isinstance(data, dict) else data
+        value = None if failed else (data.get("value") if isinstance(data, dict) else data)
+        # **失败也要走 vec3 兜底**：读元组参数时 get_parameter 直接报
+        # 「Parameter 't' not found」，所以判据必须是「拿不到值」而不是「返回了 None」——
+        # 先前把 fallback 放在 error 分支之后，那条 return 让它永远跑不到。
+        if value is None and (resolved.get("type") or "") == "vec3":
+            # **vec3 读要逐分量取**（v0.1.00131）。
+            #
+            # `parameters.get_parameter` 走的是 `node.parm(name)`，而 Houdini 里
+            # 元组参数的 `parm("t")` 是 **None**（实测：`parm("t")->None`，
+            # `parmTuple("t")->size 3`），于是读 `t` 会报
+            # 「Parameter 't' not found ... Did you mean: tz, ty, tx」。
+            # 写不受影响（set_parameter 收列表），所以症状是"写得进、读不出"。
+            #
+            # 那个工具属于官方 fxhoudinimcp，不改它；在**我们这侧**按分量拼：
+            # `t` → `tx`/`ty`/`tz`，与 HDA 侧 `_COMPONENT_SUFFIXES` 同一套约定。
+            value = await _read_vec3_components(port, node, parm)
+        if value is None and failed:
+            # 兜底也没拿到 → 如实报原始错误（不要把「读不到」伪装成 value=null 成功）
+            return {"ok": False, "error": str(envelope)[:200]}
     _trace("data-get", name, resolved, value)
     return {"ok": True, "value": value}
+
+
+async def _read_vec3_components(port: int, node: str, parm: str) -> list[float] | None:
+    """逐分量读一个元组参数：`t` → `tx`/`ty`/`tz`。任一分量读不到 → None。
+
+    只在 `parm()` 读不出来时兜底（见调用点）。**不猜缺失分量**：拿两个分量拼一个
+    vec3 会静默给出错的位姿，比读不到更坏。
+    """
+    out: list[float] = []
+    for axis in ("x", "y", "z"):
+        try:
+            env = await asyncio.to_thread(
+                houdini_mcp.rpc, port, "parameters.get_parameter",
+                {"node_path": node, "parm_name": f"{parm}{axis}"}, 4.0,
+            )
+        except Exception:  # noqa: BLE001 - 任一分量失败即整体放弃
+            return None
+        if not isinstance(env, dict) or env.get("status") == "error":
+            return None
+        d = env.get("data")
+        v = d.get("value") if isinstance(d, dict) else d
+        if not isinstance(v, (int, float)):
+            return None
+        out.append(float(v))
+    return out
 
 
 @router.get("/api/projects/{pid}/cook-cycles")

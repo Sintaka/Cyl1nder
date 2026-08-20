@@ -143,7 +143,10 @@ export function collectWritebackTargets(snap: NetworkSnapshot): WritebackTarget[
  * - 找不到那个节点（可能指向桥侧的 Houdini 参数，那条路要异步，单独做）；
  * - 找到了但那个参数不是有限数值。
  */
-function resolveRefInGraph(snap: NetworkSnapshot, expr: string): number | undefined {
+function resolveRefInGraph(
+  snap: NetworkSnapshot,
+  expr: string,
+): number | number[] | undefined {
   const parsed = parseParamRef(expr);
   if (!parsed.ok || parsed.address === "") return undefined;
   const seg = parsed.address.split("/").filter((s: string) => s !== "");
@@ -152,13 +155,33 @@ function resolveRefInGraph(snap: NetworkSnapshot, expr: string): number | undefi
   const nodeLabel = seg[seg.length - 2];
   const node = snap.nodes.find((n) => n.label === nodeLabel);
   if (!node) return undefined; // 不在本图 → 交给将来的异步通路
-  const v = node.params?.find((p) => p.name === parmName)?.value;
-  if (typeof v === "number" && Number.isFinite(v)) return v;
-  // 分量引用：`animation.x` → 取数组第 0 个
-  if (Array.isArray(v) && parsed.components.length === 1) {
-    const c = v[parsed.components[0]];
-    return typeof c === "number" && Number.isFinite(c) ? c : undefined;
+  const num = (x: unknown): number | undefined =>
+    typeof x === "number" && Number.isFinite(x) ? x : undefined;
+  const readParm = (nm: string): unknown => node.params?.find((p) => p.name === nm)?.value;
+
+  const direct = readParm(parmName);
+  // 分量引用（`animation.x` / `t.y`）优先：它明确只要一个数
+  if (parsed.components.length === 1) {
+    const i = parsed.components[0];
+    if (Array.isArray(direct)) return num(direct[i]);
+    const comp = num(readParm(`${parmName}${"xyz"[i] ?? "x"}`));
+    if (comp !== undefined) return comp;
   }
+  if (num(direct) !== undefined) return num(direct);
+  if (Array.isArray(direct)) {
+    const arr = direct.map(num);
+    return arr.every((x) => x !== undefined) ? (arr as number[]) : undefined;
+  }
+  // **vec3 组名自动展开**（v0.1.00131，用户要求「t 需要通过属性系统自动处理 vec3 关系」）。
+  //
+  // Houdini 里 `t` 是一个 3 元组；我们的图**没有** `t` 这个参数，只有 `tx/ty/tz`
+  // （见 param.ts 的 planVecGroups：vec3 只是显示层分组，数据仍是三个 float）。
+  // 所以 `ch("../transform1/t")` 必须由这里把三个分量拼起来 —— 这就是「属性系统
+  // 自动处理」那一层，写在取值侧而不是让用户改写成三条引用。
+  //
+  // 缺任一分量 → undefined 而不是补 0：拿两个分量拼出的位姿是**错的**，比不写更坏。
+  const xyz = ["x", "y", "z"].map((a) => num(readParm(`${parmName}${a}`)));
+  if (xyz.every((x) => x !== undefined)) return xyz as number[];
   return undefined;
 }
 

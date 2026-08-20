@@ -70,6 +70,36 @@ class ChannelRegistry:
             self._save()
             return True
 
+    def retire_except(self, serial: str, kind: str, keep_rels: set[str]) -> list[str]:
+        """删掉该 serial 下**不再被声明**的通道行，返回被删的 rel 列表（v0.1.00131）。
+
+        为什么需要它：吊牌把 `entries` 从 `tx` 改成 `t` 之后，旧的 `tx` 行**永远留着** ——
+        注册只有 upsert、没有退役，心跳也只 touch 不删。于是映射表里同时存在 `transform1/tx`
+        与 `transform1/t`，用户看到的就是"过时的注册参数"。
+
+        只删**同 serial 同 kind 且 rel 非空**的行：
+        - 跨 serial 不碰（别的吊牌自己管自己）；
+        - `rel` 为空的行是吊牌自身那条 `kind:"tag"` 标记，不是条目产物，删了会让吊牌"消失"；
+        - `keep_rels` 为空时**什么都不删**（视为"这次没声明"，而不是"声明了空集"）——
+          否则一个旧 HDA 发来的不带 names 的心跳会把所有条目清空。
+        """
+        if not serial or not keep_rels:
+            return []
+        removed: list[str] = []
+        with self._lock:
+            for key, rec in list(self._records.items()):
+                if rec.get("serial") != serial or rec.get("kind") != kind:
+                    continue
+                rel = (rec.get("rel") or "").strip()
+                if not rel or rel in keep_rels:
+                    continue
+                del self._records[key]
+                removed.append(rel)
+            if removed:
+                self._dirty = True
+                self._save(force=True)
+        return removed
+
     def save_now(self) -> None:
         with self._lock:
             self._save(force=True)

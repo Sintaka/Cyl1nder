@@ -57,6 +57,57 @@ describe("ch() 引用参与写回取值", () => {
   });
 });
 
+describe("vec3 组名自动展开（用户要求：t 由属性系统自动处理）", () => {
+  const mk = (refExpr: string) =>
+    ({
+      nodes: [
+        {
+          id: "o",
+          kind: "output",
+          label: "_output_",
+          params: [
+            { name: "address", type: "string", value: "C1-aaaaaaaa-bbbb" },
+            { name: "type", type: "menu", value: "vec3" },
+            { name: "port", type: "menu", value: "transform1/t" },
+          ],
+        },
+        { id: "n", kind: "null", label: "null1", params: [{ name: "ref_slot0", type: "string", value: refExpr }] },
+        {
+          id: "t1",
+          kind: "transform",
+          label: "transform1",
+          params: [
+            { name: "tx", type: "float", value: 4 },
+            { name: "ty", type: "float", value: 5 },
+            { name: "tz", type: "float", value: 6 },
+          ],
+        },
+      ],
+      connections: [{ source: "n", sourceOutput: "out0", target: "o", targetInput: "out0" }],
+    }) as never;
+  const target = { nodeId: "o", address: "C1-aaaaaaaa-bbbb", port: "transform1/t", type: "vec3" };
+
+  it('ch("../transform1/t") → [4,5,6]（图里只有 tx/ty/tz，没有 t）', async () => {
+    const { resolveWritebackValue } = await import("../src/core/dataflow");
+    expect(resolveWritebackValue(mk('ch("../transform1/t")'), target)).toEqual([4, 5, 6]);
+  });
+
+  it('分量引用 ch("../transform1/t.y") → 5（单个数，不是数组）', async () => {
+    const { resolveWritebackValue } = await import("../src/core/dataflow");
+    expect(resolveWritebackValue(mk('ch("../transform1/t.y")'), target)).toBe(5);
+  });
+
+  it("缺一个分量 → undefined，**绝不补 0**（拼出的位姿是错的，比不写更坏）", async () => {
+    const { resolveWritebackValue } = await import("../src/core/dataflow");
+    const snap = mk('ch("../transform1/t")') as unknown as {
+      nodes: Array<{ label: string; params?: Array<{ name: string }> }>;
+    };
+    const t1 = snap.nodes.find((n) => n.label === "transform1")!;
+    t1.params = t1.params!.filter((p) => p.name !== "tz");
+    expect(resolveWritebackValue(snap as never, target)).toBeUndefined();
+  });
+});
+
 describe("通道函数引用", () => {
   it("`ch(\"../transform1/tx\")` → 网络相对地址 transform1/tx", () => {
     const r = ok('ch("../transform1/tx")');

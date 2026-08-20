@@ -218,6 +218,10 @@ class HeartbeatBody(BaseModel):
     # 心跳超时只说明「最近没 cook」，降级前要拿这两项打 mcp.health 核对 pid。
     pid: int | None = None
     mcpPort: int | None = None
+    # 本次**声明的全部 rel 名**（v0.1.00131，旧 HDA 缺省 None = 不做退役）。
+    # 没有它桥就无从知道「哪些行该退役」：注册只有 upsert，心跳只 touch，
+    # 于是把 entries 从 `tx` 改成 `t` 之后旧的 `tx` 行永远留着（用户看到的过时注册）。
+    names: list[str] | None = None
 
 
 @router.post("/api/hda/{serial}/channels/heartbeat")
@@ -239,6 +243,26 @@ async def heartbeat(serial: str, payload: HeartbeatBody) -> dict:
     # P5a：心跳捎带参数值 -> WS 广播 channel-values（不回写内存、值不落地）
     if payload.values:
         await manager.broadcast(serial, {"type": "channel-values", "values": payload.values})
+    # 退役本次未声明的条目行（v0.1.00131，用户 #2「清理过时的注册参数 tx」）。
+    # 放在 touch 之后：先把活着的行刷新，再删没被声明的，顺序反了会先删后刷、白做一次。
+    # `names` 缺省（旧 HDA）→ retire_except 收到空集直接返回，什么都不删。
+    if payload.names is not None:
+        keep = {n.strip() for n in payload.names if n.strip()}
+        gone = st.channels.retire_except(serial, "param", keep)
+        # **映射表要一起扫**：通道行与映射条目是两份账。只扫通道行的话，
+        # `transform1/tx` 的行没了但映射条目还在（实测就是这个现象），
+        # 用户在 param 面板的端口下拉里仍然看得到那个过时逻辑名。
+        gone_map: list[str] = []
+        if keep:
+            for pid_, nm in st.mappings.entries_for_anchor(serial):
+                if nm not in keep and st.mappings.del_entry(pid_, nm):
+                    gone_map.append(f"{pid_}:{nm}")
+        if gone or gone_map:
+            st.logs.info(
+                "channels",
+                f"retired stale for {serial}: rows=[{', '.join(gone)}] entries=[{', '.join(gone_map)}]",
+                serial,
+            )
     reported = _report_anchor(serial, payload)
     moved = reported if reported is not None and reported.get("moved") else None
     if moved is not None:

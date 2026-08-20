@@ -171,9 +171,47 @@ def _parse_entry(
         {
             "absolutePath": abs_path,
             "rel": _rel_to_network(abs_path, tag_path),
-            "type": "float",
+            "type": _parm_value_type(abs_path),
         },
     )
+
+
+def _parm_value_type(abs_path: str) -> str:
+    """问 Houdini 要这个参数的**真实**类型（v0.1.00131）。
+
+    此前这里恒返回 `"float"`，于是把 `entries` 从 `tx` 改成 `t` 之后，桥仍然登记
+    `type: float`（实测 `transform1/t -> type: float`），vec3 就一路被当标量处理。
+
+    判据是 **parm 与 parmTuple 的互斥**，这是 Houdini 自己的形状。实测
+    `/obj/geo1/transform1`：
+        parm("t")       -> None        parmTuple("t")  -> size 3
+        parm("tx")      -> <Parm tx>   parmTuple("tx") -> None
+    所以「有 parm 就是标量、只有 parmTuple 就按元素数定矢量」不是猜的规则，
+    而是直接读 Houdini 的事实。
+
+    探测失败一律回落 `"float"`：类型探测不该让 cook 失败，而 float 是最不会造成
+    错误连线的保守值（vec3 端口拒收 float，反过来也拒，所以错了会被拦住而不是静默错算）。
+    """
+    node_path, _, name = abs_path.rpartition("/")
+    if not node_path or not name:
+        return "float"
+    try:
+        node = hou.node(node_path)
+        if node is None:
+            return "float"
+        # 单值参数：`parm("tx")` 有、`parmTuple("tx")` 是 None
+        if node.parm(name) is not None:
+            return "float"
+        pt = node.parmTuple(name)
+        if pt is not None:
+            n = len(pt)
+            if n >= 3:
+                return "vec3"  # vec4 也归 vec3：映射系统只有 geo/float/vec3 三种
+            if n == 2:
+                return "vec3"  # vec2 同理，按矢量走而不是退成标量
+        return "float"
+    except Exception:  # noqa: BLE001 - 类型探测失败不该让 cook 失败
+        return "float"
 
 
 def _fingerprint(entries: list[str], upstream: str, tag_path: str = "", mode: str = "parm") -> str:
@@ -290,7 +328,9 @@ def _instance_identity() -> tuple[int, int]:
     return pid, port
 
 
-def heartbeat(client, serial, upstream, fingerprint, param_paths, hip="", mode="parm") -> None:
+def heartbeat(
+    client, serial, upstream, fingerprint, param_paths, hip="", mode="parm", param_rels=None
+) -> None:
     """Throttled (>= TAG_HEARTBEAT_INTERVAL, 60s) heartbeat summary POST.
 
     Registered params' current values are read only when the throttle passes
@@ -322,6 +362,12 @@ def heartbeat(client, serial, upstream, fingerprint, param_paths, hip="", mode="
             "pid": pid,
             "mcpPort": port,
             "values": _read_param_values(param_paths),
+            # 本次声明的全部 rel 名（v0.1.00131）：桥据此退役不再声明的旧行。
+            # 没有它，把 entries 从 `tx` 改成 `t` 之后旧的 `tx` 行永远留着 ——
+            # 注册只有 upsert、心跳只 touch，谁都不负责删。
+            # 传 None（而不是 []）表示"这次没声明"，桥侧收到空集时什么都不删：
+            # 空列表与"声明了空集"必须区分，否则一次异常解析会清空全部条目。
+            "names": list(param_rels) if param_rels else None,
         }
     )
 
@@ -368,7 +414,10 @@ def cook() -> None:
         _FINGERPRINTS[serial] = fingerprint
         # 重注册即上报锚点（不等心跳节流）：移动/改名后映射必须立刻跟上。
         _LAST_HEARTBEAT = 0.0
-    heartbeat(client, serial, upstream.path(), fingerprint, param_paths, hip, mode)
+    param_rels = [r.get("rel") for r in param_refs if (r.get("rel") or "").strip()]
+    heartbeat(
+        client, serial, upstream.path(), fingerprint, param_paths, hip, mode, param_rels
+    )
 
     if bad:
         _set_status(subnet, f"bad-entry: {bad[0]}")
