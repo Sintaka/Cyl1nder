@@ -36,6 +36,7 @@ class BridgeState:
         self.projects = ProjectRegistry(data_dir / "projects.json")
         # 映射系统（v0.1.00114）：逻辑名 -> 相对地址，锚点 = 吊牌 serial（移动容错）
         self.mappings = MappingRegistry(data_dir / "mappings.json")
+        self._sweep_orphan_anchors()
         self.trace = TraceStore()
         self.workspaces = WorkspaceStore()
         self.logs = LogRing()
@@ -60,6 +61,43 @@ class BridgeState:
         self._bcast_rev: dict[str, int] = {}
         self._bcast_last: dict[str, float] = {}
         self._bcast_handles: dict[str, asyncio.TimerHandle] = {}
+
+    def _sweep_orphan_anchors(self) -> None:
+        """删掉**既无 entry 引用、又无通道行**的锚点（v0.1.00154）。
+
+        实测（Houdini 真实重启后）：`C1-mt07aw69-cvtl` 的通道行已被 v0.1.00145 的同坑位
+        扫描判定陈旧并删除，可它的**锚点记录还在** —— 通道表与映射表是两份账，那次只扫了
+        前者。于是磁盘上留着一条永不自愈的死 pid（其余锚点都随 cook 更新到了新 pid）。
+
+        **判据必须两条同时成立**。v0.1.00153 我只用了"没有 entry 引用"，当场被
+        `test_pid_port_persistence_round_trip` 判红 —— 吊牌先经心跳登记锚点，entry 要等带
+        `rel` 的通道注册才建出来；空吊牌（entries=''）更是永远只有锚点没有 entry。
+        加上"也没有通道行"才自证：任何活吊牌心跳时都会有一条 `kind:"tag"` 的行。
+
+        放在 `state.py` 而不是 `MappingRegistry._load`：那里拿不到通道表（装配顺序），
+        这里 channels 与 mappings 都已建好。**不按 pid 年龄判**：实测活吊牌 2938s 未 cook
+        属正常，凭"pid 看着旧"删锚点会误伤。
+        """
+        try:
+            serials_with_rows = {
+                (r.get("serial") or "") for r in self.channels.list()
+            }
+            referenced = {
+                (e.get("anchor") or "")
+                for pid_ in self.projects.list()
+                for e in self.mappings.list_entries(pid_.get("projectSerial") or "").values()
+            }
+            doomed = [
+                s
+                for s in list(self.mappings.list_anchors())
+                if s not in referenced and s not in serials_with_rows
+            ]
+            for s in doomed:
+                self.mappings.prune_anchor(s)  # 无 entry，所以它退化成"只删锚点"
+            if doomed:
+                print(f"[state] dropped {len(doomed)} orphan anchor(s): {', '.join(doomed)}")
+        except Exception as exc:  # noqa: BLE001 - 清理绝不能让桥起不来
+            print(f"[state] orphan anchor sweep skipped: {exc}")
 
     # --- sync max fps (1..60, default 30) -----------------------------------
 

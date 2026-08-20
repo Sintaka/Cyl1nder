@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-20T19:39:35.093Z",
-  "totalFunctions": 1279,
+  "generatedAt": "2026-08-20T19:49:40.184Z",
+  "totalFunctions": 1280,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -2804,7 +2804,7 @@
     },
     {
       "file": "bridge/bridge/state.py",
-      "lineCount": 255,
+      "lineCount": 293,
       "functions": [
         {
           "name": "BridgeState",
@@ -2821,120 +2821,127 @@
           "calls": 1
         },
         {
+          "name": "_sweep_orphan_anchors",
+          "line": 65,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "set_sync_fps",
-          "line": 66,
+          "line": 104,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get_sync_fps",
-          "line": 77,
+          "line": 115,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "set_sync_enabled",
-          "line": 81,
-          "kind": "def",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "get_sync_enabled",
-          "line": 86,
-          "kind": "def",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "set_kick",
-          "line": 92,
-          "kind": "def",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "take_kick",
-          "line": 97,
-          "kind": "def",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "try_arm_kick",
-          "line": 102,
-          "kind": "def",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "subscribe",
           "line": 119,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
+          "name": "get_sync_enabled",
+          "line": 124,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "set_kick",
+          "line": 130,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "take_kick",
+          "line": 135,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "try_arm_kick",
+          "line": 140,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "subscribe",
+          "line": 157,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
           "name": "unsubscribe",
-          "line": 128,
+          "line": 166,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "notify_stream",
-          "line": 137,
+          "line": 175,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_wake_stream",
-          "line": 166,
+          "line": 204,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "stage_broadcast",
-          "line": 177,
+          "line": 215,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_arm_broadcast_flush",
-          "line": 209,
+          "line": 247,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_flush_broadcast",
-          "line": 216,
+          "line": 254,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "default_data_dir",
-          "line": 236,
+          "line": 274,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "get_state",
-          "line": 243,
+          "line": 281,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "reset_state",
-          "line": 250,
+          "line": 288,
           "kind": "def",
           "exported": false,
           "calls": 1

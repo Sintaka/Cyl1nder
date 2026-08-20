@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1279** 个函数/类。
+> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1280** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -515,29 +515,30 @@
 | `_project_graph_candidates` | 640 | def |  | 2 |
 | `write_project_graph` | 649 | def |  | 1 |
 
-## bridge/bridge/state.py（255 行）
+## bridge/bridge/state.py（293 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `BridgeState` | 31 | class |  | 2 |
 | `__init__` | 32 | def |  | 1 |
-| `set_sync_fps` | 66 | def |  | 1 |
-| `get_sync_fps` | 77 | def |  | 3 |
-| `set_sync_enabled` | 81 | def |  | 1 |
-| `get_sync_enabled` | 86 | def |  | 1 |
-| `set_kick` | 92 | def |  | 1 |
-| `take_kick` | 97 | def |  | 1 |
-| `try_arm_kick` | 102 | def |  | 1 |
-| `subscribe` | 119 | def |  | 1 |
-| `unsubscribe` | 128 | def |  | 2 |
-| `notify_stream` | 137 | def |  | 1 |
-| `_wake_stream` | 166 | def |  | 1 |
-| `stage_broadcast` | 177 | def |  | 1 |
-| `_arm_broadcast_flush` | 209 | def |  | 1 |
-| `_flush_broadcast` | 216 | def |  | 3 |
-| `default_data_dir` | 236 | def |  | 2 |
-| `get_state` | 243 | def |  | 1 |
-| `reset_state` | 250 | def |  | 1 |
+| `_sweep_orphan_anchors` | 65 | def |  | 2 |
+| `set_sync_fps` | 104 | def |  | 1 |
+| `get_sync_fps` | 115 | def |  | 3 |
+| `set_sync_enabled` | 119 | def |  | 1 |
+| `get_sync_enabled` | 124 | def |  | 1 |
+| `set_kick` | 130 | def |  | 1 |
+| `take_kick` | 135 | def |  | 1 |
+| `try_arm_kick` | 140 | def |  | 1 |
+| `subscribe` | 157 | def |  | 1 |
+| `unsubscribe` | 166 | def |  | 2 |
+| `notify_stream` | 175 | def |  | 1 |
+| `_wake_stream` | 204 | def |  | 1 |
+| `stage_broadcast` | 215 | def |  | 1 |
+| `_arm_broadcast_flush` | 247 | def |  | 1 |
+| `_flush_broadcast` | 254 | def |  | 3 |
+| `default_data_dir` | 274 | def |  | 2 |
+| `get_state` | 281 | def |  | 1 |
+| `reset_state` | 288 | def |  | 1 |
 
 ## bridge/bridge/trace_routes.py（53 行）
 
