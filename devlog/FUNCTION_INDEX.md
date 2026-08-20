@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1280** 个函数/类。
+> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1282** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | `main` | 7 | def |  | 2 |
 
-## bridge/bridge/channel_routes.py（581 行）
+## bridge/bridge/channel_routes.py（597 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -32,18 +32,19 @@
 | `_reanchor_entry` | 187 | def |  | 2 |
 | `_sync_mapping_entry` | 205 | def |  | 3 |
 | `list_channels` | 242 | def |  | 1 |
-| `HeartbeatBody` | 246 | class |  | 1 |
-| `heartbeat` | 266 | def |  | 1 |
-| `_sync_project_hip` | 355 | def |  | 2 |
-| `_replay_mapping_entries` | 382 | def |  | 2 |
-| `_report_anchor` | 399 | def |  | 2 |
-| `probe` | 428 | def |  | 1 |
-| `_norm_type` | 476 | def |  | 2 |
-| `_tag_options` | 487 | def |  | 2 |
-| `serial_capabilities` | 518 | def |  | 1 |
-| `_node_type_name` | 568 | def |  | 2 |
+| `delete_channels_by_serial` | 247 | def |  | 1 |
+| `HeartbeatBody` | 262 | class |  | 1 |
+| `heartbeat` | 282 | def |  | 1 |
+| `_sync_project_hip` | 371 | def |  | 2 |
+| `_replay_mapping_entries` | 398 | def |  | 2 |
+| `_report_anchor` | 415 | def |  | 2 |
+| `probe` | 444 | def |  | 1 |
+| `_norm_type` | 492 | def |  | 2 |
+| `_tag_options` | 503 | def |  | 2 |
+| `serial_capabilities` | 534 | def |  | 1 |
+| `_node_type_name` | 584 | def |  | 2 |
 
-## bridge/bridge/channels.py（200 行）
+## bridge/bridge/channels.py（224 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -51,14 +52,15 @@
 | `__init__` | 21 | def |  | 1 |
 | `_key_of` | 32 | def |  | 3 |
 | `register` | 37 | def |  | 1 |
-| `get` | 62 | def |  | 21 |
-| `list` | 67 | def |  | 3 |
+| `get` | 62 | def |  | 22 |
+| `list` | 67 | def |  | 4 |
 | `touch` | 73 | def |  | 1 |
 | `retire_except` | 84 | def |  | 1 |
-| `save_now` | 114 | def |  | 1 |
-| `_save` | 118 | def |  | 5 |
-| `_drop_stale_tag_collisions` | 136 | def |  | 2 |
-| `_load` | 172 | def |  | 2 |
+| `remove_serial` | 114 | def |  | 1 |
+| `save_now` | 138 | def |  | 1 |
+| `_save` | 142 | def |  | 6 |
+| `_drop_stale_tag_collisions` | 160 | def |  | 2 |
+| `_load` | 196 | def |  | 2 |
 
 ## bridge/bridge/compute/__init__.py（49 行）
 

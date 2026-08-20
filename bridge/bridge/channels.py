@@ -111,6 +111,30 @@ class ChannelRegistry:
                 self._save(force=True)
         return removed
 
+    def remove_serial(self, serial: str) -> list[str]:
+        """删掉该 serial 的**全部**通道行（tag 行也删），返回被删的 key 列表（v0.1.00158）。
+
+        与 `retire_except` 的区别：那条是「这个吊牌还活着，只是不再声明某些 rel」，所以
+        刻意保留 `kind:"tag"` 的标记行；这条是「这个 serial 整个不要了」。
+
+        动机：e2e 的 vec3 参数端口用例要自己往桥注册 tag+param 行，而 teardown 只扫
+        *场景登记*，通道行没人清 —— 实测一跑就从 11 涨到 13。本会话已经因为这类泄漏
+        把 `.cyl-status` 握手挤掉过三次，每次都先被我当成 flake。
+        """
+        if not serial:
+            return []
+        removed: list[str] = []
+        with self._lock:
+            for key, rec in list(self._records.items()):
+                if rec.get("serial") != serial:
+                    continue
+                del self._records[key]
+                removed.append(key)
+            if removed:
+                self._dirty = True
+                self._save(force=True)
+        return removed
+
     def save_now(self) -> None:
         with self._lock:
             self._save(force=True)

@@ -26,6 +26,9 @@ const CANONICAL_INPUTS = [
  * 子智能体是**读 rete 源码**得出这个结论的，没有执行过 —— 所以这里用真实浏览器钉住它。
  */
 const SERIAL = "C1-e2eshent-001a";
+/** vec3 **参数**端口用的吊牌 serial（与上面那个几何端口的分开，互不干扰）。 */
+const TAG_SERIAL = "C1-e2eshvec-002b";
+const VEC3_REL = "e2e_xf/t";
 
 /** 读所有节点的画布坐标（rete 把它存在 area.nodeViews 上）。 */
 async function positions(page: import("@playwright/test").Page) {
@@ -195,4 +198,80 @@ test("镜像成功后 param 面板要刷新（notifySelection，不只是 NodeVi
   console.log(`SE-PANEL before=${JSON.stringify(addrBefore)} after=${JSON.stringify(addrAfter)}`);
   // 面板必须显示出被写进去的 serial —— 只重画 NodeView 的实现会停在空值上
   expect(addrAfter).toBe(SERIAL);
+});
+
+test("vec3 **参数**端口也能配对（不只是几何端口）", async ({ page }) => {
+  // 上面两条用的是 `pushInputs` 推出来的**几何**端口（in0..in3/out0..out3）。
+  // 用户真吊牌是 `transform1/t` 这种 **vec3 参数端口** —— 能力清单形状完全不同。
+  // v0.1.00157 我用一次性探针在真图上验过就删了，等于没有保护；这里做成常驻且**可移植**
+  // （自己往桥注册一条 vec3 param 通道，不依赖用户的 hip）。
+  const reg = await fetch(
+    `http://127.0.0.1:8375/api/channels/${encodeURIComponent(TAG_SERIAL)}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "tag", serial: TAG_SERIAL, nodePath: "/obj/e2e/tag", hip: "", label: "tag", mode: "parm" }),
+    },
+  );
+  test.skip(!reg.ok, "bridge channel register unavailable");
+  // param 行的 key 是 absolutePath，所以 channelId 走那条路径
+  const abs = "/obj/e2e/e2e_xf/t";
+  await fetch(`http://127.0.0.1:8375/api/channels${abs}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      kind: "param", serial: TAG_SERIAL, nodePath: "/obj/e2e/tag",
+      absolutePath: abs, rel: VEC3_REL, type: "vec3", label: VEC3_REL,
+    }),
+  });
+
+  await gotoMember(page, TAG_SERIAL);
+  await expect(page.locator(".cyl-graph")).toBeVisible({ timeout: 20000 });
+
+  const flags = { display: false, bypass: false, freeze: false, reference: false };
+  const P = (name: string, value: unknown) => ({ name, type: "string", value });
+  await page.evaluate(
+    async (args) => {
+      const w = window as never as { __cylGraph: { restoreGraph(d: unknown): Promise<void> } };
+      await w.__cylGraph.restoreGraph(args.graph);
+    },
+    {
+      graph: {
+        schemaVersion: 4,
+        viewport: { k: 1, x: 0, y: 0 },
+        nodes: [
+          { id: "v_in", kind: "input", label: "_input_", baseLabel: "_input_", flags: flags, x: 0, y: 0,
+            params: [P("address", TAG_SERIAL), P("type", "vec3"), P("port", VEC3_REL)] },
+          { id: "v_out", kind: "output", label: "_output_", baseLabel: "_output_", flags: flags, x: 400, y: 0,
+            params: [P("address", TAG_SERIAL), P("type", "vec3"), P("port", VEC3_REL)] },
+        ],
+        connections: [],
+      },
+    },
+  );
+  await page.waitForTimeout(600);
+
+  await page.evaluate(() => {
+    const w = window as never as {
+      __cylGraph: { editor: { getNodes(): Array<{ kind: string; selected?: boolean }> } };
+    };
+    for (const n of w.__cylGraph.editor.getNodes()) n.selected = n.kind === "input" || n.kind === "output";
+  });
+  await page.locator(".cyl-graph").click({ position: { x: 6, y: 6 }, force: true });
+  await page.keyboard.press("Shift+Enter");
+  await page.waitForTimeout(1500);
+
+  const res = await page.evaluate(() => {
+    const w = window as never as {
+      __cylGraph: { editor: { getConnections(): unknown[] } };
+      __cylStore?: { logs?: string[] };
+    };
+    return {
+      conns: w.__cylGraph.editor.getConnections().length,
+      logs: (w.__cylStore?.logs ?? []).filter((l) => /shift\+enter/i.test(l)).slice(-2),
+    };
+  });
+  console.log("SE-VEC3 " + JSON.stringify(res));
+  // 判据是**真的接上了线** —— 规划器判 socket 类型能不能连，与端口是几何还是参数无关
+  expect(res.conns).toBeGreaterThan(0);
 });

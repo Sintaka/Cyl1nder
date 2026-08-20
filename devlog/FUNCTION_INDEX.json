@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-20T20:06:24.361Z",
-  "totalFunctions": 1280,
+  "generatedAt": "2026-08-20T20:23:44.977Z",
+  "totalFunctions": 1282,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -22,7 +22,7 @@
     },
     {
       "file": "bridge/bridge/channel_routes.py",
-      "lineCount": 581,
+      "lineCount": 597,
       "functions": [
         {
           "name": "_check_serial",
@@ -123,71 +123,78 @@
           "calls": 1
         },
         {
+          "name": "delete_channels_by_serial",
+          "line": 247,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
           "name": "HeartbeatBody",
-          "line": 246,
+          "line": 262,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "heartbeat",
-          "line": 266,
+          "line": 282,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_sync_project_hip",
-          "line": 355,
+          "line": 371,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_replay_mapping_entries",
-          "line": 382,
+          "line": 398,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_report_anchor",
-          "line": 399,
+          "line": 415,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "probe",
-          "line": 428,
+          "line": 444,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_norm_type",
-          "line": 476,
+          "line": 492,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_tag_options",
-          "line": 487,
+          "line": 503,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "serial_capabilities",
-          "line": 518,
+          "line": 534,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_node_type_name",
-          "line": 568,
+          "line": 584,
           "kind": "def",
           "exported": false,
           "calls": 2
@@ -196,7 +203,7 @@
     },
     {
       "file": "bridge/bridge/channels.py",
-      "lineCount": 200,
+      "lineCount": 224,
       "functions": [
         {
           "name": "ChannelRegistry",
@@ -231,14 +238,14 @@
           "line": 62,
           "kind": "def",
           "exported": false,
-          "calls": 21
+          "calls": 22
         },
         {
           "name": "list",
           "line": 67,
           "kind": "def",
           "exported": false,
-          "calls": 3
+          "calls": 4
         },
         {
           "name": "touch",
@@ -255,29 +262,36 @@
           "calls": 1
         },
         {
-          "name": "save_now",
+          "name": "remove_serial",
           "line": 114,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
-          "name": "_save",
-          "line": 118,
+          "name": "save_now",
+          "line": 138,
           "kind": "def",
           "exported": false,
-          "calls": 5
+          "calls": 1
+        },
+        {
+          "name": "_save",
+          "line": 142,
+          "kind": "def",
+          "exported": false,
+          "calls": 6
         },
         {
           "name": "_drop_stale_tag_collisions",
-          "line": 136,
+          "line": 160,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_load",
-          "line": 172,
+          "line": 196,
           "kind": "def",
           "exported": false,
           "calls": 2

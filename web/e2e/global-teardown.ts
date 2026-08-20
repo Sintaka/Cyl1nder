@@ -58,6 +58,7 @@ export default async function globalTeardown(): Promise<void> {
     };
     // 先扫注册表，拿到**这一轮我确实删掉的** serial 集合。
     // 顺序很重要：项目判据要用到它（见下面第二个条件）。
+    await sweepChannels();
     const removedSerials = await sweepScenes();
     const doomed = (body.projects ?? []).filter((p) => {
       if (!p.projectSerial || p.hip) return false; // 有 hip = 用户真项目
@@ -86,6 +87,27 @@ export default async function globalTeardown(): Promise<void> {
     // 清理失败绝不把通过的 suite 判成失败
     console.warn(`[teardown] sweep failed: ${String(err)}`);
   }
+}
+
+/**
+ * 扫掉 e2e 自己注册的**通道行**（v0.1.00158）。
+ *
+ * `sweepScenes` 只清*场景登记*，通道行没人管 —— round23 的 vec3 参数端口用例要自己往桥
+ * 注册 tag+param 行，实测一跑就从 11 涨到 13。本会话已因这类泄漏把 `.cyl-status` 握手
+ * 挤掉三次，每次都先被我当成 flake，所以见到就堵。
+ *
+ * 判据同样是**它是什么**：serial 匹配 `C1-e2e…`（只有 spec 造这种号）。
+ */
+async function sweepChannels(): Promise<void> {
+  const res = await request("GET", `${BRIDGE_URL}/api/channels`);
+  if (res.status !== 200) return;
+  const body = JSON.parse(res.body) as { channels?: Array<{ serial?: string }> };
+  const doomed = [...new Set((body.channels ?? []).map((c) => c.serial ?? "").filter((s) => E2E_SERIAL.test(s)))];
+  for (const s of doomed) {
+    const r = await request("DELETE", `${BRIDGE_URL}/api/channels/by-serial/${encodeURIComponent(s)}`);
+    if (r.status !== 200) console.warn(`[teardown] DELETE channels ${s} -> HTTP ${r.status}`);
+  }
+  if (doomed.length > 0) console.log(`[teardown] swept ${doomed.length} e2e channel serial(s)`);
 }
 
 /** e2e 造出来的注册表登记：spec 专用的 nodePath，或 round8 建的场景标签。 */

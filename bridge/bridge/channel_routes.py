@@ -243,6 +243,22 @@ async def list_channels() -> dict:
     return {"channels": get_state().channels.list()}
 
 
+@router.delete("/api/channels/by-serial/{serial}")
+async def delete_channels_by_serial(serial: str) -> dict:
+    """删掉某 serial 的**全部**通道行（v0.1.00158）。
+
+    路径用 `by-serial/` 前缀而不是 `/api/channels/{serial}`：param 行的 channelId 是
+    **绝对路径**（`{channelId:path}`，会吞掉多段），两者放同一坑位必然打架。
+
+    给 e2e 收拾自己注册的行用 —— teardown 此前只扫场景登记，通道行没人清（实测一跑
+    11→13）。非法 serial → 400。
+    """
+    if not is_valid_serial(serial):
+        raise HTTPException(status_code=400, detail=f"invalid serial: {serial!r}")
+    removed = get_state().channels.remove_serial(serial)
+    return {"ok": True, "removed": len(removed), "keys": removed}
+
+
 class HeartbeatBody(BaseModel):
     serial: str
     nodePath: str
