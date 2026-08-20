@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1268** 个函数/类。
+> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1271** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -1114,7 +1114,7 @@
 | `flushNow` | 164 | function |  | 2 |
 | `dispose` | 171 | function |  | 2 |
 
-## web/src/core/dataflow.ts（514 行）
+## web/src/core/dataflow.ts（587 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -1122,13 +1122,16 @@
 | `collectAddressEntries` | 75 | function | export | 2 |
 | `collectWritebackTargets` | 103 | function | export | 1 |
 | `resolveRefInGraph` | 146 | function |  | 2 |
-| `collectExternRefAddresses` | 203 | function | export | 1 |
-| `resolveWritebackValue` | 232 | function | export | 1 |
-| `createDataflow` | 282 | function | export | 1 |
-| `getDisplayNodeInfo` | 303 | function |  | 4 |
-| `refreshNodeFlags` | 325 | function |  | 5 |
-| `flush` | 431 | function |  | 5 |
-| `wireSelection` | 504 | function |  | 2 |
+| `nodesFeedingOutputs` | 209 | function |  | 2 |
+| `collectExternRefAddresses` | 223 | function | export | 1 |
+| `valueFromSlotFeeder` | 265 | function |  | 2 |
+| `resolveWritebackValue` | 285 | function | export | 2 |
+| `valueFromConnection` | 300 | function |  | 3 |
+| `createDataflow` | 355 | function | export | 1 |
+| `getDisplayNodeInfo` | 376 | function |  | 4 |
+| `refreshNodeFlags` | 398 | function |  | 5 |
+| `flush` | 504 | function |  | 5 |
+| `wireSelection` | 577 | function |  | 2 |
 
 ## web/src/core/gizmo.ts（162 行）
 

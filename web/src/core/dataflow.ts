@@ -200,13 +200,40 @@ function resolveRefInGraph(
  * 就能同步查到。**只收真的不在本图的**：图内的兄弟节点已经能同步解析，
  * 把它们也算进来会白打一堆桥请求。
  */
+/**
+ * 从每个 `_output_` 沿入线往上走，收集**可达**的节点 id（v0.1.00138）。
+ *
+ * 「需要向桥取值」的判据只有一个：这个值最终要被写回。没接到任何 `_output_` 的
+ * `_input_`/`null`，它的值没人要 —— 一次请求都不该发。
+ */
+function nodesFeedingOutputs(snap: NetworkSnapshot): Set<string> {
+  const reached = new Set<string>();
+  const queue = snap.nodes.filter((n) => n.kind === "output").map((n) => n.id);
+  while (queue.length > 0) {
+    const id = queue.pop() as string;
+    if (reached.has(id)) continue; // 也是防环（null 接成环在图上画得出来）
+    reached.add(id);
+    for (const c of snap.connections) {
+      if (c.target === id && !reached.has(c.source)) queue.push(c.source);
+    }
+  }
+  return reached;
+}
+
 export function collectExternRefAddresses(snap: NetworkSnapshot): string[] {
   const out = new Set<string>();
   const labels = new Set(snap.nodes.map((n) => n.label));
+  // **只收「真的被需要」的地址**（v0.1.00138 收紧）。
+  //
+  // v0.1.00137 我无条件收每个 `_input_` 的端口 —— 包括**谁都不喂**的 input。
+  // 后果：几乎任何项目一打开就有图外地址 → 2s 轮询常驻 → 每次都打桥。
+  // 全量 e2e 里这条流量把 `.cyl-status` 的握手挤掉过两次（round12 连挂两回）。
+  //
+  // 判据改成**可达性**：从每个 `_output_` 沿入线往上走，只有走到的节点才需要取值。
+  // 没接到任何 `_output_` 的 input，它的值没人要，一次请求都不该发。
+  const needed = nodesFeedingOutputs(snap);
   for (const n of snap.nodes) {
-    // `_input_` 的**自身端口**也要预取（v0.1.00137）：它作为写回源时，值来自桥，
-    // 逻辑名就是自己的 `port` 参数。不收的话 `resolveWritebackValue` 的 input 分支
-    // 永远查到空缓存 —— 加了分支却不生效，比没加更难查。
+    if (!needed.has(n.id)) continue;
     if (n.kind === "input") {
       const port = n.params?.find((p) => p.name === "port")?.value;
       const name = typeof port === "string" ? port.trim() : "";
@@ -229,14 +256,53 @@ export function collectExternRefAddresses(snap: NetworkSnapshot): string[] {
   return [...out];
 }
 
+/**
+ * 取某个 null 槽的**流入值**（v0.1.00138）：沿该槽的入线往上一层，递归解析。
+ *
+ * 防环用 `seen`：null 接成环（A.out0 → B.in0，B.out0 → A.in0）在图上是可画的，
+ * 没有它会栈溢出。命中环 → undefined = 这次不写，与「解析不到」同一个归宿。
+ */
+function valueFromSlotFeeder(
+  snap: NetworkSnapshot,
+  nullNode: { id: string },
+  slot: number,
+  externValue: ((address: string) => number | number[] | undefined) | undefined,
+  seen: Set<string> | undefined,
+): number | number[] | undefined {
+  const visited = seen ?? new Set<string>();
+  if (visited.has(nullNode.id)) return undefined; // 环
+  visited.add(nullNode.id);
+  const up = snap.connections.find(
+    (c) => c.target === nullNode.id && c.targetInput === `in${slot}`,
+  );
+  if (!up) return undefined; // 该槽没接线 → 无流入值
+  // **按这根线**解析，不能回头调 `resolveWritebackValue(nodeId: null 的 id)`：
+  // 那个入口是 `find(c => c.target === nodeId)` —— 取的是**任意**一根入线，
+  // 于是槽 1 会解析出槽 0 的上游（「看着对、算错」）。
+  return valueFromConnection(snap, up, externValue, visited);
+}
+
 export function resolveWritebackValue(
   snap: NetworkSnapshot,
   target: WritebackTarget,
   /** 图外引用的同步查表（v0.1.00133）：由 main.ts 预取好后注入，见 resolveRefInGraph。 */
   externValue?: (address: string) => number | number[] | undefined,
+  /** 已访问过的节点 id（v0.1.00138 透传时防环）。调用方**不必**传。 */
+  seen?: Set<string>,
 ): number | number[] | undefined {
   const conn = snap.connections.find((c) => c.target === target.nodeId);
   if (!conn) return undefined; // _output_ 没接线 → 无源
+  return valueFromConnection(snap, conn, externValue, seen);
+}
+
+/** 沿**一根具体的线**往上取值。`resolveWritebackValue` 与槽透传共用它，
+ *  所以「谁能当源」的分支只有这一处，两条路径不可能各自漂移。 */
+function valueFromConnection(
+  snap: NetworkSnapshot,
+  conn: { source: string; sourceOutput: string },
+  externValue: ((address: string) => number | number[] | undefined) | undefined,
+  seen: Set<string> | undefined,
+): number | number[] | undefined {
   const src = snap.nodes.find((n) => n.id === conn.source);
   if (!src) return undefined;
   const num = (v: unknown): number | undefined =>
@@ -265,9 +331,16 @@ export function resolveWritebackValue(
     const m = /^out(\d+)$/.exec(conn.sourceOutput || "");
     const slot = m ? Number(m[1]) : 0;
     const raw = src.params?.find((p) => p.name === `ref_slot${slot}`)?.value;
-    if (typeof raw !== "string") return undefined;
-    const t = raw.trim();
-    if (t === "") return undefined;
+    const t = typeof raw === "string" ? raw.trim() : "";
+    if (t === "") {
+      // **引用为空 → 透传流入值**（v0.1.00138）。
+      //
+      // 引用的语义一直是「**覆盖**流入值」（devlog 记过：所以只有已接线的槽才有引用框）。
+      // 那么空引用就该等于「不覆盖」——把上游的值原样送出去。此前这里 `return undefined`，
+      // 于是 `_input_ → null → _output_` 这条**最基本**的链什么都不写：用户的 `_input_`
+      // 在图上接得好好的，却完全不参与。
+      return valueFromSlotFeeder(snap, src, slot, externValue, seen);
+    }
     if (/^-?\d+(\.\d+)?$/.test(t)) return Number(t); // 字面量：就写这个数
     // 通道函数引用（v0.1.00130）：`ch("../transform1/tx")` —— 在**本图内**解析。
     //

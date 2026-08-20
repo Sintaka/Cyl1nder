@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-20T15:27:08.931Z",
-  "totalFunctions": 1268,
+  "generatedAt": "2026-08-20T15:55:23.505Z",
+  "totalFunctions": 1271,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -5689,7 +5689,7 @@
     },
     {
       "file": "web/src/core/dataflow.ts",
-      "lineCount": 514,
+      "lineCount": 587,
       "functions": [
         {
           "name": "displayNodeOutputIndex",
@@ -5720,50 +5720,71 @@
           "calls": 2
         },
         {
+          "name": "nodesFeedingOutputs",
+          "line": 209,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "collectExternRefAddresses",
-          "line": 203,
+          "line": 223,
           "kind": "function",
           "exported": true,
           "calls": 1
+        },
+        {
+          "name": "valueFromSlotFeeder",
+          "line": 265,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
         },
         {
           "name": "resolveWritebackValue",
-          "line": 232,
+          "line": 285,
           "kind": "function",
           "exported": true,
-          "calls": 1
+          "calls": 2
+        },
+        {
+          "name": "valueFromConnection",
+          "line": 300,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
         },
         {
           "name": "createDataflow",
-          "line": 282,
+          "line": 355,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "getDisplayNodeInfo",
-          "line": 303,
+          "line": 376,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "refreshNodeFlags",
-          "line": 325,
+          "line": 398,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "flush",
-          "line": 431,
+          "line": 504,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "wireSelection",
-          "line": 504,
+          "line": 577,
           "kind": "function",
           "exported": false,
           "calls": 2

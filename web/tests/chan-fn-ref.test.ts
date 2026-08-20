@@ -98,6 +98,108 @@ describe("图外引用：注入查表后能不能解析出值（隔离 resolver 
   });
 });
 
+describe("空引用 = 透传流入值（v0.1.00138）", () => {
+  // 引用的语义一直是「**覆盖**流入值」，所以空引用就该等于「不覆盖」——把上游原样送出。
+  // 此前空引用 return undefined，于是 `_input_ → null → _output_` 这条最基本的链
+  // 什么都不写：用户的 _input_ 在图上接得好好的，却完全不参与。
+  const inputNode = (id: string, port: string) => ({
+    id,
+    kind: "input",
+    label: `_input_${id}`,
+    params: [
+      { name: "address", type: "string", value: "C1-aaaaaaaa-bbbb" },
+      { name: "type", type: "menu", value: "float" },
+      { name: "port", type: "menu", value: port },
+    ],
+  });
+  const outNode = {
+    id: "o",
+    kind: "output",
+    label: "_output_",
+    params: [
+      { name: "address", type: "string", value: "C1-aaaaaaaa-bbbb" },
+      { name: "type", type: "menu", value: "float" },
+      { name: "port", type: "menu", value: "dst/tx" },
+    ],
+  };
+  const target = { nodeId: "o", address: "C1-aaaaaaaa-bbbb", port: "dst/tx", type: "float" };
+  const lookup = (a: string) => (a === "srcA/ty" ? 1.5 : a === "srcB/ty" ? 2.5 : undefined);
+
+  it("null 的引用为空 → 透传 `_input_` 的值（而不是什么都不写）", async () => {
+    const { resolveWritebackValue } = await import("../src/core/dataflow");
+    const snap = {
+      nodes: [inputNode("i", "srcA/ty"), { id: "n", kind: "null", label: "null1", params: [] }, outNode],
+      connections: [
+        { source: "i", sourceOutput: "in0", target: "n", targetInput: "in0" },
+        { source: "n", sourceOutput: "out0", target: "o", targetInput: "out0" },
+      ],
+    } as never;
+    expect(resolveWritebackValue(snap, target, lookup)).toBe(1.5);
+  });
+
+  it("**槽号要对**：out1 透传 in1 的上游，不是 in0 的", async () => {
+    const { resolveWritebackValue } = await import("../src/core/dataflow");
+    const snap = {
+      nodes: [
+        inputNode("iA", "srcA/ty"),
+        inputNode("iB", "srcB/ty"),
+        { id: "n", kind: "null", label: "null1", params: [] },
+        outNode,
+      ],
+      connections: [
+        { source: "iA", sourceOutput: "in0", target: "n", targetInput: "in0" },
+        { source: "iB", sourceOutput: "in0", target: "n", targetInput: "in1" },
+        { source: "n", sourceOutput: "out1", target: "o", targetInput: "out0" },
+      ],
+    } as never;
+    // 写这段时我原本回头调 resolveWritebackValue(nodeId: null 的 id)，那会取**任意**一根
+    // 入线 → 槽 1 解析出槽 0 的上游（1.5）。这条测试就是钉死它。
+    expect(resolveWritebackValue(snap, target, lookup)).toBe(2.5);
+  });
+
+  it("非空引用仍然**覆盖**流入值（不是相加、不是择一）", async () => {
+    const { resolveWritebackValue } = await import("../src/core/dataflow");
+    const snap = {
+      nodes: [
+        inputNode("i", "srcA/ty"),
+        { id: "n", kind: "null", label: "null1", params: [{ name: "ref_slot0", type: "string", value: "9" }] },
+        outNode,
+      ],
+      connections: [
+        { source: "i", sourceOutput: "in0", target: "n", targetInput: "in0" },
+        { source: "n", sourceOutput: "out0", target: "o", targetInput: "out0" },
+      ],
+    } as never;
+    expect(resolveWritebackValue(snap, target, lookup)).toBe(9);
+  });
+
+  it("槽没接线 → undefined（无流入值，不是 0）", async () => {
+    const { resolveWritebackValue } = await import("../src/core/dataflow");
+    const snap = {
+      nodes: [{ id: "n", kind: "null", label: "null1", params: [] }, outNode],
+      connections: [{ source: "n", sourceOutput: "out0", target: "o", targetInput: "out0" }],
+    } as never;
+    expect(resolveWritebackValue(snap, target, lookup)).toBeUndefined();
+  });
+
+  it("null 接成环不会栈溢出（图上画得出来，所以必须防）", async () => {
+    const { resolveWritebackValue } = await import("../src/core/dataflow");
+    const snap = {
+      nodes: [
+        { id: "a", kind: "null", label: "nullA", params: [] },
+        { id: "b", kind: "null", label: "nullB", params: [] },
+        outNode,
+      ],
+      connections: [
+        { source: "a", sourceOutput: "out0", target: "b", targetInput: "in0" },
+        { source: "b", sourceOutput: "out0", target: "a", targetInput: "in0" },
+        { source: "a", sourceOutput: "out0", target: "o", targetInput: "out0" },
+      ],
+    } as never;
+    expect(resolveWritebackValue(snap, target, lookup)).toBeUndefined();
+  });
+});
+
 describe("`_input_` 直接接 `_output_`（Shift+Enter 造出来的形状）", () => {
   // v0.1.00137：此前 resolveWritebackValue 没有 input 分支，于是这条链**什么都不写** ——
   // 而 Shift+Enter 恰恰造出这个形状（抄同一个 serial+port 再一一连线）。
@@ -150,14 +252,54 @@ describe("`_input_` 直接接 `_output_`（Shift+Enter 造出来的形状）", (
 });
 
 describe("collectExternRefAddresses：只收指向图外的引用", () => {
+  // v0.1.00138：收集改成**按可达性**——只有能沿入线走到某个 `_output_` 的节点才需要取值。
+  // 所以夹具必须带一个 `_output_` 并接上，否则「没人要这个值」是正确结论、什么都不该收。
+  // （我这条夹具原先没有 output，收紧规则后它自己挂了，正说明规则生效。）
   const snapWith = (refExpr: string, extraLabels: string[] = []) =>
     ({
       nodes: [
         { id: "n", kind: "null", label: "null1", params: [{ name: "ref_slot0", type: "string", value: refExpr }] },
+        { id: "o", kind: "output", label: "_output_", params: [] },
         ...extraLabels.map((l, i) => ({ id: `x${i}`, kind: "transform", label: l, params: [] })),
       ],
-      connections: [],
+      connections: [{ source: "n", sourceOutput: "out0", target: "o", targetInput: "out0" }],
     }) as never;
+
+  it("**没接到 `_output_` 的节点一个请求都不发**（v0.1.00138 收紧）", async () => {
+    const { collectExternRefAddresses } = await import("../src/core/dataflow");
+    // 一个 `_input_` 挂在那里、谁都不喂：它的值没人要。
+    // v0.1.00137 我无条件收每个 input 的端口 → 几乎任何项目一打开就有图外地址
+    // → 2s 轮询常驻 → 每次都打桥。全量 e2e 里这条流量把 `.cyl-status` 握手挤掉过两次。
+    const lonely = {
+      nodes: [
+        {
+          id: "i",
+          kind: "input",
+          label: "_input_",
+          params: [{ name: "port", type: "menu", value: "faraway/ty" }],
+        },
+      ],
+      connections: [],
+    } as never;
+    expect(collectExternRefAddresses(lonely)).toEqual([]);
+  });
+
+  it("接到 `_output_` 的 `_input_` 才收", async () => {
+    const { collectExternRefAddresses } = await import("../src/core/dataflow");
+    const wired = {
+      nodes: [
+        {
+          id: "i",
+          kind: "input",
+          label: "_input_",
+          params: [{ name: "port", type: "menu", value: "faraway/ty" }],
+        },
+        { id: "o", kind: "output", label: "_output_", params: [] },
+      ],
+      connections: [{ source: "i", sourceOutput: "in0", target: "o", targetInput: "out0" }],
+    } as never;
+    expect(collectExternRefAddresses(wired)).toEqual(["faraway/ty"]);
+  });
 
   it("图内兄弟不收（同步就能解析，问桥是白打请求）", async () => {
     const { collectExternRefAddresses } = await import("../src/core/dataflow");
