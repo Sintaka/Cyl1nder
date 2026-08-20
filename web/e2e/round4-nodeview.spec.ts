@@ -47,8 +47,7 @@ const CANONICAL_GRAPH = {
 test.beforeAll(async () => {
   const bridgeOk = await client.health().then(() => true).catch(() => false);
   test.skip(!bridgeOk, "bridge not running on 127.0.0.1:8375");
-  const serials = await client.listSerials();
-  serial = process.env.CYL1NDER_E2E_SERIAL || serials.find((s) => s === "C1-e2etest0001-aaaa") || serials[serials.length - 1] || "";
+  serial = process.env.CYL1NDER_E2E_SERIAL || "C1-e2etest0001-aaaa";
   test.skip(!serial, "no serial registered in bridge");
   await client.pushInputs(serial, CANONICAL_INPUTS as never, { nodePath: "/obj/test/Cyl1nder1", label: "Cyl1nder1" });
 });

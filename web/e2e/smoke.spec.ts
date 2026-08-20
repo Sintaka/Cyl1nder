@@ -10,8 +10,7 @@ test("Cyl1nder page loads and connects to a live serial", async ({ page }) => {
     .catch(() => false);
   test.skip(!bridgeOk, "bridge not running on 127.0.0.1:8375");
 
-  const serials = await client.listSerials();
-  const serial = process.env.CYL1NDER_E2E_SERIAL || serials[serials.length - 1] || "";
+  const serial = process.env.CYL1NDER_E2E_SERIAL || "C1-e2etest0001-aaaa" || "";
   test.skip(!serial, "no serial registered in bridge");
 
   await gotoMember(page, serial);

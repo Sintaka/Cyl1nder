@@ -16,7 +16,7 @@ test.beforeAll(async () => {
     serial =
       process.env.CYL1NDER_E2E_SERIAL ||
       serials.find((s) => s === "C1-e2etest0001-aaaa") ||
-      serials[serials.length - 1] ||
+      "C1-e2etest0001-aaaa" ||
       "";
   } catch {
     serial = "";
