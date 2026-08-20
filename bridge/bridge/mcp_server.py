@@ -293,16 +293,43 @@ def cyl1nder_read_layout() -> dict:
     return {"groups": leaves, "width": grid.get("width"), "height": grid.get("height")}
 
 
+def _bridge_get(path: str) -> object | None:
+    """向桥发一个 GET，失败返回 None（v0.1.00148）。
+
+    为什么日志类工具必须走 HTTP：`LogRing` 是纯内存 `deque`（无路径、不落盘），
+    所以 `get_state().logs` 在 **MCP 服务进程**里**永远是空的** ——
+    工具会返回 `[]` 而看起来像"桥没有日志"，与 `cyl1nder_ping` 是同一类谎报。
+    registry/snapshot 类工具读磁盘，不受此影响，所以只改日志这两个。
+    """
+    try:
+        with urllib.request.urlopen(  # noqa: S310 - 固定本机地址
+            f"http://127.0.0.1:{PORT}{path}", timeout=3.0
+        ) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except Exception:  # noqa: BLE001 - 桥不在是正常结论
+        return None
+
+
 @mcp.tool()
 def cyl1nder_read_logs(serial: str | None = None, level: str | None = None, limit: int = 200) -> list[dict]:
-    """Read bridge logs; optionally filter by serial and minimum level."""
-    return get_state().logs.query(level=level, limit=limit, serial=serial)
+    """Read bridge logs —— **真的去问桥**（v0.1.00148）。
+
+    `LogRing` 是纯内存 deque，所以 `get_state().logs` 在本进程里永远是空的：
+    旧实现恒返回 `[]`，看起来像"桥没有日志"。
+    """
+    q = f"?level={level or ''}&limit={int(limit)}"
+    path = f"/api/hda/{serial}/logs{q}" if serial else f"/api/logs{q}"
+    body = _bridge_get(path)
+    if isinstance(body, dict):
+        rows = body.get("logs") or body.get("entries") or []
+        return rows if isinstance(rows, list) else []
+    return body if isinstance(body, list) else []
 
 
 @mcp.tool()
 def cyl1nder_get_errors(serial: str | None = None, limit: int = 100) -> list[dict]:
-    """Read error-level logs (what went wrong for the user)."""
-    return get_state().logs.errors(serial=serial, limit=limit)
+    """Read error-level logs —— 同上，走 HTTP（v0.1.00148）。"""
+    return cyl1nder_read_logs(serial=serial, level="error", limit=limit)
 
 
 @mcp.tool()

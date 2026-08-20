@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1278** 个函数/类。
+> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1279** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -288,7 +288,7 @@
 | `_save` | 299 | def |  | 8 |
 | `_load` | 317 | def |  | 2 |
 
-## bridge/bridge/mcp_server.py（348 行）
+## bridge/bridge/mcp_server.py（375 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -308,11 +308,12 @@
 | `cyl1nder_node_params` | 259 | def |  | 1 |
 | `cyl1nder_read_layout` | 274 | def |  | 1 |
 | `walk` | 284 | def |  | 3 |
-| `cyl1nder_read_logs` | 297 | def |  | 1 |
-| `cyl1nder_get_errors` | 303 | def |  | 1 |
-| `cyl1nder_get_geometry_summary` | 309 | def |  | 1 |
-| `cyl1nder_index_query` | 319 | def |  | 1 |
-| `run_stdio` | 342 | def |  | 2 |
+| `_bridge_get` | 296 | def |  | 2 |
+| `cyl1nder_read_logs` | 314 | def |  | 2 |
+| `cyl1nder_get_errors` | 330 | def |  | 1 |
+| `cyl1nder_get_geometry_summary` | 336 | def |  | 1 |
+| `cyl1nder_index_query` | 346 | def |  | 1 |
+| `run_stdio` | 369 | def |  | 2 |
 
 ## bridge/bridge/project_routes.py（636 行）
 

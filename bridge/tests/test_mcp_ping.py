@@ -57,6 +57,34 @@ def test_ping_reports_the_bridge_version_not_its_own(tmp_path: Path, monkeypatch
     assert body["mcpVersion"] == mcp_server.VERSION
 
 
+def test_read_logs_comes_from_the_bridge(tmp_path: Path, monkeypatch) -> None:
+    """日志走 HTTP（v0.1.00148）。
+
+    `LogRing` 是纯内存 deque（无路径、不落盘），所以 `get_state().logs` 在 **MCP 服务
+    进程**里永远是空的 —— 旧实现恒返回 `[]`，看起来像"桥没有日志"。
+    """
+    reset_state(tmp_path)
+    monkeypatch.setattr(
+        mcp_server.urllib.request,
+        "urlopen",
+        lambda *a, **k: _Resp({"logs": [{"level": "error", "message": "boom"}]}),
+    )
+    rows = (getattr(mcp_server.cyl1nder_read_logs, "fn", None) or mcp_server.cyl1nder_read_logs)()
+    assert rows == [{"level": "error", "message": "boom"}], "必须来自桥的响应，不是本进程的空 LogRing"
+
+
+def test_read_logs_empty_when_bridge_down(tmp_path: Path, monkeypatch) -> None:
+    """桥不在 → 空列表（不抛，也不假装有数据）。"""
+    reset_state(tmp_path)
+
+    def boom(*a: object, **k: object):
+        raise OSError("refused")
+
+    monkeypatch.setattr(mcp_server.urllib.request, "urlopen", boom)
+    fn = getattr(mcp_server.cyl1nder_read_logs, "fn", None) or mcp_server.cyl1nder_read_logs
+    assert fn() == []
+
+
 def test_ping_reports_not_ok_when_bridge_is_down(tmp_path: Path, monkeypatch) -> None:
     """桥不在 → `ok: False`。此前它**恒为 True**，所以"桥活着"这个结论毫无依据。"""
     reset_state(tmp_path)
