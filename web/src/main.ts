@@ -1212,9 +1212,26 @@ function refreshSelectionPanels(): void {
 // 已发过的值，按 `<pid>:<逻辑名>` 记账。**只推变化的**：反复写同一个值会刷掉用户在
 // Houdini 里的撤销栈、让它白重算（与 CookTxn.flush 的"值未变则跳过"同一个理由）。
 const writebackSent = new Map<string, unknown>();
-/** 成环/被拒的名字：**不重试**。环不会因为再发一次就消失，重试只会每帧刷日志。 */
+/** 成环/被拒的名字：**本图形态下不重试**。环不会因为再发一次就消失，重试只会每帧刷日志。
+ *
+ *  但「被拒」**不是永久的**：用户改一下引用/端口就可能变合法。所以图一变就清空这个集合
+ *  （见 pushWritebackOnce 里的 graphVersion 判定）——否则第一次拒绝会把这个逻辑名
+ *  永久钉死，用户改对了也再也不推（我自己踩到：探针填对 ch() 之后仍然只看到旧的拒绝日志）。 */
 const writebackRefused = new Set<string>();
+/** 上次扫描时的图版本；变了就清 refused（形态变了，之前的拒绝结论不再成立）。 */
+let writebackGraphVersion = -1;
 let writebackTimer: number | null = null;
+
+/** 写回值是否与上次发过的相同。**数组逐元素比**：vec3 用 `===` 恒为 false，
+ *  会导致每帧重推、刷掉用户在 Houdini 的撤销栈。 */
+function sameWritebackValue(prev: unknown, next: number | number[]): boolean {
+  if (Array.isArray(next)) {
+    return (
+      Array.isArray(prev) && prev.length === next.length && next.every((v, i) => prev[i] === v)
+    );
+  }
+  return prev === next;
+}
 
 /** 推一次写回（去抖 120ms）。fire-and-forget：flush 是同步热路径，绝不 await。
  *  已排队时直接返回（**latest-wins**：值在定时器触发的那一刻才读，所以不必续期）。 */
@@ -1236,20 +1253,51 @@ async function pushWritebackOnce(): Promise<void> {
   } catch {
     return; // 图还没就绪
   }
+  // 图变了 → 之前那些「拒绝」结论作废，重新试一遍。
+  // 拒绝的原因（形状不符 / 映射不存在）**都能靠改图修好**，所以不能永久钉死。
+  const gv = typeof graph.getGraphVersion === "function" ? graph.getGraphVersion() : -1;
+  if (gv !== writebackGraphVersion) {
+    writebackGraphVersion = gv;
+    if (writebackRefused.size > 0) writebackRefused.clear();
+  }
   for (const t of collectWritebackTargets(snap)) {
     const key = `${pid}:${t.port}`;
     if (writebackRefused.has(key)) continue;
     const value = resolveWritebackValue(snap, t);
     if (value === undefined) continue; // 没算出值 ≠ 值是 0，绝不兜底写 0
-    if (writebackSent.get(key) === value) continue; // 值没变：别刷用户的撤销栈
+    // **逐元素比**（v0.1.00131）：vec3 是数组，`===` 恒为 false ——
+    // 那会让 vec3 每帧都重推一次，刷掉用户在 Houdini 的撤销栈。
+    // 这与 param.ts 里 `paramValuesEqual` 要与 `core/params.paramsEqual` 区分开
+    // 是同一个陷阱：引用相等不是值相等。
+    if (sameWritebackValue(writebackSent.get(key), value)) continue;
+    // **形状必须与目标类型一致**（v0.1.00131）：vec3 目标收数组、float 目标收标量。
+    //
+    // 不拦的话错形状会一路送到 Houdini，报出的是**看不懂的**错：给 vec3 目标写标量时
+    // `set_parameter` 走 `node.parm("t")`（元组参数为 None）→
+    // 「Parameter 't' not found ... Did you mean: tz, ty, tx」。实测撞到过，
+    // 那条消息完全指不出真因（真因是「引用给的是数字 2，而端口是 vec3」）。
+    const wantVec = t.type === "vec3";
+    if (wantVec !== Array.isArray(value)) {
+      writebackRefused.add(key);
+      store.pushLog(
+        `[writeback] 停止重试 ${t.port}：端口是 ${t.type}，但引用给出的是` +
+          `${Array.isArray(value) ? `${value.length} 个分量` : "单个数值"}` +
+          `（vec3 请引用 vec3 组名，如 ch("../transform1/t")）`,
+      );
+      continue;
+    }
     const r = await client.putMappingValue(pid, t.port, value);
     if (r.ok) {
       writebackSent.set(key, value);
       store.pushLog(`[writeback] ${t.port} = ${JSON.stringify(value)}`);
-    } else if (r.cycle) {
+    } else if (r.cycle || /not found|dangling|unresolved/i.test(r.error ?? "")) {
+      // **终态失败不重试**：环不会因为再发一次消失，「映射不存在」也不会。
+      // 不停手的话每帧刷一条日志（实测撞到：`失败 transform1/tx: mapping not found`
+      // 连刷四条），把真正有用的日志淹掉。
       writebackRefused.add(key);
-      store.pushLog(`[writeback] 桥拒绝（成环）：${t.port} —— ${r.error ?? ""}`);
+      store.pushLog(`[writeback] 停止重试 ${t.port}：${r.error ?? "桥拒绝"}`);
     } else {
+      // 其余（网络抖动/桥重启）是**瞬时**失败，留给下一帧重试。
       store.pushLog(`[writeback] 失败 ${t.port}: ${r.error ?? "未知"}`);
     }
   }
