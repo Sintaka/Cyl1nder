@@ -98,6 +98,57 @@ describe("图外引用：注入查表后能不能解析出值（隔离 resolver 
   });
 });
 
+describe("`_input_` 直接接 `_output_`（Shift+Enter 造出来的形状）", () => {
+  // v0.1.00137：此前 resolveWritebackValue 没有 input 分支，于是这条链**什么都不写** ——
+  // 而 Shift+Enter 恰恰造出这个形状（抄同一个 serial+port 再一一连线）。
+  // 手势"成功"、图上线也接好，却没有任何值流动，是最难自查的那种空转。
+  const snap = {
+    nodes: [
+      {
+        id: "i",
+        kind: "input",
+        label: "_input_",
+        params: [
+          { name: "address", type: "string", value: "C1-aaaaaaaa-bbbb" },
+          { name: "type", type: "menu", value: "float" },
+          { name: "port", type: "menu", value: "faraway/ty" },
+        ],
+      },
+      {
+        id: "o",
+        kind: "output",
+        label: "_output_",
+        params: [
+          { name: "address", type: "string", value: "C1-aaaaaaaa-bbbb" },
+          { name: "type", type: "menu", value: "float" },
+          { name: "port", type: "menu", value: "other/tx" },
+        ],
+      },
+    ],
+    connections: [{ source: "i", sourceOutput: "in0", target: "o", targetInput: "out0" }],
+  } as never;
+  const target = { nodeId: "o", address: "C1-aaaaaaaa-bbbb", port: "other/tx", type: "float" };
+
+  it("值取自 `_input_` 自己的 port（经注入的查表）", async () => {
+    const { resolveWritebackValue } = await import("../src/core/dataflow");
+    expect(resolveWritebackValue(snap, target, (a) => (a === "faraway/ty" ? 0.5 : undefined))).toBe(0.5);
+  });
+
+  it("端口没选 → undefined（无源，不是错误）", async () => {
+    const { resolveWritebackValue } = await import("../src/core/dataflow");
+    const bare = JSON.parse(JSON.stringify(snap)) as typeof snap;
+    (bare as { nodes: Array<{ kind: string; params: Array<{ name: string; value: string }> }> }).nodes
+      .find((n) => n.kind === "input")!
+      .params.find((p) => p.name === "port")!.value = "";
+    expect(resolveWritebackValue(bare, target, () => 0.5)).toBeUndefined();
+  });
+
+  it("collector 会预取 `_input_` 自己的 port（否则 input 分支永远查空缓存）", async () => {
+    const { collectExternRefAddresses } = await import("../src/core/dataflow");
+    expect(collectExternRefAddresses(snap)).toContain("faraway/ty");
+  });
+});
+
 describe("collectExternRefAddresses：只收指向图外的引用", () => {
   const snapWith = (refExpr: string, extraLabels: string[] = []) =>
     ({

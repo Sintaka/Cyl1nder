@@ -204,6 +204,15 @@ export function collectExternRefAddresses(snap: NetworkSnapshot): string[] {
   const out = new Set<string>();
   const labels = new Set(snap.nodes.map((n) => n.label));
   for (const n of snap.nodes) {
+    // `_input_` 的**自身端口**也要预取（v0.1.00137）：它作为写回源时，值来自桥，
+    // 逻辑名就是自己的 `port` 参数。不收的话 `resolveWritebackValue` 的 input 分支
+    // 永远查到空缓存 —— 加了分支却不生效，比没加更难查。
+    if (n.kind === "input") {
+      const port = n.params?.find((p) => p.name === "port")?.value;
+      const name = typeof port === "string" ? port.trim() : "";
+      if (name !== "") out.add(name);
+      continue;
+    }
     if (n.kind !== "null") continue;
     for (const p of n.params ?? []) {
       if (!p.name.startsWith("ref_slot")) continue;
@@ -234,6 +243,18 @@ export function resolveWritebackValue(
     typeof v === "number" && Number.isFinite(v) ? v : undefined;
   const paramNum = (name: string): number | undefined =>
     num(src.params?.find((p) => p.name === name)?.value);
+
+  if (src.kind === "input") {
+    // **`_input_` 作为源**（v0.1.00137）：值从桥来（它的逻辑名就是自己的 `port` 参数）。
+    //
+    // 此前这里没有 input 分支，于是「`_input_` 直接接 `_output_`」这条链**什么都不写** ——
+    // 而那正是 Shift+Enter 造出来的形状（抄同一个 serial+port 再一一连线）。
+    // 手势"成功"了、图上线也接好了，却没有任何值流动，是最难自查的那种空转。
+    const port = src.params?.find((p) => p.name === "port")?.value;
+    const name = typeof port === "string" ? port.trim() : "";
+    if (name === "") return undefined; // 端口没选 → 无源（不是错误）
+    return externValue?.(name);
+  }
 
   if (src.kind === "transform") {
     const axis = /^out(\d+)$/.exec(conn.sourceOutput || "");

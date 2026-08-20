@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-20T15:14:38.434Z",
+  "generatedAt": "2026-08-20T15:27:08.931Z",
   "totalFunctions": 1268,
   "files": [
     {
@@ -5689,7 +5689,7 @@
     },
     {
       "file": "web/src/core/dataflow.ts",
-      "lineCount": 493,
+      "lineCount": 514,
       "functions": [
         {
           "name": "displayNodeOutputIndex",
@@ -5728,42 +5728,42 @@
         },
         {
           "name": "resolveWritebackValue",
-          "line": 223,
+          "line": 232,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "createDataflow",
-          "line": 261,
+          "line": 282,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "getDisplayNodeInfo",
-          "line": 282,
+          "line": 303,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "refreshNodeFlags",
-          "line": 304,
+          "line": 325,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "flush",
-          "line": 410,
+          "line": 431,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "wireSelection",
-          "line": 483,
+          "line": 504,
           "kind": "function",
           "exported": false,
           "calls": 2

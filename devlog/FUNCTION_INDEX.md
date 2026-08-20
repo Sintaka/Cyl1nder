@@ -1114,7 +1114,7 @@
 | `flushNow` | 164 | function |  | 2 |
 | `dispose` | 171 | function |  | 2 |
 
-## web/src/core/dataflow.ts（493 行）
+## web/src/core/dataflow.ts（514 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -1123,12 +1123,12 @@
 | `collectWritebackTargets` | 103 | function | export | 1 |
 | `resolveRefInGraph` | 146 | function |  | 2 |
 | `collectExternRefAddresses` | 203 | function | export | 1 |
-| `resolveWritebackValue` | 223 | function | export | 1 |
-| `createDataflow` | 261 | function | export | 1 |
-| `getDisplayNodeInfo` | 282 | function |  | 4 |
-| `refreshNodeFlags` | 304 | function |  | 5 |
-| `flush` | 410 | function |  | 5 |
-| `wireSelection` | 483 | function |  | 2 |
+| `resolveWritebackValue` | 232 | function | export | 1 |
+| `createDataflow` | 282 | function | export | 1 |
+| `getDisplayNodeInfo` | 303 | function |  | 4 |
+| `refreshNodeFlags` | 325 | function |  | 5 |
+| `flush` | 431 | function |  | 5 |
+| `wireSelection` | 504 | function |  | 2 |
 
 ## web/src/core/gizmo.ts（162 行）
 
