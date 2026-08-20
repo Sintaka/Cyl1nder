@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1245** 个函数/类。
+> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1248** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -1109,19 +1109,20 @@
 | `flushNow` | 164 | function |  | 2 |
 | `dispose` | 171 | function |  | 2 |
 
-## web/src/core/dataflow.ts（396 行）
+## web/src/core/dataflow.ts（433 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `displayNodeOutputIndex` | 51 | function | export | 2 |
-| `collectAddressEntries` | 74 | function | export | 2 |
-| `collectWritebackTargets` | 102 | function | export | 1 |
-| `resolveWritebackValue` | 134 | function | export | 1 |
-| `createDataflow` | 164 | function | export | 1 |
-| `getDisplayNodeInfo` | 185 | function |  | 4 |
-| `refreshNodeFlags` | 207 | function |  | 5 |
-| `flush` | 313 | function |  | 5 |
-| `wireSelection` | 386 | function |  | 2 |
+| `displayNodeOutputIndex` | 52 | function | export | 2 |
+| `collectAddressEntries` | 75 | function | export | 2 |
+| `collectWritebackTargets` | 103 | function | export | 1 |
+| `resolveRefInGraph` | 146 | function |  | 2 |
+| `resolveWritebackValue` | 165 | function | export | 1 |
+| `createDataflow` | 201 | function | export | 1 |
+| `getDisplayNodeInfo` | 222 | function |  | 4 |
+| `refreshNodeFlags` | 244 | function |  | 5 |
+| `flush` | 350 | function |  | 5 |
+| `wireSelection` | 423 | function |  | 2 |
 
 ## web/src/core/gizmo.ts（162 行）
 
@@ -1549,12 +1550,14 @@
 | `computeOutputs` | 393 | function | export | 1 |
 | `computeNodeResult` | 410 | function | export | 1 |
 
-## web/src/nodes2/param-ref.ts（110 行）
+## web/src/nodes2/param-ref.ts（203 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `parseParamRef` | 60 | function | export | 1 |
-| `finishAddressOnly` | 107 | function |  | 3 |
+| `parseCore` | 78 | function |  | 3 |
+| `finishAddressOnly` | 125 | function |  | 3 |
+| `unwrapChanFn` | 131 | function |  | 2 |
+| `parseParamRef` | 171 | function | export | 1 |
 
 ## web/src/nodes2/ref-registry.ts（260 行）
 

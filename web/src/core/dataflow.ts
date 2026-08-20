@@ -16,6 +16,7 @@ import {
   type NodeErrorMap,
 } from "../nodes2/graph-model";
 import { mappingAddressErrors } from "../nodes2/mapping-types";
+import { parseParamRef } from "../nodes2/param-ref";
 import type { ReteGraph, ReteGraphHandlers } from "../nodes2/graph";
 import type { ReferenceItem, Viewport } from "../viewport/renderer";
 import type { ParamLike } from "./params";
@@ -131,6 +132,36 @@ export function collectWritebackTargets(snap: NetworkSnapshot): WritebackTarget[
  * 而 flush 是同步热路径。地址引用的落地要单独做（`ref` 的取值通路），
  * 此处只覆盖"图里已经有数"的情形。
  */
+/**
+ * 在**本图内**解析一条通道函数引用（v0.1.00130）。
+ *
+ * 只处理 `ch("../<节点标签>/<参数名>")` 这一种能同步答出来的情形：`../` 之后的第一段
+ * 是同网络里的兄弟节点标签，其余是参数名。节点就在这份 snapshot 里，所以不必打桥。
+ *
+ * 返回 undefined 的情形一律等于「这次不写」，而**不是**写 0：
+ * - 解析失败（写法非法）；
+ * - 找不到那个节点（可能指向桥侧的 Houdini 参数，那条路要异步，单独做）；
+ * - 找到了但那个参数不是有限数值。
+ */
+function resolveRefInGraph(snap: NetworkSnapshot, expr: string): number | undefined {
+  const parsed = parseParamRef(expr);
+  if (!parsed.ok || parsed.address === "") return undefined;
+  const seg = parsed.address.split("/").filter((s: string) => s !== "");
+  if (seg.length < 2) return undefined; // 需要「节点/参数」两段
+  const parmName = seg[seg.length - 1];
+  const nodeLabel = seg[seg.length - 2];
+  const node = snap.nodes.find((n) => n.label === nodeLabel);
+  if (!node) return undefined; // 不在本图 → 交给将来的异步通路
+  const v = node.params?.find((p) => p.name === parmName)?.value;
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  // 分量引用：`animation.x` → 取数组第 0 个
+  if (Array.isArray(v) && parsed.components.length === 1) {
+    const c = v[parsed.components[0]];
+    return typeof c === "number" && Number.isFinite(c) ? c : undefined;
+  }
+  return undefined;
+}
+
 export function resolveWritebackValue(
   snap: NetworkSnapshot,
   target: WritebackTarget,
@@ -155,8 +186,14 @@ export function resolveWritebackValue(
     const raw = src.params?.find((p) => p.name === `ref_slot${slot}`)?.value;
     if (typeof raw !== "string") return undefined;
     const t = raw.trim();
-    if (t === "" || !/^-?\d+(\.\d+)?$/.test(t)) return undefined; // 非字面量（地址引用）→ 不写
-    return Number(t);
+    if (t === "") return undefined;
+    if (/^-?\d+(\.\d+)?$/.test(t)) return Number(t); // 字面量：就写这个数
+    // 通道函数引用（v0.1.00130）：`ch("../transform1/tx")` —— 在**本图内**解析。
+    //
+    // 为什么能同步做：`../名字/参数` 指的是同一网络里的兄弟节点，而那些节点就在
+    // 这份 snapshot 里。所以不必向桥读值、不必 await —— flush 是同步热路径。
+    // 解析不到（指向图外/桥侧的东西）→ undefined = 这次不写，**绝不兜底写 0**。
+    return resolveRefInGraph(snap, t);
   }
   return undefined;
 }

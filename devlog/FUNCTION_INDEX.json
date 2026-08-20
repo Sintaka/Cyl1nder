@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-20T10:04:12.971Z",
-  "totalFunctions": 1245,
+  "generatedAt": "2026-08-20T10:50:51.258Z",
+  "totalFunctions": 1248,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -5654,67 +5654,74 @@
     },
     {
       "file": "web/src/core/dataflow.ts",
-      "lineCount": 396,
+      "lineCount": 433,
       "functions": [
         {
           "name": "displayNodeOutputIndex",
-          "line": 51,
+          "line": 52,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "collectAddressEntries",
-          "line": 74,
+          "line": 75,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "collectWritebackTargets",
-          "line": 102,
+          "line": 103,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
+          "name": "resolveRefInGraph",
+          "line": 146,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "resolveWritebackValue",
-          "line": 134,
+          "line": 165,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "createDataflow",
-          "line": 164,
+          "line": 201,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "getDisplayNodeInfo",
-          "line": 185,
+          "line": 222,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "refreshNodeFlags",
-          "line": 207,
+          "line": 244,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "flush",
-          "line": 313,
+          "line": 350,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "wireSelection",
-          "line": 386,
+          "line": 423,
           "kind": "function",
           "exported": false,
           "calls": 2
@@ -8124,21 +8131,35 @@
     },
     {
       "file": "web/src/nodes2/param-ref.ts",
-      "lineCount": 110,
+      "lineCount": 203,
       "functions": [
         {
-          "name": "parseParamRef",
-          "line": 60,
-          "kind": "function",
-          "exported": true,
-          "calls": 1
-        },
-        {
-          "name": "finishAddressOnly",
-          "line": 107,
+          "name": "parseCore",
+          "line": 78,
           "kind": "function",
           "exported": false,
           "calls": 3
+        },
+        {
+          "name": "finishAddressOnly",
+          "line": 125,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "unwrapChanFn",
+          "line": 131,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "parseParamRef",
+          "line": 171,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
         }
       ]
     },

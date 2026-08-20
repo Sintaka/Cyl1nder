@@ -30,6 +30,11 @@ const RGBA: Record<string, number> = { r: 0, g: 1, b: 2, a: 3 };
 /** 分量集合名：用于报错文案与"不可混用"判定。 */
 export type CompSet = "xyzw" | "rgba";
 
+/** 通道函数名（v0.1.00130）：Houdini 参数栏只有 `ch`/`chs`/`chi`；
+ *  `chf` 是 VEX 的（实测参数栏里 `chf(...)` 求值为 0），我们**接受它当 float 别名**，
+ *  因为用户会照 VEX 习惯写，而报错在这里毫无价值。 */
+export type ChanFn = "ch" | "chf" | "chs" | "chi";
+
 export interface ParamRef {
   /** 地址本体（去掉分量后缀），如 `transform1/tx` 或 `/obj/geo1/transform1/tx`。 */
   address: string;
@@ -39,6 +44,10 @@ export interface ParamRef {
   compSet: CompSet | null;
   /** 原始分量文本（`xy` / `r`），用于回显与错误文案；无分量时 `""`。 */
   compText: string;
+  /** 写成 `ch(...)` 形式时是哪个函数；裸地址（旧写法）为 null。 */
+  fn: ChanFn | null;
+  /** 函数名蕴含的类型：`ch`→null（由目标定）、`chf`→float、`chs`→string、`chi`→int。 */
+  fnType: "float" | "string" | "int" | null;
 }
 
 export interface ParamRefError {
@@ -57,7 +66,16 @@ export type ParamRefResult = ({ ok: true } & ParamRef) | ParamRefError;
  * （逻辑名里合法地含点，例如 `sceneanimate1/animation.data`）。这条规则让
  * 「地址里有点」与「引用分量」不至于互相误伤。
  */
-export function parseParamRef(raw: unknown): ParamRefResult {
+interface CoreOk {
+  ok: true;
+  address: string;
+  components: number[];
+  compSet: CompSet | null;
+  compText: string;
+}
+type CoreResult = CoreOk | ParamRefError;
+
+function parseCore(raw: unknown): CoreResult {
   const text = typeof raw === "string" ? raw.trim() : "";
   if (text === "") return { ok: true, address: "", components: [], compSet: null, compText: "" };
 
@@ -104,6 +122,81 @@ export function parseParamRef(raw: unknown): ParamRefResult {
   };
 }
 
-function finishAddressOnly(text: string): ParamRefResult {
+function finishAddressOnly(text: string): CoreResult {
   return { ok: true, address: text, components: [], compSet: null, compText: "" };
+}
+
+/** `ch("x")` / `chf(../a/b)` → 拆出函数名与内层参数；不是函数形式 → null。
+ *  引号可有可无：用户从 Houdini 抄过来带引号，手打时往往不带，两种都收。 */
+function unwrapChanFn(text: string): { fn: ChanFn; inner: string } | null {
+  const m = /^(ch|chf|chs|chi)\s*\(\s*([\s\S]*?)\s*\)$/i.exec(text);
+  if (!m) return null;
+  const fn = m[1].toLowerCase() as ChanFn;
+  let inner = m[2].trim();
+  const q = /^(['"])([\s\S]*)\1$/.exec(inner);
+  if (q) inner = q[2].trim();
+  return { fn, inner };
+}
+
+const FN_TYPE: Record<ChanFn, "float" | "string" | "int" | null> = {
+  ch: null, // Houdini 的 ch 同时能取 float 与 string → 类型由目标参数决定
+  chf: "float",
+  chs: "string",
+  chi: "int",
+};
+
+/**
+ * 解析引用表达式。支持两种写法：
+ *
+ * 1. **通道函数形式**（v0.1.00130，推荐）：`ch("../transform1/tx")`、`chf(../a/b)`、
+ *    `chs("../n/name")`。语义照 Houdini：地址是**相对写表达式的那个节点**的，
+ *    所以要引用同层的兄弟节点必须先 `../` 跳到所在网络。
+ * 2. **裸地址**（旧写法，继续支持）：`transform1/tx`。它是**网络相对**的，
+ *    等价于 Houdini 的 `../transform1/tx`。
+ *
+ * ## 为什么两种写法都留，以及为什么必须显式对齐
+ *
+ * 实测（`/obj/vexref_probe`，HScript 参数表达式）：
+ *   - `ch("../transform1/tx")` → 3.75（成功）
+ *   - `ch("transform1/tx")`    → **0.0**（Houdini 里裸形式根本不解析）
+ *   - `chf("../transform1/tx")` → 0.0（**`chf` 不是 HScript 函数**，只存在于 VEX）
+ *   - `chs("../transform1/tx")` → 3.75
+ *
+ * 所以「裸地址」是**我们自己的**历史写法，不是 Houdini 写法。既有图里全是裸的，
+ * 不能一刀切禁掉；但在 `ch(...)` 里必须按 Houdini 的规矩要求 `../`，
+ * 否则同一串字在两个系统里含义不同 —— 那是最难查的一类坑。
+ *
+ * `chf` 我们**接受**当 float 别名（用户会照 VEX 习惯写，在这里报错毫无价值）。
+ */
+export function parseParamRef(raw: unknown): ParamRefResult {
+  const text = typeof raw === "string" ? raw.trim() : "";
+  const wrapped = unwrapChanFn(text);
+  if (!wrapped) {
+    const core = parseCore(text);
+    return core.ok ? { ...core, fn: null, fnType: null } : core;
+  }
+  const { fn, inner } = wrapped;
+  if (inner === "") return { ok: false, reason: `${fn}() 里是空的：需要一个通道地址` };
+
+  // `../` → 网络相对（我们的 rel 语义）。**只允许一层**：`../../` 要跨出所在网络，
+  // 而映射系统的 rel 以「锚点所在网络」为基准，没有再上一层的表示法 ——
+  // 静默当成一层会指向错误的节点，所以显式报错。
+  let addr = inner;
+  if (addr.startsWith("../")) {
+    addr = addr.slice(3);
+    if (addr.startsWith("../")) {
+      return { ok: false, reason: "暂不支持 `../../`（跨出所在网络）；引用同层兄弟节点用 `../名字/参数`" };
+    }
+  } else if (!addr.startsWith("/")) {
+    // 既不是 `../` 也不是绝对路径 —— 在 Houdini 里这会去找**子节点**，实测求值为 0。
+    return {
+      ok: false,
+      reason: `${fn}("${inner}") 在 Houdini 里解析不到（实测为 0）：同层兄弟要写 ${fn}("../${inner}")`,
+    };
+  }
+
+  const core = parseCore(addr);
+  if (!core.ok) return core;
+  if (core.address === "") return { ok: false, reason: `${fn}() 里只有分量、没有地址` };
+  return { ...core, fn, fnType: FN_TYPE[fn] };
 }
