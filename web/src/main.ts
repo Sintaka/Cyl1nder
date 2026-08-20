@@ -1212,14 +1212,19 @@ function refreshSelectionPanels(): void {
 // 已发过的值，按 `<pid>:<逻辑名>` 记账。**只推变化的**：反复写同一个值会刷掉用户在
 // Houdini 里的撤销栈、让它白重算（与 CookTxn.flush 的"值未变则跳过"同一个理由）。
 const writebackSent = new Map<string, unknown>();
-/** 成环/被拒的名字：**本图形态下不重试**。环不会因为再发一次就消失，重试只会每帧刷日志。
+/**
+ * 被拒的名字 → **当时那个值**。同一个值不重试，值一变就再试一次。
  *
- *  但「被拒」**不是永久的**：用户改一下引用/端口就可能变合法。所以图一变就清空这个集合
- *  （见 pushWritebackOnce 里的 graphVersion 判定）——否则第一次拒绝会把这个逻辑名
- *  永久钉死，用户改对了也再也不推（我自己踩到：探针填对 ch() 之后仍然只看到旧的拒绝日志）。 */
-const writebackRefused = new Set<string>();
-/** 上次扫描时的图版本；变了就清 refused（形态变了，之前的拒绝结论不再成立）。 */
-let writebackGraphVersion = -1;
+ * 为什么按「值」而不是按「图版本」记（v0.1.00131 第二次修）：`graphVersion` 只在
+ * `connectioncreate/remove` 与 `nodecreate/remove` 时自增（graph.ts:599），
+ * **改参数不算**。而这里的拒绝恰恰几乎总是改参数就能修好（改引用表达式、改端口），
+ * 所以拿图版本当判据等于永不重试 —— 我第一版就是这么写的，探针实测填对 `ch()` 之后
+ * 仍然只看到旧的拒绝日志。
+ *
+ * 按值记则天然正确：拒绝的理由是「**这个值**的形状不对」或「**这个名字**没有映射」，
+ * 值变了就说明前提变了，值没变就说明重试也只会得到同一条错误。
+ */
+const writebackRefused = new Map<string, unknown>();
 let writebackTimer: number | null = null;
 
 /** 写回值是否与上次发过的相同。**数组逐元素比**：vec3 用 `===` 恒为 false，
@@ -1253,18 +1258,15 @@ async function pushWritebackOnce(): Promise<void> {
   } catch {
     return; // 图还没就绪
   }
-  // 图变了 → 之前那些「拒绝」结论作废，重新试一遍。
-  // 拒绝的原因（形状不符 / 映射不存在）**都能靠改图修好**，所以不能永久钉死。
-  const gv = typeof graph.getGraphVersion === "function" ? graph.getGraphVersion() : -1;
-  if (gv !== writebackGraphVersion) {
-    writebackGraphVersion = gv;
-    if (writebackRefused.size > 0) writebackRefused.clear();
-  }
+
   for (const t of collectWritebackTargets(snap)) {
     const key = `${pid}:${t.port}`;
-    if (writebackRefused.has(key)) continue;
     const value = resolveWritebackValue(snap, t);
     if (value === undefined) continue; // 没算出值 ≠ 值是 0，绝不兜底写 0
+    // 被拒过**且值没变** → 跳过。判据必须放在算出值**之后**：
+    // 拒绝的理由是「这个值的形状不对」或「这个名字没有映射」，值变了前提就变了。
+    // 放在前面（只看 key）等于永久钉死，用户改对也不再试。
+    if (writebackRefused.has(key) && sameWritebackValue(writebackRefused.get(key), value)) continue;
     // **逐元素比**（v0.1.00131）：vec3 是数组，`===` 恒为 false ——
     // 那会让 vec3 每帧都重推一次，刷掉用户在 Houdini 的撤销栈。
     // 这与 param.ts 里 `paramValuesEqual` 要与 `core/params.paramsEqual` 区分开
@@ -1278,7 +1280,7 @@ async function pushWritebackOnce(): Promise<void> {
     // 那条消息完全指不出真因（真因是「引用给的是数字 2，而端口是 vec3」）。
     const wantVec = t.type === "vec3";
     if (wantVec !== Array.isArray(value)) {
-      writebackRefused.add(key);
+      writebackRefused.set(key, value);
       store.pushLog(
         `[writeback] 停止重试 ${t.port}：端口是 ${t.type}，但引用给出的是` +
           `${Array.isArray(value) ? `${value.length} 个分量` : "单个数值"}` +
@@ -1294,7 +1296,7 @@ async function pushWritebackOnce(): Promise<void> {
       // **终态失败不重试**：环不会因为再发一次消失，「映射不存在」也不会。
       // 不停手的话每帧刷一条日志（实测撞到：`失败 transform1/tx: mapping not found`
       // 连刷四条），把真正有用的日志淹掉。
-      writebackRefused.add(key);
+      writebackRefused.set(key, value);
       store.pushLog(`[writeback] 停止重试 ${t.port}：${r.error ?? "桥拒绝"}`);
     } else {
       // 其余（网络抖动/桥重启）是**瞬时**失败，留给下一帧重试。

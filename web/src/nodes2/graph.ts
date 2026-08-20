@@ -75,6 +75,7 @@ import {
   clearConnectionSelection,
   getSelectedConnectionId,
   initTooltip,
+  setApplyNodeParamsHandler,
   setEnterNodeHandler,
   setNetKindProvider,
   setNodeStateHandler,
@@ -973,7 +974,7 @@ export async function createReteGraph(
     }
   };
 
-  return {
+  const api: ReteGraph = {
     editor: g.editor,
     area: g.area,
     engine: g.engine,
@@ -1123,4 +1124,15 @@ export async function createReteGraph(
     setConnectionBypass,
     markRuntimeActivity,
   };
+
+  // Shift+Enter 自动接线写参数时走**前门**（v0.1.00131，子智能体交接项）。
+  //
+  // graph-interact 默认直接改 `node.params`，绕过 `setNodeParams` —— 那条路不会跑
+  // address 参数 → address 字段的同步、也不会跑端口 socket 类型的更新。于是
+  // Shift+Enter 抄过来的 serial 在图上"看着对"，但序列化与端口类型都没跟上。
+  // 接上之后自动接线与手改参数走同一条路径，不可能行为漂移。
+  //
+  // 必须放在 `api` 建好之后：`setNodeParams` 是它的**方法**，不是模块函数。
+  setApplyNodeParamsHandler((id, p) => api.setNodeParams(id, p));
+  return api;
 }

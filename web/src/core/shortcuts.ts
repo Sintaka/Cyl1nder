@@ -38,6 +38,11 @@ export function bindShortcuts(deps: ShortcutsDeps): void {
   // Enter = viewport edit activation (same as the toolbar icon).
   window.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" || e.repeat) return;
+    // Shift+Enter 是**另一个手势**（图里的 `_input_` -> `_output_` 镜像连线，见
+    // nodes2/graph-interact.ts 的 attachShiftEnterWire），不是视口枢轴。在按键层面就
+    // 分开、而不是靠"谁先注册 / 谁 stopPropagation"：两个监听器都挂在 window 上，
+    // 顺序是建图与绑快捷键的先后运气，靠它必然在某次重构里翻车。
+    if (e.shiftKey) return;
     const el = document.activeElement;
     if (isEditable(el)) return;
     if (el instanceof HTMLButtonElement) return;

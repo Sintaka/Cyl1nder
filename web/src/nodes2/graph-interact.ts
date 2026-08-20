@@ -11,15 +11,21 @@ import { notifyNodeChanged } from "./NodeView";
 import type { ConnectionRef, UndoManager } from "./undo";
 import type { CylNode, NodeFlags } from "./graph-model";
 import {
+  PORT_PARAM,
+  TYPE_PARAM,
+  canConnectSockets,
   isEnterableKind,
   log,
   makePaletteNode,
   netKindOfCreatable,
   nodeFromTarget,
+  nodeSocketType,
   notifySelection,
   setConnectionWaypoint,
+  syncPortSocketType,
 } from "./graph-model";
-import type { AreaExtra, NetKind, NodeKind, ReteGraphHandlers, Schemes } from "./graph-model";
+import type { AreaExtra, NetKind, NodeKind, ParamSpec, ReteGraphHandlers, Schemes } from "./graph-model";
+import { cachedPorts, loadCapabilities, normalizeSerial } from "./serial-capabilities";
 
 interface PaletteEntry {
   kind: NodeKind;
@@ -134,7 +140,7 @@ export function attachTabSearch(
     });
   };
 
-  const create = async () => {
+  const create = async (mirror = false) => {
     const entry = results[index];
     if (!entry) return;
     // place near the mouse if it is inside the graph, else a default spot
@@ -168,6 +174,13 @@ export function attachTabSearch(
     await area.translate(n.id, center);
     log(`created ${entry.kind} node ${n.label}`);
     close();
+    // Shift+Enter：刚建出来的这个 `_output_` 立刻接收选中 input 的镜像（用户要求的
+    // 「Tab 选到 output，此时 shift+Enter」那条路径）。只对 output 生效——别的 kind 没有
+    // address/port 参数，镜像无从谈起；此时**不新建**额外节点，n 个 input 里配不上的
+    // 那些由 runShiftEnterWire 逐个报原因跳过。
+    // layout=true：这个节点刚建出来、从未被 pick，摆它不会连带拖走用户选中的 input
+    // （见 runShiftEnterWire 的 layout 论证），而且它的位置本来就还没被用户指定过。
+    if (mirror && n.kind === "output") await startShiftEnterWire(editor, area, [n], true);
   };
 
   const close = () => {
@@ -192,9 +205,14 @@ export function attachTabSearch(
   input.addEventListener("keydown", (e) => {
     if (e.key === "ArrowDown") { index = (index + 1) % Math.max(1, results.length); render(); e.preventDefault(); }
     else if (e.key === "ArrowUp") { index = (index - 1 + results.length) % Math.max(1, results.length); render(); e.preventDefault(); }
-    else if (e.key === "Enter") { create(); e.preventDefault(); }
+    // Shift+Enter 与 Enter 分开：Enter 只建节点（旧行为逐字不变），Shift+Enter 建完
+    // 立刻镜像。焦点此刻在面板输入框上，而 core/shortcuts.ts 的 Enter 分支对
+    // input/textarea 一律早退，所以这条路径与视口 Enter 枢轴天然不冲突。
+    else if (e.key === "Enter") { create(e.shiftKey); e.preventDefault(); }
     else if (e.key === "Escape") { close(); e.preventDefault(); }
   });
+
+  attachShiftEnterWire(editor, area);
 
   window.addEventListener("keydown", (e) => {
     if (e.key !== "Tab") return;
@@ -1679,3 +1697,451 @@ export function attachReconnect(
     if (grabbed || trackedConnId || reconnectGrabbed || reconnectPointerActive || waypointActive) clearReconnect();
   });
 }
+
+// ---------------------------------------------------------------------------
+// Shift+Enter：把选中的 `_input_` 一键「镜像」到 `_output_`（对齐 Houdini 的
+// shift+enter 手感：找第一个匹配的接法连上，并顺手把插入位置摆好）。
+//
+// 用户要求：选中 n 个 input（各自已填 serial、选好端口）后 Tab 选到 output 再
+// Shift+Enter → output 同步**同一个**序列号、端口一一对应连好、位置摆到右边。
+//
+// 为什么决策逻辑必须是**纯函数**：vitest 跑 environment:"node" 且没装 jsdom，凡碰
+// DOM/rete 视图的都测不了。于是「配哪几对、抄什么参数、摆在哪」全部落在
+// planShiftEnterWire（无 DOM、无网络、无缓存），DOM 那半截只剩照计划执行。
+// ---------------------------------------------------------------------------
+
+/** 镜像出来的 output 相对「最右侧 input」的水平间距（area 局部坐标）。
+ *  取 220：略大于一个节点宽（~150）+ attachInsertion 用的 30 间隙，于是 output 不会
+ *  压在 input 身上，又不必等 DOM 量宽度——纯函数拿不到 getBoundingClientRect。 */
+export const SHIFT_ENTER_GAP_X = 220;
+
+/** 端口清单里本手势唯一关心的两个字段（`SerialPortOption` 的结构子集）。
+ *  刻意**不** import serial-capabilities：那模块带缓存与 fetch，进不了纯单测；清单由
+ *  调用方注入——与 graph-model 的 derivePortType 注入 resolver 同一条路子。 */
+export interface ShiftEnterPortOption {
+  key: string;
+  type: string;
+}
+
+/** 参与镜像的一个 `_input_`（参数已由调用方读出，故纯函数不碰 CylNode/rete）。 */
+export interface ShiftEnterInput {
+  id: string;
+  label: string;
+  /** 是否为**单端口 + 地址**形态（有 `address` 参数）。与 ShiftEnterOutput 的同名字段
+   *  同一条理由，但这里只影响**说法**而非行为：旧 4 端口 `_input_` 的 params 为
+   *  undefined，读出来的 address/port 都是空串，所以它本来也会被跳过 —— 只是原因会写成
+   *  「没填地址」，那是**误导**：那个节点根本没有地址栏可填，用户照着提示去找会找不到。 */
+  hasAddressParams: boolean;
+  /** serial（address 参数）；空 = 还没填地址。 */
+  address: string;
+  /** 已选端口 key（port 参数）；空 = 还没选端口。 */
+  port: string;
+  /** 该 input 输出侧 socket 的当前类型（连线校验的左端）。 */
+  socketType: string;
+  x: number;
+  y: number;
+}
+/** 待接收镜像的一个 `_output_`。 */
+export interface ShiftEnterOutput {
+  id: string;
+  label: string;
+  /** 是否为**单端口 + 地址**形态（有 `address` 参数）。旧 4 端口 `_output_`（schema<4
+   *  的老图恢复出来的）`params` 恒为 undefined —— 它有真的 out0 端口，线接得上，但没有
+   *  地方写 serial/port。不挡住就会连出一根"线接好了、序列号没写进去"的半成品，而且
+   *  一声不响。故把它当作**配不上**处理（见 planShiftEnterWire 的 skip）。 */
+  hasAddressParams: boolean;
+  /** 该 output 输入侧 socket 的**当前**类型：桥没答出目标端口类型时，连线校验用它
+   *  当右端（诚实：不知道类型就按"这个槽现在是什么"判，绝不假设会变成想要的那个）。 */
+  socketType: string;
+}
+
+/** 一对配好的镜像：output 要写的参数 + 要连的端口 + 要摆的位置。 */
+export interface ShiftEnterPair {
+  inputId: string;
+  inputLabel: string;
+  outputId: string;
+  outputLabel: string;
+  /** 连线：input.`sourceOutput` -> output.`targetInput`。 */
+  sourceOutput: string;
+  targetInput: string;
+  /** 抄给 output 的 serial（与 input 逐字相同——用户要求「填入相同的序列号」）。 */
+  address: string;
+  /** 写给 output 的 port 参数（= targetInput 的 key）。 */
+  port: string;
+  /** 写给 output 的 type 参数；`null` = 桥还没答出类型 → **不动它**
+   *  （回落默认会让连线校验拿错类型放行错配的线，见 derivePortType 的同款论证）。 */
+  type: string | null;
+  x: number;
+  y: number;
+}
+
+/** 被跳过的一个 input 及其**原因**（原因要能原样打进日志：绝不静默跳过）。 */
+export interface ShiftEnterSkip {
+  inputLabel: string;
+  reason: string;
+}
+
+/** 一个**根本不能当接收方**的 output 及其原因。
+ *
+ *  为什么与 ShiftEnterSkip 分开、而不是塞进同一个数组：那个数组的每一项都是「某个
+ *  **input** 没配上」，而这里说的是「某个 **output** 没资格」——把 output 的标签塞进
+ *  `inputLabel` 字段等于让字段名说谎，日志读起来也会指错节点。 */
+export interface ShiftEnterOutputSkip {
+  outputLabel: string;
+  reason: string;
+}
+
+export interface ShiftEnterPlan {
+  pairs: ShiftEnterPair[];
+  skipped: ShiftEnterSkip[];
+  /** 被排除在候选之外的 output（如旧 4 端口形态）。 */
+  ineligibleOutputs: ShiftEnterOutputSkip[];
+}
+/**
+ * 「input 的这个端口，在 output 侧对应哪一个」——配对规则的**单源**。
+ *
+ * 按**下标**对应，不按名字：同一个 serial 的两侧清单是 in0..in3 / out0..out3，名字
+ * 天生不同，按名字找必然找不到。下标对应正是 Houdini 的语义（第 i 个输入 ↔ 第 i 个
+ * 输出）；而吊牌（tag）serial 两侧是**同一份**清单（参数天生双向），同一下标取回的
+ * 就是同一个逻辑名，于是这一条规则把 HDA 与 tag 两种情形一起覆盖了。
+ *
+ * 清单为 `null`（桥还没答 / 离线）时回落到**命名约定** `in<N>` -> `out<N>`；不匹配这个
+ * 形状的（tag 的逻辑名如 `transform1/tx`）原样返回。回落只在"还不知道"时用，且它复刻
+ * 的就是 HDA 那条冻结约定，不算猜。
+ *
+ * 返回 `type: null` = 该端口类型未知 → 调用方**保持 output 现有类型不变**。
+ */
+export function resolveShiftEnterTarget(
+  portKey: string,
+  inputPorts: ShiftEnterPortOption[] | null,
+  outputPorts: ShiftEnterPortOption[] | null,
+): { key: string; type: string | null } | null {
+  if (inputPorts && outputPorts) {
+    const idx = inputPorts.findIndex((o) => o.key === portKey);
+    // 清单已知却找不到这个端口 → 该端口不属于这个 serial（用户改过地址、或 registry
+    // 变了）：**不回落**猜一个，直接判为无法配对，交给调用方跳过并报原因。
+    if (idx < 0) return null;
+    const hit = outputPorts[idx];
+    if (!hit) return null; // 输出侧比输入侧短（如 1-in/0-out 的 serial）
+    return { key: hit.key, type: hit.type === "" ? null : hit.type };
+  }
+  const m = /^in(\d+)$/.exec(portKey);
+  const key = m ? `out${m[1]}` : portKey;
+  // 清单未知 → 类型也未知（绝不因为"名字像 in0"就断定它是 geo）
+  return { key, type: null };
+}
+/**
+ * Shift+Enter 的**全部决策**（纯函数：配哪几对、抄什么参数、摆在哪、跳过谁为什么）。
+ *
+ * 配对规则 —— 用户原话是「shift enter 默认会**找第一个匹配的连接**尝试连线」：
+ * input 按**视觉顺序**（y 再 x）逐个处理，每个都在剩余候选池里**顺序扫描、取第一个
+ * 类型合得上的** output，用掉即移除。于是
+ *   - 同类型的常见情形：第一个就匹配 → 退化成"上面的接上面的"下标对应；
+ *   - 混类型：跨过合不上的那个继续找，接上的线严格更多，且顺序扫描 + 用掉即移除
+ *     天然不会接出交叉线。
+ * input 多于 output 时多出来的**跳过**（绝不新建用户没要的节点）；一个 input 在池里
+ * 一个都合不上时**只跳过它**并列出试过的每个候选及其类型，候选池不变（留给后面的
+ * input），于是一次错配不会把后面的全顶歪。
+ *
+ * 位置：所有 output 摆到「最右侧 input + SHIFT_ENTER_GAP_X」这条竖线上，y 与各自配对的
+ * input 对齐（Houdini 的 shift+enter 也顺手整理插入位置）。
+ *
+ * @param canConnect 连线校验谓词，注入而非 import：单源仍是 graph-model 的
+ *   canConnectSockets，注入只是为了让本函数保持纯（也便于单测直接喂矩阵）。
+ * @param portsOf 取某 serial 某一侧的端口清单；`null` = 还不知道（走命名约定回落）。
+ */
+export function planShiftEnterWire(
+  inputs: ShiftEnterInput[],
+  outputs: ShiftEnterOutput[],
+  portsOf: (serial: string, side: "inputs" | "outputs") => ShiftEnterPortOption[] | null,
+  canConnect: (from: string, to: string) => boolean,
+): ShiftEnterPlan {
+  const pairs: ShiftEnterPair[] = [];
+  const skipped: ShiftEnterSkip[] = [];
+  // 资格筛选先做、且**只看 output 自身**：旧 4 端口形态对**任何** input 都写不进去，
+  // 那是这个 output 的属性，不是某一对的失败。放在配对循环里当"跳过"会让它占着
+  // cursor 的位置、把后面每个合格 output 一起挡住 —— 一个旧节点就能让整个手势变成
+  // 静默无事发生（这条注释就是为了钉住那个已修掉的行为）。
+  const ineligibleOutputs: ShiftEnterOutputSkip[] = [];
+  const usable: ShiftEnterOutput[] = [];
+  for (const o of outputs) {
+    if (o.hasAddressParams) usable.push(o);
+    else ineligibleOutputs.push({ outputLabel: o.label, reason: "legacy 4-port _output_ (no address/port params)" });
+  }
+  // 视觉顺序：y 优先、x 次之。排序放在函数内部而不是信赖调用方的顺序——
+  // editor.getNodes() 的顺序是**建节点的顺序**，与用户在图上看到的上下关系无关。
+  const ins = [...inputs].sort((a, b) => a.y - b.y || a.x - b.x);
+  if (ins.length === 0 || usable.length === 0) return { pairs, skipped, ineligibleOutputs };
+  const baseX = Math.max(...ins.map((i) => i.x)) + SHIFT_ENTER_GAP_X;
+  // 尚未被占用的候选池。**用池 + 扫描、而不是一个游标**，因为用户要的是 Houdini 的
+  // 「找**第一个匹配**的连接尝试连线」：某个 output 类型不合就往后找下一个，而不是
+  // 让这个 input 直接落空。同类型的常见情形下两种写法结果完全一样（第一个就匹配），
+  // 差别只在混类型时——扫描能接上的线严格更多，且永远不会接出交叉线（顺序扫描 +
+  // 用掉即移除，天然保持"上面的接上面的"）。
+  const remaining = [...usable];
+  for (const inp of ins) {
+    if (remaining.length === 0) {
+      skipped.push({ inputLabel: inp.label, reason: "no free _output_ left to mirror into" });
+      continue;
+    }
+    // 先判形态、再判"没填"：旧 4 端口 input 的 address 读出来也是空串，若不先分流，
+    // 原因会写成「没填地址」——而那个节点根本没有地址栏，用户照提示去找会找不到。
+    if (!inp.hasAddressParams) {
+      skipped.push({ inputLabel: inp.label, reason: "legacy 4-port _input_ (no address/port params to mirror from)" });
+      continue;
+    }
+    if (inp.address === "") {
+      skipped.push({ inputLabel: inp.label, reason: "no serial (address) filled in" });
+      continue;
+    }
+    if (inp.port === "") {
+      skipped.push({ inputLabel: inp.label, reason: "no port selected" });
+      continue;
+    }
+    const target = resolveShiftEnterTarget(
+      inp.port,
+      portsOf(inp.address, "inputs"),
+      portsOf(inp.address, "outputs"),
+    );
+    if (!target) {
+      skipped.push({ inputLabel: inp.label, reason: `port ${inp.port} has no counterpart on ${inp.address}` });
+      continue;
+    }
+    // 「找第一个匹配的」：按顺序扫候选池，取第一个类型合得上的。
+    // 目标类型未知 → 按该 output **当前** socket 类型校验（不假设它会变成想要的那个）。
+    const at = remaining.findIndex((o) => canConnect(inp.socketType, target.type ?? o.socketType));
+    if (at < 0) {
+      // 一个都合不上：报**试过谁、各自为什么**，而不是只报第一个——否则用户看到
+      // "拒了 geo -> float" 却不知道后面还有两个也试过了，会以为是漏扫。
+      const tried = remaining
+        .map((o) => `${o.label}(${target.type ?? o.socketType})`)
+        .join(", ");
+      skipped.push({
+        inputLabel: inp.label,
+        reason: `socket types refuse the wire (${inp.socketType} -> none of: ${tried})`,
+      });
+      continue; // 候选池不变：这些 output 留给后面的 input
+    }
+    const out = remaining[at];
+    pairs.push({
+      inputId: inp.id,
+      inputLabel: inp.label,
+      outputId: out.id,
+      outputLabel: out.label,
+      // rete 的 socket key 恒为 in0/out0（单端口形态，v0.1.00121 起）：`port` 参数是
+      // **serial 上的逻辑端口**（in2 / transform1/tx），不是图内 socket 名。两者混用是
+      // 很容易犯的错——连接会指向一个不存在的 key，线要么不建要么建歪。
+      sourceOutput: "in0",
+      targetInput: "out0",
+      address: inp.address,
+      port: target.key,
+      type: target.type,
+      x: baseX,
+      y: inp.y,
+    });
+    remaining.splice(at, 1); // 用掉即移除：一个 output 只接一根线
+  }
+  return { pairs, skipped, ineligibleOutputs };
+}
+/**
+ * 参数落盘处理器。graph.ts 的 `setNodeParams` 才是写参数的**正门**（它还顺手登记
+ * address 引用点、按 capabilities 推导类型），但那个函数不导出、graph.ts 也不在本写集
+ * 里，所以照本文件既有的 setter 惯例（setRenameHandler / setNodeStateHandler）留一个注册
+ * 点：graph.ts 一行 `setApplyNodeParamsHandler((id, p) => graph.setNodeParams(id, p))`
+ * 即可接上。未注册时走 fallback（直接改 params + 同步 socket 类型），功能完整，唯一缺的
+ * 是「改名重写引用」的登记——见文末 report 说明。
+ */
+let applyNodeParamsHandler: ((nodeId: string, params: ParamSpec[]) => boolean) | null = null;
+export function setApplyNodeParamsHandler(fn: ((nodeId: string, params: ParamSpec[]) => boolean) | null): void {
+  applyNodeParamsHandler = fn;
+}
+
+/** 把 address/port/type 写进一个 `_output_`（type 为 null 时**不动**该参数）。 */
+function applyMirroredParams(node: CylNode, pair: ShiftEnterPair): void {
+  const next: ParamSpec[] = (node.params ?? []).map((p) => {
+    if (p.name === "address") return { ...p, value: pair.address };
+    if (p.name === PORT_PARAM) return { ...p, value: pair.port };
+    if (p.name === TYPE_PARAM && pair.type !== null) return { ...p, value: pair.type };
+    return p;
+  });
+  if (applyNodeParamsHandler?.(node.id, next)) return;
+  node.params = next;
+  syncPortSocketType(node); // type 参数是 socket 类型的单源：写完必须同步端口
+}
+/** 当前被选中的节点（rete 的选择态就挂在节点自身的 `selected` 上——graph.ts 的
+ *  getSelectedNode / frameSelection / Delete 都是这么读的，多选没有别的 API）。 */
+function selectedNodesOfKind(editor: NodeEditor<Schemes>, kind: NodeKind): CylNode[] {
+  return (editor.getNodes() as CylNode[]).filter(
+    (n) => n.kind === kind && (n as unknown as { selected?: boolean }).selected === true,
+  );
+}
+
+function readParamValue(n: CylNode, name: string): string {
+  const v = n.params?.find((p) => p.name === name)?.value;
+  return typeof v === "string" ? v : "";
+}
+
+/** 把一个真实 `_input_` 节点读成纯函数的入参形状。 */
+function toShiftEnterInput(n: CylNode, area: AreaPlugin<Schemes, AreaExtra>): ShiftEnterInput {
+  const pos = area.nodeViews.get(n.id)?.position;
+  return {
+    id: n.id,
+    label: n.label,
+    // 判据与 output 侧逐字相同（有 `address` 参数才是单端口+地址形态）
+    hasAddressParams: (n.params ?? []).some((p) => p.name === "address"),
+    address: normalizeSerial(readParamValue(n, "address")),
+    port: readParamValue(n, PORT_PARAM),
+    socketType: nodeSocketType(n),
+    x: pos?.x ?? 0,
+    y: pos?.y ?? 0,
+  };
+}
+/**
+ * 执行一次 Shift+Enter 镜像：读选中的 input → 预热 capabilities → 规划 → 落地。
+ *
+ * **预热是串行的**（不是 Promise.all）：`loadCapabilities` 的防抖是 latest-wins ——
+ * 并发喂多个 serial 会让前面那些被"作废并用空能力收尾"，于是清单成了 null、类型全部
+ * 未知。逐个 await 反而每个都真取到（同 serial 有缓存与 single-flight，多个 input 共用
+ * 一个地址是常态，实际只发一次请求）。
+ *
+ * 已存在的连线**绝不拆**：目标端口已被占用时跳过并报原因（用户明确要求不顶掉既有线）。
+ *
+ * `layout` 为什么必须由调用方给、而不是恒为 true（真踩到的坑，见 rete 源码）：
+ * `area.translate` 会发 `nodetranslated`，而 selectableNodes 的管道在**该节点正是
+ * "picked" 的那一个**时会调 `selector.translate(dx,dy)` —— 那会把**其余每个选中节点**
+ * 按同样位移一起拖走（rete-area-plugin.esm.js 的 selector.translate 与 isPicked）。
+ * 于是：
+ *   - 面板路径：节点刚 addNode 出来，从未被 pick 过 → 摆位置安全，且它本来就该被摆
+ *     （用户没指定过它的位置）。layout = true。
+ *   - window 路径：用户 Ctrl+点选的最后一个通常就是那个 output（= picked），一摆就把
+ *     他选中的那些 input 全部甩飞。而且那些 output 的位置是**用户自己摆的**，我们没有
+ *     理由动它。layout = false。
+ */
+async function runShiftEnterWire(
+  editor: NodeEditor<Schemes>,
+  area: AreaPlugin<Schemes, AreaExtra>,
+  outputs: CylNode[],
+  layout: boolean,
+): Promise<void> {
+  const selectedInputs = selectedNodesOfKind(editor, "input");
+  if (selectedInputs.length === 0) {
+    log("shift+enter: no _input_ selected - nothing to mirror");
+    return;
+  }
+  if (outputs.length === 0) {
+    log("shift+enter: no _output_ to mirror into - not creating one");
+    return;
+  }
+  const specs = selectedInputs.map((n) => toShiftEnterInput(n, area));
+  for (const serial of new Set(specs.map((s) => s.address).filter((s) => s !== ""))) {
+    await loadCapabilities(serial);
+  }
+  const plan = planShiftEnterWire(
+    specs,
+    outputs.map((o) => ({
+      id: o.id,
+      label: o.label,
+      socketType: nodeSocketType(o),
+      // 有 `address` 参数才是单端口+地址形态；旧 4 端口图恢复出来的 params 恒为 undefined
+      hasAddressParams: (o.params ?? []).some((p) => p.name === "address"),
+    })),
+    (serial, side) => cachedPorts(serial, side),
+    canConnectSockets,
+  );
+  for (const o of plan.ineligibleOutputs) log(`shift+enter cannot mirror into ${o.outputLabel}: ${o.reason}`);
+  for (const s of plan.skipped) log(`shift+enter skipped ${s.inputLabel}: ${s.reason}`);
+  // 真正接上的根数（≠ plan.pairs.length）：目标口被占、或编辑器管道否掉，都会少一根。
+  // 汇总日志报**事实**而不是意图 —— 报计划数会让"接了 0 根"看起来像"接了 3 根"。
+  let wired = 0;
+  for (const pair of plan.pairs) {
+    const src = editor.getNode(pair.inputId) as CylNode | undefined;
+    const dst = editor.getNode(pair.outputId) as CylNode | undefined;
+    if (!src || !dst) continue;
+    // 占用检查必须在**写参数之前**：接不上就一个字节都不改。
+    // 反过来（先写参数、再发现接不上）会留下一个"声称写到 serial X 的 out2、而实际
+    // 喂给它的几何来自另一个不相干节点"的 output —— 参数与拓扑互相打脸，而日志只说
+    // 了"保留原有连线"，没说"顺手把你的参数改了"。那比什么都不做更糟。
+    const occupied = editor
+      .getConnections()
+      .some((c) => c.target === dst.id && c.targetInput === pair.targetInput);
+    if (occupied) {
+      log(`shift+enter kept existing wire into ${pair.outputLabel}.${pair.targetInput} (params left untouched)`);
+      continue;
+    }
+    applyMirroredParams(dst, pair);
+    if (layout) await area.translate(dst.id, { x: pair.x, y: pair.y });
+    // **必须看返回值**：`editor.addConnection` 在管道否掉这根线时返回 false（rete 的
+    // addConnection 只在"id 重复"时才 throw，那在这里不可能——每根线都是新实例）。
+    // graph.ts 的连接管道有自己的校验（类型 / 自连），它拒了而这里照样打 "wired"，
+    // 就成了"日志说接上了、图上没有线"——与前几个已修的坑同一类谎报。
+    const added = await editor.addConnection(
+      new ClassicPreset.Connection(src, pair.sourceOutput, dst, pair.targetInput) as unknown as Schemes["Connection"],
+    );
+    if (!added) {
+      log(`shift+enter wire refused by the editor: ${pair.inputLabel} -> ${pair.outputLabel}`);
+      continue;
+    }
+    wired += 1;
+    log(`shift+enter wired ${pair.inputLabel} -> ${pair.outputLabel} (${pair.address} ${pair.port})`);
+  }
+  notifyNodeChanged(); // 参数/端口类型变了：让 NodeView 重画
+  // 参数面板订阅的是**选择变化**（main.ts 经 onSelectionChanged 重渲染），不是节点重画。
+  // 少了这一行，被镜像的那个 output 若正好是当前选中项，面板会继续显示改之前的空
+  // address/port —— 图上线已经接好、面板却像什么都没发生，正是最容易被当成 bug 的表现。
+  notifySelection();
+  store.pushLog(`[node] shift+enter mirrored ${wired} input(s) to _output_`);
+}
+
+/**
+ * 启动一次镜像，并在边界上**吞掉异常**（两个调用点都是 floating promise 的收尾）。
+ *
+ * 面板路径在 async 的 `create()` 里、window 路径是 `void` 调用 —— 都不等它。一旦内部
+ * reject，那就是一条**没人接**的 promise：浏览器打一行 unhandled rejection，而用户只看到
+ * 「按了 Shift+Enter 什么都没发生」，图里连条日志都没有。与本轮修掉的那几个"谎报 /
+ * 静默"是同一类病，所以同样按"绝不静默"处理。
+ *
+ * 为什么不指望它永不 reject：`loadCapabilities` 承诺恒不抛、`addConnection` 只在 id 重复
+ * 时 throw（此处每根线都是新实例，不可能），但 `applyMirroredParams` 会走
+ * `setApplyNodeParamsHandler` 注册进来的 `graph.setNodeParams` —— 那是**别处**的代码，
+ * 而且正是我们建议接上的那一条路。它抛不抛不由这里决定，故在边界兜住并留下日志。
+ */
+function startShiftEnterWire(
+  editor: NodeEditor<Schemes>,
+  area: AreaPlugin<Schemes, AreaExtra>,
+  outputs: CylNode[],
+  layout: boolean,
+): Promise<void> {
+  return runShiftEnterWire(editor, area, outputs, layout).catch((err: unknown) => {
+    log(`shift+enter failed: ${err instanceof Error ? err.message : String(err)}`);
+  });
+}
+/**
+ * Shift+Enter 的 window 级监听：**面板关着**、选中里既有 input 又有 output 时生效
+ * （用户已经手动选好了要写进去的那个 output）。面板开着的那条路径在 attachTabSearch
+ * 的 keydown 里（那时焦点在面板输入框上，见那处注释）。
+ *
+ * **与 Enter 视口枢轴的冲突怎么避开**（core/shortcuts.ts 的 Enter → toggleEnter）：
+ *  1. 那个处理器只在 `isEnterHovered()` 为真（鼠标在视口上）时才动手，而本手势要求
+ *     选中里有 input+output，是图里的操作；
+ *  2. 更硬的一道：本改动给 shortcuts.ts 的 Enter 分支加了 `e.shiftKey` 早退，于是
+ *     **Shift+Enter 永远不再是 Enter**，两者在按键层面就互斥，不靠"谁先注册"或
+ *     stopPropagation 这类顺序运气。
+ */
+function attachShiftEnterWire(editor: NodeEditor<Schemes>, area: AreaPlugin<Schemes, AreaExtra>): void {
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || !e.shiftKey || e.repeat) return;
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    const el = document.activeElement;
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
+    const outputs = selectedNodesOfKind(editor, "output");
+    // 选中里没有 output → 本手势不适用：**不建**用户没要的节点，直接放行按键
+    // （面板那条路径才负责"Tab 选到 output 再 Shift+Enter"的新建语义）。
+    if (outputs.length === 0) return;
+    if (selectedNodesOfKind(editor, "input").length === 0) return;
+    e.preventDefault();
+    // layout=false：这些 output 的位置是**用户自己摆的**，而且其中一个通常正是 rete 的
+    // "picked" 节点 —— 摆它会把其余选中节点一起拖走（见 runShiftEnterWire 的 layout）。
+    void startShiftEnterWire(editor, area, outputs, false);
+  });
+}
+
