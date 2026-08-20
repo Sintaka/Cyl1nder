@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-20T18:48:15.763Z",
+  "generatedAt": "2026-08-20T18:58:10.083Z",
   "totalFunctions": 1279,
   "files": [
     {
@@ -6440,7 +6440,7 @@
     },
     {
       "file": "web/src/nodes2/graph-interact.ts",
-      "lineCount": 2175,
+      "lineCount": 2179,
       "functions": [
         {
           "name": "setNetKindProvider",
@@ -6969,14 +6969,14 @@
         },
         {
           "name": "startShiftEnterWire",
-          "line": 2135,
+          "line": 2139,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "attachShiftEnterWire",
-          "line": 2157,
+          "line": 2161,
           "kind": "function",
           "exported": false,
           "calls": 2

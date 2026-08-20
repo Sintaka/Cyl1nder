@@ -143,3 +143,56 @@ test("窗口路径：Shift+Enter 镜像时**不移动**任何已摆好的节点"
   // 而且它确实干了活（否则"没移动"是因为什么都没做，等于测了个空）
   expect(res.wired).toBeGreaterThan(0);
 });
+
+test("镜像成功后 param 面板要刷新（notifySelection，不只是 NodeView 重画）", async ({ page }) => {
+  // 子智能体列的缺陷 3：它只调了 notifyNodeChanged()（重画 NodeView），没调 notifySelection()。
+  // 而 param 面板订阅的是**选择变化**（main.ts 经 onSelectionChanged）—— 于是被镜像的那个
+  // `_output_` 若正好是当前选中项，图上线已接好、面板却仍显示空的 address/port。
+  // 那读起来就是「这功能默默什么都没做」，最容易被当成 bug 报回来。
+  // 它如实标注了这一层单测不到（environment: "node"、无 jsdom），且是**读源码**得出的结论。
+  await gotoMember(page, SERIAL);
+  await expect(page.locator(".cyl-graph")).toBeVisible({ timeout: 20000 });
+  await buildTwoByTwo(page);
+  await page.waitForTimeout(400);
+
+  // 让 param 面板可见，并把选中项**只**放在一个 output 上 —— 那正是会读到旧值的情形
+  await page.evaluate(() => {
+    const dv = (window as never as { __cylDv?: { api?: { getPanel?(i: string): { api: { setActive(): void } } | undefined } } }).__cylDv;
+    dv?.api?.getPanel?.("param")?.api.setActive();
+  });
+  await page.locator(".cyl-rp-title", { hasText: "_output_" }).first().click({ force: true, timeout: 15000 });
+  await page.waitForTimeout(500);
+
+  // **走真实面板清空 address**：直接改 `p.value` 不会通知 store，面板也就不会重画 ——
+  // 那样"清空"根本没发生，`before` 仍是 serial，整条测试变成空转（我第一版就是这样：
+  // before == after == SERIAL，什么都没证明）。必须打字 + blur 才真的提交并重画。
+  const addrField = page.locator('.cyl-param-table [data-name="address"]').first();
+  await addrField.click();
+  await addrField.fill("");
+  await addrField.blur();
+  await page.waitForTimeout(600);
+
+  // 这一步**必须**看到空值，否则后面的断言毫无意义（反向断言）
+  const addrBefore = await addrField.inputValue();
+  expect(addrBefore).toBe("");
+
+  await page.evaluate(() => {
+    const w = window as never as {
+      __cylGraph: { editor: { getNodes(): Array<{ kind: string; selected?: boolean }> } };
+    };
+    for (const n of w.__cylGraph.editor.getNodes()) n.selected = n.kind === "input" || n.kind === "output";
+  });
+  await page.waitForTimeout(300);
+
+  await page.locator(".cyl-graph").click({ position: { x: 6, y: 6 }, force: true });
+  await page.keyboard.press("Shift+Enter");
+  await page.waitForTimeout(1500);
+
+  const addrAfter = await page.evaluate(() => {
+    const el = document.querySelector('.cyl-param-table [data-name="address"]') as HTMLInputElement | null;
+    return el ? el.value : "(no field)";
+  });
+  console.log(`SE-PANEL before=${JSON.stringify(addrBefore)} after=${JSON.stringify(addrAfter)}`);
+  // 面板必须显示出被写进去的 serial —— 只重画 NodeView 的实现会停在空值上
+  expect(addrAfter).toBe(SERIAL);
+});

@@ -1271,7 +1271,7 @@
 | `computeOutputsCached` | 303 | function | export | 1 |
 | `computeNodeResultCached` | 354 | function | export | 1 |
 
-## web/src/nodes2/graph-interact.ts（2175 行）
+## web/src/nodes2/graph-interact.ts（2179 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -1350,8 +1350,8 @@
 | `readParamValue` | 1994 | function |  | 3 |
 | `toShiftEnterInput` | 2000 | function |  | 2 |
 | `runShiftEnterWire` | 2035 | function |  | 2 |
-| `startShiftEnterWire` | 2135 | function |  | 3 |
-| `attachShiftEnterWire` | 2157 | function |  | 2 |
+| `startShiftEnterWire` | 2139 | function |  | 3 |
+| `attachShiftEnterWire` | 2161 | function |  | 2 |
 
 ## web/src/nodes2/graph-model.ts（2487 行）
 

@@ -2115,6 +2115,10 @@ async function runShiftEnterWire(
   // 参数面板订阅的是**选择变化**（main.ts 经 onSelectionChanged 重渲染），不是节点重画。
   // 少了这一行，被镜像的那个 output 若正好是当前选中项，面板会继续显示改之前的空
   // address/port —— 图上线已经接好、面板却像什么都没发生，正是最容易被当成 bug 的表现。
+  // 变异测试实测（v0.1.00149）：注释掉这一行，面板**仍然**刷新 —— 因为 v0.1.00131 起
+  // `applyMirroredParams` 走 `setApplyNodeParamsHandler` → `api.setNodeParams`，那条路自己
+  // 就通知了 store。所以这行在当前接线下**不是**承重的。
+  // 保留它是廉价保险：一旦那个 handler 被摘掉（它本就是"可选的前门"），面板会退回读旧值。
   notifySelection();
   store.pushLog(`[node] shift+enter mirrored ${wired} input(s) to _output_`);
 }
