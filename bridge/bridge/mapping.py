@@ -334,3 +334,18 @@ class MappingRegistry:
                 part = {n: e for n, e in names.items() if n and isinstance(e, dict)}
                 if part:
                     self._entries[project] = part
+
+    # v0.1.00153 撤回：下面这个自愈**判据是错的**，保留代码与理由供后来者参考，但不接线。
+    #
+    # 动机是实测到的真问题：Houdini 重启后 `C1-mt07aw69-cvtl` 的通道行已被 v0.1.00145
+    # 的同坑位扫描删掉，可它的**锚点记录还在**（通道表与映射表是两份账，那次只扫了前者），
+    # 于是磁盘上留着一条永不自愈的死 pid（其余三个锚点都随 cook 更新到 pid=38336）。
+    #
+    # 但「没有 entry 引用它」**不等于**死记录：吊牌先经心跳登记锚点，entry 要等带 `rel`
+    # 的通道注册才由 `_sync_mapping_entry` 建出来；空吊牌（entries=''）更是永远只有锚点、
+    # 没有 entry。接上这条会误删刚登记还没建条目的锚点 ——
+    # `test_pid_port_persistence_round_trip` 当场变红，正是它救了这一手。
+    #
+    # 正确判据需要「该 serial 还有没有通道行」，而通道表在 `_load` 期间拿不到
+    # （state 装配顺序）。要做得对，得把清理挪到装配完成之后 —— 未做，如实标注。
+    # 代码不留：留着不接线的死方法比留注释更坏（下一个人会以为它在跑）。
