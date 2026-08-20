@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1248** 个函数/类。
+> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1262** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | `main` | 7 | def |  | 2 |
 
-## bridge/bridge/channel_routes.py（502 行）
+## bridge/bridge/channel_routes.py（526 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -31,17 +31,17 @@
 | `_sync_mapping_entry` | 167 | def |  | 3 |
 | `list_channels` | 204 | def |  | 1 |
 | `HeartbeatBody` | 208 | class |  | 1 |
-| `heartbeat` | 224 | def |  | 1 |
-| `_sync_project_hip` | 276 | def |  | 2 |
-| `_replay_mapping_entries` | 303 | def |  | 2 |
-| `_report_anchor` | 320 | def |  | 2 |
-| `probe` | 349 | def |  | 1 |
-| `_norm_type` | 397 | def |  | 2 |
-| `_tag_options` | 408 | def |  | 2 |
-| `serial_capabilities` | 439 | def |  | 1 |
-| `_node_type_name` | 489 | def |  | 2 |
+| `heartbeat` | 228 | def |  | 1 |
+| `_sync_project_hip` | 300 | def |  | 2 |
+| `_replay_mapping_entries` | 327 | def |  | 2 |
+| `_report_anchor` | 344 | def |  | 2 |
+| `probe` | 373 | def |  | 1 |
+| `_norm_type` | 421 | def |  | 2 |
+| `_tag_options` | 432 | def |  | 2 |
+| `serial_capabilities` | 463 | def |  | 1 |
+| `_node_type_name` | 513 | def |  | 2 |
 
-## bridge/bridge/channels.py（106 行）
+## bridge/bridge/channels.py（136 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -49,12 +49,13 @@
 | `__init__` | 19 | def |  | 1 |
 | `_key_of` | 30 | def |  | 3 |
 | `register` | 35 | def |  | 1 |
-| `get` | 51 | def |  | 9 |
-| `list` | 56 | def |  | 2 |
+| `get` | 51 | def |  | 12 |
+| `list` | 56 | def |  | 3 |
 | `touch` | 62 | def |  | 1 |
-| `save_now` | 73 | def |  | 1 |
-| `_save` | 77 | def |  | 4 |
-| `_load` | 95 | def |  | 2 |
+| `retire_except` | 73 | def |  | 1 |
+| `save_now` | 103 | def |  | 1 |
+| `_save` | 107 | def |  | 5 |
+| `_load` | 125 | def |  | 2 |
 
 ## bridge/bridge/compute/__init__.py（49 行）
 
@@ -229,7 +230,7 @@
 | `lifespan` | 24 | def |  | 1 |
 | `create_app` | 38 | def |  | 2 |
 
-## bridge/bridge/mapping_routes.py（431 行）
+## bridge/bridge/mapping_routes.py（473 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -244,16 +245,17 @@
 | `_probe_health` | 154 | def |  | 4 |
 | `probe_anchor` | 159 | def |  | 1 |
 | `get_mapping_value` | 218 | def |  | 1 |
-| `get_cook_cycles` | 256 | def |  | 1 |
-| `put_mapping_value` | 273 | def |  | 1 |
-| `list_mappings` | 321 | def |  | 1 |
-| `put_mapping` | 348 | def |  | 1 |
-| `delete_mapping` | 359 | def |  | 1 |
-| `WritebackPut` | 376 | class |  | 1 |
-| `_writeback_view` | 381 | def |  | 2 |
-| `get_writeback` | 395 | def |  | 1 |
-| `put_writeback` | 404 | def |  | 1 |
-| `delete_writeback` | 425 | def |  | 1 |
+| `_read_vec3_components` | 272 | def |  | 2 |
+| `get_cook_cycles` | 298 | def |  | 1 |
+| `put_mapping_value` | 315 | def |  | 1 |
+| `list_mappings` | 363 | def |  | 1 |
+| `put_mapping` | 390 | def |  | 1 |
+| `delete_mapping` | 401 | def |  | 1 |
+| `WritebackPut` | 418 | class |  | 1 |
+| `_writeback_view` | 423 | def |  | 2 |
+| `get_writeback` | 437 | def |  | 1 |
+| `put_writeback` | 446 | def |  | 1 |
+| `delete_writeback` | 467 | def |  | 1 |
 
 ## bridge/bridge/mapping.py（337 行）
 
@@ -802,7 +804,7 @@
 | `stop_all_sync` | 203 | def |  | 1 |
 | `ensure_sync` | 216 | def |  | 4 |
 
-## hda/src/cyl1nder_tag.py（377 行）
+## hda/src/cyl1nder_tag.py（426 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -813,12 +815,13 @@
 | `_network_of` | 92 | def |  | 3 |
 | `_rel_to_network` | 103 | def |  | 4 |
 | `_parse_entry` | 114 | def |  | 2 |
-| `_fingerprint` | 179 | def |  | 2 |
-| `register_channels` | 192 | def |  | 2 |
-| `_read_param_values` | 257 | def |  | 2 |
-| `_instance_identity` | 270 | def |  | 2 |
-| `heartbeat` | 293 | def |  | 2 |
-| `cook` | 329 | def |  | 3 |
+| `_parm_value_type` | 179 | def |  | 2 |
+| `_fingerprint` | 217 | def |  | 2 |
+| `register_channels` | 230 | def |  | 2 |
+| `_read_param_values` | 295 | def |  | 2 |
+| `_instance_identity` | 308 | def |  | 2 |
+| `heartbeat` | 331 | def |  | 2 |
+| `cook` | 375 | def |  | 3 |
 
 ## web/src/app/address-bar.ts（310 行）
 
@@ -1109,7 +1112,7 @@
 | `flushNow` | 164 | function |  | 2 |
 | `dispose` | 171 | function |  | 2 |
 
-## web/src/core/dataflow.ts（433 行）
+## web/src/core/dataflow.ts（456 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -1117,12 +1120,12 @@
 | `collectAddressEntries` | 75 | function | export | 2 |
 | `collectWritebackTargets` | 103 | function | export | 1 |
 | `resolveRefInGraph` | 146 | function |  | 2 |
-| `resolveWritebackValue` | 165 | function | export | 1 |
-| `createDataflow` | 201 | function | export | 1 |
-| `getDisplayNodeInfo` | 222 | function |  | 4 |
-| `refreshNodeFlags` | 244 | function |  | 5 |
-| `flush` | 350 | function |  | 5 |
-| `wireSelection` | 423 | function |  | 2 |
+| `resolveWritebackValue` | 188 | function | export | 1 |
+| `createDataflow` | 224 | function | export | 1 |
+| `getDisplayNodeInfo` | 245 | function |  | 4 |
+| `refreshNodeFlags` | 267 | function |  | 5 |
+| `flush` | 373 | function |  | 5 |
+| `wireSelection` | 446 | function |  | 2 |
 
 ## web/src/core/gizmo.ts（162 行）
 
@@ -1170,7 +1173,7 @@
 |---|---|---|---|---|
 | `createSessionManager` | 66 | function | export | 1 |
 
-## web/src/core/shortcuts.ts（59 行）
+## web/src/core/shortcuts.ts（64 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -1182,7 +1185,7 @@
 |---|---|---|---|---|
 | `createTimelineController` | 43 | function | export | 1 |
 
-## web/src/main.ts（2031 行）
+## web/src/main.ts（2081 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -1203,36 +1206,37 @@
 | `bootIsMemberEntry` | 635 | arrow |  | 0 |
 | `applyLayoutSettings` | 971 | function |  | 4 |
 | `refreshSelectionPanels` | 1026 | function |  | 5 |
-| `scheduleWriteback` | 1221 | function |  | 2 |
-| `pushWritebackOnce` | 1230 | function |  | 2 |
-| `syncWritebackPointer` | 1273 | function |  | 2 |
-| `anchorNetPathOf` | 1308 | function |  | 2 |
-| `inputStatsText` | 1333 | function |  | 2 |
-| `outputStatsText` | 1342 | function |  | 2 |
-| `renderInspector` | 1351 | function |  | 2 |
-| `isProjectModeActive` | 1369 | function |  | 3 |
-| `projectAddress` | 1375 | function |  | 3 |
-| `onNetPathChanged` | 1394 | function |  | 1 |
-| `waitNetPath` | 1404 | function |  | 5 |
-| `enterableNodeNames` | 1418 | function |  | 3 |
-| `enterNodeAwaited` | 1429 | function |  | 3 |
-| `enterByName` | 1442 | function |  | 3 |
-| `exitToDepth` | 1449 | function |  | 5 |
-| `navigateByName` | 1467 | function |  | 2 |
-| `saveProjectGraph` | 1495 | function |  | 5 |
-| `enterProjectMode` | 1542 | function |  | 7 |
-| `openProjectMember` | 1659 | function |  | 2 |
-| `enterMemberWorkspace` | 1681 | function |  | 3 |
-| `commitPendingMemberScope` | 1701 | function |  | 3 |
-| `updateGraphAddress` | 1714 | function |  | 7 |
-| `scheduleNetwork` | 1742 | function |  | 1 |
-| `flushStoreView` | 1745 | function |  | 2 |
-| `loadSnapshotIntoStore` | 1773 | function |  | 3 |
-| `applyLoadedPreference` | 1818 | function |  | 3 |
-| `syncMemberInAddress` | 1860 | function |  | 2 |
-| `syncProjectInAddress` | 1880 | function |  | 2 |
-| `connectSerial` | 1893 | arrow |  | 1 |
-| `markGraphDirty` | 2024 | function |  | 2 |
+| `sameWritebackValue` | 1232 | function |  | 3 |
+| `scheduleWriteback` | 1243 | function |  | 2 |
+| `pushWritebackOnce` | 1252 | function |  | 2 |
+| `syncWritebackPointer` | 1323 | function |  | 2 |
+| `anchorNetPathOf` | 1358 | function |  | 2 |
+| `inputStatsText` | 1383 | function |  | 2 |
+| `outputStatsText` | 1392 | function |  | 2 |
+| `renderInspector` | 1401 | function |  | 2 |
+| `isProjectModeActive` | 1419 | function |  | 3 |
+| `projectAddress` | 1425 | function |  | 3 |
+| `onNetPathChanged` | 1444 | function |  | 1 |
+| `waitNetPath` | 1454 | function |  | 5 |
+| `enterableNodeNames` | 1468 | function |  | 3 |
+| `enterNodeAwaited` | 1479 | function |  | 3 |
+| `enterByName` | 1492 | function |  | 3 |
+| `exitToDepth` | 1499 | function |  | 5 |
+| `navigateByName` | 1517 | function |  | 2 |
+| `saveProjectGraph` | 1545 | function |  | 5 |
+| `enterProjectMode` | 1592 | function |  | 7 |
+| `openProjectMember` | 1709 | function |  | 2 |
+| `enterMemberWorkspace` | 1731 | function |  | 3 |
+| `commitPendingMemberScope` | 1751 | function |  | 3 |
+| `updateGraphAddress` | 1764 | function |  | 7 |
+| `scheduleNetwork` | 1792 | function |  | 1 |
+| `flushStoreView` | 1795 | function |  | 2 |
+| `loadSnapshotIntoStore` | 1823 | function |  | 3 |
+| `applyLoadedPreference` | 1868 | function |  | 3 |
+| `syncMemberInAddress` | 1910 | function |  | 2 |
+| `syncProjectInAddress` | 1930 | function |  | 2 |
+| `connectSerial` | 1943 | arrow |  | 1 |
+| `markGraphDirty` | 2074 | function |  | 2 |
 
 ## web/src/nodes2/chain-cache.ts（365 行）
 
@@ -1251,76 +1255,86 @@
 | `computeOutputsCached` | 303 | function | export | 1 |
 | `computeNodeResultCached` | 354 | function | export | 1 |
 
-## web/src/nodes2/graph-interact.ts（1682 行）
+## web/src/nodes2/graph-interact.ts（2148 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `setNetKindProvider` | 64 | function | export | 1 |
-| `currentNetKind` | 68 | function |  | 2 |
-| `paletteForCurrentLayer` | 74 | function |  | 2 |
-| `isReconnectBusy` | 90 | function | export | 4 |
-| `registerInteractionCanceller` | 97 | function | export | 5 |
-| `cancelGraphInteractions` | 102 | function | export | 1 |
-| `attachTabSearch` | 106 | function | export | 1 |
-| `render` | 122 | arrow |  | 3 |
-| `create` | 137 | arrow |  | 3 |
-| `close` | 173 | arrow |  | 7 |
-| `update` | 181 | arrow |  | 5 |
-| `distToSegment` | 215 | function |  | 2 |
-| `sampleConnectionPath` | 225 | function |  | 2 |
-| `attachCutMode` | 246 | function | export | 1 |
-| `isTyping` | 272 | arrow |  | 1 |
-| `pathLen` | 278 | arrow |  | 1 |
-| `setPoints` | 283 | arrow |  | 2 |
-| `clear` | 287 | arrow |  | 2 |
-| `cutConnection` | 292 | arrow |  | 1 |
-| `cutByPolyline` | 307 | arrow |  | 1 |
-| `up` | 386 | arrow |  | 0 |
-| `attachFlagMenu` | 408 | function | export | 1 |
-| `show` | 420 | arrow |  | 2 |
-| `setNodeStateHandler` | 474 | function | export | 1 |
-| `fireNodeState` | 480 | function | export | 1 |
-| `setRenameHandler` | 486 | function | export | 1 |
-| `fireRename` | 490 | function | export | 1 |
-| `setEnterNodeHandler` | 515 | function | export | 1 |
-| `attachEnterNode` | 529 | function | export | 1 |
-| `initTooltip` | 582 | function | export | 1 |
-| `showTooltip` | 589 | function | export | 1 |
-| `hideTooltip` | 603 | function | export | 1 |
-| `attachMMBPan` | 611 | function | export | 1 |
-| `onMove` | 622 | arrow |  | 0 |
-| `onUp` | 625 | arrow |  | 0 |
-| `attachDotGrid` | 643 | function | export | 1 |
-| `hitTestConnection` | 677 | function |  | 5 |
-| `connectionPathD` | 706 | function |  | 7 |
-| `isInsertable` | 714 | function |  | 2 |
-| `attachInsertion` | 718 | function | export | 1 |
-| `refreshPreview` | 766 | arrow |  | 2 |
-| `updatePreview` | 774 | arrow |  | 3 |
-| `setHover` | 797 | arrow |  | 3 |
-| `attachRectSelect` | 926 | function | export | 1 |
-| `attachShakeDisconnect` | 1023 | function | export | 1 |
-| `reset` | 1034 | arrow |  | 0 |
-| `shakeNode` | 1040 | arrow |  | 1 |
-| `getSelectedConnectionId` | 1154 | function | export | 1 |
-| `connectionPathEl` | 1158 | function |  | 4 |
-| `selectConnection` | 1162 | function |  | 2 |
-| `clearConnectionSelection` | 1169 | function | export | 3 |
-| `attachConnectionSelect` | 1178 | function | export | 1 |
-| `hitTestPort` | 1221 | function |  | 4 |
-| `attachReconnect` | 1257 | function | export | 1 |
-| `toLocal` | 1286 | arrow |  | 2 |
-| `setPortHighlight` | 1307 | arrow |  | 2 |
-| `markGrabbedPath` | 1321 | arrow |  | 2 |
-| `clearReconnect` | 1359 | arrow |  | 12 |
-| `labelOf` | 1376 | arrow |  | 8 |
-| `applyReconnect` | 1379 | arrow |  | 2 |
-| `clearWaypointDrag` | 1471 | arrow |  | 4 |
-| `toGraph` | 1484 | arrow |  | 1 |
-| `putWaypoint` | 1522 | arrow |  | 2 |
-| `dropWaypoint` | 1531 | arrow |  | 1 |
-| `onWaypointMove` | 1545 | arrow |  | 2 |
-| `bindWaypointWindowMove` | 1564 | arrow |  | 1 |
+| `setNetKindProvider` | 70 | function | export | 1 |
+| `currentNetKind` | 74 | function |  | 2 |
+| `paletteForCurrentLayer` | 80 | function |  | 2 |
+| `isReconnectBusy` | 96 | function | export | 4 |
+| `registerInteractionCanceller` | 103 | function | export | 5 |
+| `cancelGraphInteractions` | 108 | function | export | 1 |
+| `attachTabSearch` | 112 | function | export | 1 |
+| `render` | 128 | arrow |  | 3 |
+| `create` | 143 | arrow |  | 4 |
+| `close` | 186 | arrow |  | 7 |
+| `update` | 194 | arrow |  | 5 |
+| `distToSegment` | 233 | function |  | 2 |
+| `sampleConnectionPath` | 243 | function |  | 2 |
+| `attachCutMode` | 264 | function | export | 1 |
+| `isTyping` | 290 | arrow |  | 1 |
+| `pathLen` | 296 | arrow |  | 1 |
+| `setPoints` | 301 | arrow |  | 2 |
+| `clear` | 305 | arrow |  | 2 |
+| `cutConnection` | 310 | arrow |  | 1 |
+| `cutByPolyline` | 325 | arrow |  | 1 |
+| `up` | 404 | arrow |  | 0 |
+| `attachFlagMenu` | 426 | function | export | 1 |
+| `show` | 438 | arrow |  | 2 |
+| `setNodeStateHandler` | 492 | function | export | 1 |
+| `fireNodeState` | 498 | function | export | 1 |
+| `setRenameHandler` | 504 | function | export | 1 |
+| `fireRename` | 508 | function | export | 1 |
+| `setEnterNodeHandler` | 533 | function | export | 1 |
+| `attachEnterNode` | 547 | function | export | 1 |
+| `initTooltip` | 600 | function | export | 1 |
+| `showTooltip` | 607 | function | export | 1 |
+| `hideTooltip` | 621 | function | export | 1 |
+| `attachMMBPan` | 629 | function | export | 1 |
+| `onMove` | 640 | arrow |  | 0 |
+| `onUp` | 643 | arrow |  | 0 |
+| `attachDotGrid` | 661 | function | export | 1 |
+| `hitTestConnection` | 695 | function |  | 5 |
+| `connectionPathD` | 724 | function |  | 7 |
+| `isInsertable` | 732 | function |  | 2 |
+| `attachInsertion` | 736 | function | export | 1 |
+| `refreshPreview` | 784 | arrow |  | 2 |
+| `updatePreview` | 792 | arrow |  | 3 |
+| `setHover` | 815 | arrow |  | 3 |
+| `attachRectSelect` | 944 | function | export | 1 |
+| `attachShakeDisconnect` | 1041 | function | export | 1 |
+| `reset` | 1052 | arrow |  | 0 |
+| `shakeNode` | 1058 | arrow |  | 1 |
+| `getSelectedConnectionId` | 1172 | function | export | 1 |
+| `connectionPathEl` | 1176 | function |  | 4 |
+| `selectConnection` | 1180 | function |  | 2 |
+| `clearConnectionSelection` | 1187 | function | export | 3 |
+| `attachConnectionSelect` | 1196 | function | export | 1 |
+| `hitTestPort` | 1239 | function |  | 4 |
+| `attachReconnect` | 1275 | function | export | 1 |
+| `toLocal` | 1304 | arrow |  | 2 |
+| `setPortHighlight` | 1325 | arrow |  | 2 |
+| `markGrabbedPath` | 1339 | arrow |  | 2 |
+| `clearReconnect` | 1377 | arrow |  | 12 |
+| `labelOf` | 1394 | arrow |  | 8 |
+| `applyReconnect` | 1397 | arrow |  | 2 |
+| `clearWaypointDrag` | 1489 | arrow |  | 4 |
+| `toGraph` | 1502 | arrow |  | 1 |
+| `putWaypoint` | 1540 | arrow |  | 2 |
+| `dropWaypoint` | 1549 | arrow |  | 1 |
+| `onWaypointMove` | 1563 | arrow |  | 2 |
+| `bindWaypointWindowMove` | 1582 | arrow |  | 1 |
+| `resolveShiftEnterTarget` | 1814 | function | export | 2 |
+| `planShiftEnterWire` | 1853 | function | export | 2 |
+| `setApplyNodeParamsHandler` | 1955 | function | export | 2 |
+| `applyMirroredParams` | 1960 | function |  | 2 |
+| `selectedNodesOfKind` | 1973 | function |  | 4 |
+| `readParamValue` | 1979 | function |  | 3 |
+| `toShiftEnterInput` | 1985 | function |  | 2 |
+| `runShiftEnterWire` | 2020 | function |  | 2 |
+| `startShiftEnterWire` | 2108 | function |  | 3 |
+| `attachShiftEnterWire` | 2130 | function |  | 2 |
 
 ## web/src/nodes2/graph-model.ts（2487 行）
 
@@ -1439,36 +1453,36 @@
 | `lbl` | 52 | arrow |  | 4 |
 | `createGraphUndoManager` | 130 | function | export | 1 |
 
-## web/src/nodes2/graph.ts（1126 行）
+## web/src/nodes2/graph.ts（1138 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `setChannelDisplayHandler` | 121 | function | export | 2 |
-| `getChannelDisplaySerial` | 126 | function | export | 1 |
-| `isNodeWired` | 132 | function | export | 1 |
-| `isProjectMode` | 142 | function | export | 5 |
-| `loadProjectGraph` | 154 | function | export | 2 |
-| `projectGraphSnapshot` | 220 | function | export | 2 |
-| `setNetPathChangedHandler` | 252 | function | export | 1 |
-| `serializeGraphFromRoot` | 271 | function | export | 3 |
-| `getNetPath` | 289 | function | export | 3 |
-| `getCurrentNetKind` | 308 | function | export | 4 |
-| `emptyChildGraph` | 315 | function |  | 2 |
-| `enterNode` | 325 | function | export | 2 |
-| `exitNode` | 358 | function | export | 1 |
-| `getRefRegistry` | 392 | function | export | 1 |
-| `refPathOf` | 404 | function |  | 3 |
-| `registerAddressRef` | 413 | function |  | 2 |
-| `rewriteRefsForRename` | 427 | function |  | 2 |
-| `getNodeParamBindings` | 454 | function | export | 1 |
-| `listNodeParamBindings` | 461 | function | export | 1 |
-| `setNodeBindings` | 472 | function | export | 1 |
-| `setNodeErrors` | 488 | function | export | 1 |
-| `getNodeErrors` | 496 | function | export | 1 |
-| `displayChainConnectionIds` | 503 | function |  | 2 |
-| `wantsEmptyRootGraph` | 543 | function |  | 3 |
-| `buildGraph` | 553 | function |  | 2 |
-| `createReteGraph` | 758 | function | export | 1 |
+| `setChannelDisplayHandler` | 122 | function | export | 2 |
+| `getChannelDisplaySerial` | 127 | function | export | 1 |
+| `isNodeWired` | 133 | function | export | 1 |
+| `isProjectMode` | 143 | function | export | 5 |
+| `loadProjectGraph` | 155 | function | export | 2 |
+| `projectGraphSnapshot` | 221 | function | export | 2 |
+| `setNetPathChangedHandler` | 253 | function | export | 1 |
+| `serializeGraphFromRoot` | 272 | function | export | 3 |
+| `getNetPath` | 290 | function | export | 3 |
+| `getCurrentNetKind` | 309 | function | export | 4 |
+| `emptyChildGraph` | 316 | function |  | 2 |
+| `enterNode` | 326 | function | export | 2 |
+| `exitNode` | 359 | function | export | 1 |
+| `getRefRegistry` | 393 | function | export | 1 |
+| `refPathOf` | 405 | function |  | 3 |
+| `registerAddressRef` | 414 | function |  | 2 |
+| `rewriteRefsForRename` | 428 | function |  | 2 |
+| `getNodeParamBindings` | 455 | function | export | 1 |
+| `listNodeParamBindings` | 462 | function | export | 1 |
+| `setNodeBindings` | 473 | function | export | 1 |
+| `setNodeErrors` | 489 | function | export | 1 |
+| `getNodeErrors` | 497 | function | export | 1 |
+| `displayChainConnectionIds` | 504 | function |  | 2 |
+| `wantsEmptyRootGraph` | 544 | function |  | 3 |
+| `buildGraph` | 554 | function |  | 2 |
+| `createReteGraph` | 759 | function | export | 1 |
 
 ## web/src/nodes2/groups.ts（32 行）
 

@@ -1,8 +1,46 @@
-# 进行中任务与剩余评估（v0.1.00130）
+# 进行中任务与剩余评估（v0.1.00131）
 
 > 主进程写。本文件是**进度与计划的唯一真相**——原 `next-round-plan.md` 已并入本文件
 > 并删除（用户要求：不塞多个文件，以免浪费 token）。每条结论都标注了**验证方式**：
 > 写「已验证」的都在代码/浏览器/磁盘上实证过，没验的一律写「未验证」。
+
+## -6 vec3 通道打通（v0.1.00131，**实机验证，distinct 值**）
+
+用户把吊牌 entries 从 `tx` 改成 `t`，但 Cyl1nder 仍识别成 float。三处都要改：
+
+**1. HDA 侧硬编码 float。** `cyl1nder_tag.py` 的 parm 分支恒返回 `"type": "float"`。
+判据应当是 **parm 与 parmTuple 的互斥**（实测 `/obj/geo1/transform1`：
+`parm("t")->None` 而 `parmTuple("t")->size 3`；`tx` 恰好相反）。修后 `t -> vec3`。
+
+**2. vec3「写得进、读不出」。** `parameters.get_parameter` 走 `node.parm(name)`，
+元组参数取不到，读 `t` 报「Parameter 't' not found ... Did you mean: tz, ty, tx」；
+而写走 `set_parameter` 收列表所以成功。那个工具属于官方 fxhoudinimcp，不改它 ——
+在桥侧按分量兜底拼（`t` → `tx`/`ty`/`tz`），缺任一分量返回 None 而**不补 0**
+（两个分量拼出的位姿是错的，比读不到更坏）。
+
+**3. web 图里没有 `t` 这个参数。** `planVecGroups` 的 vec3 只是**显示层**分组，
+数据仍是三个 float。所以 `ch("../transform1/t")` 必须由取值侧把三分量拼起来 ——
+这就是用户要的「属性系统自动处理 vec3 关系」，写在取值侧而不是让用户改写成三条引用。
+
+**实机（distinct 值，不是 [0,0,0] 那种弱证明）**：web 侧设 tx=7 ty=8 tz=9 →
+null 引用框先填标量 `2`（被拦下，原因可读）→ 改成 `ch("../transform1/t")` →
+自动重试推 `[7,8,9]` → Houdini `parmTuple("t")` = **(7.0, 8.0, 9.0)**。
+
+### 退役过时注册条目（用户 #2）
+根因是**注册只有 upsert、心跳只 touch、谁都不负责删** —— 吊牌每改一次 entries
+就留下旧行。心跳新增 `names`（本次声明的全部 rel），桥据此扫**两份账**：
+`channels` 的行 + `mappings` 的条目。只扫前者的话映射条目还在，端口下拉里仍看得到
+过时逻辑名（实测撞到）。`names` 缺省或空集 → 什么都不删（空列表与「声明了空集」
+必须区分，否则一次异常解析会清空全部条目）。
+
+**连带教训**：退役注册条目会让**已存图产生悬空引用** —— 用户存档里的
+`_output_`/`_input_` 仍指向被我退役的 `transform1/tx`。清理注册表时必须同时看一眼存档。
+
+### 我自己修错一次的地方
+写回的「拒绝」集合我先按 `graphVersion` 清。**那是错的**：graphVersion 只在
+connectioncreate/remove 与 nodecreate/remove 时自增（graph.ts:599），**改参数不算**，
+而这里的拒绝几乎总是改参数就能修好 → 等于永不重试（探针实测：填对 `ch()` 之后仍然
+只看到旧拒绝日志）。改成 `Map<key, 被拒时的值>`：值变了就再试。
 
 ## -5 通道函数引用 `ch()`（v0.1.00130，用户提议，**已落地并实机验证**）
 
