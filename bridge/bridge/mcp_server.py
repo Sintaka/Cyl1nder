@@ -8,12 +8,14 @@ Codex config example (config.toml):
 """
 from __future__ import annotations
 
+import json
 import re
+import urllib.request
 from pathlib import Path
 
 from fastmcp import FastMCP
 
-from .protocol import VERSION
+from .protocol import PORT, VERSION
 from .snapshot import read_project_graph, read_snapshot, snapshot_root
 from .state import get_state
 
@@ -31,9 +33,32 @@ def _index_files() -> list[Path]:
 
 @mcp.tool()
 def cyl1nder_ping() -> dict:
-    """Bridge liveness + version + serial count."""
-    st = get_state()
-    return {"ok": True, "version": VERSION, "serials": len(st.registry.serials())}
+    """Bridge liveness + version + serial count —— **真的去问桥**（v0.1.00147）。
+
+    此前这里读的是 **MCP 服务进程自己**的东西：`VERSION` 在模块加载时就绑定了，
+    `get_state()` 也是本进程的状态。于是它既不报桥的版本、也不证明桥活着 ——
+    而 docstring 承诺的正是 "Bridge liveness"。
+
+    实测撞到：桥重启在 `v0.1.00144`、`protocol.py` 已是 `00146`，而本工具报 `0.1.00124`
+    —— **第三个数字**，是 MCP 进程启动那一刻的常量，落后 22 个版本。
+    我自己就被它误导过一次：用它得出"桥还活着"，之后不得不再打一次真 HTTP 才敢确认。
+
+    **一个会说谎的诊断工具比没有诊断工具更坏**：它把排查引向错误的方向。
+    现在打 `/api/health`：`version`/`serials` 一律取桥的响应，
+    另附 `mcpVersion` 说明本进程自己是哪个版本（两者不一致时一眼看出该重启谁）。
+    """
+    url = f"http://127.0.0.1:{PORT}/api/health"
+    try:
+        with urllib.request.urlopen(url, timeout=2.0) as resp:  # noqa: S310 - 固定本机地址
+            body = json.loads(resp.read().decode("utf-8"))
+    except Exception as exc:  # noqa: BLE001 - 桥不在是正常结论，不是异常
+        return {"ok": False, "error": str(exc)[:200], "mcpVersion": VERSION}
+    return {
+        "ok": True,
+        "version": body.get("version") or "",
+        "serials": body.get("serials"),
+        "mcpVersion": VERSION,
+    }
 
 
 @mcp.tool()

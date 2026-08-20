@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-20T18:32:06.749Z",
+  "generatedAt": "2026-08-20T18:41:02.889Z",
   "totalFunctions": 1278,
   "files": [
     {
@@ -1476,151 +1476,151 @@
     },
     {
       "file": "bridge/bridge/mcp_server.py",
-      "lineCount": 323,
+      "lineCount": 348,
       "functions": [
         {
           "name": "_index_files",
-          "line": 25,
+          "line": 27,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "cyl1nder_ping",
-          "line": 33,
+          "line": 35,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "cyl1nder_list_serials",
-          "line": 40,
+          "line": 65,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "cyl1nder_get_status",
-          "line": 46,
+          "line": 71,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "cyl1nder_read_snapshot",
-          "line": 58,
+          "line": 83,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_read_graph",
-          "line": 81,
+          "line": 106,
           "kind": "def",
           "exported": false,
           "calls": 5
         },
         {
           "name": "_node_map",
-          "line": 113,
+          "line": 138,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "cyl1nder_nodeview_nodes",
-          "line": 118,
+          "line": 143,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "cyl1nder_nodeview_connections",
-          "line": 127,
+          "line": 152,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "cyl1nder_nodeview_status",
-          "line": 147,
+          "line": 172,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "cyl1nder_nodeview_connected",
-          "line": 174,
+          "line": 199,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_read_snapshot_data",
-          "line": 207,
+          "line": 232,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "cyl1nder_viewport_settings",
-          "line": 216,
+          "line": 241,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "cyl1nder_node_params",
-          "line": 234,
+          "line": 259,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "cyl1nder_read_layout",
-          "line": 249,
+          "line": 274,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "walk",
-          "line": 259,
+          "line": 284,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "cyl1nder_read_logs",
-          "line": 272,
+          "line": 297,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "cyl1nder_get_errors",
-          "line": 278,
+          "line": 303,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "cyl1nder_get_geometry_summary",
-          "line": 284,
+          "line": 309,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "cyl1nder_index_query",
-          "line": 294,
+          "line": 319,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "run_stdio",
-          "line": 317,
+          "line": 342,
           "kind": "def",
           "exported": false,
           "calls": 2

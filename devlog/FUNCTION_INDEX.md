@@ -288,31 +288,31 @@
 | `_save` | 299 | def |  | 8 |
 | `_load` | 317 | def |  | 2 |
 
-## bridge/bridge/mcp_server.py（323 行）
+## bridge/bridge/mcp_server.py（348 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_index_files` | 25 | def |  | 2 |
-| `cyl1nder_ping` | 33 | def |  | 1 |
-| `cyl1nder_list_serials` | 40 | def |  | 1 |
-| `cyl1nder_get_status` | 46 | def |  | 1 |
-| `cyl1nder_read_snapshot` | 58 | def |  | 1 |
-| `_read_graph` | 81 | def |  | 5 |
-| `_node_map` | 113 | def |  | 3 |
-| `cyl1nder_nodeview_nodes` | 118 | def |  | 1 |
-| `cyl1nder_nodeview_connections` | 127 | def |  | 1 |
-| `cyl1nder_nodeview_status` | 147 | def |  | 1 |
-| `cyl1nder_nodeview_connected` | 174 | def |  | 1 |
-| `_read_snapshot_data` | 207 | def |  | 3 |
-| `cyl1nder_viewport_settings` | 216 | def |  | 1 |
-| `cyl1nder_node_params` | 234 | def |  | 1 |
-| `cyl1nder_read_layout` | 249 | def |  | 1 |
-| `walk` | 259 | def |  | 3 |
-| `cyl1nder_read_logs` | 272 | def |  | 1 |
-| `cyl1nder_get_errors` | 278 | def |  | 1 |
-| `cyl1nder_get_geometry_summary` | 284 | def |  | 1 |
-| `cyl1nder_index_query` | 294 | def |  | 1 |
-| `run_stdio` | 317 | def |  | 2 |
+| `_index_files` | 27 | def |  | 2 |
+| `cyl1nder_ping` | 35 | def |  | 1 |
+| `cyl1nder_list_serials` | 65 | def |  | 1 |
+| `cyl1nder_get_status` | 71 | def |  | 1 |
+| `cyl1nder_read_snapshot` | 83 | def |  | 1 |
+| `_read_graph` | 106 | def |  | 5 |
+| `_node_map` | 138 | def |  | 3 |
+| `cyl1nder_nodeview_nodes` | 143 | def |  | 1 |
+| `cyl1nder_nodeview_connections` | 152 | def |  | 1 |
+| `cyl1nder_nodeview_status` | 172 | def |  | 1 |
+| `cyl1nder_nodeview_connected` | 199 | def |  | 1 |
+| `_read_snapshot_data` | 232 | def |  | 3 |
+| `cyl1nder_viewport_settings` | 241 | def |  | 1 |
+| `cyl1nder_node_params` | 259 | def |  | 1 |
+| `cyl1nder_read_layout` | 274 | def |  | 1 |
+| `walk` | 284 | def |  | 3 |
+| `cyl1nder_read_logs` | 297 | def |  | 1 |
+| `cyl1nder_get_errors` | 303 | def |  | 1 |
+| `cyl1nder_get_geometry_summary` | 309 | def |  | 1 |
+| `cyl1nder_index_query` | 319 | def |  | 1 |
+| `run_stdio` | 342 | def |  | 2 |
 
 ## bridge/bridge/project_routes.py（636 行）
 
