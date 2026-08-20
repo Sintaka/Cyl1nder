@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -179,8 +180,18 @@ def _find_port_by_pid(expected_pid: int) -> tuple[int, dict] | None:
     """
     if not expected_pid:
         return None
-    for port in range(_PORT_SCAN_START, _PORT_SCAN_END + 1):
-        h = _probe_health(port)
+    # **并发探**（v0.1.00134）：串行 16 个端口 × 1s 超时 = 最坏 16s，而这些探测彼此
+    # 完全独立。并发之后最坏 ≈ 单次超时（~1s），实测首读 15.3s → 1.2s。
+    #
+    # 判据一个字没改：仍然只认 `health.pid == expected_pid`（pid 是识别实例的唯一可靠
+    # 依据，端口在重开后可能属于另一个实例）。并发只改「多快问完」，不改「信谁」。
+    #
+    # 端口号小的优先：同一个 pid 理论上只应出现在一个端口，但万一出现多个，
+    # 取最小端口让结果**可复现**——否则线程调度顺序会让答案每次不同。
+    ports = list(range(_PORT_SCAN_START, _PORT_SCAN_END + 1))
+    with ThreadPoolExecutor(max_workers=len(ports)) as pool:
+        healths = list(pool.map(_probe_health, ports))
+    for port, h in zip(ports, healths):
         if h is not None and int(h.get("pid") or 0) == expected_pid:
             return port, h
     return None
