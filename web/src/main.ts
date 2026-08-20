@@ -42,7 +42,12 @@ import {
   savePreferences,
   type Preferences,
 } from "./app/preference";
-import { collectWritebackTargets, createDataflow, resolveWritebackValue } from "./core/dataflow";
+import {
+  collectExternRefAddresses,
+  collectWritebackTargets,
+  createDataflow,
+  resolveWritebackValue,
+} from "./core/dataflow";
 import { createAutosave, createHdaWatchdog } from "./core/lifecycle";
 import { bindShortcuts } from "./core/shortcuts";
 import { cloneParams, paramsEqual, readParamFloats, type ParamLike } from "./core/params";
@@ -1248,6 +1253,35 @@ function scheduleWriteback(): void {
   }, 120);
 }
 
+/** 图外引用的值缓存，键 `<pid>:<逻辑名>`。每轮 flush 前刷新（见 prefetchExternRefs）。 */
+const externRefCache = new Map<string, number | number[]>();
+
+/**
+ * 去桥取「图外」引用的当前值，填进 `externRefCache`（v0.1.00133）。
+ *
+ * 为什么要预取而不是让解析器自己 await：`resolveWritebackValue` 跑在同步热路径上
+ * （flush 每帧都跑），改成异步会让整条取值链变成 Promise，且顺序不再可预测。
+ * 预取 + 同步查表把「异步」限制在这一处。
+ *
+ * 取不到的一律**不写进缓存** —— 于是解析器查不到、这次就不写。
+ * 绝不塞 0 占位：那会把「读不到」变成「值是 0」，静默清零用户的参数。
+ */
+async function prefetchExternRefs(pid: string, addresses: string[]): Promise<void> {
+  if (addresses.length === 0) return;
+  const results = await Promise.all(
+    addresses.map(async (addr) => ({ addr, r: await client.getMappingValue(pid, addr) })),
+  );
+  for (const { addr, r } of results) {
+    if (!r.ok) continue;
+    const v = r.value;
+    if (typeof v === "number" && Number.isFinite(v)) {
+      externRefCache.set(`${pid}:${addr}`, v);
+    } else if (Array.isArray(v) && v.every((x) => typeof x === "number" && Number.isFinite(x))) {
+      externRefCache.set(`${pid}:${addr}`, v as number[]);
+    }
+  }
+}
+
 /** 扫一遍当前图的 `_output_`，把有值的推到桥的映射端点。 */
 async function pushWritebackOnce(): Promise<void> {
   const pid = currentProjectId;
@@ -1259,9 +1293,13 @@ async function pushWritebackOnce(): Promise<void> {
     return; // 图还没就绪
   }
 
+  // 预取图外引用的值（v0.1.00133）。`resolveWritebackValue` 是同步的（flush 是热路径），
+  // 所以「问桥」这一步必须发生在它**之前**，把结果填进缓存供它同步查。
+  await prefetchExternRefs(pid, collectExternRefAddresses(snap));
+
   for (const t of collectWritebackTargets(snap)) {
     const key = `${pid}:${t.port}`;
-    const value = resolveWritebackValue(snap, t);
+    const value = resolveWritebackValue(snap, t, (addr) => externRefCache.get(`${pid}:${addr}`));
     if (value === undefined) continue; // 没算出值 ≠ 值是 0，绝不兜底写 0
     // 被拒过**且值没变** → 跳过。判据必须放在算出值**之后**：
     // 拒绝的理由是「这个值的形状不对」或「这个名字没有映射」，值变了前提就变了。
@@ -1281,9 +1319,12 @@ async function pushWritebackOnce(): Promise<void> {
     const wantVec = t.type === "vec3";
     if (wantVec !== Array.isArray(value)) {
       writebackRefused.set(key, value);
+      // **把实际值写进消息**：原来只说「单个数值」，不说是哪个值 —— 于是
+      // 「引用取到了 0.150023」与「引用其实还是字面量 2」长得一模一样，
+      // 用户（和我自己排查时）都无从判断引用到底解析到了什么。
       store.pushLog(
         `[writeback] 停止重试 ${t.port}：端口是 ${t.type}，但引用给出的是` +
-          `${Array.isArray(value) ? `${value.length} 个分量` : "单个数值"}` +
+          `${Array.isArray(value) ? `${value.length} 个分量` : "单个数值"} ${JSON.stringify(value)}` +
           `（vec3 请引用 vec3 组名，如 ch("../transform1/t")）`,
       );
       continue;

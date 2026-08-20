@@ -437,6 +437,33 @@ export class BridgeClient {
    * **409 = cook 会成环**（桥侧硬约束）。这里把它归一成 `ok:false` 并带上桥给的中文
    * 原因，让调用方可以直接显示；**不重试** —— 环不会因为再发一次就消失。
    */
+  /**
+   * GET /api/projects/{pid}/mappings/{name}/value — **读**一个逻辑名当前的值。
+   *
+   * 用途：`ch("../transform1/tx")` 指向的东西**不在 web 图里**时（图里只有用户手搭的
+   * 那几个节点，Houdini 场景里的节点绝大多数没有对应物），只能问桥。
+   * vec3 会由桥按分量拼好再回来（见 mapping_routes 的 `_read_vec3_components`）。
+   */
+  async getMappingValue(
+    projectId: string,
+    name: string,
+  ): Promise<{ ok: boolean; value?: unknown; error?: string }> {
+    const url = `${this.base}/api/projects/${encodeURIComponent(projectId)}/mappings/${name
+      .split("/")
+      .map(encodeURIComponent)
+      .join("/")}/value`;
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+      const body = (await res.json().catch(() => ({}))) as { ok?: boolean; value?: unknown; error?: unknown };
+      if (!res.ok || body.ok === false) {
+        return { ok: false, error: String(body.error ?? `HTTP ${res.status}`) };
+      }
+      return { ok: true, value: body.value };
+    } catch (e) {
+      return { ok: false, error: String(e) };
+    }
+  }
+
   async putMappingValue(
     projectId: string,
     name: string,

@@ -146,6 +146,9 @@ export function collectWritebackTargets(snap: NetworkSnapshot): WritebackTarget[
 function resolveRefInGraph(
   snap: NetworkSnapshot,
   expr: string,
+  /** 图外引用的**同步**查表（v0.1.00133）。由调用方预取好后注入 —— flush 是同步热路径，
+   *  这里不能 await。查不到就返回 undefined（= 这次不写），绝不兜底。 */
+  externValue?: (address: string) => number | number[] | undefined,
 ): number | number[] | undefined {
   const parsed = parseParamRef(expr);
   if (!parsed.ok || parsed.address === "") return undefined;
@@ -154,7 +157,12 @@ function resolveRefInGraph(
   const parmName = seg[seg.length - 1];
   const nodeLabel = seg[seg.length - 2];
   const node = snap.nodes.find((n) => n.label === nodeLabel);
-  if (!node) return undefined; // 不在本图 → 交给将来的异步通路
+  if (!node) {
+    // **不在本图 → 问桥**（v0.1.00133）。web 图里只有用户手搭的那几个节点，
+    // Houdini 场景里的节点绝大多数没有对应物，所以「找不到」是常态而不是错误。
+    // 逻辑名就是 `parsed.address` 本身（`transform1/tx`），与映射表同一套命名。
+    return externValue?.(parsed.address);
+  }
   const num = (x: unknown): number | undefined =>
     typeof x === "number" && Number.isFinite(x) ? x : undefined;
   const readParm = (nm: string): unknown => node.params?.find((p) => p.name === nm)?.value;
@@ -185,9 +193,38 @@ function resolveRefInGraph(
   return undefined;
 }
 
+/**
+ * 收集**指向图外**的引用逻辑名（v0.1.00133）。
+ *
+ * 调用方（main.ts）拿这份清单去桥预取值、填进缓存，下一帧 `resolveWritebackValue`
+ * 就能同步查到。**只收真的不在本图的**：图内的兄弟节点已经能同步解析，
+ * 把它们也算进来会白打一堆桥请求。
+ */
+export function collectExternRefAddresses(snap: NetworkSnapshot): string[] {
+  const out = new Set<string>();
+  const labels = new Set(snap.nodes.map((n) => n.label));
+  for (const n of snap.nodes) {
+    if (n.kind !== "null") continue;
+    for (const p of n.params ?? []) {
+      if (!p.name.startsWith("ref_slot")) continue;
+      const raw = typeof p.value === "string" ? p.value.trim() : "";
+      if (raw === "" || /^-?\d+(\.\d+)?$/.test(raw)) continue; // 空或字面量：不需要取
+      const parsed = parseParamRef(raw);
+      if (!parsed.ok || parsed.address === "") continue;
+      const seg = parsed.address.split("/").filter((s: string) => s !== "");
+      if (seg.length < 2) continue;
+      if (labels.has(seg[seg.length - 2])) continue; // 图内 → 同步解析，不必问桥
+      out.add(parsed.address);
+    }
+  }
+  return [...out];
+}
+
 export function resolveWritebackValue(
   snap: NetworkSnapshot,
   target: WritebackTarget,
+  /** 图外引用的同步查表（v0.1.00133）：由 main.ts 预取好后注入，见 resolveRefInGraph。 */
+  externValue?: (address: string) => number | number[] | undefined,
 ): number | number[] | undefined {
   const conn = snap.connections.find((c) => c.target === target.nodeId);
   if (!conn) return undefined; // _output_ 没接线 → 无源
@@ -216,7 +253,7 @@ export function resolveWritebackValue(
     // 为什么能同步做：`../名字/参数` 指的是同一网络里的兄弟节点，而那些节点就在
     // 这份 snapshot 里。所以不必向桥读值、不必 await —— flush 是同步热路径。
     // 解析不到（指向图外/桥侧的东西）→ undefined = 这次不写，**绝不兜底写 0**。
-    return resolveRefInGraph(snap, t);
+    return resolveRefInGraph(snap, t, externValue);
   }
   return undefined;
 }

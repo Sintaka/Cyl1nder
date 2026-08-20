@@ -57,6 +57,33 @@ describe("ch() 引用参与写回取值", () => {
   });
 });
 
+describe("collectExternRefAddresses：只收指向图外的引用", () => {
+  const snapWith = (refExpr: string, extraLabels: string[] = []) =>
+    ({
+      nodes: [
+        { id: "n", kind: "null", label: "null1", params: [{ name: "ref_slot0", type: "string", value: refExpr }] },
+        ...extraLabels.map((l, i) => ({ id: `x${i}`, kind: "transform", label: l, params: [] })),
+      ],
+      connections: [],
+    }) as never;
+
+  it("图内兄弟不收（同步就能解析，问桥是白打请求）", async () => {
+    const { collectExternRefAddresses } = await import("../src/core/dataflow");
+    expect(collectExternRefAddresses(snapWith('ch("../transform1/tx")', ["transform1"]))).toEqual([]);
+  });
+
+  it("图外的收，逻辑名与映射表同一套命名", async () => {
+    const { collectExternRefAddresses } = await import("../src/core/dataflow");
+    expect(collectExternRefAddresses(snapWith('ch("../faraway/tx")'))).toEqual(["faraway/tx"]);
+  });
+
+  it("字面量与空串不收（不需要取值）", async () => {
+    const { collectExternRefAddresses } = await import("../src/core/dataflow");
+    expect(collectExternRefAddresses(snapWith("2"))).toEqual([]);
+    expect(collectExternRefAddresses(snapWith("  "))).toEqual([]);
+  });
+});
+
 describe("vec3 组名自动展开（用户要求：t 由属性系统自动处理）", () => {
   const mk = (refExpr: string) =>
     ({
