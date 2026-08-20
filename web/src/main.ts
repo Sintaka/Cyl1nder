@@ -1249,8 +1249,42 @@ function scheduleWriteback(): void {
   if (writebackTimer !== null) return;
   writebackTimer = window.setTimeout(() => {
     writebackTimer = null;
-    void pushWritebackOnce();
+    void runWritebackGuarded();
   }, 120);
+}
+
+let writebackRunning = false;
+let writebackRerun = false;
+
+/**
+ * 单飞（single-flight）包一层（v0.1.00139）：同一时刻只允许一轮写回在跑。
+ *
+ * 为什么需要：去抖计时器在 **await 之前**就把自己置空了，而一轮 vec3 写回要 ~1s
+ * （桥逐分量打 3 次 MCP）。那段时间里 TTL 轮询再调一次 `scheduleWriteback()`，
+ * 120ms 后**第二轮并发开跑** —— 此时第一轮还没执行到 `writebackSent.set(...)`，
+ * 于是两轮都认为"这个值没发过"，同一个值被推两次。
+ * 实测日志里就是连着两行 `transform1/t = [7,8,9]`。
+ *
+ * 重复写同值会刷掉用户在 Houdini 的撤销栈、让它白重算 —— 正是 `writebackSent`
+ * 想避免的事，只是它挡不住**并发**。
+ *
+ * 期间来的请求不丢：置 `writebackRerun`，当前这轮结束后再补跑一次（latest-wins）。
+ */
+async function runWritebackGuarded(): Promise<void> {
+  if (writebackRunning) {
+    writebackRerun = true;
+    return;
+  }
+  writebackRunning = true;
+  try {
+    await pushWritebackOnce();
+  } finally {
+    writebackRunning = false;
+    if (writebackRerun) {
+      writebackRerun = false;
+      scheduleWriteback();
+    }
+  }
 }
 
 /** 图外引用的值缓存，键 `<pid>:<逻辑名>`。 */
