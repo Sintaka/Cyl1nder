@@ -320,10 +320,14 @@ def cyl1nder_read_logs(serial: str | None = None, level: str | None = None, limi
     q = f"?level={level or ''}&limit={int(limit)}"
     path = f"/api/hda/{serial}/logs{q}" if serial else f"/api/logs{q}"
     body = _bridge_get(path)
+    # 形状是 `{"logs": [...]}` —— 三个端点实测都是这一种
+    # （`/api/logs`、`/api/logs?level=error`、`/api/hda/{serial}/logs`）。
+    # 初版还兜了个 `body.get("entries")`，那是**没验就猜**留下的死代码：多余的兜底会让
+    # 读代码的人以为响应形状不确定，本会话我已经因为"猜形状"错了六次，不再添新的。
     if isinstance(body, dict):
-        rows = body.get("logs") or body.get("entries") or []
+        rows = body.get("logs")
         return rows if isinstance(rows, list) else []
-    return body if isinstance(body, list) else []
+    return []
 
 
 @mcp.tool()
