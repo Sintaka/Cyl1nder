@@ -1397,10 +1397,16 @@ async function pushWritebackOnce(): Promise<void> {
     const key = `${pid}:${t.port}`;
     const value = resolveWritebackValue(snap, t, (addr) => externRefCache.get(`${pid}:${addr}`));
     if (value === undefined) continue; // 没算出值 ≠ 值是 0，绝不兜底写 0
-    // 被拒过**且值没变** → 跳过。判据必须放在算出值**之后**：
-    // 拒绝的理由是「这个值的形状不对」或「这个名字没有映射」，值变了前提就变了。
+    // 被拒过**且前提没变** → 跳过。判据必须放在算出值**之后**：
+    // 拒绝的理由是「这个值的形状不对」或「这个名字没有映射」，前提变了就该重试。
     // 放在前面（只看 key）等于永久钉死，用户改对也不再试。
-    if (writebackRefused.has(key) && sameWritebackValue(writebackRefused.get(key), value)) continue;
+    //
+    // **前提 = 端口类型 + 值**（v0.1.00140）。此前只记值：于是「引用给的是标量、
+    // 端口是 vec3」被拒之后，用户把**端口类型**改成 float（值一个字没动）仍然不重试 ——
+    // 明明已经改对了，却永远不写。这是 e2e 的差分断言抓出来的（先断言 vec3 不写、
+    // 再改回 float 断言必须写），只断言"没有 PUT"的测试抓不到它。
+    const refuseKey = `${t.type}|${JSON.stringify(value)}`;
+    if (writebackRefused.get(key) === refuseKey) continue;
     // **逐元素比**（v0.1.00131）：vec3 是数组，`===` 恒为 false ——
     // 那会让 vec3 每帧都重推一次，刷掉用户在 Houdini 的撤销栈。
     // 这与 param.ts 里 `paramValuesEqual` 要与 `core/params.paramsEqual` 区分开
@@ -1414,7 +1420,7 @@ async function pushWritebackOnce(): Promise<void> {
     // 那条消息完全指不出真因（真因是「引用给的是数字 2，而端口是 vec3」）。
     const wantVec = t.type === "vec3";
     if (wantVec !== Array.isArray(value)) {
-      writebackRefused.set(key, value);
+      writebackRefused.set(key, refuseKey);
       // **把实际值写进消息**：原来只说「单个数值」，不说是哪个值 —— 于是
       // 「引用取到了 0.150023」与「引用其实还是字面量 2」长得一模一样，
       // 用户（和我自己排查时）都无从判断引用到底解析到了什么。
@@ -1433,7 +1439,7 @@ async function pushWritebackOnce(): Promise<void> {
       // **终态失败不重试**：环不会因为再发一次消失，「映射不存在」也不会。
       // 不停手的话每帧刷一条日志（实测撞到：`失败 transform1/tx: mapping not found`
       // 连刷四条），把真正有用的日志淹掉。
-      writebackRefused.set(key, value);
+      writebackRefused.set(key, refuseKey);
       store.pushLog(`[writeback] 停止重试 ${t.port}：${r.error ?? "桥拒绝"}`);
     } else {
       // 其余（网络抖动/桥重启）是**瞬时**失败，留给下一帧重试。

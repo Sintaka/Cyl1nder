@@ -36,6 +36,12 @@ async function deleteProject(pid: string): Promise<void> {
 // 为什么必须顺手清 projectOfSerial：一个 worker 会连着跑多个 spec 文件，缓存是模块级
 // 的。删完不清缓存，下一个文件会拿着已删的 pid 去开页面，撞上入口守卫 —— 这个坑
 // 比它修的问题更难查。
+// 合成项目的清扫**不在这里** —— 见 `e2e/global-teardown.ts`（v0.1.00140）。
+// 我先在本文件写过一份，但它挂在模块顶层的 `test.afterAll` 上：Node 缓存模块，
+// 一个 worker 只会把它挂到**第一个** import 的 spec 文件上，后面每个文件新建的项目
+// 照样漏在桥里（实测：旧的 4 个被删了，同一轮又留下 4 个新的）。
+// 所以清扫改由 playwright.config 的 globalTeardown 全量跑完后做一次。
+
 test.afterAll(async () => {
   const pids = [...createdProjects.keys()];
   if (pids.length === 0) return;

@@ -1191,7 +1191,7 @@
 |---|---|---|---|---|
 | `createTimelineController` | 43 | function | export | 1 |
 
-## web/src/main.ts（2218 行）
+## web/src/main.ts（2224 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -1212,40 +1212,40 @@
 | `bootIsMemberEntry` | 640 | arrow |  | 0 |
 | `applyLayoutSettings` | 976 | function |  | 4 |
 | `refreshSelectionPanels` | 1031 | function |  | 5 |
-| `sameWritebackValue` | 1237 | function |  | 4 |
+| `sameWritebackValue` | 1237 | function |  | 3 |
 | `scheduleWriteback` | 1248 | function |  | 7 |
 | `runWritebackGuarded` | 1273 | function |  | 2 |
 | `armExternRefPoll` | 1331 | function |  | 2 |
 | `prefetchExternRefs` | 1339 | function |  | 2 |
 | `pushWritebackOnce` | 1380 | function |  | 2 |
-| `syncWritebackPointer` | 1460 | function |  | 2 |
-| `anchorNetPathOf` | 1495 | function |  | 2 |
-| `inputStatsText` | 1520 | function |  | 2 |
-| `outputStatsText` | 1529 | function |  | 2 |
-| `renderInspector` | 1538 | function |  | 2 |
-| `isProjectModeActive` | 1556 | function |  | 3 |
-| `projectAddress` | 1562 | function |  | 3 |
-| `onNetPathChanged` | 1581 | function |  | 1 |
-| `waitNetPath` | 1591 | function |  | 5 |
-| `enterableNodeNames` | 1605 | function |  | 3 |
-| `enterNodeAwaited` | 1616 | function |  | 3 |
-| `enterByName` | 1629 | function |  | 3 |
-| `exitToDepth` | 1636 | function |  | 5 |
-| `navigateByName` | 1654 | function |  | 2 |
-| `saveProjectGraph` | 1682 | function |  | 5 |
-| `enterProjectMode` | 1729 | function |  | 7 |
-| `openProjectMember` | 1846 | function |  | 2 |
-| `enterMemberWorkspace` | 1868 | function |  | 3 |
-| `commitPendingMemberScope` | 1888 | function |  | 3 |
-| `updateGraphAddress` | 1901 | function |  | 7 |
-| `scheduleNetwork` | 1929 | function |  | 1 |
-| `flushStoreView` | 1932 | function |  | 2 |
-| `loadSnapshotIntoStore` | 1960 | function |  | 3 |
-| `applyLoadedPreference` | 2005 | function |  | 3 |
-| `syncMemberInAddress` | 2047 | function |  | 2 |
-| `syncProjectInAddress` | 2067 | function |  | 2 |
-| `connectSerial` | 2080 | arrow |  | 1 |
-| `markGraphDirty` | 2211 | function |  | 2 |
+| `syncWritebackPointer` | 1466 | function |  | 2 |
+| `anchorNetPathOf` | 1501 | function |  | 2 |
+| `inputStatsText` | 1526 | function |  | 2 |
+| `outputStatsText` | 1535 | function |  | 2 |
+| `renderInspector` | 1544 | function |  | 2 |
+| `isProjectModeActive` | 1562 | function |  | 3 |
+| `projectAddress` | 1568 | function |  | 3 |
+| `onNetPathChanged` | 1587 | function |  | 1 |
+| `waitNetPath` | 1597 | function |  | 5 |
+| `enterableNodeNames` | 1611 | function |  | 3 |
+| `enterNodeAwaited` | 1622 | function |  | 3 |
+| `enterByName` | 1635 | function |  | 3 |
+| `exitToDepth` | 1642 | function |  | 5 |
+| `navigateByName` | 1660 | function |  | 2 |
+| `saveProjectGraph` | 1688 | function |  | 5 |
+| `enterProjectMode` | 1735 | function |  | 7 |
+| `openProjectMember` | 1852 | function |  | 2 |
+| `enterMemberWorkspace` | 1874 | function |  | 3 |
+| `commitPendingMemberScope` | 1894 | function |  | 3 |
+| `updateGraphAddress` | 1907 | function |  | 7 |
+| `scheduleNetwork` | 1935 | function |  | 1 |
+| `flushStoreView` | 1938 | function |  | 2 |
+| `loadSnapshotIntoStore` | 1966 | function |  | 3 |
+| `applyLoadedPreference` | 2011 | function |  | 3 |
+| `syncMemberInAddress` | 2053 | function |  | 2 |
+| `syncProjectInAddress` | 2073 | function |  | 2 |
+| `connectSerial` | 2086 | arrow |  | 1 |
+| `markGraphDirty` | 2217 | function |  | 2 |
 
 ## web/src/nodes2/chain-cache.ts（365 行）
 
