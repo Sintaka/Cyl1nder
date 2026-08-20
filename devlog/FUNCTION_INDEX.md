@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1276** 个函数/类。
+> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1277** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -43,7 +43,7 @@
 | `serial_capabilities` | 518 | def |  | 1 |
 | `_node_type_name` | 568 | def |  | 2 |
 
-## bridge/bridge/channels.py（163 行）
+## bridge/bridge/channels.py（200 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -51,13 +51,14 @@
 | `__init__` | 21 | def |  | 1 |
 | `_key_of` | 32 | def |  | 3 |
 | `register` | 37 | def |  | 1 |
-| `get` | 62 | def |  | 17 |
+| `get` | 62 | def |  | 21 |
 | `list` | 67 | def |  | 3 |
 | `touch` | 73 | def |  | 1 |
 | `retire_except` | 84 | def |  | 1 |
 | `save_now` | 114 | def |  | 1 |
 | `_save` | 118 | def |  | 5 |
-| `_load` | 136 | def |  | 2 |
+| `_drop_stale_tag_collisions` | 136 | def |  | 2 |
+| `_load` | 172 | def |  | 2 |
 
 ## bridge/bridge/compute/__init__.py（49 行）
 

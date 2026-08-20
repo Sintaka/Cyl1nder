@@ -73,6 +73,67 @@ def test_load_drops_bad_serial_and_relless_rows(tmp_path: Path) -> None:
     assert sorted(r.get("absolutePath") or r["nodePath"] for r in kept) == ["/a/tx", "/obj/geo1/tag1"]
 
 
+def test_load_drops_stale_tag_on_same_node(tmp_path: Path) -> None:
+    """同 `(hip, nodePath)` 有两个 tag 行 → 只留**心跳最新**的（v0.1.00145）。
+
+    判据自证、不必问 Houdini：serial 不可变，所以一个节点在一个 hip 里只能有一个 serial；
+    同坑位出现两个就必有一个是旧的（复制/删除节点留下），而心跳只来自节点自己 cook 时。
+
+    实测撞到的就是这个：`/obj/geo1/Cyl1nderTag2` 同时挂着 `C1-mt09nkms-bwxp`（08-20）
+    与 `C1-mt07aw69-cvtl`（08-19），用 MCP 读活节点得到的是前者。
+    """
+    import json
+
+    cur, stale = generate_serial(), generate_serial()
+    p = tmp_path / "channels.json"
+    p.write_text(
+        json.dumps(
+            [
+                {"kind": "tag", "serial": stale, "nodePath": "/obj/geo1/Tag2", "hip": "a.hip", "lastSeen": 100.0},
+                {"kind": "tag", "serial": cur, "nodePath": "/obj/geo1/Tag2", "hip": "a.hip", "lastSeen": 200.0},
+            ]
+        ),
+        encoding="utf-8",
+    )
+    kept = ChannelRegistry(p).list()
+    assert [r["serial"] for r in kept] == [cur]
+
+
+def test_load_keeps_same_node_across_different_hips(tmp_path: Path) -> None:
+    """跨 hip 的同名节点**不算冲突** —— 那是另一个文件里的登记，重开那个文件就该用它。"""
+    import json
+
+    a, b = generate_serial(), generate_serial()
+    p = tmp_path / "channels.json"
+    p.write_text(
+        json.dumps(
+            [
+                {"kind": "tag", "serial": a, "nodePath": "/obj/geo1/tag", "hip": "one.hip", "lastSeen": 100.0},
+                {"kind": "tag", "serial": b, "nodePath": "/obj/geo1/tag", "hip": "two.hip", "lastSeen": 200.0},
+            ]
+        ),
+        encoding="utf-8",
+    )
+    assert len(ChannelRegistry(p).list()) == 2
+
+
+def test_load_keeps_quiet_tag_when_no_collision(tmp_path: Path) -> None:
+    """**只做相对比较，绝不按心跳年龄单独判死**。
+
+    devlog 记过实测有活吊牌 2938s 未 cook —— "很久没心跳"只说明"最近没 cook"。
+    单独一个很旧的 tag 行必须留着。
+    """
+    import json
+
+    s = generate_serial()
+    p = tmp_path / "channels.json"
+    p.write_text(
+        json.dumps([{"kind": "tag", "serial": s, "nodePath": "/obj/geo1/tag", "hip": "a.hip", "lastSeen": 1.0}]),
+        encoding="utf-8",
+    )
+    assert len(ChannelRegistry(p).list()) == 1
+
+
 def test_load_keeps_tag_rows_without_rel(tmp_path: Path) -> None:
     """tag 行的 `rel` 本来就是空（它是吊牌自身的标记行）—— 绝不能被 rel 筛选连带删掉。"""
     import json

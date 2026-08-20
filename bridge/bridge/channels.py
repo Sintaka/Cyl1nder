@@ -133,6 +133,42 @@ class ChannelRegistry:
         tmp.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         tmp.replace(self._path)
 
+    def _drop_stale_tag_collisions(self) -> list[str]:
+        """同一 `(hip, nodePath)` 上有多个 tag 行时，只留**心跳最新**的那个（v0.1.00145）。
+
+        为什么这条判据是自证的、不必问 Houdini：serial 创建时生成、持久化、不可变，
+        所以一个节点在一个 hip 里**只能有一个** serial —— 同 `(hip, nodePath)` 出现两个
+        就必然有一个是旧的（复制/删除节点留下的）。而心跳**只来自那个节点自己 cook 时**，
+        于是"最近还在心跳的那个"就是当前那个。
+
+        实测撞到的就是这个：`/obj/geo1/Cyl1nderTag2` 同时挂着
+        `C1-mt09nkms-bwxp`（lastSeen 08-20）与 `C1-mt07aw69-cvtl`（lastSeen 08-19），
+        而用 MCP 读活节点得到的是前者 —— 与本判据一致。
+
+        **刻意不按心跳年龄单独判死**：devlog 记过实测有活吊牌 2938s 未 cook，
+        "很久没心跳"只说明"最近没 cook"。这里用的是**相对**比较（同一个坑位谁更新），
+        不是绝对阈值，所以不会误杀一个安静但活着的吊牌。
+
+        跨 hip 的同名节点**不算冲突**：那是另一个文件里的登记，用户重开那个文件就该用它。
+        """
+        groups: dict[tuple[str, str], list[str]] = {}
+        for key, rec in self._records.items():
+            if rec.get("kind") != "tag":
+                continue
+            node = (rec.get("nodePath") or "").strip()
+            if not node:
+                continue
+            groups.setdefault(((rec.get("hip") or "").strip(), node), []).append(key)
+        dropped: list[str] = []
+        for (hip, node), keys in groups.items():
+            if len(keys) < 2:
+                continue
+            keys.sort(key=lambda k: float(self._records[k].get("lastSeen") or 0.0), reverse=True)
+            for stale in keys[1:]:
+                del self._records[stale]
+                dropped.append(f"{stale}(stale tag for {node} in {hip[-24:]})")
+        return dropped
+
     def _load(self, path: Path) -> None:
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
@@ -157,6 +193,7 @@ class ChannelRegistry:
                 dropped.append(f"{key}(no rel)")
                 continue
             self._records[key] = item
+        dropped.extend(self._drop_stale_tag_collisions())
         if dropped:
             # 用 print 而非 logs：`_load` 在 state 装配期间跑，此时 LogRing 还不一定就绪。
             print(f"[channels] dropped {len(dropped)} invalid row(s) on load: {', '.join(dropped)}")

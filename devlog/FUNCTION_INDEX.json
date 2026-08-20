@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-20T18:11:06.124Z",
-  "totalFunctions": 1276,
+  "generatedAt": "2026-08-20T18:20:43.920Z",
+  "totalFunctions": 1277,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -196,7 +196,7 @@
     },
     {
       "file": "bridge/bridge/channels.py",
-      "lineCount": 163,
+      "lineCount": 200,
       "functions": [
         {
           "name": "ChannelRegistry",
@@ -231,7 +231,7 @@
           "line": 62,
           "kind": "def",
           "exported": false,
-          "calls": 17
+          "calls": 21
         },
         {
           "name": "list",
@@ -269,8 +269,15 @@
           "calls": 5
         },
         {
-          "name": "_load",
+          "name": "_drop_stale_tag_collisions",
           "line": 136,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_load",
+          "line": 172,
           "kind": "def",
           "exported": false,
           "calls": 2
