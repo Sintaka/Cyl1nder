@@ -16,6 +16,7 @@ main.py 由主进程挂载本 router（本文件不改 main.py）。
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -87,7 +88,7 @@ def _resolve_port_for_anchor(serial: str) -> int:
             h = _probe_health(recorded_port)
             if h is not None and int(h.get("pid") or 0) == expected_pid:
                 return recorded_port
-        found = _find_port_by_pid(expected_pid)
+        found = _find_port_by_pid_cached(expected_pid)
         if found:
             return found[0]
     elif recorded_port:
@@ -131,6 +132,40 @@ _REASON_ALIVE = "alive: pid matches the recorded houdini instance"
 # fxhoudinimcp 端口窗口（与 houdini_mcp.discover_first 的默认一致）
 _PORT_SCAN_START = 8100
 _PORT_SCAN_END = 8115
+
+
+_PID_MISS_TTL = 30.0
+"""扫不到某 pid 后，多久之内不再重扫（秒）。"""
+
+_pid_miss_at: dict[int, float] = {}
+"""pid -> 上次扫空的时刻。**只缓存失败**，命中从不缓存（端口会变，命中必须现探）。"""
+
+
+def _find_port_by_pid_cached(expected_pid: int) -> tuple[int, dict] | None:
+    """带**失败短缓存**的 pid 定位（v0.1.00134）。
+
+    实测的病象：Houdini 重启后，未重新 cook 的吊牌其锚点记录还是**旧 pid**
+    （心跳只在 cook 时发，所以旧 pid 会长期留着）。于是每次读都要
+    「探记录端口 → pid 不符 → 扫 8100..8115 找那个已经不存在的 pid」，
+    16 个端口 × 1s 超时 = **每次读固定多花 ~15s**（实测 15217/15271/15286ms）。
+
+    扫空说明「这个 pid 的实例真的不在了」——那是个**稳定**结论，30s 内不会自己变回来，
+    没必要每次读都重新证明一遍。所以只缓存失败：
+    - 命中**从不**缓存：端口在实例重开后会变，命中必须现探才可靠（与 dev 规范一致）；
+    - 30s 后允许再扫一次：万一那个实例真的回来了，不至于永久失联。
+    """
+    if not expected_pid:
+        return None
+    now = time.time()
+    last = _pid_miss_at.get(expected_pid)
+    if last is not None and now - last < _PID_MISS_TTL:
+        return None  # 刚扫空过，别再花 16s 证明同一件事
+    found = _find_port_by_pid(expected_pid)
+    if found is None:
+        _pid_miss_at[expected_pid] = now
+    else:
+        _pid_miss_at.pop(expected_pid, None)
+    return found
 
 
 def _find_port_by_pid(expected_pid: int) -> tuple[int, dict] | None:
