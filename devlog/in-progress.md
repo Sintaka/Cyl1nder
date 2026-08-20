@@ -1,8 +1,44 @@
-# 进行中任务与剩余评估（v0.1.00131）
+# 进行中任务与剩余评估（v0.1.00132）
 
 > 主进程写。本文件是**进度与计划的唯一真相**——原 `next-round-plan.md` 已并入本文件
 > 并删除（用户要求：不塞多个文件，以免浪费 token）。每条结论都标注了**验证方式**：
 > 写「已验证」的都在代码/浏览器/磁盘上实证过，没验的一律写「未验证」。
+
+## -7 Shift+Enter 自动接线（v0.1.00132，**浏览器实证两条路径 + 撤销**）
+
+用户原话：「选择状态在 input 上而且我 tab, 选择到 output, 此时 shift + Enter,
+output 可以自动同步当前选择的 n 个 input 并且在后面填入相同的序列号, 端口一一连接」。
+
+### 两条路径都实测过
+| 路径 | 实录 |
+|---|---|
+| palette（用户原话那条）：选 input → Tab → 选 output → Shift+Enter | `paletteOpen=1` 节点 4→5（现建 `_output_2`）、连线 2→3，新 output 拿到 `address=C1-… type=vec3 port=transform1/t` |
+| palette 关闭：已选中 input + output | 腾空前 `kept existing wire … mirrored 0`；腾空后 `wired _input_ -> _output_` 、连线 1→2 |
+| 撤销 | `freed=1 afterWire=2 afterUndo=1`，日志 `undo shake (0 cut / 1 added)`；撤销后项目图两条连线完好 |
+
+### 配对规则（子智能体中途改对的那条）
+它先按**下标**配对，重读用户原话「找第一个匹配的连接」之后改成**按序扫描剩余候选池、
+取第一个类型合得上的、用掉即移除**。同类型时退化成下标对应；混类型时能多连出若干条
+且不交叉。**被拒的一对不推进 output 游标** —— 否则一次不匹配会把后面全部错位一格。
+
+### `_output_` 是单端口，所以是 n 对 n（用户已确认这是他要的）
+`makeOutputNode(singlePort)` 只有 `out0`（v0.1.00121 起），所以「一个 output 吸收 n 个
+input」在形状上不成立。选 n 个 input + n 个 output（或重复手势 n 次）。
+用户 2026-08-20 明确回答：**就要现在这种 n 对 n**，不改多端口。
+
+### 撤销为什么用模块级 setter
+`undoManager` 要从 attachTabSearch → startShiftEnterWire → runShiftEnterWire 穿三层签名，
+三个签名都会被这一个功能污染。本文件已为 `setApplyNodeParamsHandler` /
+`setRenameHandler` 立了同一模式，照它做。复用既有 `shake` action
+（`cut: []` + `added: [...]` = 只加了线），不新造 action 类型。
+两条防谎报：**只记 `addConnection` 返回 true 的线**（记被拒的线会让 Ctrl+Z 去删不存在的线）、
+**接了 0 根不推条目**（推空条目会让用户按一次 Ctrl+Z 什么都没发生，比没有撤销更困惑）。
+
+### 探针教训：选择态在 `node.selected` 上
+我在「怎么选中两个节点」上失败了**五次**（Ctrl+click 是替换而非累加、`selectable`
+不在公开 api 上）。真相在 `graph-interact.ts` 的读法：多选没有别的 API，就是
+`editor.getNodes()` 过滤 `node.selected`（`graph.ts:1035` 的 frameSelection 同款）。
+**该早点读代码，而不是连试五次点击方式。**
 
 ## -6 vec3 通道打通（v0.1.00131，**实机验证，distinct 值**）
 

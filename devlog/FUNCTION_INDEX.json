@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-20T12:33:58.600Z",
-  "totalFunctions": 1262,
+  "generatedAt": "2026-08-20T13:31:58.849Z",
+  "totalFunctions": 1263,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -6328,7 +6328,7 @@
     },
     {
       "file": "web/src/nodes2/graph-interact.ts",
-      "lineCount": 2148,
+      "lineCount": 2175,
       "functions": [
         {
           "name": "setNetKindProvider",
@@ -6814,50 +6814,57 @@
           "calls": 2
         },
         {
+          "name": "setShiftEnterUndoHandler",
+          "line": 1970,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
           "name": "applyMirroredParams",
-          "line": 1960,
+          "line": 1975,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "selectedNodesOfKind",
-          "line": 1973,
+          "line": 1988,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "readParamValue",
-          "line": 1979,
+          "line": 1994,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "toShiftEnterInput",
-          "line": 1985,
+          "line": 2000,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "runShiftEnterWire",
-          "line": 2020,
+          "line": 2035,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "startShiftEnterWire",
-          "line": 2108,
+          "line": 2135,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "attachShiftEnterWire",
-          "line": 2130,
+          "line": 2157,
           "kind": "function",
           "exported": false,
           "calls": 2
@@ -7627,186 +7634,186 @@
     },
     {
       "file": "web/src/nodes2/graph.ts",
-      "lineCount": 1138,
+      "lineCount": 1152,
       "functions": [
         {
           "name": "setChannelDisplayHandler",
-          "line": 122,
+          "line": 123,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "getChannelDisplaySerial",
-          "line": 127,
+          "line": 128,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "isNodeWired",
-          "line": 133,
+          "line": 134,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "isProjectMode",
-          "line": 143,
+          "line": 144,
           "kind": "function",
           "exported": true,
           "calls": 5
         },
         {
           "name": "loadProjectGraph",
-          "line": 155,
+          "line": 156,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "projectGraphSnapshot",
-          "line": 221,
+          "line": 222,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "setNetPathChangedHandler",
-          "line": 253,
+          "line": 254,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "serializeGraphFromRoot",
-          "line": 272,
+          "line": 273,
           "kind": "function",
           "exported": true,
           "calls": 3
         },
         {
           "name": "getNetPath",
-          "line": 290,
+          "line": 291,
           "kind": "function",
           "exported": true,
           "calls": 3
         },
         {
           "name": "getCurrentNetKind",
-          "line": 309,
+          "line": 310,
           "kind": "function",
           "exported": true,
           "calls": 4
         },
         {
           "name": "emptyChildGraph",
-          "line": 316,
+          "line": 317,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "enterNode",
-          "line": 326,
+          "line": 327,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "exitNode",
-          "line": 359,
+          "line": 360,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "getRefRegistry",
-          "line": 393,
+          "line": 394,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "refPathOf",
-          "line": 405,
+          "line": 406,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "registerAddressRef",
-          "line": 414,
+          "line": 415,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "rewriteRefsForRename",
-          "line": 428,
+          "line": 429,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "getNodeParamBindings",
-          "line": 455,
+          "line": 456,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "listNodeParamBindings",
-          "line": 462,
+          "line": 463,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "setNodeBindings",
-          "line": 473,
+          "line": 474,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "setNodeErrors",
-          "line": 489,
+          "line": 490,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "getNodeErrors",
-          "line": 497,
+          "line": 498,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "displayChainConnectionIds",
-          "line": 504,
+          "line": 505,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "wantsEmptyRootGraph",
-          "line": 544,
+          "line": 545,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "buildGraph",
-          "line": 554,
+          "line": 555,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "createReteGraph",
-          "line": 759,
+          "line": 760,
           "kind": "function",
           "exported": true,
           "calls": 1

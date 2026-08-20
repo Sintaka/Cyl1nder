@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1262** 个函数/类。
+> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1263** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -1255,7 +1255,7 @@
 | `computeOutputsCached` | 303 | function | export | 1 |
 | `computeNodeResultCached` | 354 | function | export | 1 |
 
-## web/src/nodes2/graph-interact.ts（2148 行）
+## web/src/nodes2/graph-interact.ts（2175 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -1328,13 +1328,14 @@
 | `resolveShiftEnterTarget` | 1814 | function | export | 2 |
 | `planShiftEnterWire` | 1853 | function | export | 2 |
 | `setApplyNodeParamsHandler` | 1955 | function | export | 2 |
-| `applyMirroredParams` | 1960 | function |  | 2 |
-| `selectedNodesOfKind` | 1973 | function |  | 4 |
-| `readParamValue` | 1979 | function |  | 3 |
-| `toShiftEnterInput` | 1985 | function |  | 2 |
-| `runShiftEnterWire` | 2020 | function |  | 2 |
-| `startShiftEnterWire` | 2108 | function |  | 3 |
-| `attachShiftEnterWire` | 2130 | function |  | 2 |
+| `setShiftEnterUndoHandler` | 1970 | function | export | 1 |
+| `applyMirroredParams` | 1975 | function |  | 2 |
+| `selectedNodesOfKind` | 1988 | function |  | 4 |
+| `readParamValue` | 1994 | function |  | 3 |
+| `toShiftEnterInput` | 2000 | function |  | 2 |
+| `runShiftEnterWire` | 2035 | function |  | 2 |
+| `startShiftEnterWire` | 2135 | function |  | 3 |
+| `attachShiftEnterWire` | 2157 | function |  | 2 |
 
 ## web/src/nodes2/graph-model.ts（2487 行）
 
@@ -1453,36 +1454,36 @@
 | `lbl` | 52 | arrow |  | 4 |
 | `createGraphUndoManager` | 130 | function | export | 1 |
 
-## web/src/nodes2/graph.ts（1138 行）
+## web/src/nodes2/graph.ts（1152 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `setChannelDisplayHandler` | 122 | function | export | 2 |
-| `getChannelDisplaySerial` | 127 | function | export | 1 |
-| `isNodeWired` | 133 | function | export | 1 |
-| `isProjectMode` | 143 | function | export | 5 |
-| `loadProjectGraph` | 155 | function | export | 2 |
-| `projectGraphSnapshot` | 221 | function | export | 2 |
-| `setNetPathChangedHandler` | 253 | function | export | 1 |
-| `serializeGraphFromRoot` | 272 | function | export | 3 |
-| `getNetPath` | 290 | function | export | 3 |
-| `getCurrentNetKind` | 309 | function | export | 4 |
-| `emptyChildGraph` | 316 | function |  | 2 |
-| `enterNode` | 326 | function | export | 2 |
-| `exitNode` | 359 | function | export | 1 |
-| `getRefRegistry` | 393 | function | export | 1 |
-| `refPathOf` | 405 | function |  | 3 |
-| `registerAddressRef` | 414 | function |  | 2 |
-| `rewriteRefsForRename` | 428 | function |  | 2 |
-| `getNodeParamBindings` | 455 | function | export | 1 |
-| `listNodeParamBindings` | 462 | function | export | 1 |
-| `setNodeBindings` | 473 | function | export | 1 |
-| `setNodeErrors` | 489 | function | export | 1 |
-| `getNodeErrors` | 497 | function | export | 1 |
-| `displayChainConnectionIds` | 504 | function |  | 2 |
-| `wantsEmptyRootGraph` | 544 | function |  | 3 |
-| `buildGraph` | 554 | function |  | 2 |
-| `createReteGraph` | 759 | function | export | 1 |
+| `setChannelDisplayHandler` | 123 | function | export | 2 |
+| `getChannelDisplaySerial` | 128 | function | export | 1 |
+| `isNodeWired` | 134 | function | export | 1 |
+| `isProjectMode` | 144 | function | export | 5 |
+| `loadProjectGraph` | 156 | function | export | 2 |
+| `projectGraphSnapshot` | 222 | function | export | 2 |
+| `setNetPathChangedHandler` | 254 | function | export | 1 |
+| `serializeGraphFromRoot` | 273 | function | export | 3 |
+| `getNetPath` | 291 | function | export | 3 |
+| `getCurrentNetKind` | 310 | function | export | 4 |
+| `emptyChildGraph` | 317 | function |  | 2 |
+| `enterNode` | 327 | function | export | 2 |
+| `exitNode` | 360 | function | export | 1 |
+| `getRefRegistry` | 394 | function | export | 1 |
+| `refPathOf` | 406 | function |  | 3 |
+| `registerAddressRef` | 415 | function |  | 2 |
+| `rewriteRefsForRename` | 429 | function |  | 2 |
+| `getNodeParamBindings` | 456 | function | export | 1 |
+| `listNodeParamBindings` | 463 | function | export | 1 |
+| `setNodeBindings` | 474 | function | export | 1 |
+| `setNodeErrors` | 490 | function | export | 1 |
+| `getNodeErrors` | 498 | function | export | 1 |
+| `displayChainConnectionIds` | 505 | function |  | 2 |
+| `wantsEmptyRootGraph` | 545 | function |  | 3 |
+| `buildGraph` | 555 | function |  | 2 |
+| `createReteGraph` | 760 | function | export | 1 |
 
 ## web/src/nodes2/groups.ts（32 行）
 
