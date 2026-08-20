@@ -1266,19 +1266,36 @@ const externRefCache = new Map<string, number | number[]>();
  * 取不到的一律**不写进缓存** —— 于是解析器查不到、这次就不写。
  * 绝不塞 0 占位：那会把「读不到」变成「值是 0」，静默清零用户的参数。
  */
-async function prefetchExternRefs(pid: string, addresses: string[]): Promise<void> {
-  if (addresses.length === 0) return;
-  const results = await Promise.all(
-    addresses.map(async (addr) => ({ addr, r: await client.getMappingValue(pid, addr) })),
-  );
-  for (const { addr, r } of results) {
-    if (!r.ok) continue;
-    const v = r.value;
-    if (typeof v === "number" && Number.isFinite(v)) {
-      externRefCache.set(`${pid}:${addr}`, v);
-    } else if (Array.isArray(v) && v.every((x) => typeof x === "number" && Number.isFinite(x))) {
-      externRefCache.set(`${pid}:${addr}`, v as number[]);
-    }
+/** 正在取的键，避免同一地址被每帧重复请求（15s 一次，重复请求会堆成灾）。 */
+const externRefInFlight = new Set<string>();
+
+function prefetchExternRefs(pid: string, addresses: string[]): void {
+  for (const addr of addresses) {
+    const key = `${pid}:${addr}`;
+    // 已有值就不再取：图外引用是「别人的参数」，不需要每帧刷新。
+    // 真要跟随变化，将来可以加个 TTL —— 但**先别**，15s 一次的读经不起每帧轮询。
+    if (externRefCache.has(key) || externRefInFlight.has(key)) continue;
+    externRefInFlight.add(key);
+    void client
+      .getMappingValue(pid, addr)
+      .then((r) => {
+        if (!r.ok) {
+          store.pushLog(`[writeback] 图外引用读取失败 ${addr}: ${r.error ?? "未知"}`);
+          return;
+        }
+        const v = r.value;
+        if (typeof v === "number" && Number.isFinite(v)) externRefCache.set(key, v);
+        else if (Array.isArray(v) && v.every((x) => typeof x === "number" && Number.isFinite(x))) {
+          externRefCache.set(key, v as number[]);
+        } else {
+          // dict 形状（APEX ctrl 的 `{ctrl,t,r}`）等无法写进参数的值：如实说，别静默。
+          store.pushLog(`[writeback] 图外引用 ${addr} 的值不是数值/矢量，跳过`);
+          return;
+        }
+        store.pushLog(`[writeback] 图外引用就绪 ${addr} = ${JSON.stringify(externRefCache.get(key))}`);
+        scheduleWriteback(); // 值到了才重跑一轮 —— 否则要等下一次 flush 才用上
+      })
+      .finally(() => externRefInFlight.delete(key));
   }
 }
 
@@ -1295,7 +1312,9 @@ async function pushWritebackOnce(): Promise<void> {
 
   // 预取图外引用的值（v0.1.00133）。`resolveWritebackValue` 是同步的（flush 是热路径），
   // 所以「问桥」这一步必须发生在它**之前**，把结果填进缓存供它同步查。
-  await prefetchExternRefs(pid, collectExternRefAddresses(snap));
+  // **不 await**：这条读实测 15.2s，await 会把每帧的 flush 卡死 15 秒。
+  // 改成即发即忘 —— 值到了它自己再调一次 scheduleWriteback，下一轮就用上。
+  prefetchExternRefs(pid, collectExternRefAddresses(snap));
 
   for (const t of collectWritebackTargets(snap)) {
     const key = `${pid}:${t.port}`;

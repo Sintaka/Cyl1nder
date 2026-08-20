@@ -57,6 +57,47 @@ describe("ch() 引用参与写回取值", () => {
   });
 });
 
+describe("图外引用：注入查表后能不能解析出值（隔离 resolver 与 prefetch）", () => {
+  const snap = {
+    nodes: [
+      {
+        id: "o",
+        kind: "output",
+        label: "_output_",
+        params: [
+          { name: "address", type: "string", value: "C1-aaaaaaaa-bbbb" },
+          { name: "type", type: "menu", value: "float" },
+          { name: "port", type: "menu", value: "faraway/ty" },
+        ],
+      },
+      {
+        id: "n",
+        kind: "null",
+        label: "null1",
+        params: [{ name: "ref_slot0", type: "string", value: 'ch("../faraway/ty")' }],
+      },
+    ],
+    connections: [{ source: "n", sourceOutput: "out0", target: "o", targetInput: "out0" }],
+  } as never;
+  const target = { nodeId: "o", address: "C1-aaaaaaaa-bbbb", port: "faraway/ty", type: "float" };
+
+  it("查表命中 → 用图外的值（这一步通，说明 resolver 侧没问题）", async () => {
+    const { resolveWritebackValue } = await import("../src/core/dataflow");
+    const extern = (addr: string) => (addr === "faraway/ty" ? 0.150023 : undefined);
+    expect(resolveWritebackValue(snap, target, extern)).toBe(0.150023);
+  });
+
+  it("不注入查表 → undefined（不兜底 0）", async () => {
+    const { resolveWritebackValue } = await import("../src/core/dataflow");
+    expect(resolveWritebackValue(snap, target)).toBeUndefined();
+  });
+
+  it("查表未命中 → undefined（读不到 ≠ 值是 0）", async () => {
+    const { resolveWritebackValue } = await import("../src/core/dataflow");
+    expect(resolveWritebackValue(snap, target, () => undefined)).toBeUndefined();
+  });
+});
+
 describe("collectExternRefAddresses：只收指向图外的引用", () => {
   const snapWith = (refExpr: string, extraLabels: string[] = []) =>
     ({

@@ -453,7 +453,10 @@ export class BridgeClient {
       .map(encodeURIComponent)
       .join("/")}/value`;
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+      // 20s 而不是 4s：**实测**这条读要 15.2s（连测三次 15217/15271/15286ms）——
+      // 它经桥再经 Houdini MCP 打到 hou，vec3 还要逐分量各打一次。
+      // 4s 时每次预取都必然 abort，缓存永远空，图外引用于是"静默不生效"。
+      const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
       const body = (await res.json().catch(() => ({}))) as { ok?: boolean; value?: unknown; error?: unknown };
       if (!res.ok || body.ok === false) {
         return { ok: false, error: String(body.error ?? `HTTP ${res.status}`) };
