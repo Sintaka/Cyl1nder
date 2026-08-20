@@ -1253,8 +1253,20 @@ function scheduleWriteback(): void {
   }, 120);
 }
 
-/** 图外引用的值缓存，键 `<pid>:<逻辑名>`。每轮 flush 前刷新（见 prefetchExternRefs）。 */
+/** 图外引用的值缓存，键 `<pid>:<逻辑名>`。 */
 const externRefCache = new Map<string, number | number[]>();
+/** 每个键上次取到值的时刻（配合 TTL 判定该不该重取）。 */
+const externRefAt = new Map<string, number>();
+/**
+ * 图外引用的重取间隔（毫秒）。
+ *
+ * v0.1.00133 时这里是**永不重取** —— 理由是那条读要 15.2s，经不起轮询。
+ * v0.1.00134 把它降到 85ms（首读 1.1s）之后那个理由就不成立了，而"永不重取"是个真 bug：
+ * 用户在 Houdini 里改了被引用的参数，写回会**永远推旧值**。
+ *
+ * 2s 是取舍：足够跟上手动改参数，又不至于把桥打满（85ms 一次读，占空比约 4%）。
+ */
+const EXTERN_REF_TTL_MS = 2000;
 
 /**
  * 去桥取「图外」引用的当前值，填进 `externRefCache`（v0.1.00133）。
@@ -1269,12 +1281,37 @@ const externRefCache = new Map<string, number | number[]>();
 /** 正在取的键，避免同一地址被每帧重复请求（15s 一次，重复请求会堆成灾）。 */
 const externRefInFlight = new Set<string>();
 
+/** TTL 轮询计时器；只在**确实有图外引用**时存活。 */
+let externRefPollTimer: number | null = null;
+
+/**
+ * 图外引用的 TTL 轮询（v0.1.00135）。
+ *
+ * 为什么必须有它：`prefetchExternRefs` 只能从 `pushWritebackOnce` 进来，而后者只在
+ * `scheduleWriteback()` 被调用时才跑（store flush、或某个值到达）。**TTL 到期本身
+ * 谁也叫不醒** —— 实测 14s 内只重取了 1 次（期望约 6 次）。
+ * 所以「有图外引用」这件事必须自己维持一个心跳。
+ *
+ * **没有图外引用就不轮询**：空图/纯图内引用的场景一次请求都不该发。
+ */
+function armExternRefPoll(): void {
+  if (externRefPollTimer !== null) return;
+  externRefPollTimer = window.setTimeout(() => {
+    externRefPollTimer = null;
+    scheduleWriteback(); // 让 pushWritebackOnce 再跑一轮，TTL 到期的键会被重取
+  }, EXTERN_REF_TTL_MS);
+}
+
 function prefetchExternRefs(pid: string, addresses: string[]): void {
+  // 有图外引用 → 维持轮询；没有 → 自然停下（不 arm，上一轮的 timer 跑完即止）。
+  if (addresses.length > 0) armExternRefPoll();
   for (const addr of addresses) {
     const key = `${pid}:${addr}`;
-    // 已有值就不再取：图外引用是「别人的参数」，不需要每帧刷新。
-    // 真要跟随变化，将来可以加个 TTL —— 但**先别**，15s 一次的读经不起每帧轮询。
-    if (externRefCache.has(key) || externRefInFlight.has(key)) continue;
+    // 值还新鲜（TTL 内）或正在取 → 跳过。TTL 的理由见 EXTERN_REF_TTL_MS：
+    // v0.1.00133 是「永不重取」，那会让写回永远推旧值；读降到 85ms 后已无须将就。
+    const at = externRefAt.get(key);
+    if (externRefInFlight.has(key)) continue;
+    if (at !== undefined && Date.now() - at < EXTERN_REF_TTL_MS) continue;
     externRefInFlight.add(key);
     void client
       .getMappingValue(pid, addr)
@@ -1284,6 +1321,7 @@ function prefetchExternRefs(pid: string, addresses: string[]): void {
           return;
         }
         const v = r.value;
+        const prev = externRefCache.get(key);
         if (typeof v === "number" && Number.isFinite(v)) externRefCache.set(key, v);
         else if (Array.isArray(v) && v.every((x) => typeof x === "number" && Number.isFinite(x))) {
           externRefCache.set(key, v as number[]);
@@ -1292,7 +1330,12 @@ function prefetchExternRefs(pid: string, addresses: string[]): void {
           store.pushLog(`[writeback] 图外引用 ${addr} 的值不是数值/矢量，跳过`);
           return;
         }
-        store.pushLog(`[writeback] 图外引用就绪 ${addr} = ${JSON.stringify(externRefCache.get(key))}`);
+        externRefAt.set(key, Date.now()); // TTL 计时从**取到值**起算
+        // **值没变就不记日志、不重跑**：TTL 到期后每 2s 都会重取一次，
+        // 每次都刷一条「就绪」会把日志淹掉，也会让写回白跑一轮。
+        const now = externRefCache.get(key);
+        if (sameWritebackValue(prev, now as number | number[])) return;
+        store.pushLog(`[writeback] 图外引用就绪 ${addr} = ${JSON.stringify(now)}`);
         scheduleWriteback(); // 值到了才重跑一轮 —— 否则要等下一次 flush 才用上
       })
       .finally(() => externRefInFlight.delete(key));
