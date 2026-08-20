@@ -56,10 +56,26 @@ export default async function globalTeardown(): Promise<void> {
     const body = JSON.parse(res.body) as {
       projects?: Array<{ projectSerial?: string; hip?: string; members?: Array<{ serial?: string }> }>;
     };
+    // 先扫注册表，拿到**这一轮我确实删掉的** serial 集合。
+    // 顺序很重要：项目判据要用到它（见下面第二个条件）。
+    const removedSerials = await sweepScenes();
     const doomed = (body.projects ?? []).filter((p) => {
       if (!p.projectSerial || p.hip) return false; // 有 hip = 用户真项目
       const ms = p.members ?? [];
-      return ms.length > 0 && ms.every((m) => E2E_SERIAL.test(m.serial ?? ""));
+      if (ms.length === 0) return false;
+      // 两类都算 e2e 垃圾：
+      // 1. 成员全是固定合成号（`C1-e2e…`）；
+      // 2. 成员全是**我刚在本次 teardown 里删掉登记的号** —— round8 建场景时桥会顺手
+      //    给它兜底建一个项目，而那个号是**桥现铸的**（`C1-mt1s…`），不匹配 `C1-e2e` 前缀，
+      //    于是登记被扫掉了、项目还留着（实测每轮留 1 个，跑三轮攒 3 个）。
+      //
+      // **不用「成员不在注册表里」当判据**：吊牌只注册通道、从不推 inputs，本来就不在
+      // 注册表里（实测用户那三个吊牌都不在），那条判据会误伤用户的纯吊牌项目。
+      // 「我刚删的」是自证的：只删我自己这一轮制造出来的孤儿。
+      return (
+        ms.every((m) => E2E_SERIAL.test(m.serial ?? "")) ||
+        ms.every((m) => removedSerials.has(m.serial ?? ""))
+      );
     });
     for (const p of doomed) {
       const r = await request("DELETE", `${BRIDGE_URL}/api/projects/${encodeURIComponent(p.projectSerial as string)}`);
@@ -70,4 +86,48 @@ export default async function globalTeardown(): Promise<void> {
     // 清理失败绝不把通过的 suite 判成失败
     console.warn(`[teardown] sweep failed: ${String(err)}`);
   }
+}
+
+/** e2e 造出来的注册表登记：spec 专用的 nodePath，或 round8 建的场景标签。 */
+const E2E_NODEPATH = "/obj/test/Cyl1nder1";
+const E2E_SCENE_LABEL = /^e2e-overview-/;
+/** 各 spec 共用的固定夹具号 —— **保留**，删了 spec 下一轮还得重建。 */
+const FIXTURE_SERIAL = "C1-e2etest0001-aaaa";
+
+/**
+ * 扫掉 e2e 留在**注册表**里的孤儿登记（v0.1.00142）。
+ *
+ * 为什么 `POST /api/scenes/cleanup` 不够：它只清「无数据且无快照」的条目，而 e2e 把
+ * CANONICAL_INPUTS 推进去的号带着 `inputRev=38`，于是**永远**清不掉 ——
+ * 实测桥里攒了 37 条 `nodePath=/obj/test/Cyl1nder1` 的孤儿，加上每轮 round8 新建的
+ * `e2e-overview-<ts>` 场景。注册表 39→42 一路涨，每条都让 `hello` 多做一份活，
+ * 全量 e2e 的握手（15s）因此越来越慢 —— round10/round12 的偶发失败正是这么攒出来的。
+ *
+ * 判据是**它是什么**：
+ * - `nodePath === "/obj/test/Cyl1nder1"` —— 这个路径只出现在 spec 里，真 HDA 不会用；
+ * - 或 label 以 `e2e-overview-` 开头 —— round8 的新建场景。
+ *
+ * **保留固定夹具号**（删了 spec 下一轮还得重建），**绝不按「无数据」推断** ——
+ * 那会误删用户刚建、还没 cook 的真 HDA。只删登记，节点下次 cook 会自行重注册。
+ */
+async function sweepScenes(): Promise<Set<string>> {
+  const removed = new Set<string>();
+  const res = await request("GET", `${BRIDGE_URL}/api/scenes`);
+  if (res.status !== 200) return removed;
+  const body = JSON.parse(res.body) as {
+    active?: Array<{ serial?: string; label?: string; nodePath?: string }>;
+  };
+  const doomed = (body.active ?? []).filter((s) => {
+    if (!s.serial || s.serial === FIXTURE_SERIAL) return false;
+    return s.nodePath === E2E_NODEPATH || E2E_SCENE_LABEL.test(s.label ?? "");
+  });
+  for (const s of doomed) {
+    const r = await request("DELETE", `${BRIDGE_URL}/api/scenes/${encodeURIComponent(s.serial as string)}`);
+    if (r.status !== 200) console.warn(`[teardown] DELETE scene ${s.serial} -> HTTP ${r.status}`);
+    // 只把**确实删掉的**记进集合：项目判据靠它自证「这是我这一轮制造的孤儿」，
+    // 把删失败的也记进去就会去删一个我没资格删的项目。
+    else removed.add(s.serial as string);
+  }
+  if (removed.size > 0) console.log(`[teardown] swept ${removed.size} orphan e2e registration(s)`);
+  return removed;
 }

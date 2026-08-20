@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1272** 个函数/类。
+> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1274** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -421,7 +421,7 @@
 | `_save` | 185 | def |  | 6 |
 | `_load` | 209 | def |  | 2 |
 
-## bridge/bridge/routes.py（514 行）
+## bridge/bridge/routes.py（528 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -454,12 +454,13 @@
 | `global_logs` | 448 | def |  | 1 |
 | `scenes_list` | 459 | def |  | 1 |
 | `scenes_create` | 465 | def |  | 1 |
-| `scenes_cleanup` | 472 | def |  | 1 |
-| `scene_save` | 478 | def |  | 1 |
-| `scenes_open` | 489 | def |  | 1 |
-| `get_usdz` | 502 | def |  | 1 |
+| `scenes_delete` | 472 | def |  | 1 |
+| `scenes_cleanup` | 486 | def |  | 1 |
+| `scene_save` | 492 | def |  | 1 |
+| `scenes_open` | 503 | def |  | 1 |
+| `get_usdz` | 516 | def |  | 1 |
 
-## bridge/bridge/scenes.py（207 行）
+## bridge/bridge/scenes.py（226 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -469,8 +470,9 @@
 | `_invalid_snapshot_dir` | 69 | def |  | 2 |
 | `cleanup_scenes` | 82 | def |  | 1 |
 | `create_scene` | 119 | def |  | 1 |
-| `save_scene` | 129 | def |  | 1 |
-| `open_scene` | 160 | def |  | 1 |
+| `delete_scene` | 129 | def |  | 1 |
+| `save_scene` | 148 | def |  | 1 |
+| `open_scene` | 179 | def |  | 1 |
 
 ## bridge/bridge/snapshot_routes.py（50 行）
 

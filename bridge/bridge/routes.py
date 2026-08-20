@@ -26,7 +26,7 @@ from .protocol import (
 )
 from .cook_txn import passthrough_outputs
 from .project_routes import bind_serial_to_hip, is_transient_hip
-from .scenes import cleanup_scenes, create_scene, list_scenes, open_scene, save_scene
+from .scenes import cleanup_scenes, create_scene, delete_scene, list_scenes, open_scene, save_scene
 from .snapshot import maybe_snapshot, read_snapshot, write_snapshot
 from .usdz import build_usdz_bytes
 from .ui_layout import UiLayoutStore, list_layouts, load_layout, save_layout
@@ -466,6 +466,20 @@ async def scenes_create(payload: dict | None = None) -> dict:
     """Create a new scene: fresh serial + registry entry + empty workspace."""
     payload = payload or {}
     return {"serial": create_scene(payload.get("label"))}
+
+
+@router.delete("/api/scenes/{serial}")
+async def scenes_delete(serial: str) -> dict:
+    """删一条注册表登记（v0.1.00142）。
+
+    `POST /api/scenes/cleanup` 只清「无数据且无快照」的条目，所以被推过 inputs 的
+    孤儿登记（e2e 留下的 `nodePath=/obj/test/Cyl1nder1`，`inputRev=38`）永远清不掉。
+    这条按 serial 精确删，给 e2e 收拾自己的垃圾用；只删登记，节点下次 cook 会自行重注册。
+    """
+    try:
+        return delete_scene(serial)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/api/scenes/cleanup")

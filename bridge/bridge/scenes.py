@@ -126,6 +126,25 @@ def create_scene(label: str | None = None) -> str:
     return serial
 
 
+def delete_scene(serial: str) -> dict[str, Any]:
+    """删掉一条注册表登记（v0.1.00142）。
+
+    为什么需要它：`cleanup_scenes` 只删「**没有数据**且没有快照」的条目
+    （`input_rev == 0 and output_rev() == 0`）。而 e2e 把 CANONICAL_INPUTS 推进过的号
+    带着 `inputRev=38`，于是**永远**清不掉 —— 实测桥里攒了 37 个这种孤儿登记
+    （`nodePath=/obj/test/Cyl1nder1`）。它们每一条都让 `hello` 多做一份活，
+    全量 e2e 的握手因此越来越慢（round10/round12 的负载敏感失败就是这么攒出来的）。
+
+    只删登记，**不动 workspace 与快照** —— 与 `cleanup_scenes` 同一做法（那里也只调
+    `registry.remove`）。删掉登记的节点下次 cook 会自己重新注册，所以这个操作是可恢复的。
+    """
+    if not is_valid_serial(serial):
+        raise ValueError(f"invalid serial: {serial!r}")
+    removed = get_state().registry.remove(serial)
+    get_state().logs.info("scenes", f"scene registration removed: {serial}", serial)
+    return {"ok": True, "removed": removed}
+
+
 def save_scene(serial: str, target_dir: str, overwrite: bool = False) -> dict[str, Any]:
     if not is_valid_serial(serial):
         raise ValueError(f"invalid serial: {serial!r}")

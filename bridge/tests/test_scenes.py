@@ -25,6 +25,41 @@ def client(tmp_path: Path) -> TestClient:
     os.environ.pop("CYL1NDER_SNAPSHOT_ROOT", None)
 
 
+def test_delete_scene_removes_registration(client: TestClient) -> None:
+    """`DELETE /api/scenes/{serial}` 删掉一条登记（v0.1.00142）。"""
+    serial = client.post("/api/scenes", json={}).json()["serial"]
+    assert any(e["serial"] == serial for e in client.get("/api/scenes").json()["active"])
+    body = client.delete(f"/api/scenes/{serial}").json()
+    assert body == {"ok": True, "removed": True}
+    assert not any(e["serial"] == serial for e in client.get("/api/scenes").json()["active"])
+
+
+def test_delete_scene_works_even_with_data(client: TestClient) -> None:
+    """**有数据也能删** —— 这正是它存在的理由。
+
+    `cleanup` 只清「无数据且无快照」，所以被推过 inputs 的孤儿登记（e2e 留下的
+    `inputRev=38`）永远清不掉；实测桥里攒了 37 条这种。每条都让 `hello` 多做一份活。
+    """
+    serial = client.post("/api/scenes", json={}).json()["serial"]
+    client.put(f"/api/hda/{serial}/inputs", json={"inputs": []})
+    # 先证明 cleanup 确实清不掉它（否则这个端点就是多余的）
+    cleaned = {r["serial"] for r in client.post("/api/scenes/cleanup").json()["removed"]}
+    assert serial not in cleaned
+    assert client.delete(f"/api/scenes/{serial}").json()["removed"] is True
+    assert not any(e["serial"] == serial for e in client.get("/api/scenes").json()["active"])
+
+
+def test_delete_scene_rejects_invalid_serial(client: TestClient) -> None:
+    """非法 serial → 400，绝不当成"删了个不存在的"而静默成功。"""
+    assert client.delete("/api/scenes/not-a-serial").status_code == 400
+
+
+def test_delete_scene_unknown_serial_reports_false(client: TestClient) -> None:
+    """合法但不存在 → `removed: False`（如实说没删到东西，不报错）。"""
+    body = client.delete(f"/api/scenes/{generate_serial()}").json()
+    assert body == {"ok": True, "removed": False}
+
+
 def test_list_scenes_empty(client: TestClient) -> None:
     body = client.get("/api/scenes").json()
     assert body == {"active": [], "history": []}

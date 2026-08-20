@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-20T17:11:05.787Z",
-  "totalFunctions": 1272,
+  "generatedAt": "2026-08-20T17:35:40.951Z",
+  "totalFunctions": 1274,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -2262,7 +2262,7 @@
     },
     {
       "file": "bridge/bridge/routes.py",
-      "lineCount": 514,
+      "lineCount": 528,
       "functions": [
         {
           "name": "root",
@@ -2468,29 +2468,36 @@
           "calls": 1
         },
         {
-          "name": "scenes_cleanup",
+          "name": "scenes_delete",
           "line": 472,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
+          "name": "scenes_cleanup",
+          "line": 486,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
           "name": "scene_save",
-          "line": 478,
+          "line": 492,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "scenes_open",
-          "line": 489,
+          "line": 503,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get_usdz",
-          "line": 502,
+          "line": 516,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -2499,7 +2506,7 @@
     },
     {
       "file": "bridge/bridge/scenes.py",
-      "lineCount": 207,
+      "lineCount": 226,
       "functions": [
         {
           "name": "_snapshot_base",
@@ -2544,15 +2551,22 @@
           "calls": 1
         },
         {
-          "name": "save_scene",
+          "name": "delete_scene",
           "line": 129,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
+          "name": "save_scene",
+          "line": 148,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
           "name": "open_scene",
-          "line": 160,
+          "line": 179,
           "kind": "def",
           "exported": false,
           "calls": 1

@@ -27,6 +27,17 @@
 - `GET  /api/hda/{serial}/logs?level=&limit=`
 - `GET  /api/logs?level=&limit=`（全局日志）
 
+### 场景登记端点（Overview 用；`DELETE` v0.1.00142 起）
+- `GET    /api/scenes` -> `{active:[{serial,label,nodePath,lastSeen,lastActivity,inputRev,outputRev}, …]}`
+- `POST   /api/scenes`（body `{label?}`）-> `{serial}`：现铸一个 serial + 登记 + 空 workspace
+- `POST   /api/scenes/cleanup` -> `{ok, removed:[{serial,reason}, …]}`：只清「**无数据且无快照**」的条目
+- `DELETE /api/scenes/{serial}` -> `{ok, removed}`：按 serial 精确删**一条登记**
+  - 为什么不能用 cleanup 代替：cleanup 的判据是 `input_rev == 0 and output_rev() == 0`，
+    所以被推过 inputs 的孤儿登记（e2e 留下的 `nodePath=/obj/test/Cyl1nder1`，`inputRev=38`）
+    **永远**清不掉 —— 实测桥里攒到 42 条，每条都让 `hello` 多做一份活。
+  - 只删登记，**不动 workspace 与快照**（与 cleanup 同一做法）；节点下次 cook 会自行重注册，
+    所以这个操作是可恢复的。非法 serial -> 400；合法但不存在 -> `{ok:true, removed:false}`。
+
 ### 同步端点（HDA ⇄ bridge，事件驱动）
 - `GET /api/hda/{serial}/pending?since=N`：轻量脏检查 `{pending, rev, reset, force, sync_enabled}`（sync_enabled v0.1.00101 起）。**fallback**：HDA 主同步通道已改 `/stream`，本端点保留兼容与回退（自适应轮询时兼心跳）。
 - `POST /api/hda/{serial}/kick`：一次性 force 标记（web 首连/重连踢 HDA）；立即唤醒 `/stream`（返回 `{type:"kick", force:true}`）或 `/pending`（`force:true`）。
