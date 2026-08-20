@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-20T13:31:58.849Z",
-  "totalFunctions": 1263,
+  "generatedAt": "2026-08-20T14:32:21.716Z",
+  "totalFunctions": 1266,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -1128,158 +1128,165 @@
     },
     {
       "file": "bridge/bridge/mapping_routes.py",
-      "lineCount": 473,
+      "lineCount": 519,
       "functions": [
         {
           "name": "_check_pid",
-          "line": 39,
+          "line": 41,
           "kind": "def",
           "exported": false,
           "calls": 8
         },
         {
           "name": "_resolved_or_404",
-          "line": 44,
+          "line": 46,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_split_target",
-          "line": 51,
+          "line": 53,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_resolve_port_for_anchor",
-          "line": 59,
+          "line": 61,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_port_for",
-          "line": 100,
+          "line": 102,
           "kind": "def",
           "exported": false,
           "calls": 5
         },
         {
           "name": "_trace",
-          "line": 104,
+          "line": 106,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "ValuePut",
-          "line": 114,
+          "line": 116,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
+          "name": "_find_port_by_pid_cached",
+          "line": 145,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "_find_port_by_pid",
-          "line": 136,
+          "line": 172,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_probe_health",
-          "line": 154,
+          "line": 200,
           "kind": "def",
           "exported": false,
-          "calls": 4
+          "calls": 3
         },
         {
           "name": "probe_anchor",
-          "line": 159,
+          "line": 205,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get_mapping_value",
-          "line": 218,
+          "line": 264,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_read_vec3_components",
-          "line": 272,
+          "line": 318,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "get_cook_cycles",
-          "line": 298,
+          "line": 344,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_mapping_value",
-          "line": 315,
+          "line": 361,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "list_mappings",
-          "line": 363,
+          "line": 409,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_mapping",
-          "line": 390,
+          "line": 436,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "delete_mapping",
-          "line": 401,
+          "line": 447,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "WritebackPut",
-          "line": 418,
+          "line": 464,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_writeback_view",
-          "line": 423,
+          "line": 469,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "get_writeback",
-          "line": 437,
+          "line": 483,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_writeback",
-          "line": 446,
+          "line": 492,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "delete_writeback",
-          "line": 467,
+          "line": 513,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -5409,7 +5416,7 @@
     },
     {
       "file": "web/src/bridge/client.ts",
-      "lineCount": 670,
+      "lineCount": 700,
       "functions": [
         {
           "name": "BridgeClient",
@@ -5420,14 +5427,14 @@
         },
         {
           "name": "connectWs",
-          "line": 627,
+          "line": 657,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "connect",
-          "line": 632,
+          "line": 662,
           "kind": "arrow",
           "exported": false,
           "calls": 1
@@ -5675,7 +5682,7 @@
     },
     {
       "file": "web/src/core/dataflow.ts",
-      "lineCount": 456,
+      "lineCount": 493,
       "functions": [
         {
           "name": "displayNodeOutputIndex",
@@ -5706,43 +5713,50 @@
           "calls": 2
         },
         {
+          "name": "collectExternRefAddresses",
+          "line": 203,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
           "name": "resolveWritebackValue",
-          "line": 188,
+          "line": 223,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "createDataflow",
-          "line": 224,
+          "line": 261,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "getDisplayNodeInfo",
-          "line": 245,
+          "line": 282,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "refreshNodeFlags",
-          "line": 267,
+          "line": 304,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "flush",
-          "line": 373,
+          "line": 410,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "wireSelection",
-          "line": 446,
+          "line": 483,
           "kind": "function",
           "exported": false,
           "calls": 2
@@ -5896,340 +5910,347 @@
     },
     {
       "file": "web/src/main.ts",
-      "lineCount": 2081,
+      "lineCount": 2141,
       "functions": [
         {
           "name": "matchLogFilter",
-          "line": 85,
+          "line": 90,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "renderLog",
-          "line": 86,
+          "line": 91,
           "kind": "arrow",
           "exported": false,
           "calls": 3
         },
         {
           "name": "isSerial",
-          "line": 173,
+          "line": 178,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "isProject",
-          "line": 174,
+          "line": 179,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "toggle",
-          "line": 295,
+          "line": 300,
           "kind": "arrow",
           "exported": false,
           "calls": 8
         },
         {
           "name": "updateLayoutMenuLabel",
-          "line": 327,
+          "line": 332,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "getDockJson",
-          "line": 330,
+          "line": 335,
           "kind": "arrow",
           "exported": false,
           "calls": 7
         },
         {
           "name": "saveCurrentLayout",
-          "line": 334,
+          "line": 339,
           "kind": "arrow",
           "exported": false,
           "calls": 2
         },
         {
           "name": "refreshLayoutPresets",
-          "line": 343,
+          "line": 348,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "writeJsonToDir",
-          "line": 454,
+          "line": 459,
           "kind": "function",
           "exported": false,
           "calls": 7
         },
         {
           "name": "readJsonFromDir",
-          "line": 465,
+          "line": 470,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "saveSceneAs",
-          "line": 479,
+          "line": 484,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "navigateToMemberPage",
-          "line": 549,
+          "line": 554,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "openSceneFromDir",
-          "line": 565,
+          "line": 570,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "bootIsMemberEntry",
-          "line": 635,
+          "line": 640,
           "kind": "arrow",
           "exported": false,
           "calls": 0
         },
         {
           "name": "applyLayoutSettings",
-          "line": 971,
+          "line": 976,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "refreshSelectionPanels",
-          "line": 1026,
+          "line": 1031,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "sameWritebackValue",
-          "line": 1232,
+          "line": 1237,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "scheduleWriteback",
-          "line": 1243,
+          "line": 1248,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "prefetchExternRefs",
+          "line": 1272,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "pushWritebackOnce",
-          "line": 1252,
+          "line": 1303,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "syncWritebackPointer",
-          "line": 1323,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "anchorNetPathOf",
-          "line": 1358,
-          "kind": "function",
-          "exported": false,
-          "calls": 2
-        },
-        {
-          "name": "inputStatsText",
           "line": 1383,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
+          "name": "anchorNetPathOf",
+          "line": 1418,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "inputStatsText",
+          "line": 1443,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
           "name": "outputStatsText",
-          "line": 1392,
+          "line": 1452,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderInspector",
-          "line": 1401,
+          "line": 1461,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "isProjectModeActive",
-          "line": 1419,
-          "kind": "function",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "projectAddress",
-          "line": 1425,
-          "kind": "function",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "onNetPathChanged",
-          "line": 1444,
-          "kind": "function",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "waitNetPath",
-          "line": 1454,
-          "kind": "function",
-          "exported": false,
-          "calls": 5
-        },
-        {
-          "name": "enterableNodeNames",
-          "line": 1468,
-          "kind": "function",
-          "exported": false,
-          "calls": 3
-        },
-        {
-          "name": "enterNodeAwaited",
           "line": 1479,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
+          "name": "projectAddress",
+          "line": 1485,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "onNetPathChanged",
+          "line": 1504,
+          "kind": "function",
+          "exported": false,
+          "calls": 1
+        },
+        {
+          "name": "waitNetPath",
+          "line": 1514,
+          "kind": "function",
+          "exported": false,
+          "calls": 5
+        },
+        {
+          "name": "enterableNodeNames",
+          "line": 1528,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "enterNodeAwaited",
+          "line": 1539,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
           "name": "enterByName",
-          "line": 1492,
+          "line": 1552,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "exitToDepth",
-          "line": 1499,
+          "line": 1559,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "navigateByName",
-          "line": 1517,
+          "line": 1577,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "saveProjectGraph",
-          "line": 1545,
+          "line": 1605,
           "kind": "function",
           "exported": false,
           "calls": 5
         },
         {
           "name": "enterProjectMode",
-          "line": 1592,
+          "line": 1652,
           "kind": "function",
           "exported": false,
           "calls": 7
         },
         {
           "name": "openProjectMember",
-          "line": 1709,
+          "line": 1769,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "enterMemberWorkspace",
-          "line": 1731,
+          "line": 1791,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "commitPendingMemberScope",
-          "line": 1751,
+          "line": 1811,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "updateGraphAddress",
-          "line": 1764,
+          "line": 1824,
           "kind": "function",
           "exported": false,
           "calls": 7
         },
         {
           "name": "scheduleNetwork",
-          "line": 1792,
+          "line": 1852,
           "kind": "function",
           "exported": false,
           "calls": 1
         },
         {
           "name": "flushStoreView",
-          "line": 1795,
+          "line": 1855,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "loadSnapshotIntoStore",
-          "line": 1823,
+          "line": 1883,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "applyLoadedPreference",
-          "line": 1868,
+          "line": 1928,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "syncMemberInAddress",
-          "line": 1910,
+          "line": 1970,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "syncProjectInAddress",
-          "line": 1930,
+          "line": 1990,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "connectSerial",
-          "line": 1943,
+          "line": 2003,
           "kind": "arrow",
           "exported": false,
           "calls": 1
         },
         {
           "name": "markGraphDirty",
-          "line": 2074,
+          "line": 2134,
           "kind": "function",
           "exported": false,
           "calls": 2
