@@ -28,10 +28,26 @@ serial 创建时生成、持久化、**不可变** —— 所以一个节点在�
 
 3 例新单测（同坑位取新 / 跨 hip 都留 / 单条很旧的也留）。实测重启后 12 → 11 行。
 
-### 仍未做（如实标注）
-`/obj/geo1/Cyl1nderTag1`（`C1-msywa1ba-5ndx`）是**活节点但没有通道行**。
-没查根因（可能是它的 entries 为空、或自 channels.json 生成以来没 cook 过）。
-这方向要判"节点还在不在"，需要一条基于 pid 的实证通路，不是本轮能顺手带的。
+### `Cyl1nderTag1` 没有通道行 —— 不是 bug，是空吊牌（已查清）
+实测 `/obj/geo1/Cyl1nderTag1`（`C1-msywa1ba-5ndx`）：`entries = ''`、无错误、未 bypass。
+代码就是这么设计的（`cyl1nder_tag.py:387`）：
+
+```python
+if not entries:
+    _set_status(subnet, "no-entries")
+    return
+```
+
+**空吊牌不注册任何东西，包括它自己那条 tag 行。** 所以"活节点没有通道行"在这里是正确行为。
+
+**但它是完全静默的**：`_set_status` 写的是 **userData**（`cyl1nder_tag_status`），
+Houdini 里没有任何 UI 呈现它 —— 用户放下一个吊牌、忘了填 entries，界面上看不出
+任何区别，而 Cyl1nder 侧什么都不会发生。
+**未做**：给吊牌加一个可见的状态呈现（状态 parm 或节点注释）。那要动 HDA 定义
+（.hda 二进制），比看上去重，没在本轮带。
+
+### 关于「节点还在不在」的实证通路
+剩下的陈旧行判定（跨 hip 的那条）需要它，但那不是本轮能顺手带的。**未做**。
 
 ## -19 Shift+Enter 不会拖散用户摆好的节点（v0.1.00144，**变异测试实证**）
 
