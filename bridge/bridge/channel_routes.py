@@ -164,6 +164,44 @@ async def put_channel(channelId: str, ref: ChannelRef) -> dict:
     return {"ok": True, "channelId": key, "ref": stored}
 
 
+def _other_declarer(serial: str, rel: str) -> str | None:
+    """除 `serial` 之外，还有哪个吊牌的通道行声明着这个逻辑名？没有则 None（v0.1.00143）。
+
+    判据只看**通道行**（那是"谁在声明"的事实来源），不看映射条目 ——
+    映射条目按 `(项目, 逻辑名)` 唯一，本来就分不出是谁声明的。
+    """
+    rel = (rel or "").strip()
+    if not rel:
+        return None
+    for row in get_state().channels.list():
+        if row.get("kind") not in ("param", "data"):
+            continue
+        if (row.get("rel") or "").strip() != rel:
+            continue
+        other = (row.get("serial") or "").strip()
+        if other and other != serial:
+            return other
+    return None
+
+
+def _reanchor_entry(project: str, name: str, new_anchor: str) -> bool:
+    """把一条映射条目改挂到 `new_anchor` 上（v0.1.00143）。
+
+    比删掉再等对方重注册更好：重注册要等那个吊牌下次 cook，而吊牌可能几小时不 cook
+    （心跳只在 cook 时发）—— 那段时间里这个逻辑名是悬空的，用户点了就报解析不出。
+    """
+    st = get_state()
+    entry = st.mappings.get_entry(project, name)
+    if entry is None:
+        return False
+    entry["anchor"] = new_anchor
+    try:
+        st.mappings.put_entry(project, name, entry)
+        return True
+    except Exception:  # noqa: BLE001 - 改挂失败就退回"什么都不做"，绝不误删
+        return False
+
+
 def _sync_mapping_entry(ref: ChannelRef) -> None:
     """注册带 rel 的通道 -> 在**含该吊牌的每个项目**里建/更新一条映射条目（v0.1.00114）。
 
@@ -253,14 +291,31 @@ async def heartbeat(serial: str, payload: HeartbeatBody) -> dict:
         # `transform1/tx` 的行没了但映射条目还在（实测就是这个现象），
         # 用户在 param 面板的端口下拉里仍然看得到那个过时逻辑名。
         gone_map: list[str] = []
+        moved_map: list[str] = []
         if keep:
             for pid_, nm in st.mappings.entries_for_anchor(serial):
-                if nm not in keep and st.mappings.del_entry(pid_, nm):
+                if nm in keep:
+                    continue
+                # **别删还有人声明的逻辑名**（v0.1.00143）。
+                #
+                # 映射条目按 `(项目, 逻辑名)` 唯一，而两个吊牌可以声明**同一个** rel ——
+                # 那时它们共用一条条目，anchor 是最后注册的那个。于是本吊牌不再声明它时，
+                # 上面这个 sweep 会把**另一个吊牌还在用的**条目一起删掉。
+                # 实测后果：`transform1/tx` 的通道行还在（`C1-mst8wa94-8uz8` 声明着），
+                # 映射条目却没了 —— 端口下拉里看得到这个名字，一用就解析不出来。
+                heir = _other_declarer(serial, nm)
+                if heir is not None:
+                    if _reanchor_entry(pid_, nm, heir):
+                        moved_map.append(f"{pid_}:{nm}->{heir}")
+                    continue
+                if st.mappings.del_entry(pid_, nm):
                     gone_map.append(f"{pid_}:{nm}")
-        if gone or gone_map:
+        if gone or gone_map or moved_map:
+            # 改挂也要报：静默改锚点会让「这个名字现在归谁」变成不可见的状态变化。
             st.logs.info(
                 "channels",
-                f"retired stale for {serial}: rows=[{', '.join(gone)}] entries=[{', '.join(gone_map)}]",
+                f"retired stale for {serial}: rows=[{', '.join(gone)}] "
+                f"entries=[{', '.join(gone_map)}] reanchored=[{', '.join(moved_map)}]",
                 serial,
             )
     reported = _report_anchor(serial, payload)

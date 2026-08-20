@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1274** 个函数/类。
+> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1276** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | `main` | 7 | def |  | 2 |
 
-## bridge/bridge/channel_routes.py（526 行）
+## bridge/bridge/channel_routes.py（581 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -28,34 +28,36 @@
 | `get_channel_value` | 84 | def |  | 1 |
 | `put_channel_value` | 117 | def |  | 1 |
 | `put_channel` | 150 | def |  | 1 |
-| `_sync_mapping_entry` | 167 | def |  | 3 |
-| `list_channels` | 204 | def |  | 1 |
-| `HeartbeatBody` | 208 | class |  | 1 |
-| `heartbeat` | 228 | def |  | 1 |
-| `_sync_project_hip` | 300 | def |  | 2 |
-| `_replay_mapping_entries` | 327 | def |  | 2 |
-| `_report_anchor` | 344 | def |  | 2 |
-| `probe` | 373 | def |  | 1 |
-| `_norm_type` | 421 | def |  | 2 |
-| `_tag_options` | 432 | def |  | 2 |
-| `serial_capabilities` | 463 | def |  | 1 |
-| `_node_type_name` | 513 | def |  | 2 |
+| `_other_declarer` | 167 | def |  | 2 |
+| `_reanchor_entry` | 187 | def |  | 2 |
+| `_sync_mapping_entry` | 205 | def |  | 3 |
+| `list_channels` | 242 | def |  | 1 |
+| `HeartbeatBody` | 246 | class |  | 1 |
+| `heartbeat` | 266 | def |  | 1 |
+| `_sync_project_hip` | 355 | def |  | 2 |
+| `_replay_mapping_entries` | 382 | def |  | 2 |
+| `_report_anchor` | 399 | def |  | 2 |
+| `probe` | 428 | def |  | 1 |
+| `_norm_type` | 476 | def |  | 2 |
+| `_tag_options` | 487 | def |  | 2 |
+| `serial_capabilities` | 518 | def |  | 1 |
+| `_node_type_name` | 568 | def |  | 2 |
 
-## bridge/bridge/channels.py（136 行）
+## bridge/bridge/channels.py（163 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `ChannelRegistry` | 18 | class |  | 0 |
-| `__init__` | 19 | def |  | 1 |
-| `_key_of` | 30 | def |  | 3 |
-| `register` | 35 | def |  | 1 |
-| `get` | 51 | def |  | 12 |
-| `list` | 56 | def |  | 3 |
-| `touch` | 62 | def |  | 1 |
-| `retire_except` | 73 | def |  | 1 |
-| `save_now` | 103 | def |  | 1 |
-| `_save` | 107 | def |  | 5 |
-| `_load` | 125 | def |  | 2 |
+| `ChannelRegistry` | 20 | class |  | 0 |
+| `__init__` | 21 | def |  | 1 |
+| `_key_of` | 32 | def |  | 3 |
+| `register` | 37 | def |  | 1 |
+| `get` | 62 | def |  | 17 |
+| `list` | 67 | def |  | 3 |
+| `touch` | 73 | def |  | 1 |
+| `retire_except` | 84 | def |  | 1 |
+| `save_now` | 114 | def |  | 1 |
+| `_save` | 118 | def |  | 5 |
+| `_load` | 136 | def |  | 2 |
 
 ## bridge/bridge/compute/__init__.py（49 行）
 

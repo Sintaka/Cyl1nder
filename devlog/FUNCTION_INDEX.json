@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-20T17:35:40.951Z",
-  "totalFunctions": 1274,
+  "generatedAt": "2026-08-20T17:57:49.081Z",
+  "totalFunctions": 1276,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -22,7 +22,7 @@
     },
     {
       "file": "bridge/bridge/channel_routes.py",
-      "lineCount": 526,
+      "lineCount": 581,
       "functions": [
         {
           "name": "_check_serial",
@@ -95,85 +95,99 @@
           "calls": 1
         },
         {
-          "name": "_sync_mapping_entry",
+          "name": "_other_declarer",
           "line": 167,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_reanchor_entry",
+          "line": 187,
+          "kind": "def",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "_sync_mapping_entry",
+          "line": 205,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "list_channels",
-          "line": 204,
+          "line": 242,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "HeartbeatBody",
-          "line": 208,
+          "line": 246,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "heartbeat",
-          "line": 228,
+          "line": 266,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_sync_project_hip",
-          "line": 300,
+          "line": 355,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_replay_mapping_entries",
-          "line": 327,
+          "line": 382,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_report_anchor",
-          "line": 344,
+          "line": 399,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "probe",
-          "line": 373,
+          "line": 428,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_norm_type",
-          "line": 421,
+          "line": 476,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_tag_options",
-          "line": 432,
+          "line": 487,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "serial_capabilities",
-          "line": 463,
+          "line": 518,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_node_type_name",
-          "line": 513,
+          "line": 568,
           "kind": "def",
           "exported": false,
           "calls": 2
@@ -182,81 +196,81 @@
     },
     {
       "file": "bridge/bridge/channels.py",
-      "lineCount": 136,
+      "lineCount": 163,
       "functions": [
         {
           "name": "ChannelRegistry",
-          "line": 18,
+          "line": 20,
           "kind": "class",
           "exported": false,
           "calls": 0
         },
         {
           "name": "__init__",
-          "line": 19,
+          "line": 21,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_key_of",
-          "line": 30,
+          "line": 32,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "register",
-          "line": 35,
+          "line": 37,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get",
-          "line": 51,
+          "line": 62,
           "kind": "def",
           "exported": false,
-          "calls": 12
+          "calls": 17
         },
         {
           "name": "list",
-          "line": 56,
+          "line": 67,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "touch",
-          "line": 62,
-          "kind": "def",
-          "exported": false,
-          "calls": 1
-        },
-        {
-          "name": "retire_except",
           "line": 73,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
+          "name": "retire_except",
+          "line": 84,
+          "kind": "def",
+          "exported": false,
+          "calls": 1
+        },
+        {
           "name": "save_now",
-          "line": 103,
+          "line": 114,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_save",
-          "line": 107,
+          "line": 118,
           "kind": "def",
           "exported": false,
           "calls": 5
         },
         {
           "name": "_load",
-          "line": 125,
+          "line": 136,
           "kind": "def",
           "exported": false,
           "calls": 2

@@ -11,6 +11,8 @@ import threading
 import time
 from pathlib import Path
 
+from .protocol import is_valid_serial
+
 # touch 写盘 debounce：最多每秒落一次盘（心跳/探测会高频刷新 lastSeen）。
 _SAVE_DEBOUNCE = 1.0  # seconds
 
@@ -33,12 +35,21 @@ class ChannelRegistry:
         return ref.get("serial") or ""
 
     def register(self, ref: dict) -> dict:
-        """upsert by key：已有 -> 保留 registeredAt；lastSeen=now；返回落库 ref。"""
+        """upsert by key：已有 -> 保留 registeredAt；lastSeen=now；返回落库 ref。
+
+        **serial 必须过桥自己的校验**（v0.1.00143）：此前只检查 key 非空，从不看 serial，
+        于是一条 `serial:"c"` 的 tag 行进了注册表（实测；`is_valid_serial("c")` 是 False）。
+        单字符看着像"取了首字符"之类的截断事故 —— 一次性写坏，但没有任何东西拦住它。
+        铁律说 serial 是识别节点的唯一依据，那么**写入口就该是它的守门人**。
+        """
         now = time.time()
         with self._lock:
             key = self._key_of(ref)
             if not key:
                 raise ValueError("empty channel key")
+            serial = ref.get("serial") or ""
+            if not is_valid_serial(serial):
+                raise ValueError(f"invalid serial: {serial!r}")
             existing = self._records.get(key)
             registered_at = existing.get("registeredAt") if existing else 0.0
             rec = dict(ref)
@@ -127,9 +138,25 @@ class ChannelRegistry:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return
+        dropped: list[str] = []
         for item in data if isinstance(data, list) else []:
             if not isinstance(item, dict):
                 continue
             key = self._key_of(item)
-            if key:
-                self._records[key] = item
+            if not key:
+                continue
+            # **载入时自愈**（v0.1.00143）：磁盘上已有的坏行在这里被丢掉，
+            # 于是重启一次就干净，不需要手工改 channels.json（改了也会被内存态覆写）。
+            if not is_valid_serial(item.get("serial") or ""):
+                dropped.append(f"{key}(bad serial {item.get('serial')!r})")
+                continue
+            # param/data 行没有 `rel` = v0.1.00114 之前的遗留：逻辑名/锚点体系诞生前的产物，
+            # 端口下拉里显示成 `rel: (none) type: -`，点了也解析不出东西。
+            # tag 行的 `rel` 本来就是空（它是吊牌自身的标记行），所以只筛 param/data。
+            if item.get("kind") in ("param", "data") and not (item.get("rel") or "").strip():
+                dropped.append(f"{key}(no rel)")
+                continue
+            self._records[key] = item
+        if dropped:
+            # 用 print 而非 logs：`_load` 在 state 装配期间跑，此时 LogRing 还不一定就绪。
+            print(f"[channels] dropped {len(dropped)} invalid row(s) on load: {', '.join(dropped)}")

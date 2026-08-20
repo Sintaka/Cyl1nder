@@ -487,10 +487,16 @@ def test_probe_404(tmp_path: Path) -> None:
 
 
 def test_probe_no_serial(tmp_path: Path) -> None:
+    """probe 对「没有 serial 的行」如实报 `no serial`（防御分支）。
+
+    v0.1.00143：`register` 现在会**拒绝**无效 serial，所以这种行**再也进不来**了 ——
+    param 行的 serial 决定它归哪个吊牌，而 `retire_except` 按 serial 退役条目，
+    于是无 serial 的 param 行**永远退不掉**，正是要根除的那类永久垃圾。
+    这里直接写进 `_records` 来构造它：被测的是 probe 的读取行为，不是写入口的校验。
+    """
     c = _client(tmp_path)
-    get_state().channels.register(
-        {"kind": "param", "serial": None, "nodePath": "/obj/geo1/transform1", "absolutePath": "/obj/geo1/transform1/tx", "hip": "", "label": ""}
-    )
+    row = {"kind": "param", "serial": None, "nodePath": "/obj/geo1/transform1", "absolutePath": "/obj/geo1/transform1/tx", "hip": "", "label": ""}
+    get_state().channels._records["/obj/geo1/transform1/tx"] = row
     body = c.get("/api/channels/obj/geo1/transform1/tx/probe").json()
     assert body["ok"] is True
     assert body["alive"] is False
