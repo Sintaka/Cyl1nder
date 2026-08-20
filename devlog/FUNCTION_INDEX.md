@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1266** 个函数/类。
+> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1267** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -1187,7 +1187,7 @@
 |---|---|---|---|---|
 | `createTimelineController` | 43 | function | export | 1 |
 
-## web/src/main.ts（2141 行）
+## web/src/main.ts（2184 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -1208,38 +1208,39 @@
 | `bootIsMemberEntry` | 640 | arrow |  | 0 |
 | `applyLayoutSettings` | 976 | function |  | 4 |
 | `refreshSelectionPanels` | 1031 | function |  | 5 |
-| `sameWritebackValue` | 1237 | function |  | 3 |
-| `scheduleWriteback` | 1248 | function |  | 3 |
-| `prefetchExternRefs` | 1272 | function |  | 2 |
-| `pushWritebackOnce` | 1303 | function |  | 2 |
-| `syncWritebackPointer` | 1383 | function |  | 2 |
-| `anchorNetPathOf` | 1418 | function |  | 2 |
-| `inputStatsText` | 1443 | function |  | 2 |
-| `outputStatsText` | 1452 | function |  | 2 |
-| `renderInspector` | 1461 | function |  | 2 |
-| `isProjectModeActive` | 1479 | function |  | 3 |
-| `projectAddress` | 1485 | function |  | 3 |
-| `onNetPathChanged` | 1504 | function |  | 1 |
-| `waitNetPath` | 1514 | function |  | 5 |
-| `enterableNodeNames` | 1528 | function |  | 3 |
-| `enterNodeAwaited` | 1539 | function |  | 3 |
-| `enterByName` | 1552 | function |  | 3 |
-| `exitToDepth` | 1559 | function |  | 5 |
-| `navigateByName` | 1577 | function |  | 2 |
-| `saveProjectGraph` | 1605 | function |  | 5 |
-| `enterProjectMode` | 1652 | function |  | 7 |
-| `openProjectMember` | 1769 | function |  | 2 |
-| `enterMemberWorkspace` | 1791 | function |  | 3 |
-| `commitPendingMemberScope` | 1811 | function |  | 3 |
-| `updateGraphAddress` | 1824 | function |  | 7 |
-| `scheduleNetwork` | 1852 | function |  | 1 |
-| `flushStoreView` | 1855 | function |  | 2 |
-| `loadSnapshotIntoStore` | 1883 | function |  | 3 |
-| `applyLoadedPreference` | 1928 | function |  | 3 |
-| `syncMemberInAddress` | 1970 | function |  | 2 |
-| `syncProjectInAddress` | 1990 | function |  | 2 |
-| `connectSerial` | 2003 | arrow |  | 1 |
-| `markGraphDirty` | 2134 | function |  | 2 |
+| `sameWritebackValue` | 1237 | function |  | 4 |
+| `scheduleWriteback` | 1248 | function |  | 5 |
+| `armExternRefPoll` | 1297 | function |  | 2 |
+| `prefetchExternRefs` | 1305 | function |  | 2 |
+| `pushWritebackOnce` | 1346 | function |  | 2 |
+| `syncWritebackPointer` | 1426 | function |  | 2 |
+| `anchorNetPathOf` | 1461 | function |  | 2 |
+| `inputStatsText` | 1486 | function |  | 2 |
+| `outputStatsText` | 1495 | function |  | 2 |
+| `renderInspector` | 1504 | function |  | 2 |
+| `isProjectModeActive` | 1522 | function |  | 3 |
+| `projectAddress` | 1528 | function |  | 3 |
+| `onNetPathChanged` | 1547 | function |  | 1 |
+| `waitNetPath` | 1557 | function |  | 5 |
+| `enterableNodeNames` | 1571 | function |  | 3 |
+| `enterNodeAwaited` | 1582 | function |  | 3 |
+| `enterByName` | 1595 | function |  | 3 |
+| `exitToDepth` | 1602 | function |  | 5 |
+| `navigateByName` | 1620 | function |  | 2 |
+| `saveProjectGraph` | 1648 | function |  | 5 |
+| `enterProjectMode` | 1695 | function |  | 7 |
+| `openProjectMember` | 1812 | function |  | 2 |
+| `enterMemberWorkspace` | 1834 | function |  | 3 |
+| `commitPendingMemberScope` | 1854 | function |  | 3 |
+| `updateGraphAddress` | 1867 | function |  | 7 |
+| `scheduleNetwork` | 1895 | function |  | 1 |
+| `flushStoreView` | 1898 | function |  | 2 |
+| `loadSnapshotIntoStore` | 1926 | function |  | 3 |
+| `applyLoadedPreference` | 1971 | function |  | 3 |
+| `syncMemberInAddress` | 2013 | function |  | 2 |
+| `syncProjectInAddress` | 2033 | function |  | 2 |
+| `connectSerial` | 2046 | arrow |  | 1 |
+| `markGraphDirty` | 2177 | function |  | 2 |
 
 ## web/src/nodes2/chain-cache.ts（365 行）
 
