@@ -29,8 +29,11 @@ class UiLayoutStore:
             tmp = self._path.with_suffix(".json.tmp")
             tmp.write_text(json.dumps(layout), encoding="utf-8")
             tmp.replace(self._path)
-        except OSError:
-            pass
+        except OSError as exc:
+            # **写失败必须说出来**（v0.1.00152）：静默失败意味着用户排好的停靠布局下次
+            # 打开时悄悄回到默认，而当时毫无线索。仍然不抛（布局落盘失败不该让请求失败）。
+            # 用 print 而非 logs：`state.py` **import 本模块**，`get_state` 会成环。
+            print(f"[ui_layout] layout save failed ({self._path}): {exc}")
 
 import os
 

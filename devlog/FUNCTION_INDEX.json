@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-20T19:04:41.603Z",
+  "generatedAt": "2026-08-20T19:24:26.004Z",
   "totalFunctions": 1279,
   "files": [
     {
@@ -443,7 +443,7 @@
     },
     {
       "file": "bridge/bridge/cook_txn.py",
-      "lineCount": 461,
+      "lineCount": 466,
       "functions": [
         {
           "name": "FlushResult",
@@ -566,42 +566,42 @@
         },
         {
           "name": "_load",
-          "line": 265,
+          "line": 270,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "get_writeback_targets",
-          "line": 298,
+          "line": 303,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "is_tag_serial",
-          "line": 314,
+          "line": 319,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "resolve_target",
-          "line": 343,
+          "line": 348,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_input_to_output",
-          "line": 400,
+          "line": 405,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "passthrough_outputs",
-          "line": 416,
+          "line": 421,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -1476,7 +1476,7 @@
     },
     {
       "file": "bridge/bridge/mcp_server.py",
-      "lineCount": 375,
+      "lineCount": 379,
       "functions": [
         {
           "name": "_index_files",
@@ -1606,28 +1606,28 @@
         },
         {
           "name": "cyl1nder_get_errors",
-          "line": 330,
+          "line": 334,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "cyl1nder_get_geometry_summary",
-          "line": 336,
+          "line": 340,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "cyl1nder_index_query",
-          "line": 346,
+          "line": 350,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "run_stdio",
-          "line": 369,
+          "line": 373,
           "kind": "def",
           "exported": false,
           "calls": 2
@@ -3011,7 +3011,7 @@
     },
     {
       "file": "bridge/bridge/ui_layout.py",
-      "lineCount": 75,
+      "lineCount": 78,
       "functions": [
         {
           "name": "UiLayoutStore",
@@ -3043,21 +3043,21 @@
         },
         {
           "name": "list_layouts",
-          "line": 41,
+          "line": 44,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "save_layout",
-          "line": 48,
+          "line": 51,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "load_layout",
-          "line": 66,
+          "line": 69,
           "kind": "def",
           "exported": false,
           "calls": 1

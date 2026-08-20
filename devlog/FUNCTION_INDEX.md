@@ -99,7 +99,7 @@
 | `cycle_message` | 101 | def |  | 2 |
 | `assert_acyclic` | 114 | def |  | 1 |
 
-## bridge/bridge/cook_txn.py（461 行）
+## bridge/bridge/cook_txn.py（466 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -120,12 +120,12 @@
 | `clear_serial` | 230 | def |  | 1 |
 | `serials` | 238 | def |  | 1 |
 | `_save` | 244 | def |  | 4 |
-| `_load` | 265 | def |  | 2 |
-| `get_writeback_targets` | 298 | def |  | 2 |
-| `is_tag_serial` | 314 | def |  | 2 |
-| `resolve_target` | 343 | def |  | 3 |
-| `_input_to_output` | 400 | def |  | 2 |
-| `passthrough_outputs` | 416 | def |  | 1 |
+| `_load` | 270 | def |  | 2 |
+| `get_writeback_targets` | 303 | def |  | 2 |
+| `is_tag_serial` | 319 | def |  | 2 |
+| `resolve_target` | 348 | def |  | 3 |
+| `_input_to_output` | 405 | def |  | 2 |
+| `passthrough_outputs` | 421 | def |  | 1 |
 
 ## bridge/bridge/data_adapters/__init__.py（14 行）
 
@@ -288,7 +288,7 @@
 | `_save` | 299 | def |  | 8 |
 | `_load` | 317 | def |  | 2 |
 
-## bridge/bridge/mcp_server.py（375 行）
+## bridge/bridge/mcp_server.py（379 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -310,10 +310,10 @@
 | `walk` | 284 | def |  | 3 |
 | `_bridge_get` | 296 | def |  | 2 |
 | `cyl1nder_read_logs` | 314 | def |  | 2 |
-| `cyl1nder_get_errors` | 330 | def |  | 1 |
-| `cyl1nder_get_geometry_summary` | 336 | def |  | 1 |
-| `cyl1nder_index_query` | 346 | def |  | 1 |
-| `run_stdio` | 369 | def |  | 2 |
+| `cyl1nder_get_errors` | 334 | def |  | 1 |
+| `cyl1nder_get_geometry_summary` | 340 | def |  | 1 |
+| `cyl1nder_index_query` | 350 | def |  | 1 |
+| `run_stdio` | 373 | def |  | 2 |
 
 ## bridge/bridge/project_routes.py（636 行）
 
@@ -557,7 +557,7 @@
 | `count` | 66 | def |  | 1 |
 | `_filtered` | 70 | def |  | 2 |
 
-## bridge/bridge/ui_layout.py（75 行）
+## bridge/bridge/ui_layout.py（78 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -565,9 +565,9 @@
 | `__init__` | 13 | def |  | 1 |
 | `read` | 16 | def |  | 1 |
 | `write` | 24 | def |  | 1 |
-| `list_layouts` | 41 | def |  | 1 |
-| `save_layout` | 48 | def |  | 1 |
-| `load_layout` | 66 | def |  | 1 |
+| `list_layouts` | 44 | def |  | 1 |
+| `save_layout` | 51 | def |  | 1 |
+| `load_layout` | 69 | def |  | 1 |
 
 ## bridge/bridge/usdz.py（141 行）
 

@@ -259,8 +259,13 @@ class WritebackTargets:
             tmp = self._path.with_suffix(".json.tmp")
             tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
             tmp.replace(self._path)
-        except OSError:
-            pass
+        except OSError as exc:
+            # **写失败必须说出来**（v0.1.00152）：这里落的是写回指针，静默失败意味着用户
+            # 下次开项目时「`_output_` 指向哪个逻辑名」的信息**没了**，而当时毫无线索。
+            # 仍然不抛（落盘失败不该让 cook 失败），但不再一声不响。
+            # 用 print 而非 logs：`get_state` 会引入不必要的耦合，`channels.py` 的载入期
+            # 日志已立了 print 的先例。
+            print(f"[cook_txn] writeback pointer save failed ({self._path}): {exc}")
 
     def _load(self, path: Path) -> None:
         """容错读回：坏 JSON / 非法端口号一律跳过，绝不让桥起不来。"""
