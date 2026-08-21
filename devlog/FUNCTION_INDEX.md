@@ -1186,11 +1186,11 @@
 | `cloneParams` | 19 | function | export | 1 |
 | `paramsEqual` | 24 | function | export | 1 |
 
-## web/src/core/poll-loop.ts（78 行）
+## web/src/core/poll-loop.ts（148 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `createPollLoop` | 35 | function | export | 1 |
+| `createPollLoop` | 55 | function | export | 1 |
 
 ## web/src/core/session.ts（184 行）
 
@@ -1210,7 +1210,7 @@
 |---|---|---|---|---|
 | `createTimelineController` | 43 | function | export | 1 |
 
-## web/src/main.ts（2233 行）
+## web/src/main.ts（2242 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -1234,37 +1234,37 @@
 | `sameWritebackValue` | 1241 | function |  | 3 |
 | `scheduleWriteback` | 1252 | function |  | 7 |
 | `runWritebackGuarded` | 1279 | function |  | 2 |
-| `armExternRefPoll` | 1336 | function |  | 2 |
-| `prefetchExternRefs` | 1340 | function |  | 2 |
-| `pushWritebackOnce` | 1382 | function |  | 2 |
-| `syncWritebackPointer` | 1475 | function |  | 2 |
-| `anchorNetPathOf` | 1510 | function |  | 2 |
-| `inputStatsText` | 1535 | function |  | 2 |
-| `outputStatsText` | 1544 | function |  | 2 |
-| `renderInspector` | 1553 | function |  | 2 |
-| `isProjectModeActive` | 1571 | function |  | 3 |
-| `projectAddress` | 1577 | function |  | 3 |
-| `onNetPathChanged` | 1596 | function |  | 1 |
-| `waitNetPath` | 1606 | function |  | 5 |
-| `enterableNodeNames` | 1620 | function |  | 3 |
-| `enterNodeAwaited` | 1631 | function |  | 3 |
-| `enterByName` | 1644 | function |  | 3 |
-| `exitToDepth` | 1651 | function |  | 5 |
-| `navigateByName` | 1669 | function |  | 2 |
-| `saveProjectGraph` | 1697 | function |  | 5 |
-| `enterProjectMode` | 1744 | function |  | 7 |
-| `openProjectMember` | 1861 | function |  | 2 |
-| `enterMemberWorkspace` | 1883 | function |  | 3 |
-| `commitPendingMemberScope` | 1903 | function |  | 3 |
-| `updateGraphAddress` | 1916 | function |  | 7 |
-| `scheduleNetwork` | 1944 | function |  | 1 |
-| `flushStoreView` | 1947 | function |  | 2 |
-| `loadSnapshotIntoStore` | 1975 | function |  | 3 |
-| `applyLoadedPreference` | 2020 | function |  | 3 |
-| `syncMemberInAddress` | 2062 | function |  | 2 |
-| `syncProjectInAddress` | 2082 | function |  | 2 |
-| `connectSerial` | 2095 | arrow |  | 1 |
-| `markGraphDirty` | 2226 | function |  | 2 |
+| `armExternRefPoll` | 1345 | function |  | 2 |
+| `prefetchExternRefs` | 1349 | function |  | 2 |
+| `pushWritebackOnce` | 1391 | function |  | 2 |
+| `syncWritebackPointer` | 1484 | function |  | 2 |
+| `anchorNetPathOf` | 1519 | function |  | 2 |
+| `inputStatsText` | 1544 | function |  | 2 |
+| `outputStatsText` | 1553 | function |  | 2 |
+| `renderInspector` | 1562 | function |  | 2 |
+| `isProjectModeActive` | 1580 | function |  | 3 |
+| `projectAddress` | 1586 | function |  | 3 |
+| `onNetPathChanged` | 1605 | function |  | 1 |
+| `waitNetPath` | 1615 | function |  | 5 |
+| `enterableNodeNames` | 1629 | function |  | 3 |
+| `enterNodeAwaited` | 1640 | function |  | 3 |
+| `enterByName` | 1653 | function |  | 3 |
+| `exitToDepth` | 1660 | function |  | 5 |
+| `navigateByName` | 1678 | function |  | 2 |
+| `saveProjectGraph` | 1706 | function |  | 5 |
+| `enterProjectMode` | 1753 | function |  | 7 |
+| `openProjectMember` | 1870 | function |  | 2 |
+| `enterMemberWorkspace` | 1892 | function |  | 3 |
+| `commitPendingMemberScope` | 1912 | function |  | 3 |
+| `updateGraphAddress` | 1925 | function |  | 7 |
+| `scheduleNetwork` | 1953 | function |  | 1 |
+| `flushStoreView` | 1956 | function |  | 2 |
+| `loadSnapshotIntoStore` | 1984 | function |  | 3 |
+| `applyLoadedPreference` | 2029 | function |  | 3 |
+| `syncMemberInAddress` | 2071 | function |  | 2 |
+| `syncProjectInAddress` | 2091 | function |  | 2 |
+| `connectSerial` | 2104 | arrow |  | 1 |
+| `markGraphDirty` | 2235 | function |  | 2 |
 
 ## web/src/nodes2/chain-cache.ts（365 行）
 

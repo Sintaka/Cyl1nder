@@ -1331,6 +1331,15 @@ const externRefPoll = createPollLoop({
   onTick: () => scheduleWriteback(), // 让 pushWritebackOnce 再跑一轮，TTL 到期的键会被重取
   setTimer: (fn, ms) => window.setTimeout(fn, ms),
   clearTimer: (id) => window.clearTimeout(id),
+  // 后台标签页停止轮询、切回来立刻追一次（v0.1.00162）：Chrome 的 intensive
+  // throttling 把隐藏标签页的定时器唤醒钳到约 1 次/分钟，而这条链是两级串联
+  // setTimeout（本轮询 + 写回去抖），两级各等一次唤醒 → 实测刷新周期被拖到
+  // ~120s。停止轮询后隐藏时零请求，切回可见立刻拿新值，两头都比原来好。
+  isHidden: () => document.visibilityState === "hidden",
+  onVisibilityChange: (cb) => {
+    document.addEventListener("visibilitychange", cb);
+    return () => document.removeEventListener("visibilitychange", cb);
+  },
 });
 
 function armExternRefPoll(): void {
