@@ -29,15 +29,18 @@ Cyl1nder 是"中间站"项目：Houdini ⇄ 本地桥 ⇄ WebGL 前端 的轻量
 
 | 层 | 判据 | 交给谁 |
 |---|---|---|
-| 1 | 确定性、可重复、零上下文 | **脚本**：`verify-all.ps1`（三端门禁）/ `release-step.ps1`（版本号+索引+quickstart）/ `check-staged.ps1`（提交前卫生） |
+| 1 | 确定性、可重复、零上下文 | **脚本**（一律 `node scripts/*.mjs`，见 AGENT_QUICKSTART「固化脚本」表）：门禁 / 发布 / 提交 / 巡检 |
 | 2 | 机械但需读代码、临场判读 | **sonnet-5 子智能体**（`provider=luminai-claude`） |
 | 3 | 判断、解释、**拒绝行动** | 主脑自己 |
 
 - **手跑第 1 层脚本的等价物 = 回归**。确定性事实交脚本（退出码不必复核）；
   交 LLM 得到的是「它对事实的报告」，可信度低于事实本身，还得复核一遍，净亏。
 - 派活的公共前言在 `devlog/SUBAGENT_BRIEF.md`，任务书只写「先读它 + 本次差异」。
-- **每轮收尾做一次 Retro**：点数重复操作 → 归层 → 固化或记账，见
-  `devlog/agent-calibration.md`。
+- **一轮对话的终点：用户交代的任务做完 → 报告用户 → 结束。不要自己找下一个任务。**
+  不确定还有没有活就**问用户**，不要翻 devlog 找活。
+- **禁止「满足条件 C 就必须做 X」式的自动化规则**（曾有一条「连续两轮无产品改动就必须做产品」，
+  已删——它让主脑在用户只要求做 A 的那轮里自己派了 B）。经验清单见
+  `devlog/agent-calibration.md`，**那是查阅型文件，不是每轮必读**。
 
 ## Houdini 集成（铁律）
 - Houdini 端与 Codex 一律用**官方 fxhoudinimcp**（pip 包 `fxhoudinimcp`，命令 `python -m fxhoudinimcp`），默认端口 **8100**、被占自动 8101+。**禁止自己写 MCP 桥、禁止用 oculairmedia fork / run_houdini_mcp.py / rpyc 18811**。

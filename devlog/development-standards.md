@@ -92,58 +92,30 @@
 
 ## Shell：项目硬性要求 pwsh 7 / pwsh 7 is mandatory（2026-08-20 起）
 
-**要求**：本项目的所有命令必须跑在 **PowerShell 7+（`pwsh`，PSEdition = Core）** 下。
+**要求**：所有命令跑在 **pwsh 7+（PSEdition = Core）**。本机 `powershell.exe` 5.1 确实存在，
+兜底风险是真的 —— 5.1 的 `Set-Content -Encoding utf8` **默认带 BOM**，会悄悄污染 diff。
 
-**为什么是硬性的**：Windows 自带的 PowerShell **5.1（`powershell.exe`，PSEdition =
-Desktop）** 的 `Set-Content -Encoding utf8` 等写入路径**默认带 BOM**。一旦 `pwsh` 不可用
-被 `powershell.exe` 兜底，任何经 shell 写文件的操作都会悄悄注入 `EF BB BF`：
-- 源码首行变成 `\uFEFF import ...`，diff 里表现为「明明只删了一行，首行却也变了」；
-- 「纯删除」的提交被污染成看不清的改动；
-- 本仓 `web/src` 本来就是 BOM 混用状态（12 有 / 56 无），更难分辨是谁加的。
-
-**实测对照（2026-08-20）**：
-| 版本 | `Set-Content` 写出的首字节 | BOM |
-|---|---|---|
-| pwsh 7.6.5 Core | `68 65 6C`（直接就是内容 `hel`） | 无 |
-| powershell.exe 5.1 Desktop | `EF BB BF` 开头 | **有** |
-
-（管道符在表格单元格里会被当成列分隔符，所以上表不写 `"x" \| Set-Content` 这种写法；
-实测命令是 `"hello" | Set-Content $p` 之后读 `[System.IO.File]::ReadAllBytes($p)`。）
-
-**开工前自检（强制，一条命令）**：
+**这是唯一需要做的事**（开工时一次，不是每次写文件）：
 ```powershell
 if ($PSVersionTable.PSEdition -ne 'Core' -or $PSVersionTable.PSVersion.Major -lt 7) {
-  throw "需要 pwsh 7+（当前 $($PSVersionTable.PSVersion) $($PSVersionTable.PSEdition)）——先解决 shell 再写代码"
+  throw "需要 pwsh 7+（当前 $($PSVersionTable.PSVersion) $($PSVersionTable.PSEdition)）"
 }
 ```
-不是 `7.x` / `Core` 就**先解决 shell**，别一边写一边污染。
-本机 `powershell.exe` 5.1 **确实存在**（2026-08-21 实测），所以"被兜底"不是假想风险。
 
-### 更新（2026-08-21）：确认 pwsh 7 下无 BOM 是默认行为，纪律从"每次手查"改为"卡住 shell"
-实测 pwsh **7.6.5 Core**：
+**pwsh 7 下 `-Encoding utf8` 就是无 BOM**（7.6.5 实测：首字节 `78 0D 0A`；`utf8BOM` 才给
+`EF BB BF`）。所以**不要每次写完手工验 BOM** —— 成本前移到开工卡一次 shell 即可。
+想显式可写 `-Encoding utf8NoBOM`。
 
-| 写法 | 首字节 | BOM |
-|---|---|---|
-| `Set-Content -Encoding utf8` | `78 0D 0A`（直接是内容） | **无** |
-| `Out-File -Encoding utf8` | `78 0D 0A` | **无** |
-| `Set-Content -Encoding utf8BOM` | `EF BB BF` | 有（显式要才有） |
-
-**结论**：在 pwsh 7 下 `utf8` 就是无 BOM，**不需要每次写完手工验 BOM**。
-真正需要保证的是**"这条命令跑在 pwsh 7 里"**——把成本从「每次写完检查」前移到「开工时卡一次 shell」。
-想彻底显式可写 `-Encoding utf8NoBOM`（pwsh 6+ 支持，语义一目了然）。
-
-**仍然保留的一条**：`edit`/`write` 工具可能吃掉**已有文件**的 BOM（工具行为，与 shell 无关）。
-这条已并入 `scripts\check-staged.ps1`（只看**删除行**里的 `^-\uFEFF`），
-**不要再手搓这个检查** —— 见下方「卫生检查交给脚本」。
+**唯一残留的 BOM 风险**：`edit`/`write` 工具可能吃掉**已有文件**的 BOM（工具行为，与 shell 无关）。
+这条已并入 `scripts\check-staged.ps1`（查删除行里的 `^-\uFEFF`），**不要手搓等价检查**。
 
 ## 编码与 Git 卫生 / Encoding & git hygiene（2026-08-11 起）
 - **禁止用 `@'...'@ | python -` 管道传中文/非 ASCII 内容**：PowerShell 把 here-string 按 `$OutputEncoding`（默认 ASCII）编码写进 python stdin，所有中文会变成字面 `?`（已踩坑：5 个 devlog 文件被写坏）。写含中文的文件用：
   - PowerShell here-string + `[System.IO.File]::WriteAllText($path, $text, [System.Text.UTF8Encoding]::new($false))`（UTF-8 无 BOM）；或
   - 先 `Set-Content -Encoding utf8` 写 UTF-8 临时文件，再让 python 用 `utf-8-sig` 读取。
-  - ~~写完用 `??` 特征抽查（`Select-String -Pattern '\?\?'`）。~~
-    **2026-08-21 废止这条写法**：裸 `??` 会命中 JS 的空值合并运算符和任何**讨论**它的散文，
-    一个会话里误报 5 次，最后我在它打红之后照样提交了 ——
-    **一个被训练成可以忽略的检查，比没有检查更坏**。
+  - 乱码抽查**不要手搓**（裸 `??` 会命中 JS 空值合并运算符和讨论它的散文，一个会话误报 5 次，
+    最后我在它打红之后照样提交了 —— **被训练成可以忽略的检查比没有检查更坏**）。
+    统一跑 `pwsh -File scripts\check-staged.ps1`。
     判乱码要按**真实形态**「3 个以上连续 `?`」（`\?{3,}`）判，且散文引用要豁免。
     别手搓，直接跑 `pwsh -File scripts\check-staged.ps1`（见下节）。
 - **PowerShell `Invoke-RestMethod -Body` 传中文 JSON 同样会变 `?`**（body 字符串按 Latin-1 编码；2026-08-15 实踩：项目 label "P2a 验收项目" 落库成 "P2a ????"）：中文 body 改用 `[System.Text.Encoding]::UTF8.GetBytes($json)` 传字节数组，或验收/测试数据一律用 ASCII。
@@ -204,66 +176,9 @@ const text = fs.readFileSync(tmp, "utf8").trim();   // 拿到了，中文也正�
 - 判「工具没跑起来」看 `result.error` / `result.status === null`，**不要靠 try/catch**
   （`spawnSync` 不抛，失败塞在返回值里）。
 
-### 附：`git <cmd> ... -- <path> --output=<file>` 里的 `--output=` 会被当成**路径**（2026-08-21 实测）
-我想把 diff 落盘再读，写成：
-```powershell
-git diff eaacadc..HEAD -- bridge/bridge/protocol.py --output=$out   # 错
-```
-结果：**没有生成任何文件**（`Get-Content` 报路径不存在），diff 照常打到 stdout。
-原因：`--` 之后的一切都是 **pathspec**，`--output=...` 被当成了一个（不存在的）文件名去匹配。
-
-正确写法是把选项放到 `--` **之前**：
-```powershell
-git diff eaacadc..HEAD --output=$out -- bridge/bridge/protocol.py   # 对
-```
-**教训**：`--` 是硬边界，它后面**不再有选项**。同类还有
-`git log --output=... -- <path>`。这个错误**不报错**，只是静默不生成文件 ——
-如果我当时用 `if (Test-Path $out)` 之类去兜，就会得到一个"看起来什么都没查到"的假阴性。
-
-### 附：发过 `AbortSignal.timeout()` 之后别用 `process.exit()`（Node v24 / Windows 实测）
-`probe-live.mjs` 第一版在打印完汇总后 `process.exit(0)`，进程**崩在 libuv 断言**上：
-```
-Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c
-退出码 -1073740791
-```
-每一项检查其实都已正确完成、汇总也算好了 —— **崩的是退出那一步**。
-根因：`AbortSignal.timeout()` 留下的定时器 handle 还在关闭流程中，
-此时 `process.exit()` 强行斩断事件循环，触发竞态。实测 Node **v24.14.0** 必现。
-
-**纪律**：
-- 脚本里**发过任何异步请求/定时器之后**，用 `process.exitCode = N` 让事件循环自然耗尽，
-  **不要 `process.exit(N)`**；
-- **纯同步的早退可以照旧用 `process.exit()`** —— 例如参数解析失败、
-  「环境不满足前提、一个请求都还没发」这种（`probe-live.mjs:53` 与 `:120` 就是故意保留的）。
-  判据是「此刻有没有在飞的 handle」，不是「哪个写法更好」。
-- **别拿「没有异步 handle」的实验去否证这个现象**：我自己写了
-  「40 条 `console.log` + `process.exit(0)`」的探针，一条不少地通过了，
-  于是我判定「flush 假设被否证」—— 但那个探针**压根没有在飞的定时器**，
-  测的不是同一件事。**反证探针必须包含被怀疑的那个变量。**
-
-### 附：`$Args` 是自动变量，当参数名会被遮蔽成空数组（2026-08-21 实测）
-`release-step.ps1` 第一版打印了全部 6 步、`== 6/6 完成 ==`、**exit 0**，
-但**什么都没做**：版本号没变、三份索引一个没生成。**又一次谎报成功，这次长在工具里。**
-
-根因是这个签名：
-```powershell
-function Invoke-NodeStep([string]$Label, [string[]]$Args) { & node @Args }
-```
-`$Args` 是 PowerShell **自动变量**，声明成参数会被遮蔽。实测：
-```
-Bad(参数名 $Args)     -> Args.Count=0     content=[]
-Good(参数名 $NodeArgs) -> NodeArgs.Count=2 content=[scripts/bump-version.mjs,build]
-```
-于是 `& node @Args` 退化成裸 `& node`，而**裸 `node` 在非交互下 exit 0**（实测 `bare node exit=[0]`）
-—— 每一步都「成功」。
-
-**纪律**：
-- 别用 `$Args`（也别用 `$Input`/`$Host`/`$Error`/`$Matches`）当参数名；
-- **判定外部命令成功要同时看「参数数组非空」**：空参数跑起来也可能 exit 0；
-- `pwsh -File` **不会**把子命令退出码带出去（实测 `INNER_EXIT=1` 而 `OUTER_EXIT=0`），
-  想让外层看见必须显式 `exit $code`；
-- 脚本写完**必须验它真的改了东西**（版本号变了没、索引文件的 mtime 动了没），
-  **不能只看它自报的 exit 0** —— 这与「只见过它说 OK 的检测器等于没测过」是同一条。
+### 环境实测事实（`--output=` 陷阱 / libuv 退出崩溃 / `$Args` 遮蔽）
+→ 已移入 **[sandbox-env-facts.md](sandbox-env-facts.md)**（写 `.mjs`、用 `spawnSync`、
+定退出码之前查一次即可，不是每轮必读）。
 
 ## 卫生检查交给脚本，不要手搓 grep（2026-08-21 起）
 提交前一律跑 `pwsh -File scripts\check-staged.ps1`，**别再手写等价的 grep**。
@@ -294,9 +209,8 @@ Good(参数名 $NodeArgs) -> NodeArgs.Count=2 content=[scripts/bump-version.mjs,
 | 2 | 机械但需临场判读/适配代码 | **sonnet-5 子智能体** | 这层用对了 |
 | 3 | 判断、解释、**拒绝行动** | 主脑 | 应当只剩这层 |
 
-- 第 1 层已脚本化：`scripts\verify-all.ps1`（三端门禁）、`scripts\release-step.ps1`
-  （版本号+索引+quickstart 同步）、`scripts\check-staged.ps1`（提交前卫生）。
-  **手跑它们的等价物 = 回归**。
+- 第 1 层已脚本化，**命令清单见 `devlog/AGENT_QUICKSTART.md`「固化脚本」表**（此处不重复，
+  两处各记一份迟早对不上）。一律 `node scripts/*.mjs`。**手跑它们的等价物 = 回归**。
 - 第 3 层的典型形态往往是**不动手**：本会话最高价值的一次决策是判断"读侧跳过通道"
   是合理降级、**刻意不修**（写侧同形状却是撒谎）。这种判断脚本和子智能体都做不了。
 - 派活的公共前言沉到 `devlog/SUBAGENT_BRIEF.md`，任务书只写"先读它 + 本次差异"
