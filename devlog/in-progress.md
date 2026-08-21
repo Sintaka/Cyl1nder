@@ -1,4 +1,47 @@
-# 进行中任务与剩余评估（v0.1.00177）
+# 进行中任务与剩余评估（v0.1.00178）
+
+## -52 补上面板 e2e：那个覆盖空洞终于关了（v0.1.00178，**product≠0**）
+
+§-47 发现「e2e 108 条全绿与我改的面板零交集」，这轮把它关掉：
+`web/e2e/round25-channel-panel.spec.ts`（160 行，3 例），全套 **108 → 111 passed + 1 skipped**。
+
+### 第三次派活失败 → 自己写
+这个 spec 我派了子智能体，它**跑了很多轮没产出任何文件**，与 §-33 那次
+`round24-poll-visibility.spec.ts` 完全同型。**同一approach 失败两次就得换approach**，
+于是 `interrupt_agent` 掐掉，自己写。
+
+代价是主脑上下文，收益是它 20 分钟就完事了 —— 结论沉到 calibration：
+**e2e spec 不适合派**（要反复试真实 DOM、每轮 20s 起步、失败信息只在浏览器里），
+这类活主脑自己做更便宜。
+
+### 两个坑，都是「我以为的 DOM ≠ 真实 DOM」
+**① 面板默认不在 DOM 里。** 第一版三条全挂在 `element(s) not found`。
+Default.json 里 `channel` 与 `inspector`/`param` 同在一个 leaf 且 `activeView` 是 `inspector`，
+**dockview 会把非活动 tab 的内容元素从 DOM 摘掉**。
+而且面板自己的 `isVisible` 也依赖 `container.isConnected`（dock.ts:214）——
+tab 不激活它连轮询都不武装。所以激活 tab 既是「看得见」也是「跑起来」的前提。
+
+**② 同一个面板有两个不同标题。** 我照现有 spec 的写法点 `.dv-tab` 文本，
+用的是 `通道参数`（dock.ts:555）—— **一个都找不到**。因为 e2e 是空 localStorage 起页面，
+走的是 `Default.json`，那里写的是 **`Channels 参数`**（layouts/Default.json:106）。
+→ 改成按**面板 id** `channel` 激活（两条路径都一样）。
+
+**这本身是个产品层面的小不一致**（同一面板两个名字），但改标题会动 Default.json 与
+用户已存的布局，不在本轮范围；e2e 绕开它并在注释里写明，留给后人决定。
+
+### 变异测试：两条都精确红，且互不牵连
+| 变异（改**产品**代码） | 结果 |
+|---|---|
+| `rowKindFor` 去掉 vec3 分支 | 例 1、2 **红**，例 3 **绿** |
+| `dotStateFor` 把 `failed` 分支拆开、让整批 `ok:false` 穿下去（缺陷 B 复活） | **只有例 3 红**（`not.toHaveClass` 失败） |
+
+**每条测试各自守着自己那个缺陷**，不是三条一起红的"团伙"。
+两次变异后 `git diff --stat` 对 `channel-panel.ts` 为空 —— 逐字节还原确认。
+
+### 验证
+gate **ALL GREEN**（pytest 460 / tsc 0 / vitest 972）；e2e **111 passed + 1 skipped**；
+teardown 扫掉 1 serial + 2 孤儿 + **9** 合成项目（比上轮多 1 个正是我这个 spec 的），
+巡检脚本确认 registry 回到基线 1/2/11，**零泄漏**。
 
 ## -51 我两次冤枉了子智能体的产物，两次都是我的仪器坏了
 
