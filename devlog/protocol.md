@@ -89,7 +89,10 @@
   **type=vec3 例外**（v0.1.00161）：改走一次 `houdini_mcp.read_vec3_tuple`（`code.execute_python` 取整个 parmTuple），**跳过**那条对元组参数恒失败的 `get_parameter`。
   修前实测：1 条 vec3 通道进、**0 个值出**且 `ok:true`（`get_parameter("t")` 报 `ValueError: Parameter 't' not found`，循环 `continue` 跳过）——参数面板里 `t` 干脆不出现，且该空答案还被缓存 0.25s。
   读不到/形状不对仍**跳过该通道**（绝不插 `null`、绝不凑数拼 vec3）。**写方向本来就是好的**（`set_parameter` 收列表，实测 ~50ms），本次只改读。
-- `PUT /api/hda/{serial}/channel-values`，body `{"values": {absolutePath: value}}` -> `{ok, throttled?}`：每通道 `parameters.set_parameter`，**Sync Max FPS 节流（max(33ms,1000/fps)）+ latest-wins 整 dict 替换 + single-flight**（照 PUT /timeline 模式）；成功后**不回显广播**（web 发起防回环）；每通道 trace `param-set`（web-param）。
+- `PUT /api/hda/{serial}/channel-values`，body `{"values": {absolutePath: value}}` -> `{ok, throttled?, failed?}`：每通道 `parameters.set_parameter`，**Sync Max FPS 节流（max(33ms,1000/fps)）+ latest-wins 整 dict 替换 + single-flight**（照 PUT /timeline 模式）；成功后**不回显广播**（web 发起防回环）；每通道 trace `param-set`（web-param）。
+  **逐通道失败必须如实回报**（v0.1.00168）：`failed = {absolutePath: error}`，全成功时**不带该键**（成功形状仍是 `{"ok": true}`）。
+  修前实测：给 vec3 参数写字符串 → 桥日志记 `[error] set_parameter … failed: ValueError`、轨迹埋 `digest=error:…`、值未变，而 API 仍返回 **`{"ok":true}`**；面板状态点只看 `r.ok`（`channel-panel.ts:285`）→ 用户看到绿色「已同步」而写没落地。不限 vec3：**任何**逐通道写失败（路径写错／参数被锁／类型不符）都被谎报成成功。
+  **两条路径的 `ok` 语义不同，不可混用**：非节流路径的 `ok` = 「已尝试写且全部成功」；带 `throttled:true` 时写**尚未尝试**（被合并到稍后 flush），那里的 `ok:true` 只表示**已接受**，逐通道结果不存在——调用方**不得**据此涂成功。延迟 flush 无 HTTP 响应可挂，日志与轨迹是唯一记录。
 - **H→C 事件推送**：吊牌 cook 心跳捎带 `values`（可选字段，缺省兼容）→ bridge 直接 **WS 广播 `{type:"channel-values", values}`**（值不落地）。
 - web：主应用「通道参数」dock 面板——数值 scrubbing/输入节流提交（≤ Sync Max FPS，latest-wins）；WS 推送即时刷新（编辑行不覆盖）+ 250ms 轮询兜底（可见性门控）。
 - **通道引用绑定（P5b，客户端语义，协议零改动）**：web 节点参数可绑定到 param 通道 absolutePath（设计参考 Houdini `ch()` channel reference——值跟随源、引用有视觉标识）；节点 `bindings: {paramName: absolutePath}` 随图快照序列化；参数面板/gizmo 编辑经 `PUT channel-values` 直写 Houdini（节流 latest-wins），H→C 值回显应用到绑定节点（值对比防回环）。

@@ -7,6 +7,7 @@
   - three/webgpu
 - `app/channel-panel.ts`
   - bridge/client
+  - fast-deep-equal
   - protocol/types
   - styles/channel-panel.css
 - `app/channel-value.ts`

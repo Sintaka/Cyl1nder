@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-21T09:39:52.256Z",
-  "totalFunctions": 1286,
+  "generatedAt": "2026-08-21T10:05:50.961Z",
+  "totalFunctions": 1293,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -844,7 +844,7 @@
     },
     {
       "file": "bridge/bridge/houdini_routes.py",
-      "lineCount": 681,
+      "lineCount": 700,
       "functions": [
         {
           "name": "_get_interval",
@@ -988,91 +988,91 @@
         },
         {
           "name": "_arm_cv_flush",
-          "line": 474,
+          "line": 482,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "_flush_cv_pending",
-          "line": 485,
+          "line": 493,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "_send_cv_pending",
-          "line": 495,
+          "line": 505,
           "kind": "def",
           "exported": false,
           "calls": 3
         },
         {
           "name": "HouTimelinePut",
-          "line": 540,
+          "line": 559,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_hou_timeline",
-          "line": 546,
+          "line": 565,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "get_houdini",
-          "line": 573,
+          "line": 592,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "HoudiniPut",
-          "line": 583,
+          "line": 602,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "put_houdini",
-          "line": 588,
+          "line": 607,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "CmdBody",
-          "line": 604,
+          "line": 623,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "_trace_houdini_cmd",
-          "line": 609,
+          "line": 628,
           "kind": "def",
           "exported": false,
           "calls": 2
         },
         {
           "name": "houdini_cmd",
-          "line": 635,
+          "line": 654,
           "kind": "def",
           "exported": false,
           "calls": 1
         },
         {
           "name": "PythonBody",
-          "line": 652,
+          "line": 671,
           "kind": "class",
           "exported": false,
           "calls": 1
         },
         {
           "name": "houdini_python",
-          "line": 658,
+          "line": 677,
           "kind": "def",
           "exported": false,
           "calls": 1
@@ -4510,102 +4510,151 @@
     },
     {
       "file": "web/src/app/channel-panel.ts",
-      "lineCount": 333,
+      "lineCount": 441,
       "functions": [
         {
           "name": "isNumericValue",
-          "line": 43,
+          "line": 48,
+          "kind": "function",
+          "exported": true,
+          "calls": 1
+        },
+        {
+          "name": "isVec3Array",
+          "line": 55,
+          "kind": "function",
+          "exported": false,
+          "calls": 3
+        },
+        {
+          "name": "rowKindFor",
+          "line": 61,
           "kind": "function",
           "exported": true,
           "calls": 3
         },
         {
-          "name": "parseInput",
-          "line": 48,
+          "name": "vec3Of",
+          "line": 68,
+          "kind": "function",
+          "exported": false,
+          "calls": 6
+        },
+        {
+          "name": "assembleVec3",
+          "line": 75,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
+          "name": "commitVec3",
+          "line": 92,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "parseInput",
+          "line": 98,
+          "kind": "function",
+          "exported": true,
+          "calls": 3
+        },
+        {
           "name": "mergeValues",
-          "line": 57,
+          "line": 107,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "mergePending",
-          "line": 72,
+          "line": 122,
           "kind": "function",
           "exported": true,
-          "calls": 2
+          "calls": 3
         },
         {
           "name": "clampFps",
-          "line": 87,
+          "line": 137,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "initChannelPanel",
-          "line": 102,
+          "line": 155,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "onInputChange",
-          "line": 138,
+          "line": 191,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "onVecInputChange",
+          "line": 210,
+          "kind": "function",
+          "exported": false,
+          "calls": 2
+        },
+        {
+          "name": "buildVecInputs",
+          "line": 232,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "buildRow",
-          "line": 155,
+          "line": 247,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "replaceRow",
-          "line": 177,
+          "line": 279,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "setRowValue",
-          "line": 185,
+          "line": 287,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderList",
-          "line": 195,
+          "line": 303,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "refresh",
-          "line": 222,
+          "line": 330,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "applyValues",
-          "line": 255,
+          "line": 363,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "flushPending",
-          "line": 267,
+          "line": 375,
           "kind": "function",
           "exported": false,
           "calls": 2

@@ -447,6 +447,9 @@ async def put_channel_values(serial: str, payload: ChannelValuesPut) -> dict:
     """P5a：批量写 param 通道值（latest-wins 节流 + single-flight，照 PUT /timeline）。
 
     成功后不回显广播（web 发起，防回环）；每项 trace param-set（失败项 digest=error:...）。
+    同步路径老实回报结果：{"ok": <全部成功>, "failed": {path: error, ...}}，全成功
+    时不带 failed 键；被节流的响应仍是 {"ok": True, "throttled": True}，那只是
+    "已接受、尚未尝试写入"，不代表任何通道真的写成功了。
     """
     _check_serial(serial)
     values = payload.values or {}
@@ -462,12 +465,17 @@ async def put_channel_values(serial: str, payload: ChannelValuesPut) -> dict:
         last = _CV_LAST.get(serial, 0.0)
         in_flight = _CV_FLIGHT.get(serial, False)
     if in_flight:
-        # 发送中：完成后自动补发最新 pending
+        # 发送中：完成后自动补发最新 pending。
+        # ok:true 在这里只代表"已接受、尚未尝试写入"，不是"已写入"——写入
+        # 还没发生，自然没有逐通道结果，调用方不能把这条响应画成成功的绿点。
         return {"ok": True, "throttled": True}
     if now - last < interval:
         _arm_cv_flush(serial, port, interval - (now - last))
+        # 同上：节流命中同样是"已接受、尚未尝试写入"，语义与上面的 in_flight 分支一致。
         return {"ok": True, "throttled": True}
-    await _send_cv_pending(serial, port)
+    failed = await _send_cv_pending(serial, port)
+    if failed:
+        return {"ok": False, "failed": failed}
     return {"ok": True}
 
 
@@ -489,17 +497,25 @@ async def _flush_cv_pending(serial: str, port: int) -> None:
         pending = _CV_PENDING.get(serial)
     if in_flight or pending is None:
         return
+    # 延迟 flush 路径没有 HTTP 响应可挂——返回的 failures 只靠 log/trace 存档
+    # （_send_cv_pending 内部已记），这里故意不接收也不再二次处理。
     await _send_cv_pending(serial, port)
 
 
-async def _send_cv_pending(serial: str, port: int) -> None:
-    """Send the latest pending values to Houdini (single-flight, no echo broadcast)."""
+async def _send_cv_pending(serial: str, port: int) -> dict[str, str]:
+    """Send the latest pending values to Houdini (single-flight, no echo broadcast).
+
+    Returns absolutePath -> truncated error string for every channel that failed
+    to write (malformed absolutePath counts as a failure too); empty dict means
+    every channel in this batch succeeded.
+    """
     with _LOCK:
         pending = _CV_PENDING.pop(serial, None)
         if pending is None:
-            return
+            return {}
         _CV_FLIGHT[serial] = True
         _CV_LAST[serial] = time.monotonic()
+    failed: dict[str, str] = {}
     for absolute, value in pending.items():
         parts = absolute.rsplit("/", 1)
         if len(parts) != 2 or not parts[0] or not parts[1]:
@@ -508,6 +524,7 @@ async def _send_cv_pending(serial: str, port: int) -> None:
                 actor="web-param", action="param-set", channel=serial,
                 target=absolute, digest="error:bad target",
             )
+            failed[absolute] = "bad target"
             continue
         node, parm = parts
         err: str | None = None
@@ -524,6 +541,7 @@ async def _send_cv_pending(serial: str, port: int) -> None:
         if err is not None:
             get_state().logs.error("houdini", f"set_parameter {absolute} failed: {err}", serial)
             digest = f"error:{err}"[:80]
+            failed[absolute] = err[:200]
         else:
             digest = str(value)[:80]
         get_state().trace.add(
@@ -535,6 +553,7 @@ async def _send_cv_pending(serial: str, port: int) -> None:
         more_pending = serial in _CV_PENDING
     if more_pending:
         _arm_cv_flush(serial, port, _get_set_interval(serial))
+    return failed
 
 
 class HouTimelinePut(BaseModel):

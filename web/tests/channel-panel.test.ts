@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { isNumericValue, mergePending, mergeValues, parseInput } from "../src/app/channel-panel";
+import {
+  assembleVec3,
+  commitVec3,
+  isNumericValue,
+  mergePending,
+  mergeValues,
+  parseInput,
+  rowKindFor,
+} from "../src/app/channel-panel";
 
 describe("isNumericValue（数字判据：typeof v === number → number 输入框）", () => {
   it("number → true", () => {
@@ -111,5 +119,86 @@ describe("mergePending（节流 pending 合并，latest-wins）", () => {
     const p: Record<string, unknown> = {};
     mergePending(p, { tx: 1.5 });
     expect(p).toEqual({ tx: 1.5 });
+  });
+});
+
+describe("rowKindFor（行 kind 判据：vec3 优先于 number/text）", () => {
+  it("3 个有限数字的数组 → vec3", () => {
+    expect(rowKindFor([1, 2, 3])).toBe("vec3");
+    expect(rowKindFor([0.0153, 0.7108, 0])).toBe("vec3");
+  });
+
+  it("长度不为 3 的数组 → 不是 vec3", () => {
+    expect(rowKindFor([1, 2])).not.toBe("vec3");
+    expect(rowKindFor([1, 2, 3, 4])).not.toBe("vec3");
+  });
+
+  it("含非数字元素的数组 → 不是 vec3", () => {
+    expect(rowKindFor([1, "x", 3])).not.toBe("vec3");
+  });
+
+  it("含布尔元素的数组 → 不是 vec3（bool 被拒绝，即便 Number(true)==1）", () => {
+    expect(rowKindFor([1, true, 3])).not.toBe("vec3");
+  });
+
+  it("number → number", () => {
+    expect(rowKindFor(5)).toBe("number");
+  });
+
+  it("字符串 → text", () => {
+    expect(rowKindFor("s")).toBe("text");
+  });
+
+  it("undefined + declaredType=vec3 → vec3（首屏还没值，靠吊牌声明先出三格）", () => {
+    expect(rowKindFor(undefined, "vec3")).toBe("vec3");
+  });
+});
+
+describe("assembleVec3（单分量编辑装配：其余分量取自 prev，不重解析兄弟输入框）", () => {
+  it("编辑一个分量，另两个保留 prev 原值", () => {
+    const next = assembleVec3([1, 2, 3], 0, "10");
+    expect(next).toEqual([10, 2, 3]);
+  });
+
+  it("编辑 y 分量", () => {
+    const next = assembleVec3([1, 2, 3], 1, "20");
+    expect(next).toEqual([1, 20, 3]);
+  });
+
+  it("空白/非法文本回退该分量的 prev 值，不产生 NaN/0", () => {
+    expect(assembleVec3([1, 2, 3], 0, "")).toEqual([1, 2, 3]);
+    expect(assembleVec3([1, 2, 3], 0, "abc")).toEqual([1, 2, 3]);
+  });
+
+  it("prev 非法（如首屏 undefined）时退回 [0,0,0] 再装配", () => {
+    expect(assembleVec3(undefined, 0, "5")).toEqual([5, 0, 0]);
+  });
+});
+
+describe("commitVec3（vec3 提交判定：装配 + 逐元素比较，changed 是推送的唯一依据）", () => {
+  it("提交值是 number 数组而非字符串——这正是本次修复要解决的问题", () => {
+    const { next } = commitVec3([0.0153, 0.7108, 0], 0, "7");
+    expect(next).toEqual([7, 0.7108, 0]);
+    expect(Array.isArray(next)).toBe(true);
+    next.forEach((v) => expect(typeof v).toBe("number"));
+  });
+
+  it("编辑一个分量保留另外两个", () => {
+    const { next } = commitVec3([1, 2, 3], 2, "9");
+    expect(next).toEqual([1, 2, 9]);
+  });
+
+  it("空白/非法分量回退 prev 分量，不推 NaN/0", () => {
+    expect(commitVec3([1, 2, 3], 1, "").next).toEqual([1, 2, 3]);
+    expect(commitVec3([1, 2, 3], 1, "garbage").next).toEqual([1, 2, 3]);
+  });
+
+  it("装配结果与 prev 逐元素相同 → changed=false（同值不应推送，防止轮询回显刷爆 undo 栈）", () => {
+    expect(commitVec3([1, 2, 3], 0, "1").changed).toBe(false);
+    expect(commitVec3([1, 2, 3], 1, "").changed).toBe(false); // 空白回退到同值
+  });
+
+  it("装配结果与 prev 不同 → changed=true", () => {
+    expect(commitVec3([1, 2, 3], 0, "9").changed).toBe(true);
   });
 });

@@ -2,7 +2,7 @@
 
 Cyl1nder = Houdini ⇄ 本地桥 ⇄ WebGL 前端 的中间站。目标不是 DCC。
 
-## 当前焦点（v0.1.00167，新会话先看这里）
+## 当前焦点（v0.1.00168，新会话先看这里）
 - **进度与计划的唯一真相是 `devlog/in-progress.md`**（倒序编号，`## -37` 是最新）。本文件只做入口，不重复维护进度 —— 两处各记一份迟早对不上。
 - **刚完成（00159~00164）**：`transform1/t` 同步「大概 1 秒」的排查与修复，**5 个缺陷全清**，专题见 `devlog/tag-t-sync-latency.md`（含总账表）。要点：桥读 vec3 **211→52ms**（少发一次对元组参数注定失败的 `get_parameter`）、web 轮询漏拍消掉（周期 4.24→2.12s）、轮询链断了会自愈、`channel-values` 对 vec3 不再静默失效、后台标签页从停摆 120s 改成「隐藏零请求 + 可见即追赶」。
 - **那一轮攒下的三条方法论教训**（比结论本身更值钱）：
@@ -15,7 +15,7 @@ Cyl1nder = Houdini ⇄ 本地桥 ⇄ WebGL 前端 的中间站。目标不是 DC
   其中两条**破坏性铁律**必须先看：① 绝不对 `sceneanimate` 的 `animation` Data parm 调 `revertToDefaults()`（会清空整个 APEX 场景）；② APEX 写入实验一律在一次性副本节点上做，不碰用户活动节点。
 - **就近上下文**：`devlog/timeline-sync-lag-analysis.md`（通道上限 ~19Hz 与 Sync Max FPS 节流基准）、`devlog/houdini-mcp-integration.md`（runtime 代理）、annotations-{bridge,hda,web}.md 最新版本节（改动全记录）。
 - 已有能力底线：geo 全流程 IO、fxhoudinimcp 代理（cmd/python/timeline）、快照持久化、时间轴双向同步、**吊牌 HDA 参数/数据通道注册 + 心跳捎带 + 探测**、**项目层（多 HDA 绑定 + nodeview 项目根 + 项目图）**、**轨迹页审计（/trace.html）**、**非 geo 数据源通道（apex-anim + apex-ctrl 读写器）**、**参数值双向同步（channel-values 端点 + 通道参数面板）**、**APEX 控制器世界位姿读写（apex-ctrl，含世界→局部换算与两趟父子链规则）**。
-- 测试基线（v0.1.00167，**实测**）：pytest **455** / vitest **947**（51 文件）/ tsc **0** / e2e **108 passed + 1 skipped**（2.1 分钟，全量跑完 teardown 自动扫掉合成项目，实测项目/serial/通道行三项均回到基线，零泄漏）。
+- 测试基线（v0.1.00168，**实测**）：pytest **460** / vitest **963**（51 文件）/ tsc **0** / e2e **108 passed + 1 skipped**（2.1 分钟，全量跑完 teardown 自动扫掉合成项目，实测项目/serial/通道行三项均回到基线，零泄漏）。
   基线数字每轮都会变，**发现对不上时以实际跑出来的为准**，别信这一行（它只是给你一个量级参照）。
 
 ## 先读（按顺序）

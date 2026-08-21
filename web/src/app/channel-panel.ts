@@ -1,8 +1,10 @@
 /**
  * 通道参数面板（P5a）：列出当前 serial 的 param 通道（吊牌注册），显示/编辑当前值。
  *
- * - 值输入：数字（typeof v === "number"）→ <input type="number" step="any">，
- *   字符串/布尔 → text。
+ * - 值输入按行 kind 分三种（rowKindFor）：vec3（值是 3 个有限数字的数组，或吊牌声明
+ *   type=="vec3"）→ 一行三个 number 框（x/y/z，跟 param.ts 的 vec 行同形）；number
+ *   （typeof v === "number"）→ 单个 number 框；其余 → text。vec3 判据优先于 number/text，
+ *   这样声明为 vec3 的通道首屏（还没值）也先出三格，不等首个值到达才现形。
  * - 编辑提交：input change → 该行标记 editing（WS 推送不覆盖）→ 节流 latest-wins
  *   （实例内 pending map + 1000/sync_fps 定时 flush；flush 时 putChannelValues，
  *   结算后清 pending + editing，错误显示在面板顶部提示）。
@@ -10,10 +12,12 @@
  *   （仅 deps.isVisible() && 有 serial 时）调 getChannelValues。
  * - serial 变化 → 重拉列表 + 清 pending；断开/无通道 → 占位文案。
  *
- * 纯逻辑（isNumericValue / parseInput / mergeValues / mergePending）独立导出，
- * 供 web/tests/channel-panel.test.ts 直接单测（无 DOM）。
+ * 纯逻辑（isNumericValue / rowKindFor / parseInput / assembleVec3 / mergeValues /
+ * mergePending）独立导出，供 web/tests/channel-panel.test.ts 直接单测（无 DOM；
+ * vitest 环境是 node 且没装 jsdom，buildRow 等 DOM 部分测不了）。
  */
 import "../styles/channel-panel.css";
+import equal from "fast-deep-equal";
 import { BridgeClient } from "../bridge/client";
 import type { ChannelRef } from "../protocol/types";
 
@@ -39,9 +43,55 @@ export interface ChannelPanelHandle {
   dispose(): void;
 }
 
-/** 数字判据：typeof v === "number" → number 输入框；字符串/布尔 → text。 */
+/** 数字判据：typeof v === "number" → number 输入框；字符串/布尔 → text。
+ *  仍导出供既有代码/测试使用；行 kind 判定内部改用更细的 rowKindFor。 */
 export function isNumericValue(v: unknown): boolean {
   return typeof v === "number";
+}
+
+export type ChannelRowKind = "number" | "text" | "vec3";
+
+/** 3 个有限数字（拒绝 bool——typeof true === "boolean" 而非 "number"，Number.isFinite(true) 也是 false）。 */
+function isVec3Array(v: unknown): v is [number, number, number] {
+  return Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === "number" && Number.isFinite(x));
+}
+
+/** 行 kind 判据：vec3 优先（值已是 3 元数组，或吊牌声明 type=="vec3"——首屏无值时靠它先出三格），
+ *  否则 number（typeof v === "number"），否则 text。 */
+export function rowKindFor(value: unknown, declaredType?: string): ChannelRowKind {
+  if (isVec3Array(value) || declaredType === "vec3") return "vec3";
+  if (typeof value === "number") return "number";
+  return "text";
+}
+
+/** 取值的 vec3 视图：非法/缺省（首屏还没值）时退回 [0,0,0]，供三个输入框有东西可显示。 */
+function vec3Of(v: unknown): [number, number, number] {
+  return isVec3Array(v) ? v : [0, 0, 0];
+}
+
+/** 单分量编辑装配：组出完整 [x,y,z]，未编辑的两个分量取自 prev（不是重新解析兄弟输入框——
+ *  兄弟框可能正显示旧值/空白，从 DOM 反解会把显示层的偶然状态当成数据源）。
+ *  该分量走 parseInput：空白/非法文本回退 prev 的对应分量，不推 NaN/0。 */
+export function assembleVec3(prev: unknown, index: 0 | 1 | 2, text: string): [number, number, number] {
+  const base = vec3Of(prev);
+  const next: [number, number, number] = [...base];
+  const parsed = parseInput(text, base[index]);
+  next[index] = typeof parsed === "number" && Number.isFinite(parsed) ? parsed : base[index];
+  return next;
+}
+
+export interface Vec3CommitResult {
+  next: [number, number, number];
+  /** false = 与 prev 逐元素相同，调用方不应推送（否则 250ms 轮询回显同值会每 tick 重推，
+   *  刷爆 Houdini 的 undo 栈——已踩过的坑）。 */
+  changed: boolean;
+}
+
+/** vec3 单分量提交判定（纯函数，可单测）：装配完整数组 + 与 prev 逐元素比较。
+ *  是否推送的唯一依据就是这里的 `changed`，onVecInputChange 直接采信，不再自行判断。 */
+export function commitVec3(prev: unknown, index: 0 | 1 | 2, text: string): Vec3CommitResult {
+  const next = assembleVec3(prev, index, text);
+  return { next, changed: !equal(next, vec3Of(prev)) };
 }
 
 /** number 输入解析：空白/非法文本回退 prev（不推脏值）；合法数字 → number。 */
@@ -92,10 +142,13 @@ function clampFps(v: number): number {
 interface ChannelRow {
   path: string;
   el: HTMLElement;
-  input: HTMLInputElement;
   dot: HTMLElement;
   value: unknown;
-  numeric: boolean;
+  kind: ChannelRowKind;
+  /** number/text 行专属。 */
+  input?: HTMLInputElement;
+  /** vec3 行专属：x/y/z 三个输入框。 */
+  vecInputs?: [HTMLInputElement, HTMLInputElement, HTMLInputElement];
 }
 
 /** 面板组件：纯 TS + DOM，无框架。返回句柄供 dock.ts / main.ts 使用。 */
@@ -152,28 +205,77 @@ export function initChannelPanel(container: HTMLElement, deps: ChannelPanelDeps)
     pending = mergePending(pending, { [path]: next });
   }
 
+  /** vec3 行单分量提交：commitVec3 装配完整数组并做逐元素比较，changed=false 直接还原
+   *  显示、不进 pending（守住「同值不重推」——避免轮询回显把它当新编辑再打一遍）。 */
+  function onVecInputChange(path: string, index: 0 | 1 | 2, input: HTMLInputElement): void {
+    const prev = rows.get(path)?.value ?? values[path];
+    const { next, changed } = commitVec3(prev, index, input.value);
+    if (!changed) {
+      input.value = String(vec3Of(prev)[index]);
+      return;
+    }
+    values[path] = next;
+    const row = rows.get(path);
+    if (row) {
+      row.value = next;
+      setDot(row, "pending");
+      row.vecInputs?.forEach((inp, i) => {
+        if (i !== index) inp.value = String(next[i]); // 未编辑的两个分量：显示同步到装配后的值
+      });
+    }
+    editing.add(path);
+    pending = mergePending(pending, { [path]: next });
+  }
+
+  /** vec3 行三个 number 框跟 param.ts 的 `.cyl-param-vec` 同形（一行三格）；CSS 归属固定，
+   *  这里用内联样式实现该布局（devlog/development-standards.md 规则 4 的应急口子）。 */
+  function buildVecInputs(path: string, vec: [number, number, number]): [HTMLInputElement, HTMLInputElement, HTMLInputElement] {
+    const inputs = vec.map((v, i) => {
+      const inp = document.createElement("input");
+      inp.className = "cyl-channel-input";
+      inp.type = "number";
+      inp.step = "any";
+      inp.value = String(v);
+      inp.style.flex = "1 1 0";
+      inp.style.minWidth = "0";
+      inp.addEventListener("change", () => onVecInputChange(path, i as 0 | 1 | 2, inp));
+      return inp;
+    }) as [HTMLInputElement, HTMLInputElement, HTMLInputElement];
+    return inputs;
+  }
+
   function buildRow(path: string, ref: ChannelRef): ChannelRow {
-    const numeric = isNumericValue(values[path]);
+    const kind = rowKindFor(values[path], ref.type);
     const rowEl = document.createElement("div");
     rowEl.className = "cyl-channel-row";
     const labelEl = document.createElement("span");
     labelEl.className = "cyl-channel-label";
     labelEl.textContent = tailOf(path); // label = absolutePath 尾段；title 全量
     labelEl.title = path;
-    const input = document.createElement("input");
-    input.className = "cyl-channel-input";
-    input.type = numeric ? "number" : "text";
-    if (numeric) input.step = "any";
-    input.value = String(values[path] ?? "");
     const dot = document.createElement("span");
     dot.className = "cyl-channel-dot ok";
     dot.title = "已同步";
+
+    if (kind === "vec3") {
+      const vecInputs = buildVecInputs(path, vec3Of(values[path]));
+      const wrap = document.createElement("span");
+      wrap.style.cssText = "display:inline-flex;gap:4px;align-items:center;flex:1;min-width:0;";
+      wrap.append(...vecInputs);
+      rowEl.append(labelEl, wrap, dot);
+      return { path, el: rowEl, dot, value: values[path], kind, vecInputs };
+    }
+
+    const input = document.createElement("input");
+    input.className = "cyl-channel-input";
+    input.type = kind === "number" ? "number" : "text";
+    if (kind === "number") input.step = "any";
+    input.value = String(values[path] ?? "");
     rowEl.append(labelEl, input, dot);
-    input.addEventListener("change", () => onInputChange(path, input, numeric));
-    return { path, el: rowEl, input, dot, value: values[path], numeric };
+    input.addEventListener("change", () => onInputChange(path, input, kind === "number"));
+    return { path, el: rowEl, dot, value: values[path], kind, input };
   }
 
-  /** 值类型翻转（数字↔文本，罕见）时重建该行输入控件；编辑中的行不重建。 */
+  /** 行 kind 翻转（number↔text↔vec3，罕见）时重建该行输入控件；编辑中的行不重建。 */
   function replaceRow(row: ChannelRow): void {
     const ref = refsByPath.get(row.path);
     if (!ref) return;
@@ -184,12 +286,18 @@ export function initChannelPanel(container: HTMLElement, deps: ChannelPanelDeps)
 
   function setRowValue(row: ChannelRow, v: unknown): void {
     row.value = v;
-    if (isNumericValue(v) !== row.numeric) {
+    const kind = rowKindFor(v, refsByPath.get(row.path)?.type);
+    if (kind !== row.kind) {
       if (editing.has(row.path)) return;
       replaceRow(row);
       return;
     }
-    row.input.value = String(v ?? "");
+    if (row.kind === "vec3") {
+      const vec = vec3Of(v);
+      row.vecInputs?.forEach((inp, i) => (inp.value = String(vec[i])));
+      return;
+    }
+    if (row.input) row.input.value = String(v ?? "");
   }
 
   function renderList(): void {

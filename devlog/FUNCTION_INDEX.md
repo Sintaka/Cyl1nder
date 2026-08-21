@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-21），由 `node scripts/gen-index.mjs` 产出。共 **1286** 个函数/类。
+> 机器生成（2026-08-21），由 `node scripts/gen-index.mjs` 产出。共 **1293** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -177,7 +177,7 @@
 | `read_vec3_tuple` | 180 | def |  | 1 |
 | `is_command_allowed` | 214 | def |  | 1 |
 
-## bridge/bridge/houdini_routes.py（681 行）
+## bridge/bridge/houdini_routes.py（700 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -201,19 +201,19 @@
 | `get_channel_values` | 389 | def |  | 1 |
 | `ChannelValuesPut` | 441 | class |  | 1 |
 | `put_channel_values` | 446 | def |  | 1 |
-| `_arm_cv_flush` | 474 | def |  | 3 |
-| `_flush_cv_pending` | 485 | def |  | 2 |
-| `_send_cv_pending` | 495 | def |  | 3 |
-| `HouTimelinePut` | 540 | class |  | 1 |
-| `put_hou_timeline` | 546 | def |  | 1 |
-| `get_houdini` | 573 | def |  | 1 |
-| `HoudiniPut` | 583 | class |  | 1 |
-| `put_houdini` | 588 | def |  | 1 |
-| `CmdBody` | 604 | class |  | 1 |
-| `_trace_houdini_cmd` | 609 | def |  | 2 |
-| `houdini_cmd` | 635 | def |  | 1 |
-| `PythonBody` | 652 | class |  | 1 |
-| `houdini_python` | 658 | def |  | 1 |
+| `_arm_cv_flush` | 482 | def |  | 3 |
+| `_flush_cv_pending` | 493 | def |  | 2 |
+| `_send_cv_pending` | 505 | def |  | 3 |
+| `HouTimelinePut` | 559 | class |  | 1 |
+| `put_hou_timeline` | 565 | def |  | 1 |
+| `get_houdini` | 592 | def |  | 1 |
+| `HoudiniPut` | 602 | class |  | 1 |
+| `put_houdini` | 607 | def |  | 1 |
+| `CmdBody` | 623 | class |  | 1 |
+| `_trace_houdini_cmd` | 628 | def |  | 2 |
+| `houdini_cmd` | 654 | def |  | 1 |
+| `PythonBody` | 671 | class |  | 1 |
+| `houdini_python` | 677 | def |  | 1 |
 
 ## bridge/bridge/logs.py（60 行）
 
@@ -850,24 +850,31 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/channel-panel.ts（333 行）
+## web/src/app/channel-panel.ts（441 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `isNumericValue` | 43 | function | export | 3 |
-| `parseInput` | 48 | function | export | 2 |
-| `mergeValues` | 57 | function | export | 2 |
-| `mergePending` | 72 | function | export | 2 |
-| `clampFps` | 87 | function |  | 2 |
-| `initChannelPanel` | 102 | function | export | 1 |
-| `onInputChange` | 138 | function |  | 2 |
-| `buildRow` | 155 | function |  | 3 |
-| `replaceRow` | 177 | function |  | 2 |
-| `setRowValue` | 185 | function |  | 2 |
-| `renderList` | 195 | function |  | 4 |
-| `refresh` | 222 | function |  | 4 |
-| `applyValues` | 255 | function |  | 4 |
-| `flushPending` | 267 | function |  | 2 |
+| `isNumericValue` | 48 | function | export | 1 |
+| `isVec3Array` | 55 | function |  | 3 |
+| `rowKindFor` | 61 | function | export | 3 |
+| `vec3Of` | 68 | function |  | 6 |
+| `assembleVec3` | 75 | function | export | 2 |
+| `commitVec3` | 92 | function | export | 2 |
+| `parseInput` | 98 | function | export | 3 |
+| `mergeValues` | 107 | function | export | 2 |
+| `mergePending` | 122 | function | export | 3 |
+| `clampFps` | 137 | function |  | 2 |
+| `initChannelPanel` | 155 | function | export | 1 |
+| `onInputChange` | 191 | function |  | 2 |
+| `onVecInputChange` | 210 | function |  | 2 |
+| `buildVecInputs` | 232 | function |  | 2 |
+| `buildRow` | 247 | function |  | 3 |
+| `replaceRow` | 279 | function |  | 2 |
+| `setRowValue` | 287 | function |  | 2 |
+| `renderList` | 303 | function |  | 4 |
+| `refresh` | 330 | function |  | 4 |
+| `applyValues` | 363 | function |  | 4 |
+| `flushPending` | 375 | function |  | 2 |
 
 ## web/src/app/channel-value.ts（33 行）
 

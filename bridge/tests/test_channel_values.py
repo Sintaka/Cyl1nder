@@ -435,7 +435,8 @@ def test_put_channel_values_sets_all(tmp_path: Path, stub: _McpStub) -> None:
 
 
 def test_put_channel_values_failure_traces_error(tmp_path: Path, stub: _McpStub) -> None:
-    """单项 set 失败：记录 error、继续下一项，响应仍 ok:True；失败项 trace digest=error:..."""
+    """单项 set 失败：记录 error、继续下一项（不中止整批），trace digest=error:...；
+    响应必须老实报 ok:False——这正是本次修复要堵的"看不见的失败"，不能再回 ok:True。"""
     c = _client(tmp_path)
     serial = generate_serial()
     _stub_port(serial, stub)
@@ -445,13 +446,116 @@ def test_put_channel_values_failure_traces_error(tmp_path: Path, stub: _McpStub)
         json={"values": {"/obj/geo1/transform1/tx": 1.0, "/obj/geo1/transform1/tz": 9.0}},
     )
     assert r.status_code == 200
-    assert r.json()["ok"] is True
-    assert len(stub.set_calls) == 2  # 失败项也调了，只是信封 error
+    body = r.json()
+    assert body["ok"] is False
+    assert "/obj/geo1/transform1/tz" in body["failed"]
+    assert "/obj/geo1/transform1/tx" not in body["failed"]
+    assert len(stub.set_calls) == 2  # 失败项也调了，只是信封 error；且没中止后续
     events = get_state().trace.list(actor="web-param", action="param-set")
     assert len(events) == 2
     by_target = {e["target"]: e for e in events}
     assert by_target["/obj/geo1/transform1/tx"]["digest"] == "1.0"
     assert by_target["/obj/geo1/transform1/tz"]["digest"].startswith("error:")
+
+
+def test_put_channel_values_single_failure_reports_ok_false(tmp_path: Path, stub: _McpStub) -> None:
+    """回归：单通道 set 失败必须让整响应 ok:False 且该 path 出现在 failed 里 ——
+    旧代码在这里恒返回 {"ok": True}，这条断言在旧代码下必挂（结构性不可能通过）。"""
+    c = _client(tmp_path)
+    serial = generate_serial()
+    _stub_port(serial, stub)
+    stub.fail_set.add("/obj/geo1/transform1/tz")
+    r = c.put(
+        f"/api/hda/{serial}/channel-values",
+        json={"values": {"/obj/geo1/transform1/tz": 9.0}},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is False
+    assert "/obj/geo1/transform1/tz" in body["failed"]
+    assert isinstance(body["failed"]["/obj/geo1/transform1/tz"], str)
+
+
+def test_put_channel_values_all_success_shape_unchanged(tmp_path: Path, stub: _McpStub) -> None:
+    """全部成功：响应必须是恰好 {"ok": True}，不带 failed 键（绿色路径形状不能变）。"""
+    c = _client(tmp_path)
+    serial = generate_serial()
+    _stub_port(serial, stub)
+    r = c.put(
+        f"/api/hda/{serial}/channel-values",
+        json={"values": {"/obj/geo1/transform1/tx": 1.5}},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body == {"ok": True}
+    assert "failed" not in body
+
+
+def test_put_channel_values_mixed_batch_partial_failure(tmp_path: Path, stub: _McpStub) -> None:
+    """混合批次：一个好通道 + 一个坏通道 -> ok:False，failed 只列坏的那个，
+    并且好通道确实写进了 stub（部分失败不能悄悄中止整批）。"""
+    c = _client(tmp_path)
+    serial = generate_serial()
+    _stub_port(serial, stub)
+    stub.fail_set.add("/obj/geo1/transform1/tz")
+    r = c.put(
+        f"/api/hda/{serial}/channel-values",
+        json={
+            "values": {
+                "/obj/geo1/transform1/tx": 1.0,
+                "/obj/geo1/transform1/tz": 9.0,
+            }
+        },
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is False
+    assert list(body["failed"].keys()) == ["/obj/geo1/transform1/tz"]
+    good_calls = [sc for sc in stub.set_calls if sc["parm_name"] == "tx"]
+    assert good_calls and good_calls[0]["value"] == 1.0  # 好通道确实写了
+
+
+def test_put_channel_values_malformed_path_in_failed(tmp_path: Path, stub: _McpStub) -> None:
+    """畸形 absolutePath（没有 "/" 分隔 node/parm）也要出现在 failed 里，
+    而不是被 continue 悄悄吞掉。"""
+    c = _client(tmp_path)
+    serial = generate_serial()
+    _stub_port(serial, stub)
+    r = c.put(
+        f"/api/hda/{serial}/channel-values",
+        json={"values": {"no-slash-here": 1.0}},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is False
+    assert "no-slash-here" in body["failed"]
+
+
+def test_put_channel_values_throttled_has_no_failed_key(
+    tmp_path: Path, stub: _McpStub, monkeypatch
+) -> None:
+    """节流响应仍是 {"ok": True, "throttled": True}，不能长出一个假的 failed 键
+    （节流时写入根本还没尝试，凑不出任何逐通道结果）。"""
+    import bridge.houdini_routes as hr
+
+    monkeypatch.setattr(hr, "_get_set_interval", lambda serial: 10.0)
+    c = _client(tmp_path)
+    serial = generate_serial()
+    _stub_port(serial, stub)
+
+    r1 = c.put(
+        f"/api/hda/{serial}/channel-values",
+        json={"values": {"/obj/geo1/transform1/tx": 1.0}},
+    )
+    assert r1.json()["ok"] is True and "throttled" not in r1.json()
+
+    r2 = c.put(
+        f"/api/hda/{serial}/channel-values",
+        json={"values": {"/obj/geo1/transform1/tx": 2.0}},
+    )
+    body2 = r2.json()
+    assert body2 == {"ok": True, "throttled": True}
+    assert "failed" not in body2
 
 
 def test_put_channel_values_no_port(tmp_path: Path, monkeypatch) -> None:
