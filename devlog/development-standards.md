@@ -177,6 +177,27 @@ if ($PSVersionTable.PSEdition -ne 'Core' -or $PSVersionTable.PSVersion.Major -lt
 - 判「工具没跑起来」看 `result.error` / `result.status === null`，**不要靠 try/catch**
   （`spawnSync` 不抛，失败塞在返回值里）。
 
+### 附：发过 `AbortSignal.timeout()` 之后别用 `process.exit()`（Node v24 / Windows 实测）
+`probe-live.mjs` 第一版在打印完汇总后 `process.exit(0)`，进程**崩在 libuv 断言**上：
+```
+Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c
+退出码 -1073740791
+```
+每一项检查其实都已正确完成、汇总也算好了 —— **崩的是退出那一步**。
+根因：`AbortSignal.timeout()` 留下的定时器 handle 还在关闭流程中，
+此时 `process.exit()` 强行斩断事件循环，触发竞态。实测 Node **v24.14.0** 必现。
+
+**纪律**：
+- 脚本里**发过任何异步请求/定时器之后**，用 `process.exitCode = N` 让事件循环自然耗尽，
+  **不要 `process.exit(N)`**；
+- **纯同步的早退可以照旧用 `process.exit()`** —— 例如参数解析失败、
+  「环境不满足前提、一个请求都还没发」这种（`probe-live.mjs:53` 与 `:120` 就是故意保留的）。
+  判据是「此刻有没有在飞的 handle」，不是「哪个写法更好」。
+- **别拿「没有异步 handle」的实验去否证这个现象**：我自己写了
+  「40 条 `console.log` + `process.exit(0)`」的探针，一条不少地通过了，
+  于是我判定「flush 假设被否证」—— 但那个探针**压根没有在飞的定时器**，
+  测的不是同一件事。**反证探针必须包含被怀疑的那个变量。**
+
 ### 附：`$Args` 是自动变量，当参数名会被遮蔽成空数组（2026-08-21 实测）
 `release-step.ps1` 第一版打印了全部 6 步、`== 6/6 完成 ==`、**exit 0**，
 但**什么都没做**：版本号没变、三份索引一个没生成。**又一次谎报成功，这次长在工具里。**
