@@ -204,6 +204,22 @@ const text = fs.readFileSync(tmp, "utf8").trim();   // 拿到了，中文也正�
 - 判「工具没跑起来」看 `result.error` / `result.status === null`，**不要靠 try/catch**
   （`spawnSync` 不抛，失败塞在返回值里）。
 
+### 附：`git <cmd> ... -- <path> --output=<file>` 里的 `--output=` 会被当成**路径**（2026-08-21 实测）
+我想把 diff 落盘再读，写成：
+```powershell
+git diff eaacadc..HEAD -- bridge/bridge/protocol.py --output=$out   # 错
+```
+结果：**没有生成任何文件**（`Get-Content` 报路径不存在），diff 照常打到 stdout。
+原因：`--` 之后的一切都是 **pathspec**，`--output=...` 被当成了一个（不存在的）文件名去匹配。
+
+正确写法是把选项放到 `--` **之前**：
+```powershell
+git diff eaacadc..HEAD --output=$out -- bridge/bridge/protocol.py   # 对
+```
+**教训**：`--` 是硬边界，它后面**不再有选项**。同类还有
+`git log --output=... -- <path>`。这个错误**不报错**，只是静默不生成文件 ——
+如果我当时用 `if (Test-Path $out)` 之类去兜，就会得到一个"看起来什么都没查到"的假阴性。
+
 ### 附：发过 `AbortSignal.timeout()` 之后别用 `process.exit()`（Node v24 / Windows 实测）
 `probe-live.mjs` 第一版在打印完汇总后 `process.exit(0)`，进程**崩在 libuv 断言**上：
 ```
