@@ -46,6 +46,31 @@
 参数面板里 `t` 干脆不出现，而不是报错。这正是 devlog 反复记的那类「看不见的失败」。
 后果：`t` 吃不到那 0.25s 缓存，只能落到**无任何缓存**的 per-mapping 端点，由 web 自己轮询。
 
+**改前基线实测**（该 serial 名下**只有一条** param 通道 `/obj/geo1/transform1/t` type=vec3）：
+```
+run 1 -> 320ms  ok=True  keys=0   {"ok":true,"values":{}}
+run 2 ->   2ms  ok=True  keys=0   ← 0.25s 缓存忠实地把「空集」也缓存了
+run 3 ->   1ms  ok=True  keys=0
+run 4 ->   0ms  ok=True  keys=0
+```
+**1 条通道进、0 个值出**，而 `ok` 仍是 `true`。缓存让这个空答案更廉价地重复给出 ——
+一个说谎的快通路比慢通路更坏。
+
+### 写方向是好的（专门核实过，不是假设）
+只修 GET 会不会造出「面板显示得出 `t`、一改就失败」的更差状态？**不会。**
+`PUT /api/hda/{serial}/channel-values` 走 `_send_cv_pending`
+（`houdini_routes.py:515-518`），把 `value` 原样交给 `parameters.set_parameter` ——
+与 mapping 端点同一形状。代码同形不算证明，所以对活 Houdini 实测了一次幂等写：
+
+```
+set t=[0.0153,0.7108,0]  ->  status success   timing_ms 54.57 / 10 / 48.44
+之后读回 transform1.t    =  0.0153, 0.7108, 0   （值未变）
+```
+
+**`set_parameter` 本来就收列表**，所以 vec3 的写从来没坏过。
+读坏写好的根因是两侧走的 HOM 不同：读经 `node.parm(name)`（元组参数恒为 None），
+写经能收元组的 `set_parameter`。**只修 GET 是完整的，不会造出半修状态。**
+
 ### 2. 轮询链的周期由「读延迟」决定，且会自己错过一拍
 链条是 `armExternRefPoll`(2000ms) → `scheduleWriteback`(120ms 去抖) →
 `pushWritebackOnce` → `prefetchExternRefs` → 重新 arm。所以每 **2120ms** 才检查一次 TTL，
@@ -155,6 +180,21 @@ AFTER   samples 363  88  52  53  51  52  52  53   min  51  median  52
 `type=vec3 kind=param`；`Cyl1nderTag2` 锚点 `pid=62520 port=8100 alive=True`。
 用户页面自行重连（WS 4 个客户端、`lastSeen 0s`），两个 workspace 都从快照恢复。
 
+### 「重连会不会用旧快照覆盖掉浏览器里的图」——查实了，不会
+这是我重启前最担心的一条，四条证据闭合：
+
+1. `GET /api/hda/C1-msm6dsp7-ob6t/snapshot` 实测 **`snapshot` 有、但没有 `graph` 字段**；
+2. `restoreGraph` 第一行是 `if (!d?.nodes) return;`（`graph-model.ts:2238`），
+   而它**返回在** `removeConnection`/`removeNode` 那两个销毁循环（2251-2252 行）**之前**
+   —— 没有 graph 时它是彻底的 no-op，一根线都不会动；
+3. 页面实测活着（`lastSeen` 6 秒内前进 6.04s）；
+4. 磁盘上最新 `node-graph.json` 是 08-19 22:33 且**无一提到** `transform1`
+   —— 我**重启前**就查过一次，所以这不是重启造成的。
+
+**结论**：图在浏览器里完好，但**只在浏览器里**。
+所以要拿到本轮的 web 侧修复，用户必须**先 Ctrl+S 存图、再刷新** ——
+直接刷新会丢掉那张图（vite 的 reload 与这里无关，是"内存态从未落盘"本身的性质）。
+
 4 例新单测；两条变异测试都确认会红：把 `_read_vec3_tuple` 写死返回 None → 单次读那条红；
 去掉长度校验 → 畸形形状那条红（2 分量被放过）。桥全量 **450 passed**。
 
@@ -200,20 +240,52 @@ main.ts:1380   } catch { return; }            // 图还没就绪
 **这比原问题更严重**：原问题是「慢 1 秒」，这个是「**彻底停掉且看不出来**」——
 页面一切正常、日志没有错误、值就是不再更新。又一个「看不见的失败」。
 
-**修法方向（未做）**：让 re-arm 不依赖 `pushWritebackOnce` 走完 ——
-在 `armExternRefPoll` 的回调里先无条件 re-arm 再做事，
-或者两个 return 各自 re-arm 之后再 return。
+### 已修（`web/src/core/poll-loop.ts`，新模块）
+抽成一个注入计时器的自愈状态机 `createPollLoop({intervalMs, onTick, setTimer, clearTimer})`。
+**关键顺序**：定时器触发时**先无条件重排下一轮，再跑 `onTick`**，且 `onTick` 的异常被吞掉
+—— 于是下游任何提前 return 或抛错都杀不死这条链。
 
-## 仍未做（如实标注，按严重程度排序）
+`main.ts` 侧的三处接线（每一处都是有意的，不是顺手改的）：
+- `prefetchExternRefs` 地址为空 → **显式 `disarm()`**。以前"不 arm 就自然停"，
+  现在循环会无条件重排，不主动关就会在空图上永远轮询；
+- `pushWritebackOnce` 的 `!pid` → `disarm()`（没项目无从解析逻辑名；
+  项目加载会经 `flushStoreView → scheduleWriteback` 重新按需 arm）；
+- `getNetworkSnapshot()` 的 `catch` → **保持武装**，只 return。
+  这正是本缺陷本身，注释里明确写了「不要在这里 disarm」——否则下一个人会"顺手修好"它。
 
-1. **轮询链断了不自愈**（上一节）：最严重 —— 页面看着一切正常，值就是不再更新。
-   修法方向已写，本轮**未做**（要动 `armExternRefPoll` 的 re-arm 时机，
-   而 `main.ts` 刚被本轮子智能体改过，同轮再改会把两件事混进一个 diff）。
-2. **`channel-values` 对 vec3 静默失效**（§1b）：参数面板里 `t` 干脆不出现。
-   刻意不与修法 1 同轮并行 —— 两者都改桥、都跑同一套 pytest，写集会打架。
-3. **后台标签页停摆 120s**：要改成 `visibilitychange` 时补取，不是调常量能解决的。
+计时器注入让这个状态机能在 `environment: "node"` 下真正被单测（无 DOM、无 `vi.useFakeTimers`，
+手动记录 pending 回调再手动触发，这样**重排与执行的先后**才能被精确断言）。
 
-修法 2（web 轮询错拍）本轮已落地，合并结果见 in-progress §-33。
+5 例新单测。**变异测试**：把重排挪到 `onTick` 之后（放进 `try` 里，
+与真实缺陷形态一致）→ 第 1 例（抛异常的 tick 杀不死循环）与第 4 例（顺序锚点：
+`onTick` 内部 `isArmed()` 已为 true）**双双变红**，另 3 例照绿（正确，它们不依赖这个顺序）。
+
+第 4 例是刻意加的：它断言的是**机制**（重排先于工作），而第 1 例断言的是**症状**。
+只有症状测试的话，换一种同样错误的实现可能照样绿。
+
+子智能体额外加了一个「世代号」（`disarm()` 也自增，过期回调认出不匹配就不作数），
+超出我给的 API 规格。我逐路走过 arm→fire→disarm→arm 与「`onTick` 内部自己调 `disarm()`」
+（那正是地址为空那条路）两条时序，判定正确后保留。
+
+验证：tsc **0** / vitest **940**（51 文件，+5）。
+
+## 落地总账（截至 v0.1.00161）
+
+| # | 问题 | 状态 | 实测 |
+|---|---|---|---|
+| 1 | vec3 读发一次注定失败的 `get_parameter` | **已修**（00159） | 端点 211 → 52ms，4.06x |
+| 2 | web TTL 判据漏一拍 | **已修**（00159） | 周期 4.24s → 2.12s |
+| 3 | 轮询链断了不自愈 | **已修**（00161） | 5 例单测 + 变异测试双红 |
+| 4 | `channel-values` 对 vec3 静默失效 | **已修**（00161） | keys 0 → 1 |
+| 5 | 后台标签页停摆 120s | **未做** | 实测 120.251s（n=6） |
+
+### 仍未做：后台标签页停摆 120s
+Chrome 后台每分钟只唤醒一次定时器，撞上**两级串联** setTimeout（2000 + 120）
+= 各等一次唤醒 = 2 分钟。要改成 `visibilitychange` 时补取（后台干脆不轮询、
+切回来立刻取一次），不是调常量能解决的。
+
+**注意：poll-loop 的自愈不解决这一条** —— 那不是「链断了」，是「链被节流」。
+两者症状像（值长时间不更新），机制完全不同，别把 #3 的修复当成也修了 #5。
 
 ## 关于本轮的桥重启（方法记一笔）
 

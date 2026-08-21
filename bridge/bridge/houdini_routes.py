@@ -412,6 +412,15 @@ async def get_channel_values(serial: str) -> dict:
             if len(parts) != 2 or not parts[0] or not parts[1]:
                 continue  # 畸形 absolutePath 跳过
             node, parm = parts
+            if (ref.get("type") or "") == "vec3":
+                # vec3 是元组参数，`parm("t")` 恒为 None，parameters.get_parameter
+                # 对它必错（Did you mean tz/ty/tx），发出去就是纯浪费的一次往返 ——
+                # 直接用一次 code.execute_python 取整个元组，跳过那条注定失败的调用。
+                vec = await asyncio.to_thread(houdini_mcp.read_vec3_tuple, port, node, parm)
+                if vec is None:
+                    continue  # 读不到/形状不对 -> 跳过（绝不插 null 或凑数的 vec3）
+                values[absolute] = vec
+                continue
             try:
                 result = await asyncio.to_thread(
                     houdini_mcp.rpc, port, "parameters.get_parameter",

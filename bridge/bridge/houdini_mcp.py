@@ -177,6 +177,40 @@ def execute_python(port: int, code: str, return_expression: str | None = None) -
     return _unwrap(rpc(port, "code.execute_python", params))
 
 
+def read_vec3_tuple(port: int, node: str, parm: str) -> list[float] | None:
+    """一次 code.execute_python 取整个元组参数（实测 52ms，对比逐分量 3 次共 ~150ms）。
+
+    为什么不用 `parameters.get_parameter`：元组参数的 `parm("t")` 是 None，那条调用
+    对 vec3 恒失败（实测报「Parameter 't' not found」），是一次纯浪费的往返。
+    为什么不并发逐分量取：实测 3 次并发(155ms) 与 3 次串行(157ms) 一样 ——
+    Houdini dispatcher 把 mcp.execute 排到主线程串行执行，并发只是让它们排队。
+    同步函数（本模块的公开约定）：调用方自行 asyncio.to_thread。
+    """
+    code = (
+        "import hou; "
+        f"n = hou.node({json.dumps(node)}); "
+        f"pt = n.parmTuple({json.dumps(parm)}); "
+        "result = [p.eval() for p in pt] if pt is not None else None"
+    )
+    try:
+        envelope = execute_python(port, code, "result")
+    except Exception:  # noqa: BLE001 - 最佳努力路径，任何失败一律 None
+        return None
+    if not isinstance(envelope, dict):
+        return None
+    rv = envelope.get("return_value")
+    # **绝不猜缺失分量**：形状不对（长度非 3 / 含非数字，bool 也拒）一律 None，
+    # 拼出一个静默错误的位姿比读不到更坏。
+    if not isinstance(rv, (list, tuple)) or len(rv) != 3:
+        return None
+    out: list[float] = []
+    for v in rv:
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            return None
+        out.append(float(v))
+    return out
+
+
 def is_command_allowed(command: str) -> bool:
     """True when command is a non-empty str under an allow-listed namespace."""
     if not isinstance(command, str) or not command:

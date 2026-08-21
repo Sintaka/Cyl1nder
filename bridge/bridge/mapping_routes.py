@@ -16,7 +16,6 @@ main.py 由主进程挂载本 router（本文件不改 main.py）。
 from __future__ import annotations
 
 import asyncio
-import json
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
@@ -357,36 +356,11 @@ async def get_mapping_value(pid: str, name: str) -> dict:
 
 
 async def _read_vec3_tuple(port: int, node: str, parm: str) -> list[float] | None:
-    """一次 code.execute_python 取整个元组参数（实测 52ms，对比逐分量 3 次共 ~150ms）。
-
-    为什么不用 `parameters.get_parameter`：元组参数的 `parm("t")` 是 None，那条调用
-    对 vec3 恒失败（实测报「Parameter 't' not found」），是一次纯浪费的往返。
-    为什么不并发逐分量取：实测 3 次并发(155ms) 与 3 次串行(157ms) 一样 ——
-    Houdini dispatcher 把 mcp.execute 排到主线程串行执行，并发只是让它们排队。
+    """薄异步包装：实体已挪进 `houdini_mcp.read_vec3_tuple`（同步、纯 stdlib，见其
+    docstring）。这里只负责 `asyncio.to_thread`——保留名字/签名不变是因为
+    `test_mapping.py` 直接调用本函数并 monkeypatch `mr.houdini_mcp.execute_python`。
     """
-    code = (
-        "import hou; "
-        f"n = hou.node({json.dumps(node)}); "
-        f"pt = n.parmTuple({json.dumps(parm)}); "
-        "result = [p.eval() for p in pt] if pt is not None else None"
-    )
-    try:
-        envelope = await asyncio.to_thread(houdini_mcp.execute_python, port, code, "result")
-    except Exception:  # noqa: BLE001 - HoudiniMcpError/解析失败一律回退逐分量
-        return None
-    if not isinstance(envelope, dict):
-        return None
-    rv = envelope.get("return_value")
-    # **绝不猜缺失分量**：形状不对（长度非 3 / 含非数字，bool 也拒）一律 None，
-    # 交给逐分量兜底 —— 拼出一个静默错误的位姿比读不到更坏。
-    if not isinstance(rv, (list, tuple)) or len(rv) != 3:
-        return None
-    out: list[float] = []
-    for v in rv:
-        if isinstance(v, bool) or not isinstance(v, (int, float)):
-            return None
-        out.append(float(v))
-    return out
+    return await asyncio.to_thread(houdini_mcp.read_vec3_tuple, port, node, parm)
 
 
 async def _read_vec3_components(port: int, node: str, parm: str) -> list[float] | None:

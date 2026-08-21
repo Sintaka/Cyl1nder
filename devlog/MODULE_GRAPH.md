@@ -89,6 +89,7 @@
 - `core/param-undo.ts`
   - core/params
 - `core/params.ts`
+- `core/poll-loop.ts`
 - `core/session.ts`
   - bridge/client
   - protocol/types
@@ -116,6 +117,7 @@
   - core/network
   - core/param-undo
   - core/params
+  - core/poll-loop
   - core/session
   - core/shortcuts
   - core/timeline

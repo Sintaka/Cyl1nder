@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-21），由 `node scripts/gen-index.mjs` 产出。共 **1284** 个函数/类。
+> 机器生成（2026-08-21），由 `node scripts/gen-index.mjs` 产出。共 **1286** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -157,7 +157,7 @@
 | `_unwrap` | 169 | def |  | 3 |
 | `_rpc` | 180 | def |  | 3 |
 
-## bridge/bridge/houdini_mcp.py（185 行）
+## bridge/bridge/houdini_mcp.py（219 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -173,10 +173,11 @@
 | `_unwrap` | 157 | def |  | 4 |
 | `set_frame` | 165 | def |  | 1 |
 | `get_frame` | 169 | def |  | 1 |
-| `execute_python` | 173 | def |  | 1 |
-| `is_command_allowed` | 180 | def |  | 1 |
+| `execute_python` | 173 | def |  | 2 |
+| `read_vec3_tuple` | 180 | def |  | 1 |
+| `is_command_allowed` | 214 | def |  | 1 |
 
-## bridge/bridge/houdini_routes.py（672 行）
+## bridge/bridge/houdini_routes.py（681 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -198,21 +199,21 @@
 | `_flush_pending` | 332 | def |  | 2 |
 | `_send_pending` | 342 | def |  | 3 |
 | `get_channel_values` | 389 | def |  | 1 |
-| `ChannelValuesPut` | 432 | class |  | 1 |
-| `put_channel_values` | 437 | def |  | 1 |
-| `_arm_cv_flush` | 465 | def |  | 3 |
-| `_flush_cv_pending` | 476 | def |  | 2 |
-| `_send_cv_pending` | 486 | def |  | 3 |
-| `HouTimelinePut` | 531 | class |  | 1 |
-| `put_hou_timeline` | 537 | def |  | 1 |
-| `get_houdini` | 564 | def |  | 1 |
-| `HoudiniPut` | 574 | class |  | 1 |
-| `put_houdini` | 579 | def |  | 1 |
-| `CmdBody` | 595 | class |  | 1 |
-| `_trace_houdini_cmd` | 600 | def |  | 2 |
-| `houdini_cmd` | 626 | def |  | 1 |
-| `PythonBody` | 643 | class |  | 1 |
-| `houdini_python` | 649 | def |  | 1 |
+| `ChannelValuesPut` | 441 | class |  | 1 |
+| `put_channel_values` | 446 | def |  | 1 |
+| `_arm_cv_flush` | 474 | def |  | 3 |
+| `_flush_cv_pending` | 485 | def |  | 2 |
+| `_send_cv_pending` | 495 | def |  | 3 |
+| `HouTimelinePut` | 540 | class |  | 1 |
+| `put_hou_timeline` | 546 | def |  | 1 |
+| `get_houdini` | 573 | def |  | 1 |
+| `HoudiniPut` | 583 | class |  | 1 |
+| `put_houdini` | 588 | def |  | 1 |
+| `CmdBody` | 604 | class |  | 1 |
+| `_trace_houdini_cmd` | 609 | def |  | 2 |
+| `houdini_cmd` | 635 | def |  | 1 |
+| `PythonBody` | 652 | class |  | 1 |
+| `houdini_python` | 658 | def |  | 1 |
 
 ## bridge/bridge/logs.py（60 行）
 
@@ -235,35 +236,35 @@
 | `lifespan` | 24 | def |  | 1 |
 | `create_app` | 38 | def |  | 2 |
 
-## bridge/bridge/mapping_routes.py（593 行）
+## bridge/bridge/mapping_routes.py（567 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_check_pid` | 42 | def |  | 8 |
-| `_resolved_or_404` | 47 | def |  | 3 |
-| `_split_target` | 54 | def |  | 3 |
-| `_resolve_port_for_anchor` | 62 | def |  | 1 |
-| `_fallback_port_warned` | 107 | def |  | 2 |
-| `_port_for` | 145 | def |  | 5 |
-| `_trace` | 149 | def |  | 3 |
-| `ValuePut` | 159 | class |  | 1 |
-| `_find_port_by_pid_cached` | 188 | def |  | 2 |
-| `_find_port_by_pid` | 215 | def |  | 2 |
-| `_probe_health` | 243 | def |  | 4 |
-| `probe_anchor` | 248 | def |  | 1 |
-| `get_mapping_value` | 307 | def |  | 1 |
-| `_read_vec3_tuple` | 359 | def |  | 2 |
-| `_read_vec3_components` | 392 | def |  | 2 |
-| `get_cook_cycles` | 418 | def |  | 1 |
-| `put_mapping_value` | 435 | def |  | 1 |
-| `list_mappings` | 483 | def |  | 1 |
-| `put_mapping` | 510 | def |  | 1 |
-| `delete_mapping` | 521 | def |  | 1 |
-| `WritebackPut` | 538 | class |  | 1 |
-| `_writeback_view` | 543 | def |  | 2 |
-| `get_writeback` | 557 | def |  | 1 |
-| `put_writeback` | 566 | def |  | 1 |
-| `delete_writeback` | 587 | def |  | 1 |
+| `_check_pid` | 41 | def |  | 8 |
+| `_resolved_or_404` | 46 | def |  | 3 |
+| `_split_target` | 53 | def |  | 3 |
+| `_resolve_port_for_anchor` | 61 | def |  | 1 |
+| `_fallback_port_warned` | 106 | def |  | 2 |
+| `_port_for` | 144 | def |  | 5 |
+| `_trace` | 148 | def |  | 3 |
+| `ValuePut` | 158 | class |  | 1 |
+| `_find_port_by_pid_cached` | 187 | def |  | 2 |
+| `_find_port_by_pid` | 214 | def |  | 2 |
+| `_probe_health` | 242 | def |  | 4 |
+| `probe_anchor` | 247 | def |  | 1 |
+| `get_mapping_value` | 306 | def |  | 1 |
+| `_read_vec3_tuple` | 358 | def |  | 2 |
+| `_read_vec3_components` | 366 | def |  | 2 |
+| `get_cook_cycles` | 392 | def |  | 1 |
+| `put_mapping_value` | 409 | def |  | 1 |
+| `list_mappings` | 457 | def |  | 1 |
+| `put_mapping` | 484 | def |  | 1 |
+| `delete_mapping` | 495 | def |  | 1 |
+| `WritebackPut` | 512 | class |  | 1 |
+| `_writeback_view` | 517 | def |  | 2 |
+| `get_writeback` | 531 | def |  | 1 |
+| `put_writeback` | 540 | def |  | 1 |
+| `delete_writeback` | 561 | def |  | 1 |
 
 ## bridge/bridge/mapping.py（352 行）
 
@@ -1185,6 +1186,12 @@
 | `cloneParams` | 19 | function | export | 1 |
 | `paramsEqual` | 24 | function | export | 1 |
 
+## web/src/core/poll-loop.ts（78 行）
+
+| 函数 | 行号 | 类型 | 导出 | calls |
+|---|---|---|---|---|
+| `createPollLoop` | 35 | function | export | 1 |
+
 ## web/src/core/session.ts（184 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
@@ -1203,61 +1210,61 @@
 |---|---|---|---|---|
 | `createTimelineController` | 43 | function | export | 1 |
 
-## web/src/main.ts（2218 行）
+## web/src/main.ts（2233 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `matchLogFilter` | 93 | arrow |  | 0 |
-| `renderLog` | 94 | arrow |  | 3 |
-| `isSerial` | 181 | arrow |  | 2 |
-| `isProject` | 182 | arrow |  | 2 |
-| `toggle` | 303 | arrow |  | 8 |
-| `updateLayoutMenuLabel` | 335 | function |  | 5 |
-| `getDockJson` | 338 | arrow |  | 7 |
-| `saveCurrentLayout` | 342 | arrow |  | 2 |
-| `refreshLayoutPresets` | 351 | arrow |  | 1 |
-| `writeJsonToDir` | 462 | function |  | 7 |
-| `readJsonFromDir` | 473 | function |  | 5 |
-| `saveSceneAs` | 487 | function |  | 3 |
-| `navigateToMemberPage` | 557 | function |  | 3 |
-| `openSceneFromDir` | 573 | function |  | 2 |
-| `bootIsMemberEntry` | 643 | arrow |  | 0 |
-| `applyLayoutSettings` | 979 | function |  | 4 |
-| `refreshSelectionPanels` | 1034 | function |  | 5 |
-| `sameWritebackValue` | 1240 | function |  | 3 |
-| `scheduleWriteback` | 1251 | function |  | 7 |
-| `runWritebackGuarded` | 1278 | function |  | 2 |
-| `armExternRefPoll` | 1326 | function |  | 2 |
-| `prefetchExternRefs` | 1334 | function |  | 2 |
-| `pushWritebackOnce` | 1374 | function |  | 2 |
-| `syncWritebackPointer` | 1460 | function |  | 2 |
-| `anchorNetPathOf` | 1495 | function |  | 2 |
-| `inputStatsText` | 1520 | function |  | 2 |
-| `outputStatsText` | 1529 | function |  | 2 |
-| `renderInspector` | 1538 | function |  | 2 |
-| `isProjectModeActive` | 1556 | function |  | 3 |
-| `projectAddress` | 1562 | function |  | 3 |
-| `onNetPathChanged` | 1581 | function |  | 1 |
-| `waitNetPath` | 1591 | function |  | 5 |
-| `enterableNodeNames` | 1605 | function |  | 3 |
-| `enterNodeAwaited` | 1616 | function |  | 3 |
-| `enterByName` | 1629 | function |  | 3 |
-| `exitToDepth` | 1636 | function |  | 5 |
-| `navigateByName` | 1654 | function |  | 2 |
-| `saveProjectGraph` | 1682 | function |  | 5 |
-| `enterProjectMode` | 1729 | function |  | 7 |
-| `openProjectMember` | 1846 | function |  | 2 |
-| `enterMemberWorkspace` | 1868 | function |  | 3 |
-| `commitPendingMemberScope` | 1888 | function |  | 3 |
-| `updateGraphAddress` | 1901 | function |  | 7 |
-| `scheduleNetwork` | 1929 | function |  | 1 |
-| `flushStoreView` | 1932 | function |  | 2 |
-| `loadSnapshotIntoStore` | 1960 | function |  | 3 |
-| `applyLoadedPreference` | 2005 | function |  | 3 |
-| `syncMemberInAddress` | 2047 | function |  | 2 |
-| `syncProjectInAddress` | 2067 | function |  | 2 |
-| `connectSerial` | 2080 | arrow |  | 1 |
-| `markGraphDirty` | 2211 | function |  | 2 |
+| `matchLogFilter` | 94 | arrow |  | 0 |
+| `renderLog` | 95 | arrow |  | 3 |
+| `isSerial` | 182 | arrow |  | 2 |
+| `isProject` | 183 | arrow |  | 2 |
+| `toggle` | 304 | arrow |  | 8 |
+| `updateLayoutMenuLabel` | 336 | function |  | 5 |
+| `getDockJson` | 339 | arrow |  | 7 |
+| `saveCurrentLayout` | 343 | arrow |  | 2 |
+| `refreshLayoutPresets` | 352 | arrow |  | 1 |
+| `writeJsonToDir` | 463 | function |  | 7 |
+| `readJsonFromDir` | 474 | function |  | 5 |
+| `saveSceneAs` | 488 | function |  | 3 |
+| `navigateToMemberPage` | 558 | function |  | 3 |
+| `openSceneFromDir` | 574 | function |  | 2 |
+| `bootIsMemberEntry` | 644 | arrow |  | 0 |
+| `applyLayoutSettings` | 980 | function |  | 4 |
+| `refreshSelectionPanels` | 1035 | function |  | 5 |
+| `sameWritebackValue` | 1241 | function |  | 3 |
+| `scheduleWriteback` | 1252 | function |  | 7 |
+| `runWritebackGuarded` | 1279 | function |  | 2 |
+| `armExternRefPoll` | 1336 | function |  | 2 |
+| `prefetchExternRefs` | 1340 | function |  | 2 |
+| `pushWritebackOnce` | 1382 | function |  | 2 |
+| `syncWritebackPointer` | 1475 | function |  | 2 |
+| `anchorNetPathOf` | 1510 | function |  | 2 |
+| `inputStatsText` | 1535 | function |  | 2 |
+| `outputStatsText` | 1544 | function |  | 2 |
+| `renderInspector` | 1553 | function |  | 2 |
+| `isProjectModeActive` | 1571 | function |  | 3 |
+| `projectAddress` | 1577 | function |  | 3 |
+| `onNetPathChanged` | 1596 | function |  | 1 |
+| `waitNetPath` | 1606 | function |  | 5 |
+| `enterableNodeNames` | 1620 | function |  | 3 |
+| `enterNodeAwaited` | 1631 | function |  | 3 |
+| `enterByName` | 1644 | function |  | 3 |
+| `exitToDepth` | 1651 | function |  | 5 |
+| `navigateByName` | 1669 | function |  | 2 |
+| `saveProjectGraph` | 1697 | function |  | 5 |
+| `enterProjectMode` | 1744 | function |  | 7 |
+| `openProjectMember` | 1861 | function |  | 2 |
+| `enterMemberWorkspace` | 1883 | function |  | 3 |
+| `commitPendingMemberScope` | 1903 | function |  | 3 |
+| `updateGraphAddress` | 1916 | function |  | 7 |
+| `scheduleNetwork` | 1944 | function |  | 1 |
+| `flushStoreView` | 1947 | function |  | 2 |
+| `loadSnapshotIntoStore` | 1975 | function |  | 3 |
+| `applyLoadedPreference` | 2020 | function |  | 3 |
+| `syncMemberInAddress` | 2062 | function |  | 2 |
+| `syncProjectInAddress` | 2082 | function |  | 2 |
+| `connectSerial` | 2095 | arrow |  | 1 |
+| `markGraphDirty` | 2226 | function |  | 2 |
 
 ## web/src/nodes2/chain-cache.ts（365 行）
 

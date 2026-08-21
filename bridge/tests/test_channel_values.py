@@ -157,6 +157,21 @@ def _stub_port(serial: str, stub: _McpStub) -> None:
     st.registry.set_houdini_mcp(serial, stub.port)
 
 
+def _register_vec3_param(serial: str, absolute_path: str) -> None:
+    """注册一个 type="vec3" 的 param 通道行（照 _register_param，多带 type 字段）。"""
+    get_state().channels.register(
+        {
+            "kind": "param",
+            "serial": serial,
+            "nodePath": "/obj/geo1/tag1",
+            "absolutePath": absolute_path,
+            "hip": "",
+            "label": "",
+            "type": "vec3",
+        }
+    )
+
+
 # --- heartbeat values 捎带 ----------------------------------------------------
 
 
@@ -292,6 +307,108 @@ def test_get_channel_values_tolerant_extraction(tmp_path: Path, stub: _McpStub) 
     assert body["values"]["/obj/geo1/transform1/tx"] == 1.0
     assert body["values"]["/obj/geo1/transform1/ty"] == "not-a-dict"  # data 本身
     assert "/obj/geo1/transform1/tz" not in body["values"]  # error 通道跳过
+
+
+# --- GET /channel-values：vec3 通道（本次修复）--------------------------------
+
+
+def test_get_channel_values_vec3_skips_get_parameter(tmp_path: Path, stub: _McpStub, monkeypatch) -> None:
+    """vec3 通道走 read_vec3_tuple 拿到值；parameters.get_parameter 一次都不该被调 ——
+    那条调用对元组参数恒失败（`parm("t")` 是 None），发出去就是纯浪费的一次往返，
+    这正是本次修复要去掉的浪费。"""
+    calls: list[tuple] = []
+
+    def fake_execute_python(port, code, return_expression=None):
+        calls.append((port, code, return_expression))
+        return {"success": True, "executed": True, "return_value": [1.0, 2.0, 3.0]}
+
+    monkeypatch.setattr(houdini_mcp, "execute_python", fake_execute_python)
+
+    c = _client(tmp_path)
+    serial = generate_serial()
+    _stub_port(serial, stub)
+    _register_vec3_param(serial, "/obj/geo1/transform1/t")
+
+    body = c.get(f"/api/hda/{serial}/channel-values").json()
+    assert body["ok"] is True
+    assert body["values"] == {"/obj/geo1/transform1/t": [1.0, 2.0, 3.0]}
+    assert len(calls) == 1
+    assert stub.get_calls == []  # parameters.get_parameter 从未被打到 stub
+
+
+def test_get_channel_values_vec3_malformed_shape_omitted(tmp_path: Path, stub: _McpStub, monkeypatch) -> None:
+    """元组读回的形状不对（只有 2 个分量）-> 该通道整个从 values 消失，绝不插 null
+    或拿 2 个分量凑一个假 vec3（凑出的位姿比读不到更坏）。"""
+    def bad_execute_python(port, code, return_expression=None):
+        return {"success": True, "executed": True, "return_value": [1.0, 2.0]}
+
+    monkeypatch.setattr(houdini_mcp, "execute_python", bad_execute_python)
+
+    c = _client(tmp_path)
+    serial = generate_serial()
+    _stub_port(serial, stub)
+    _register_vec3_param(serial, "/obj/geo1/transform1/t")
+
+    body = c.get(f"/api/hda/{serial}/channel-values").json()
+    assert body["ok"] is True
+    assert "/obj/geo1/transform1/t" not in body["values"]
+    assert body["values"] == {}  # 没有任何 null/占位/凑数值
+    assert stub.get_calls == []
+
+
+def test_get_channel_values_vec3_execute_python_raises_omitted(tmp_path: Path, stub: _McpStub, monkeypatch) -> None:
+    """execute_python 直接抛异常（连不上/解析失败）：该 vec3 通道同样缺席，不崩、不进 values。"""
+    def raising_execute_python(port, code, return_expression=None):
+        raise houdini_mcp.HoudiniMcpError("boom")
+
+    monkeypatch.setattr(houdini_mcp, "execute_python", raising_execute_python)
+
+    c = _client(tmp_path)
+    serial = generate_serial()
+    _stub_port(serial, stub)
+    _register_vec3_param(serial, "/obj/geo1/transform1/t")
+
+    body = c.get(f"/api/hda/{serial}/channel-values").json()
+    assert body["ok"] is True
+    assert body["values"] == {}
+
+
+def test_get_channel_values_float_unchanged_uses_get_parameter(tmp_path: Path, stub: _McpStub) -> None:
+    """非 vec3 行为完全不变：仍走一次 parameters.get_parameter（本次修复只改 vec3 分支）。"""
+    c = _client(tmp_path)
+    serial = generate_serial()
+    _stub_port(serial, stub)
+    _register_param(serial, "/obj/geo1/transform1/tx")
+    stub.parm_values["/obj/geo1/transform1/tx"] = 2.5
+
+    body = c.get(f"/api/hda/{serial}/channel-values").json()
+    assert body["ok"] is True
+    assert body["values"] == {"/obj/geo1/transform1/tx": 2.5}
+    assert stub.get_calls == [("/obj/geo1/transform1", "tx")]
+
+
+def test_get_channel_values_mixed_float_and_vec3(tmp_path: Path, stub: _McpStub, monkeypatch) -> None:
+    """混合批次：一个 float + 一个 vec3，一次响应里两者都要出现，各走各的路径。"""
+    def fake_execute_python(port, code, return_expression=None):
+        return {"success": True, "executed": True, "return_value": [4.0, 5.0, 6.0]}
+
+    monkeypatch.setattr(houdini_mcp, "execute_python", fake_execute_python)
+
+    c = _client(tmp_path)
+    serial = generate_serial()
+    _stub_port(serial, stub)
+    _register_param(serial, "/obj/geo1/transform1/tx")
+    _register_vec3_param(serial, "/obj/geo1/transform1/t")
+    stub.parm_values["/obj/geo1/transform1/tx"] = 1.5
+
+    body = c.get(f"/api/hda/{serial}/channel-values").json()
+    assert body["ok"] is True
+    assert body["values"] == {
+        "/obj/geo1/transform1/tx": 1.5,
+        "/obj/geo1/transform1/t": [4.0, 5.0, 6.0],
+    }
+    # float 通道仍打了 parameters.get_parameter；vec3 完全没碰这条调用
+    assert stub.get_calls == [("/obj/geo1/transform1", "tx")]
 
 
 # --- PUT /channel-values ------------------------------------------------------

@@ -86,6 +86,9 @@
 
 ## 参数通道值同步（P5a，v0.1.00111 起）
 - `GET /api/hda/{serial}/channel-values` -> `{ok, values: {absolutePath: value, ...}}`：对 serial 的 param 通道批量 `parameters.get_parameter`（值宽容提取 `data.value`），**0.25s 整响应缓存**（照 GET /timeline 模式）；无通道 → 空 dict。
+  **type=vec3 例外**（v0.1.00161）：改走一次 `houdini_mcp.read_vec3_tuple`（`code.execute_python` 取整个 parmTuple），**跳过**那条对元组参数恒失败的 `get_parameter`。
+  修前实测：1 条 vec3 通道进、**0 个值出**且 `ok:true`（`get_parameter("t")` 报 `ValueError: Parameter 't' not found`，循环 `continue` 跳过）——参数面板里 `t` 干脆不出现，且该空答案还被缓存 0.25s。
+  读不到/形状不对仍**跳过该通道**（绝不插 `null`、绝不凑数拼 vec3）。**写方向本来就是好的**（`set_parameter` 收列表，实测 ~50ms），本次只改读。
 - `PUT /api/hda/{serial}/channel-values`，body `{"values": {absolutePath: value}}` -> `{ok, throttled?}`：每通道 `parameters.set_parameter`，**Sync Max FPS 节流（max(33ms,1000/fps)）+ latest-wins 整 dict 替换 + single-flight**（照 PUT /timeline 模式）；成功后**不回显广播**（web 发起防回环）；每通道 trace `param-set`（web-param）。
 - **H→C 事件推送**：吊牌 cook 心跳捎带 `values`（可选字段，缺省兼容）→ bridge 直接 **WS 广播 `{type:"channel-values", values}`**（值不落地）。
 - web：主应用「通道参数」dock 面板——数值 scrubbing/输入节流提交（≤ Sync Max FPS，latest-wins）；WS 推送即时刷新（编辑行不覆盖）+ 250ms 轮询兜底（可见性门控）。

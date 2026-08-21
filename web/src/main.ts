@@ -52,6 +52,7 @@ import {
   WRITEBACK_DEBOUNCE_MS,
 } from "./core/dataflow";
 import { createAutosave, createHdaWatchdog } from "./core/lifecycle";
+import { createPollLoop } from "./core/poll-loop";
 import { bindShortcuts } from "./core/shortcuts";
 import { cloneParams, paramsEqual, readParamFloats, type ParamLike } from "./core/params";
 import { createParamUndo } from "./core/param-undo";
@@ -1310,9 +1311,6 @@ const externRefAt = new Map<string, number>();
 /** 正在取的键，避免同一地址被每帧重复请求（15s 一次，重复请求会堆成灾）。 */
 const externRefInFlight = new Set<string>();
 
-/** TTL 轮询计时器；只在**确实有图外引用**时存活。 */
-let externRefPollTimer: number | null = null;
-
 /**
  * 图外引用的 TTL 轮询（v0.1.00135）。
  *
@@ -1321,19 +1319,29 @@ let externRefPollTimer: number | null = null;
  * 谁也叫不醒** —— 实测 14s 内只重取了 1 次（期望约 6 次）。
  * 所以「有图外引用」这件事必须自己维持一个心跳。
  *
- * **没有图外引用就不轮询**：空图/纯图内引用的场景一次请求都不该发。
+ * 用 `core/poll-loop.ts` 的自愈状态机实现：重新武装在 `onTick` 之前无条件发生，
+ * 于是 `pushWritebackOnce` 里的提前 return（无项目 / 图未就绪）或异常都杀不死
+ * 这条心跳——具体动机与实测数据见该模块的模块级注释。
+ *
+ * **没有图外引用就不轮询**：空图/纯图内引用的场景由 `prefetchExternRefs` 显式
+ * `disarm()`，`pushWritebackOnce` 的「无项目」分支同理。
  */
+const externRefPoll = createPollLoop({
+  intervalMs: EXTERN_REF_TTL_MS,
+  onTick: () => scheduleWriteback(), // 让 pushWritebackOnce 再跑一轮，TTL 到期的键会被重取
+  setTimer: (fn, ms) => window.setTimeout(fn, ms),
+  clearTimer: (id) => window.clearTimeout(id),
+});
+
 function armExternRefPoll(): void {
-  if (externRefPollTimer !== null) return;
-  externRefPollTimer = window.setTimeout(() => {
-    externRefPollTimer = null;
-    scheduleWriteback(); // 让 pushWritebackOnce 再跑一轮，TTL 到期的键会被重取
-  }, EXTERN_REF_TTL_MS);
+  externRefPoll.arm();
 }
 
 function prefetchExternRefs(pid: string, addresses: string[]): void {
-  // 有图外引用 → 维持轮询；没有 → 自然停下（不 arm，上一轮的 timer 跑完即止）。
+  // 有图外引用 → 维持轮询；没有 → 显式 disarm（自愈循环会无条件重新武装，
+  // 不主动关掉就会在空图上永远轮询）。
   if (addresses.length > 0) armExternRefPoll();
+  else externRefPoll.disarm();
   for (const addr of addresses) {
     const key = `${pid}:${addr}`;
     // 值还新鲜或正在取 → 跳过。「新鲜」按 `externRefRefetchDue` 判——不是简单的
@@ -1373,12 +1381,19 @@ function prefetchExternRefs(pid: string, addresses: string[]): void {
 /** 扫一遍当前图的 `_output_`，把有值的推到桥的映射端点。 */
 async function pushWritebackOnce(): Promise<void> {
   const pid = currentProjectId;
-  if (!pid) return; // 逻辑名只在项目内唯一，没项目无从解析
+  if (!pid) {
+    // 没项目无从解析逻辑名 → 干脆停掉轮询；project 加载会经 flushStoreView
+    // 调 scheduleWriteback，届时 prefetchExternRefs 会按需重新 arm。
+    externRefPoll.disarm();
+    return;
+  }
   let snap: ReturnType<typeof graph.getNetworkSnapshot>;
   try {
     snap = graph.getNetworkSnapshot();
   } catch {
-    return; // 图还没就绪
+    // 图还没就绪：这是瞬态情况（也正是本文件要修的那个 bug 本身），
+    // **不要 disarm** —— 保持轮询存活，下一轮 tick 自己会重试。
+    return;
   }
 
   // 预取图外引用的值（v0.1.00133）。`resolveWritebackValue` 是同步的（flush 是热路径），
