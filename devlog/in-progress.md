@@ -1,4 +1,41 @@
-# 进行中任务与剩余评估（v0.1.00178）
+# 进行中任务与剩余评估（v0.1.00179）
+
+## -53 顺手修掉「同一面板两个名字」，并让 e2e 钉住它（v0.1.00179）
+
+§-52 写 spec 时撞到的那个产品层不一致：同一个通道面板，
+程序化布局叫 `通道参数`（dock.ts:46/555，面板表头 channel-panel.ts:214 也是它），
+而 `layouts/Default.json:106` 叫 **`Channels 参数`**。
+当时我绕开了（改标题会动用户已存布局，不在那轮范围），本轮回来收掉。
+
+**证据决定了改哪边**：`Channels 参数` 全仓**只出现 1 处**（Default.json），
+`通道参数` 出现在 dock 两处 + 面板表头 + CSS 注释。**Default.json 是那个离群值**，
+所以改它，一行。
+
+### 关键是给它加了一条 e2e，而不是只改字符串
+新增第 4 例：断言 `.dv-tab` 里有 `通道参数`、**没有** `Channels 参数`，
+且面板表头 `.cyl-channel-head` 也是 `通道参数` —— **两条布局路径同时钉住**。
+
+变异验证：把 Default.json 改回 `Channels 参数` → **只有第 4 例红**，其余三例照绿。
+说明这条断言精确守着「两条路径同名」这件事，不牵连别的。
+
+### 一个探针弯路，顺带记下环境事实
+我本想写个一次性 node 探针去真浏览器里读 tab 文本，撞了两次：
+① 探针放 `$env:TEMP` → `Cannot find package '@playwright/test'`（不在 web/ 下解析不到）；
+② 移到 `web/` 后 `chromium.launch()` 报 **headless shell 不存在**，
+提示 `npx playwright install` —— 而 `npx` 在本环境是不可用的（AGENT_QUICKSTART 已记）。
+
+根因：`playwright.config.ts:16` 用的是 **`channel: "msedge"`**（复用已装的 Edge，
+刻意不下载浏览器），所以裸 `chromium.launch()` 走的是另一条根本没装的路径。
+
+**结论：要在真浏览器里验什么，就写进 spec 让 `playwright test` 跑**，
+别另起探针 —— 探针绕过了 config，等于换了一套环境。
+（这也是本轮第二次「与其修探针，不如把断言变成常驻测试」——
+上一次是 §-52 的 `round24`。**能变成常驻回归的东西就别做一次性验证。**）
+
+### 验证
+gate **ALL GREEN**（pytest 460 / tsc 0 / vitest 972）；`round25` 本身 **4 passed**；
+全套 e2e **112 passed + 1 skipped**（111 → 112，本轮新增标题一致性那条）；
+teardown 扫掉 1 serial + 2 孤儿 + 9 合成项目，巡检确认 registry 回到基线 1/2/11，**零泄漏**。
 
 ## -52 补上面板 e2e：那个覆盖空洞终于关了（v0.1.00178，**product≠0**）
 

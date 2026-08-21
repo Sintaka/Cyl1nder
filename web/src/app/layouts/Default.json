@@ -103,7 +103,7 @@
     "channel": {
       "id": "channel",
       "contentComponent": "channel",
-      "title": "Channels 参数"
+      "title": "通道参数"
     }
   },
   "activeGroup": "4",

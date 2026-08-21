@@ -101,10 +101,13 @@ function rowOf(page: Page, path: string) {
  * 点 tab 而不是调 `__cylDv` 的原因：这正是用户的路径，顺带覆盖了 tab 激活本身。
  */
 async function waitForPanel(page: Page): Promise<void> {
-  // 按**面板 id** 激活，不按 tab 标题 —— 同一个面板在两条路径上标题不一样：
-  // 程序化布局是 `通道参数`（dock.ts:555），而 Default.json 里是 `Channels 参数`
-  // （layouts/Default.json:106）。e2e 是空 localStorage 起页面 → 走 Default.json，
-  // 所以按 `通道参数` 找 tab 一个也找不到（我第二版就栽在这）。id 两条路径都是 `channel`。
+  // 按**面板 id** 激活，不按 tab 标题。
+  // 起因：写本 spec 时同一个面板在两条路径上标题不一样 —— 程序化布局是 `通道参数`
+  // （dock.ts:555），而 `layouts/Default.json` 里是 `Channels 参数`。e2e 空 localStorage
+  // 起页面走 Default.json，于是按 `通道参数` 找 tab 一个也找不到（我第二版栽在这）。
+  // v0.1.00179 已把 Default.json 统一成 `通道参数`，但**这里仍然按 id 找**：
+  // id（`channel`）是接线契约，标题是显示字符串，随时可能为了 UI 再改一次 ——
+  // 测试不该拴在显示层上。
   await expect
     .poll(
       async () =>
@@ -123,6 +126,19 @@ async function waitForPanel(page: Page): Promise<void> {
   await expect(rowOf(page, VEC_PATH)).toBeVisible({ timeout: 20000 });
   await expect(rowOf(page, NUM_PATH)).toBeVisible({ timeout: 20000 });
 }
+
+test("tab 标题两条布局路径一致（v0.1.00179 统一；曾是 Channels 参数 vs 通道参数）", async ({ page }) => {
+  await stubPanelEndpoints(page, () => ({ body: '{"ok":true}' }));
+  await gotoMember(page, SERIAL);
+  await waitForPanel(page);
+
+  // e2e 空 localStorage → 走 layouts/Default.json 那条路径；面板自身表头走 dock/panel 代码。
+  // 两处必须同名，否则就是我写本 spec 时踩到的那个不一致（当时 Default.json 是 `Channels 参数`）。
+  const tabTitles = await page.$$eval(".dv-tab", (els) => els.map((e) => (e.textContent ?? "").trim()));
+  expect(tabTitles).toContain("通道参数");
+  expect(tabTitles).not.toContain("Channels 参数");
+  await expect(page.locator(".cyl-channel-head")).toHaveText("通道参数");
+});
 
 test("vec3 行渲染成三个 number 框，三格分别是三个分量（不是一个逗号串 text 框）", async ({ page }) => {
   await stubPanelEndpoints(page, () => ({ body: '{"ok":true}' }));
