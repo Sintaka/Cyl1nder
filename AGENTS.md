@@ -24,6 +24,21 @@ Cyl1nder 是"中间站"项目：Houdini ⇄ 本地桥 ⇄ WebGL 前端 的轻量
 ## 常用命令
 见 devlog/AGENT_QUICKSTART.md。
 
+## 主脑三层分流（铁律，2026-08-21 起）
+主脑的思考是最贵的资源，只花在**判断**上。动手前先归层：
+
+| 层 | 判据 | 交给谁 |
+|---|---|---|
+| 1 | 确定性、可重复、零上下文 | **脚本**：`verify-all.ps1`（三端门禁）/ `release-step.ps1`（版本号+索引+quickstart）/ `check-staged.ps1`（提交前卫生） |
+| 2 | 机械但需读代码、临场判读 | **sonnet-5 子智能体**（`provider=luminai-claude`） |
+| 3 | 判断、解释、**拒绝行动** | 主脑自己 |
+
+- **手跑第 1 层脚本的等价物 = 回归**。确定性事实交脚本（退出码不必复核）；
+  交 LLM 得到的是「它对事实的报告」，可信度低于事实本身，还得复核一遍，净亏。
+- 派活的公共前言在 `devlog/SUBAGENT_BRIEF.md`，任务书只写「先读它 + 本次差异」。
+- **每轮收尾做一次 Retro**：点数重复操作 → 归层 → 固化或记账，见
+  `devlog/agent-calibration.md`。
+
 ## Houdini 集成（铁律）
 - Houdini 端与 Codex 一律用**官方 fxhoudinimcp**（pip 包 `fxhoudinimcp`，命令 `python -m fxhoudinimcp`），默认端口 **8100**、被占自动 8101+。**禁止自己写 MCP 桥、禁止用 oculairmedia fork / run_houdini_mcp.py / rpyc 18811**。
 - Houdini 免重启热重载：改 `hda/src/*.py` 用 `hda/scripts/reload_hda.py`（`reload_cyl1nder()` / `reload_cyl1nder(definition=True)`）；细节见 `devlog/hda-hot-reload.md`。

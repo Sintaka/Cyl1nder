@@ -110,22 +110,133 @@ Desktop）** 的 `Set-Content -Encoding utf8` 等写入路径**默认带 BOM**�
 （管道符在表格单元格里会被当成列分隔符，所以上表不写 `"x" \| Set-Content` 这种写法；
 实测命令是 `"hello" | Set-Content $p` 之后读 `[System.IO.File]::ReadAllBytes($p)`。）
 
-**开工前自检**：`$PSVersionTable.PSVersion` 与 `$PSVersionTable.PSEdition`
-——不是 `7.x` / `Core` 就**先解决 shell，再写代码**，别一边写一边污染。
+**开工前自检（强制，一条命令）**：
+```powershell
+if ($PSVersionTable.PSEdition -ne 'Core' -or $PSVersionTable.PSVersion.Major -lt 7) {
+  throw "需要 pwsh 7+（当前 $($PSVersionTable.PSVersion) $($PSVersionTable.PSEdition)）——先解决 shell 再写代码"
+}
+```
+不是 `7.x` / `Core` 就**先解决 shell**，别一边写一边污染。
+本机 `powershell.exe` 5.1 **确实存在**（2026-08-21 实测），所以"被兜底"不是假想风险。
 
-**即便在 pwsh 7 下，`edit`/`write` 工具仍可能吃掉已有文件的 BOM**（那是工具行为，与 shell
-无关）：提交前扫一遍
-`foreach($f in (git diff --cached --name-only)){ ... "^-\uFEFF" ... }`，命中就补回。
+### 更新（2026-08-21）：确认 pwsh 7 下无 BOM 是默认行为，纪律从"每次手查"改为"卡住 shell"
+实测 pwsh **7.6.5 Core**：
+
+| 写法 | 首字节 | BOM |
+|---|---|---|
+| `Set-Content -Encoding utf8` | `78 0D 0A`（直接是内容） | **无** |
+| `Out-File -Encoding utf8` | `78 0D 0A` | **无** |
+| `Set-Content -Encoding utf8BOM` | `EF BB BF` | 有（显式要才有） |
+
+**结论**：在 pwsh 7 下 `utf8` 就是无 BOM，**不需要每次写完手工验 BOM**。
+真正需要保证的是**"这条命令跑在 pwsh 7 里"**——把成本从「每次写完检查」前移到「开工时卡一次 shell」。
+想彻底显式可写 `-Encoding utf8NoBOM`（pwsh 6+ 支持，语义一目了然）。
+
+**仍然保留的一条**：`edit`/`write` 工具可能吃掉**已有文件**的 BOM（工具行为，与 shell 无关）。
+这条已并入 `scripts\check-staged.ps1`（只看**删除行**里的 `^-\uFEFF`），
+**不要再手搓这个检查** —— 见下方「卫生检查交给脚本」。
 
 ## 编码与 Git 卫生 / Encoding & git hygiene（2026-08-11 起）
 - **禁止用 `@'...'@ | python -` 管道传中文/非 ASCII 内容**：PowerShell 把 here-string 按 `$OutputEncoding`（默认 ASCII）编码写进 python stdin，所有中文会变成字面 `?`（已踩坑：5 个 devlog 文件被写坏）。写含中文的文件用：
   - PowerShell here-string + `[System.IO.File]::WriteAllText($path, $text, [System.Text.UTF8Encoding]::new($false))`（UTF-8 无 BOM）；或
   - 先 `Set-Content -Encoding utf8` 写 UTF-8 临时文件，再让 python 用 `utf-8-sig` 读取。
-  - 写完用 `??` 特征抽查（`Select-String -Pattern '\?\?'`）。
+  - ~~写完用 `??` 特征抽查（`Select-String -Pattern '\?\?'`）。~~
+    **2026-08-21 废止这条写法**：裸 `??` 会命中 JS 的空值合并运算符和任何**讨论**它的散文，
+    一个会话里误报 5 次，最后我在它打红之后照样提交了 ——
+    **一个被训练成可以忽略的检查，比没有检查更坏**。
+    判乱码要按**真实形态**「3 个以上连续 `?`」（`\?{3,}`）判，且散文引用要豁免。
+    别手搓，直接跑 `pwsh -File scripts\check-staged.ps1`（见下节）。
 - **PowerShell `Invoke-RestMethod -Body` 传中文 JSON 同样会变 `?`**（body 字符串按 Latin-1 编码；2026-08-15 实踩：项目 label "P2a 验收项目" 落库成 "P2a ????"）：中文 body 改用 `[System.Text.Encoding]::UTF8.GetBytes($json)` 传字节数组，或验收/测试数据一律用 ASCII。
 - **PowerShell 里外部命令输出是字符串数组（按行拆分）**：`git show` / `git log` / `Get-Content` 直接赋值得到的是 `string[]`。要当文本用必须先 `$out -join "`n"`；**严禁对数组直接 `.TrimEnd()` / `+ 字符串` 拼接**——数组会被隐式转成"用空格连接的一行"，毁掉 md 的换行/分隔线结构（已踩坑：viewport-bug-report / annotations-web 首行被压成 1.6 万字符）。
 - **git 历史卫生**：devlog/文档保持小体积；**禁止把大文件或日志（如 append 循环产物）提交进历史**——GitHub 硬拒 >100MB、警告 >50MB，push 会被 pre-receive 拒绝。
 - **历史清理流程（破坏性，先备份）**：① `git bundle create <path>.bundle --all` 全量备份；② `git filter-branch --force --index-filter "if git cat-file -e \"$GIT_COMMIT:<path>\" 2>/dev/null; then git update-index --cacheinfo 100644,<新blob>,<path>; fi" -- <branch>` 把该文件在每个提交替换为小版本；③ 删 `refs/original` + `git reflog expire --expire=now --all` + `git gc --prune=now --aggressive`；④ 验证 `git cat-file --batch-all-objects --batch-check` 无 >1MB blob；⑤ `git push --force-with-lease`。**备份在确认远端一切正常前不删**（partial clone 下 prune 后旧对象本地不可恢复，bundle 是唯一备份）。
+
+## 编排脚本必须是 `.mjs`，不能是 `.ps1`（沙箱可信前缀，2026-08-21 实测）
+**症状**：同一套命令，直接跑全绿，包进 `verify-all.ps1` 再跑就崩：
+- pytest **460 errors**，全是 `PermissionError: [WinError 5] 拒绝访问` 落在 `tmp_path_factory.mktemp`；
+- vitest `Error: spawn EPERM`，来自 `esbuild` 的 `ensureServiceIsRunning`（不许开命名管道）。
+
+**机制**：本 harness 只对少数**可信前缀**解除文件沙箱 ——
+`git` / `node` / `npm` / `pnpm` / `hython` / `.venv\scripts\python`。**`pwsh` 不在其中。**
+`pwsh -File x.ps1` 的首个 token 是 `pwsh`，整个进程受限，**它 spawn 的子进程继承这个限制**。
+
+**实测对照**（一次性 node 探针，跑完即删）：
+
+| 调用方式 | 首个 token | 结果 |
+|---|---|---|
+| `.venv\Scripts\python -m pytest tests -q` | 可信 | **460 passed** |
+| `node node_modules/vitest/vitest.mjs run` | 可信 | **972 passed** |
+| `pwsh -File verify-all.ps1 -SkipHython` | **不可信** | pytest 460 errors / vitest spawn EPERM |
+| node 里 `spawnSync(..., stdio:'inherit')` 起同样两条 | 可信 | **972 passed，exit 0** |
+
+**纪律**：
+- **需要 spawn 子进程的编排脚本一律写成 `.mjs`，用 `node` 跑**（`scripts/verify-all.mjs`）。
+- `spawnSync` **必须 `stdio: 'inherit'`**；`'pipe'` 在受限环境下会 EPERM（同一条命名管道限制）。
+- 只调 `git`、只读写 `$env:TEMP` 与仓库的 `.ps1` 仍可用（`check-staged.ps1` 实测 exit 0），
+  **但别再往 `.ps1` 里加 pytest/vitest/esbuild 这类会 spawn 或写 TEMP 的步骤**。
+- 判「工具没跑起来」看 `result.error` / `result.status === null`，**不要靠 try/catch**
+  （`spawnSync` 不抛，失败塞在返回值里）。
+
+### 附：`$Args` 是自动变量，当参数名会被遮蔽成空数组（2026-08-21 实测）
+`release-step.ps1` 第一版打印了全部 6 步、`== 6/6 完成 ==`、**exit 0**，
+但**什么都没做**：版本号没变、三份索引一个没生成。**又一次谎报成功，这次长在工具里。**
+
+根因是这个签名：
+```powershell
+function Invoke-NodeStep([string]$Label, [string[]]$Args) { & node @Args }
+```
+`$Args` 是 PowerShell **自动变量**，声明成参数会被遮蔽。实测：
+```
+Bad(参数名 $Args)     -> Args.Count=0     content=[]
+Good(参数名 $NodeArgs) -> NodeArgs.Count=2 content=[scripts/bump-version.mjs,build]
+```
+于是 `& node @Args` 退化成裸 `& node`，而**裸 `node` 在非交互下 exit 0**（实测 `bare node exit=[0]`）
+—— 每一步都「成功」。
+
+**纪律**：
+- 别用 `$Args`（也别用 `$Input`/`$Host`/`$Error`/`$Matches`）当参数名；
+- **判定外部命令成功要同时看「参数数组非空」**：空参数跑起来也可能 exit 0；
+- `pwsh -File` **不会**把子命令退出码带出去（实测 `INNER_EXIT=1` 而 `OUTER_EXIT=0`），
+  想让外层看见必须显式 `exit $code`；
+- 脚本写完**必须验它真的改了东西**（版本号变了没、索引文件的 mtime 动了没），
+  **不能只看它自报的 exit 0** —— 这与「只见过它说 OK 的检测器等于没测过」是同一条。
+
+## 卫生检查交给脚本，不要手搓 grep（2026-08-21 起）
+提交前一律跑 `pwsh -File scripts\check-staged.ps1`，**别再手写等价的 grep**。
+
+四个退出码（都是**实测触发过**的，不是声明）：
+
+| 码 | 含义 | 该怎么办 |
+|---|---|---|
+| 0 | 干净 | 可以提交 |
+| 1 | 发现问题 | **停下来看**，别照常提交 |
+| 2 | VACUOUS：0 行可查 | **不构成通过**——什么都没检查，先确认暂存内容 |
+| 3 | 工具自身失败 | 修工具，这**不是**卫生结论 |
+
+**为什么必须是脚本而不是 LLM**：这是确定性事实判定，脚本给的是退出码；
+交给智能体（含我自己临场手写 grep）得到的是「它对该事实的报告」，可信度**低于事实本身**，
+于是还得复核一遍 —— 净亏。本会话证据：子智能体报「变异 2 条红」而实际是 **4 条**；
+手搓 grep 误报 **5 次**。
+
+**改判据必须重新用金丝雀验**：埋一条真问题确认它变红，再删。
+只见过它说 OK 的检测器等于没测过（同 §-37「探针先转常驻再删」）。
+
+## 三层分流：机械的交脚本，机械但需判读的交 sonnet，判断留主脑（2026-08-21 起）
+主脑（主管）的思考是最贵的资源，必须用在判断上。分流判据：
+
+| 层 | 判据 | 交给谁 | 反例（本会话的实际浪费） |
+|---|---|---|---|
+| 1 | 确定性、可重复、零上下文 | **脚本**（无 LLM） | 提交仪式手跑 ~12 次、完整性抽查 ~15 次、门禁手搓 7 轮 |
+| 2 | 机械但需临场判读/适配代码 | **sonnet-5 子智能体** | 这层用对了 |
+| 3 | 判断、解释、**拒绝行动** | 主脑 | 应当只剩这层 |
+
+- 第 1 层已脚本化：`scripts\verify-all.ps1`（三端门禁）、`scripts\release-step.ps1`
+  （版本号+索引+quickstart 同步）、`scripts\check-staged.ps1`（提交前卫生）。
+  **手跑它们的等价物 = 回归**。
+- 第 3 层的典型形态往往是**不动手**：本会话最高价值的一次决策是判断"读侧跳过通道"
+  是合理降级、**刻意不修**（写侧同形状却是撒谎）。这种判断脚本和子智能体都做不了。
+- 派活的公共前言沉到 `devlog/SUBAGENT_BRIEF.md`，任务书只写"先读它 + 本次差异"
+  （本会话 10 份任务书里约 40% 是重复样板）。
 
 ## 代码修改默认派子智能体（铁律，2026-08-11 起）
 **主进程（Codex 主管）收到「继续开发 / 实现 X / 修复 Y」这类编码任务时，默认把代码修改交给并行 codex 子智能体执行——即使只有 1 个智能体也照派。用户不需要每次重复说明。**
