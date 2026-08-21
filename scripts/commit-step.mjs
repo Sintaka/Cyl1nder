@@ -164,12 +164,15 @@ heading("== 2/5 git add -A ==");
   console.log(colorLine("git add -A 完成", "green"));
 }
 
-// ---- 3/5 卫生检查（check-staged.ps1） ----
-heading("== 3/5 卫生检查（check-staged.ps1） ==");
+// ---- 3/5 卫生检查（check-hygiene.mjs） ----
+// 2026-08-21 起改用 node 版：它多查一条 check-staged.ps1 查不到的东西 ——
+// 工作树里「夹在文件中间」的游离 U+FEFF（旧脚本只看 staged diff，
+// 一个早已提交、藏在第 16 行行首的 BOM 它永远发现不了，实测靠人眼才抓到）。
+heading("== 3/5 卫生检查 ==");
 {
-  const r = runStep("pwsh", ["-File", path.join(root, "scripts", "check-staged.ps1")]);
+  const r = runStep(process.execPath, [path.join(root, "scripts", "check-hygiene.mjs")]);
   if (r.toolFail) {
-    console.log(colorLine(`TOOL FAILURE —— check-staged.ps1 无法执行：${r.error ? r.error.message : "进程未正常退出"}`, "red"));
+    console.log(colorLine(`TOOL FAILURE —— check-hygiene.mjs 无法执行：${r.error ? r.error.message : "进程未正常退出"}`, "red"));
     process.exit(3);
   }
   if (r.exitCode === 0) {
@@ -189,10 +192,10 @@ heading("== 3/5 卫生检查（check-staged.ps1） ==");
     }
     console.log(colorLine("VACUOUS —— 无新增行可查，但已传 --allow-vacuous，放行继续", "yellow"));
   } else if (r.exitCode === 3) {
-    console.log(colorLine("TOOL FAILURE —— check-staged.ps1 自身失败（exit 3），这不是卫生结论", "red"));
+    console.log(colorLine("TOOL FAILURE —— check-hygiene.mjs 自身失败（exit 3），这不是卫生结论", "red"));
     process.exit(3);
   } else {
-    console.log(colorLine(`FAIL —— check-staged.ps1 返回未知退出码 ${r.exitCode}`, "red"));
+    console.log(colorLine(`FAIL —— check-hygiene.mjs 返回未知退出码 ${r.exitCode}`, "red"));
     process.exit(1);
   }
 }

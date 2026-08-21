@@ -2,7 +2,7 @@
 
 Cyl1nder = Houdini ⇄ 本地桥 ⇄ WebGL 前端 的中间站。目标不是 DCC。
 
-## 当前焦点（v0.1.00183，新会话先看这里）
+## 当前焦点（v0.1.00184，新会话先看这里）
 - **近期进度看 `devlog/in-progress.md`**（倒序编号，**最新是 `## -53`**，只保留最新 5 节；更早的在
   `archive/in-progress-history.md`，考古才看）。本文件只做入口，不重复维护进度 —— 两处各记一份迟早对不上。
 - **一轮对话的终点**：用户交代的任务做完 → **报告用户 → 结束**。不要自己找下一个任务；不确定就问用户。
@@ -17,7 +17,7 @@ Cyl1nder = Houdini ⇄ 本地桥 ⇄ WebGL 前端 的中间站。目标不是 DC
   其中两条**破坏性铁律**必须先看：① 绝不对 `sceneanimate` 的 `animation` Data parm 调 `revertToDefaults()`（会清空整个 APEX 场景）；② APEX 写入实验一律在一次性副本节点上做，不碰用户活动节点。
 - **就近上下文**：`devlog/timeline-sync-lag-analysis.md`（通道上限 ~19Hz 与 Sync Max FPS 节流基准）、`devlog/houdini-mcp-integration.md`（runtime 代理）、annotations-{bridge,hda,web}.md 最新版本节（改动全记录）。
 - 已有能力底线：geo 全流程 IO、fxhoudinimcp 代理（cmd/python/timeline）、快照持久化、时间轴双向同步、**吊牌 HDA 参数/数据通道注册 + 心跳捎带 + 探测**、**项目层（多 HDA 绑定 + nodeview 项目根 + 项目图）**、**轨迹页审计（/trace.html）**、**非 geo 数据源通道（apex-anim + apex-ctrl 读写器）**、**参数值双向同步（channel-values 端点 + 通道参数面板）**、**APEX 控制器世界位姿读写（apex-ctrl，含世界→局部换算与两趟父子链规则）**。
-- 测试基线（v0.1.00183，**实测**）：pytest **460** / vitest **972**（51 文件）/ tsc **0** / e2e **112 passed + 1 skipped**（2.1 分钟，全量跑完 teardown 自动扫掉合成项目，实测项目/serial/通道行三项均回到基线，零泄漏）。
+- 测试基线（v0.1.00184，**实测**）：pytest **460** / vitest **972**（51 文件）/ tsc **0** / e2e **112 passed + 1 skipped**（2.1 分钟，全量跑完 teardown 自动扫掉合成项目，实测项目/serial/通道行三项均回到基线，零泄漏）。
   基线数字每轮都会变，**发现对不上时以实际跑出来的为准**，别信这一行（它只是给你一个量级参照）。
 
 ## 文档分四类：按**什么时候读**分，不按主题分（v0.1.00182 整理）
@@ -74,7 +74,7 @@ zeno 系列、早期选型调研、已完成计划、版本历史。**任何一�
 | 三端门禁（pytest + tsc + vitest [+ hython]） | `node scripts/verify-all.mjs --skip-hython [--staged]` |
 | 发布仪式（bump + 三索引 + quickstart 同步） | `node scripts/release-step.mjs --pytest=N --vitest=N` |
 | 活体巡检（桥/vite/MCP + 基线断言） | `node scripts/probe-live.mjs [--projects=N --serials=N --channels=N]` |
-| 提交前卫生（只看新增行） | `pwsh -File scripts\check-staged.ps1` |
+| 卫生检查（新增行 + 工作树游离 BOM） | `node scripts/check-hygiene.mjs`（通过时**静默无输出**） |
 
 统一退出码约定：`0` 通过 / `1` 真实失败 / `2` VACUOUS（**空扫描不算通过**）/ `3` 工具没跑起来。
 
@@ -84,10 +84,13 @@ zeno 系列、早期选型调研、已完成计划、版本历史。**任何一�
 
 ## 验证铁律
 - 任何跨端协议改动：bridge pytest + web tsc + hython 冒烟三端同跑（e2e 按需）。
-- **提交前跑 `pwsh -File scripts\check-staged.ps1`**（v0.1.00170 新增）：只看**新增行**，
-  查三类问题——写工具静默截断 `[N chars omitted]`、变异测试标记残留、中文乱码（3+ 连续 `?`）。
-  `exit 0` 通过 / `exit 1` 有问题 / **`exit 2` = VACUOUS**（0 行可查，不构成通过）。
-  **不要手搓 grep 代替它**：我手搓的那版在一个会话里误报三次，最后一次我在它打红之后
-  照样提交了——**一个被训练成可以忽略的检查，比没有检查更坏**（全过程见 in-progress §-43）。
-- 文档改动：中文经 edit/write 工具或 UTF-8 无 BOM 写入。**别用裸 `??` 抽查**——
-  JS 的空值合并运算符和散文引用它都会命中；要判乱码就按「3 个以上连续 `?`」判。
+- **每轮收尾跑一次 `node scripts/check-hygiene.mjs`**：查四类问题——写工具静默截断
+  `[N chars omitted]`、变异测试标记残留、中文乱码（3+ 连续 `?`）、**工作树里夹在文件中间的
+  游离 U+FEFF**（最后这条旧脚本查不到，实测靠人眼才发现）。
+  `commit-step.mjs` 与 `verify-all.mjs --staged` 已内置调用它，单独跑只在收尾自查时需要。
+  **通过时它不输出任何东西**（退出码 0 已说完）——没问题就不必回复用户，有问题才报。
+  `0` 通过 / `1` 有问题 / `2` VACUOUS（无内容可查，不构成通过）/ `3` 工具没跑起来。
+  不要手搓 grep 代替它：手搓那版一个会话误报三次，最后一次我在它打红后照样提交了 ——
+  一个被训练成可以忽略的检查，比没有检查更坏。
+- 文档改动：中文经 edit/write 工具或 UTF-8 无 BOM 写入（pwsh 7 下 `-Encoding utf8` 本来就无 BOM）。
+  别用裸 `??` 抽查乱码 —— JS 的空值合并运算符和散文引用它都会命中；判乱码交上面那个脚本。

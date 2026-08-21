@@ -209,35 +209,34 @@ printHeading("== 4/4 hython smoke ==");
   }
 }
 
-// ---- 附加：check-staged（仅 --staged 时跑）----
+// ---- 附加：卫生检查（仅 --staged 时跑）----
 if (staged) {
-  printHeading("== 附加：check-staged ==");
-  const r = runStep("pwsh", [
-    "-File",
-    path.join(root, "scripts", "check-staged.ps1"),
+  printHeading("== 附加：卫生检查 ==");
+  const r = runStep(process.execPath, [
+    path.join(root, "scripts", "check-hygiene.mjs"),
   ]);
   if (r.toolFail) {
     console.log(
       colorLine(
-        `TOOL FAILURE —— check-staged.ps1 无法执行：${r.error ? r.error.message : "进程未正常退出"}`,
+        `TOOL FAILURE —— check-hygiene.mjs 无法执行：${r.error ? r.error.message : "进程未正常退出"}`,
         "red"
       )
     );
     hasToolFail = true;
-    addResult("check-staged", "TOOLFAIL");
+    addResult("卫生检查", "TOOLFAIL");
   } else if (r.exitCode === 0) {
-    addResult("check-staged", "PASS");
+    addResult("卫生检查", "PASS");
   } else if (r.exitCode === 1) {
     hasFail = true;
-    addResult("check-staged", "FAIL", "问题");
+    addResult("卫生检查", "FAIL", "问题");
   } else if (r.exitCode === 2) {
-    addResult("check-staged", "VACUOUS", "无新增行可查，不构成通过");
+    addResult("卫生检查", "VACUOUS", "无内容可查，不构成通过");
   } else if (r.exitCode === 3) {
     hasToolFail = true;
-    addResult("check-staged", "TOOLFAIL", "exit 3");
+    addResult("卫生检查", "TOOLFAIL", "exit 3");
   } else {
     hasFail = true;
-    addResult("check-staged", "FAIL", `未知 exit ${r.exitCode}`);
+    addResult("卫生检查", "FAIL", `未知 exit ${r.exitCode}`);
   }
 }
 

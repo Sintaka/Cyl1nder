@@ -21,7 +21,7 @@
 |---|---|---|
 | 三端门禁（pytest / tsc / vitest 分别调用 + 过滤输出） | **`node scripts/verify-all.mjs`** | ~7 轮 |
 | 版本号 bump + 三个索引 + quickstart 版本行与基线数字 | **`node scripts/release-step.mjs`** | ~12 次 |
-| 提交前卫生（截断 / BOM / 乱码 / 变异残留） | `scripts\check-staged.ps1` | ~15 次 |
+| 卫生检查（截断 / 游离 BOM / 乱码 / 变异残留） | `node scripts/check-hygiene.mjs` | ~15 次 |
 | 派活任务书里的公共样板（约占每份 40%） | `devlog\SUBAGENT_BRIEF.md` | ~10 份 |
 | 活体巡检（桥/vite/MCP + registry 基线 + 关键值延迟） | **`node scripts/probe-live.mjs`** | ~5 次 |
 
