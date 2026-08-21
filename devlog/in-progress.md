@@ -1,4 +1,54 @@
-# 进行中任务与剩余评估（v0.1.00166）
+# 进行中任务与剩余评估（v0.1.00167）
+
+## -40 更正我自己：缺陷 4 只修好了**一半**（v0.1.00167）
+
+§-35 我写「`channel-values` 对 vec3 静默失效 → 已修，keys 0 → 1」。
+**端点那半是真的，但用户看到的症状是「参数面板里 `t` 不出现」，那半没验过。**
+本轮把面板这条路走完，结论是：**读通了，写还是坏的。**
+
+### 面板对数组走的是「文本」分支
+`isNumericValue` 是 `typeof v === "number"`（`channel-panel.ts:44`），
+而 vec3 到面板手里是**数组** → 判定为非数字 → `input.type = "text"`（:165）、
+显示 `String([0.0153,0.7108,0])` = `"0.0153,0.7108,0"`（:167）。
+
+改这个输入框会走 `onInputChange`（:138）：`numeric` 为 false → `next = input.value`，
+**把一整个字符串推给桥** → 桥原样交给 `set_parameter`。
+
+### 那个字符串写到元组参数上会怎样：实测（一次性副本节点，绝不碰用户的 transform1）
+```
+set('1,2,3') -> RAISED InvalidSize: Invalid size.
+set('4 5 6') -> RAISED InvalidSize: Invalid size.
+set([7,8,9]) -> OK, t=(7.0, 8.0, 9.0)
+```
+**好消息是它「响亮地失败」而不是静默写坏** —— 不会把用户的位姿悄悄改成垃圾。
+（这也再次印证 §-35 那条：`set_parameter` 收的是**列表**，不是字符串。）
+
+探针节点当场 `destroy()`，实测已消失；用户 `transform1.t` 仍 `(0.0153, 0.7108, 0.0)`。
+
+### 还有一层：面板按 `store.serial` 过滤，所以 `t` 平时压根不在列
+面板只收 `kind=="param" && serial==当前 serial`（`channel-panel.ts:236`，
+serial 来自 `dock.ts:212` 的 `store.serial`）。实测三方对账：
+```
+viewing C1-mt09nkms-bwxp -> 1 row: /obj/geo1/transform1/t (vec3)      ← t 在这里
+viewing C1-mst8wa94-8uz8 -> 1 row: …/transform1/tx (float)
+用户页面的活动 serial     -> C1-msm6dsp7-ob6t                          ← 两个都不是
+```
+所以「面板里看不到 `t`」有**两个独立原因**叠着：① 端点原本读不出 vec3（已修）；
+② 得切到那个吊牌的 serial 才会列出它（**设计如此**，不是缺陷）。
+我此前只修掉①就宣布该缺陷已修，**结论说宽了**。
+
+### 正确的修法（**未做**，如实标注）
+vec3 应当有专门的行形态：三个数字输入框（或一个 vec3 控件），提交时组成**数组**而非字符串。
+`isNumericValue` 的二分（number / 其它）本身容不下矢量 —— 这是**真 UI 工作量**，
+不是加个分支能糊过去的，所以本轮不塞。**在此之前 vec3 通道行属于「可读、不可改」。**
+
+### 顺带：`/obj` 下有个**不是我建的** `apex_probe_tmp`
+清点 `/obj` 时看到三个子节点：`apex_probe_tmp` / `cyl1nder_tag_demo` / `geo1`。
+第一个不是本会话产生的（我的探针叫 `cyl1nder_probe_tmp`，已销毁并实测确认消失），
+按 devlog 的 APEX 铁律「写入实验一律在一次性副本节点上做」，它很可能是早前某轮
+APEX 实验的残留。**我不动它**（那是用户场景里的节点，删错代价远大于留着）——
+只记在这里供用户自行决定。
+
 
 ## -39 另外两个吊牌的陈旧锚点也清了：首读 1098 → 50ms（v0.1.00166）
 
