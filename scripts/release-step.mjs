@@ -28,9 +28,12 @@
 //   4. 就地改写 devlog/AGENT_QUICKSTART.md 的「当前焦点」标题行与「测试基线」行版本号
 //      （若提供 --pytest=<N>/--vitest=<N>，同时替换该行内的这两个数字，其余字符原样保留），
 //      写回 UTF-8 无 BOM 并校验
-//   5. 打印本版本对应的提交说明文件路径（约定：$TEMP\cyl1nder-commit-<NNNNN>.txt），
+//   5. 就地改写 devlog/in-progress.md 的「进行中任务与剩余评估」标题行版本号，
+//      写回 UTF-8 无 BOM 并校验（各自探测行尾，不与 quickstart 共用——in-progress.md
+//      是 bare LF，quickstart 是 CRLF，两者独立保留）
+//   6. 打印本版本对应的提交说明文件路径（约定：$TEMP\cyl1nder-commit-<NNNNN>.txt），
 //      提示该文件是否已存在
-//   6. 全部成功 exit 0
+//   7. 全部成功 exit 0
 //
 // 不做什么：不写提交说明正文，不 git commit —— 那句话是人/主智能体的事。
 //
@@ -52,6 +55,7 @@ const root = path.resolve(__dirname, "..");
 const protocolPy = path.join(root, "bridge", "bridge", "protocol.py");
 const appConfigTs = path.join(root, "web", "src", "app", "app-config.ts");
 const quickstartPath = path.join(root, "devlog", "AGENT_QUICKSTART.md");
+const inProgressPath = path.join(root, "devlog", "in-progress.md");
 
 const argv = process.argv.slice(2);
 const noIndex = argv.includes("--no-index");
@@ -179,16 +183,47 @@ export function rewriteQuickstartLines(lines, version, pytest, vitest) {
   };
 }
 
+// 就地改写 in-progress.md 的标题行版本号。与 rewriteQuickstartLines 同一套思路：
+// 抽成不碰文件系统的纯函数，方便在隔离副本上单独测试行替换逻辑。
+//
+// lines: string[]（不含行尾换行符）
+// version: 完整版本号字符串，如 "0.1.00172"
+// 返回：{ lines: string[], headerIdx: number, oldHeaderLine, newHeaderLine }
+// 找不到目标行时抛错（由调用方决定如何 exit）——不能静默跳过。
+export function rewriteInProgressHeader(lines, version) {
+  const dailyNum = version.split(".")[2];
+
+  const headerPattern = /^# 进行中任务与剩余评估（v0\.1\.\d+/;
+  const headerIdx = lines.findIndex((l) => headerPattern.test(l));
+  if (headerIdx < 0) {
+    throw new Error(
+      `在 in-progress.md 中找不到「进行中任务与剩余评估」标题行（模式：${headerPattern})`
+    );
+  }
+  const oldHeaderLine = lines[headerIdx];
+  const newHeaderLine = oldHeaderLine.replace(/v0\.1\.\d+/, `v0.1.${dailyNum}`);
+
+  const newLines = lines.slice();
+  newLines[headerIdx] = newHeaderLine;
+
+  return {
+    lines: newLines,
+    headerIdx,
+    oldHeaderLine,
+    newHeaderLine,
+  };
+}
+
 // 主流程包进 main()，用「是否被直接执行」而不是「是否被 import」来决定是否跑，
 // 这样验证脚本可以 `import { rewriteQuickstartLines } from "./release-step.mjs"`
 // 而不会顺带触发 bump-version / gen-index 等副作用步骤。
 function main() {
-// ---- 1/6 bump-version ----
-heading("== 1/6 bump-version ==");
+// ---- 1/7 bump-version ----
+heading("== 1/7 bump-version ==");
 runNodeStep("bump-version", ["scripts/bump-version.mjs", "build"], { cwd: root });
 
-// ---- 2/6 校验版本号一致 ----
-heading("== 2/6 校验版本号一致 ==");
+// ---- 2/7 校验版本号一致 ----
+heading("== 2/7 校验版本号一致 ==");
 const protocolContent = fs.readFileSync(protocolPy, "utf8");
 const appConfigContent = fs.readFileSync(appConfigTs, "utf8");
 const mProtocol = protocolContent.match(/VERSION = "([^"]+)"/);
@@ -215,18 +250,18 @@ if (verProtocol !== verAppConfig) {
 const version = verProtocol;
 console.log(colorLine(`版本号：${version}`, "green"));
 
-// ---- 3/6 重生成索引 ----
+// ---- 3/7 重生成索引 ----
 if (!noIndex) {
-  heading("== 3/6 重生成索引 ==");
+  heading("== 3/7 重生成索引 ==");
   runNodeStep("gen-index", ["scripts/gen-index.mjs"], { cwd: root });
   runNodeStep("gen-api-index", ["scripts/gen-api-index.mjs"], { cwd: root });
   runNodeStep("gen-graph", ["scripts/gen-graph.mjs"], { cwd: root });
 } else {
-  heading("== 3/6 跳过索引重生成（--no-index） ==");
+  heading("== 3/7 跳过索引重生成（--no-index） ==");
 }
 
-// ---- 4/6 更新 AGENT_QUICKSTART.md ----
-heading("== 4/6 更新 AGENT_QUICKSTART.md ==");
+// ---- 4/7 更新 AGENT_QUICKSTART.md ----
+heading("== 4/7 更新 AGENT_QUICKSTART.md ==");
 const quickstartRaw = fs.readFileSync(quickstartPath, "utf8");
 const eol = quickstartRaw.includes("\r\n") ? "\r\n" : "\n";
 const quickstartLines = quickstartRaw.split(/\r\n|\n/);
@@ -260,8 +295,44 @@ if (
 }
 console.log(colorLine("AGENT_QUICKSTART.md 已写回，UTF-8 无 BOM 确认通过", "green"));
 
-// ---- 5/6 提交说明文件路径 ----
-heading("== 5/6 提交说明文件路径 ==");
+// ---- 5/7 更新 devlog/in-progress.md ----
+heading("== 5/7 更新 devlog/in-progress.md ==");
+// in-progress.md 与 quickstart 是两个独立文件，各自读取、各自探测行尾，不共用
+// 上面探测出的 eol —— 这两个文件实测行尾风格不同（in-progress.md 是 bare LF，
+// quickstart 是 CRLF），共用会把其中一个文件的行尾整体改写，在 diff 里造成
+// 与本次改动无关的全量行变动，淹掉真实改动。
+const inProgressRaw = fs.readFileSync(inProgressPath, "utf8");
+const inProgressEol = inProgressRaw.includes("\r\n") ? "\r\n" : "\n";
+const inProgressLines = inProgressRaw.split(/\r\n|\n/);
+
+let inProgressRewrite;
+try {
+  inProgressRewrite = rewriteInProgressHeader(inProgressLines, version);
+} catch (err) {
+  console.log(colorLine(`FAIL —— ${err.message}`, "red"));
+  process.exit(1);
+}
+
+console.log(colorLine(`in-progress 标题行  旧：${inProgressRewrite.oldHeaderLine}`, "white"));
+console.log(colorLine(`in-progress 标题行  新：${inProgressRewrite.newHeaderLine}`, "white"));
+
+const newInProgressText = inProgressRewrite.lines.join(inProgressEol);
+fs.writeFileSync(inProgressPath, newInProgressText, "utf8");
+
+const writtenInProgressBytes = fs.readFileSync(inProgressPath);
+if (
+  writtenInProgressBytes.length >= 3 &&
+  writtenInProgressBytes[0] === 0xef &&
+  writtenInProgressBytes[1] === 0xbb &&
+  writtenInProgressBytes[2] === 0xbf
+) {
+  console.log(colorLine("FAIL —— in-progress.md 写回后仍带 BOM", "red"));
+  process.exit(1);
+}
+console.log(colorLine("in-progress.md 已写回，UTF-8 无 BOM 确认通过", "green"));
+
+// ---- 6/7 提交说明文件路径 ----
+heading("== 6/7 提交说明文件路径 ==");
 const dailyNum = version.split(".")[2];
 const commitMsgPath = path.join(os.tmpdir(), `cyl1nder-commit-${dailyNum}.txt`);
 if (fs.existsSync(commitMsgPath)) {
@@ -273,8 +344,8 @@ console.log(
   colorLine("（本脚本不写正文，也不 commit —— 消息内容由操作者/主智能体撰写）", "white")
 );
 
-// ---- 6/6 完成 ----
-heading("== 6/6 完成 ==");
+// ---- 7/7 完成 ----
+heading("== 7/7 完成 ==");
 console.log(colorLine("完成", "green"));
 process.exit(0);
 }
