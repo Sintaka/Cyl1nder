@@ -124,6 +124,19 @@
 | three.js gizmo / TransformControls | web/src/viewport/renderer.ts（toggleGizmoDemo，G/Shift+G） |
 
 ## 最近版本
+
+> **本节自 v0.1.00118 起冻结，不再逐版维护（2026-08-21 决定）。**
+> 版本历史的**唯一真相是 [in-progress.md](in-progress.md)**（倒序编号，最新在最上面）。
+>
+> **为什么冻结而不是补齐**：本节曾停在 00118 而仓库已到 00175，**落后 57 个版本**。
+> 补齐它等于把「同一件事记两处」这个问题重新造一遍 —— 而
+> `AGENT_QUICKSTART.md` 早就为此立了规矩：「本文件只做入口，不重复维护进度 ——
+> **两处各记一份迟早对不上**」。事实证明它确实对不上了，而且**没人发现**，
+> 因为读者会先看 in-progress.md，这一节静静地烂了 57 个版本。
+>
+> 所以正确的修法是**取消这份重复**，不是让它继续追赶。
+> 下面的条目作为 00118 及更早的历史存档保留，**不要往上加新版本**。
+
 - **v0.1.00118**：**dot 从节点降级为连线装饰件 + 双击缩放拦截**——进度真相见 [in-progress.md](in-progress.md)。
   **dot 不再是节点**：改成连接的可选属性 `ConnectionWaypoint{x,y}`。旧实现是真 `NodeKind`，插入 = 「删 1 连接 + 加 1 节点 + 加 2 连接」并触发 `onNetworkChanged`，与用户「dot 不应参与任何 cook、只是装饰符」的要求直接冲突（进拓扑、要 `network.ts` passthrough 特例、删掉留两截半线）。改成连接属性后连接恒为一条、拓扑不变、cook 与 `chain-cache` 签名完全不受影响；无 waypoint 时不输出该键，旧存档字节不变。已扫全部存档确认无 dot 节点，故直接删净而非留兼容层。
   **自绘连线**（`ConnectionView.tsx`）：rete 自带 `classicConnectionPath` 签名写死两点，塞不进中点。DOM 形状是契约——根节点保留 `data-testid="connection"`、连线本体必须是**第一个 `<path>`**（14 处 `querySelector("path")` 靠它加类并做 `getPointAtLength` 命中测试），所以圆点用排在其后的 `<circle>` 且 `pointer-events:none`；接管渲染后必须逐条补齐 rete `styled.svg/path` 的基础样式（9999px 画布、`fill:none`、path 上 `pointer-events:auto`），少一条 hover 与命中测试就废。圆点配色走**兄弟选择器**跟随线的类型类，不在组件里复制 `applyConnectionTypeVisual` 的查表。

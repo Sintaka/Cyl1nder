@@ -171,7 +171,34 @@ if ($PSVersionTable.PSEdition -ne 'Core' -or $PSVersionTable.PSVersion.Major -lt
 
 **纪律**：
 - **需要 spawn 子进程的编排脚本一律写成 `.mjs`，用 `node` 跑**（`scripts/verify-all.mjs`）。
-- `spawnSync` **必须 `stdio: 'inherit'`**；`'pipe'` 在受限环境下会 EPERM（同一条命名管道限制）。
+- `spawnSync` **默认的 `'pipe'` 会 EPERM**（沙箱不许开命名管道）。只要不需要读取输出，
+  用 `stdio: 'inherit'` 让它直接打到控制台。
+
+### 想**读取**子进程输出：用真实文件 fd，不要用管道（2026-08-21 实测）
+沙箱卡的是**「开管道」**，不是**「写文件」**。所以给 `stdio` 塞一个由
+`fs.openSync()` 拿到的**真实文件描述符**就能拿到文本：
+
+```js
+const fd = fs.openSync(tmp, "w");
+const r = spawnSync("git", ["log", "-1", "--format=%h %s"], { stdio: ["ignore", fd, "ignore"] });
+fs.closeSync(fd);
+const text = fs.readFileSync(tmp, "utf8").trim();   // 拿到了，中文也正常
+```
+
+实测对照（同一个 node 脚本里跑）：
+
+| 写法 | 结果 |
+|---|---|
+| `spawnSync("git", [...], { encoding: "utf8" })`（默认 pipe） | **EPERM**，`stdout` 是 `undefined` |
+| `stdio: 'inherit'` | 能跑（exit 0），但**拿不到文本** |
+| `stdio: ['ignore', fd, 'ignore']`（`fs.openSync`） | **exit 0 且拿到完整文本** |
+
+**这条推翻了我原先的判断**：我在派活任务书里断言「只有 inherit 或 `--output=` 两条路」，
+子智能体实测找出了第三条并且更通用 —— 因为 `--output=` **只有个别 git 子命令支持**：
+`git log --output=<file>` 可用，而 `git status --output=` / `git ls-files --output=`
+都是 `unknown option`（exit 129）。**fd 那条路对任何外部命令都成立。**
+
+`scripts/commit-step.mjs` 的 `runGitCapture()` 就是这么实现的，可直接抄。
 - 只调 `git`、只读写 `$env:TEMP` 与仓库的 `.ps1` 仍可用（`check-staged.ps1` 实测 exit 0），
   **但别再往 `.ps1` 里加 pytest/vitest/esbuild 这类会 spawn 或写 TEMP 的步骤**。
 - 判「工具没跑起来」看 `result.error` / `result.status === null`，**不要靠 try/catch**
