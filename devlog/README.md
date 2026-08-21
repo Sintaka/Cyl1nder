@@ -82,6 +82,7 @@
 | fxhoudinimcp 对接设计与落地（架构/时间轴双向/Python runtime/实机验证） | [houdini-mcp-integration.md](houdini-mcp-integration.md) |
 | 快照系统修复（重启丢数据根因三重 + 启动恢复 + 双根合并） | [snapshot-fix-00102.md](snapshot-fix-00102.md) |
 | 时间轴同步卡顿实测分析（fxhoudinimcp 判责 + 修复设计 + 通道上限） | [timeline-sync-lag-analysis.md](timeline-sync-lag-analysis.md) |
+| **`transform1/t` 同步 ~1 秒定位（拉取式轮询双峰 + 后台停摆 120s + 两条否掉的修法）** | [tag-t-sync-latency.md](tag-t-sync-latency.md) |
 | 吊牌 HDA + 项目绑定 + 轨迹页 架构设计提案（待拍板） | [tag-hda-project-design.md](tag-hda-project-design.md) |
 | **吊牌 HDA + 项目绑定 + 轨迹页 实施计划（下一阶段主计划，先读）** | [tag-hda-plan.md](tag-hda-plan.md) |
 | no geometry 诊断与 HDA 热重载恢复 | [no-geometry-diagnosis.md](no-geometry-diagnosis.md) |

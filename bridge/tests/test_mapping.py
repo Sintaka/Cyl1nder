@@ -6,6 +6,7 @@ MappingRegistry 单测照 test_channels.py 纯单元风格；路由测试同样�
 """
 from __future__ import annotations
 
+import asyncio
 import http.server
 import json
 import threading
@@ -748,3 +749,106 @@ def test_route_data_kind_uses_adapter(tmp_path: Path, monkeypatch) -> None:
     assert calls[0] == ("read", 8100, "/obj/geo1/sandbox_sceneanimate", "point_1")
     assert c.put(f"/api/projects/{pid}/mappings/ctrl/value", json={"value": {"t": [4.0, 0.0, 0.0]}}).json()["ok"] is True
     assert calls[1][:4] == ("write", 8100, "/obj/geo1/sandbox_sceneanimate", "point_1")
+
+
+# --- vec3 单次元组读优化（_read_vec3_tuple，212ms -> ~55ms）-------------------
+
+
+def _get_parameter_calls(stub: "_McpStub") -> list[dict]:
+    """从 stub.log 里挑出 command == parameters.get_parameter 的调用（含 params）。"""
+    out = []
+    for p in stub.log:
+        if isinstance(p, list) and len(p) > 2 and isinstance(p[2], dict):
+            if p[2].get("command") == "parameters.get_parameter":
+                out.append(p[2].get("params") or {})
+    return out
+
+
+def test_route_vec3_value_uses_single_tuple_read(tmp_path: Path, stub: _McpStub, monkeypatch) -> None:
+    """vec3 优先走 _read_vec3_tuple 单次调用；parameters.get_parameter 一次都不该
+    被叫到——那条调用对元组参数恒失败（`parm("t")` 是 None），是纯浪费的往返。"""
+    import bridge.mapping_routes as mr
+
+    calls: list[tuple] = []
+
+    def fake_execute_python(port, code, return_expression=None):
+        calls.append((port, code, return_expression))
+        return {"success": True, "executed": True, "return_value": [0.0153, 0.7108, 0.0]}
+
+    monkeypatch.setattr(mr.houdini_mcp, "execute_python", fake_execute_python)
+
+    c = _client(tmp_path)
+    pid, serial = generate_project_serial(), generate_serial()
+    _wire(pid, serial, node_path="/obj/geo1/tag1")
+    get_state().registry.set_houdini_mcp(serial, stub.port)
+    get_state().mappings.put_entry(pid, "t", _entry(serial, "transform1/t", type="vec3"))
+
+    body = c.get(f"/api/projects/{pid}/mappings/t/value").json()
+    assert body == {"ok": True, "value": [0.0153, 0.7108, 0.0]}
+    assert len(calls) == 1
+    assert _get_parameter_calls(stub) == []  # 全程没打过那条注定失败的调用
+
+
+def test_route_vec3_value_falls_back_when_tuple_read_fails(tmp_path: Path, stub: _McpStub, monkeypatch) -> None:
+    """_read_vec3_tuple 失败（抛异常）时退到逐分量兜底，且兜底仍拿到正确值。"""
+    import bridge.mapping_routes as mr
+
+    def raising_execute_python(port, code, return_expression=None):
+        raise houdini_mcp.HoudiniMcpError("boom")
+
+    monkeypatch.setattr(mr.houdini_mcp, "execute_python", raising_execute_python)
+
+    c = _client(tmp_path)
+    pid, serial = generate_project_serial(), generate_serial()
+    _wire(pid, serial, node_path="/obj/geo1/tag1")
+    get_state().registry.set_houdini_mcp(serial, stub.port)
+    get_state().mappings.put_entry(pid, "t", _entry(serial, "transform1/t", type="vec3"))
+    stub.values["/obj/geo1/transform1/tx"] = 1.5
+    stub.values["/obj/geo1/transform1/ty"] = 2.5
+    stub.values["/obj/geo1/transform1/tz"] = 3.5
+
+    body = c.get(f"/api/projects/{pid}/mappings/t/value").json()
+    assert body == {"ok": True, "value": [1.5, 2.5, 3.5]}
+    assert len(_get_parameter_calls(stub)) == 3  # tx/ty/tz 逐分量兜底
+
+
+def test_read_vec3_tuple_rejects_malformed_shape(monkeypatch) -> None:
+    """畸形元组结果（长度不对 / 含非数字）一律 None，绝不裁剪/凑数出一个假 vec3。"""
+    import bridge.mapping_routes as mr
+
+    bad_shapes = [
+        [1.0, 2.0],                 # 只有 2 个分量
+        [1.0, "x", 3.0],            # 含字符串
+        [1.0, 2.0, 3.0, 4.0],       # 4 个分量
+        [1.0, True, 3.0],           # bool 混进数字里也拒
+        None,                       # parmTuple 本身查不到
+    ]
+    for rv in bad_shapes:
+        monkeypatch.setattr(
+            mr.houdini_mcp, "execute_python",
+            lambda *a, rv=rv, **k: {"success": True, "executed": True, "return_value": rv},
+        )
+        result = asyncio.run(mr._read_vec3_tuple(8100, "/obj/geo1", "t"))
+        assert result is None, f"malformed return_value {rv!r} must not produce a vec3, got {result!r}"
+
+
+def test_route_float_value_unchanged_uses_get_parameter(tmp_path: Path, stub: _McpStub, monkeypatch) -> None:
+    """非 vec3 行为完全不变：仍是一次 parameters.get_parameter，绝不碰 vec3 读取路径。"""
+    import bridge.mapping_routes as mr
+
+    def must_not_run(*a, **k):
+        raise AssertionError("vec3 读取路径不该在 float 上被调用")
+
+    monkeypatch.setattr(mr, "_read_vec3_tuple", must_not_run)
+    monkeypatch.setattr(mr, "_read_vec3_components", must_not_run)
+
+    c = _client(tmp_path)
+    pid, serial = generate_project_serial(), generate_serial()
+    _wire(pid, serial, node_path="/obj/geo1/tag1")
+    get_state().registry.set_houdini_mcp(serial, stub.port)
+    get_state().mappings.put_entry(pid, "tx", _entry(serial, "transform1/tx", type="float"))
+    stub.values["/obj/geo1/transform1/tx"] = 9.25
+
+    body = c.get(f"/api/projects/{pid}/mappings/tx/value").json()
+    assert body == {"ok": True, "value": 9.25}
+    assert len(_get_parameter_calls(stub)) == 1

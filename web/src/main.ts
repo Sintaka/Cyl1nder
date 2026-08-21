@@ -46,7 +46,10 @@ import {
   collectExternRefAddresses,
   collectWritebackTargets,
   createDataflow,
+  EXTERN_REF_TTL_MS,
+  externRefRefetchDue,
   resolveWritebackValue,
+  WRITEBACK_DEBOUNCE_MS,
 } from "./core/dataflow";
 import { createAutosave, createHdaWatchdog } from "./core/lifecycle";
 import { bindShortcuts } from "./core/shortcuts";
@@ -1243,14 +1246,14 @@ function sameWritebackValue(prev: unknown, next: number | number[]): boolean {
   return prev === next;
 }
 
-/** 推一次写回（去抖 120ms）。fire-and-forget：flush 是同步热路径，绝不 await。
+/** 推一次写回（去抖 `WRITEBACK_DEBOUNCE_MS`）。fire-and-forget：flush 是同步热路径，绝不 await。
  *  已排队时直接返回（**latest-wins**：值在定时器触发的那一刻才读，所以不必续期）。 */
 function scheduleWriteback(): void {
   if (writebackTimer !== null) return;
   writebackTimer = window.setTimeout(() => {
     writebackTimer = null;
     void runWritebackGuarded();
-  }, 120);
+  }, WRITEBACK_DEBOUNCE_MS);
 }
 
 let writebackRunning = false;
@@ -1259,10 +1262,12 @@ let writebackRerun = false;
 /**
  * 单飞（single-flight）包一层（v0.1.00139）：同一时刻只允许一轮写回在跑。
  *
- * 为什么需要：去抖计时器在 **await 之前**就把自己置空了，而一轮 vec3 写回要 ~1s
- * （桥逐分量打 3 次 MCP）。那段时间里 TTL 轮询再调一次 `scheduleWriteback()`，
- * 120ms 后**第二轮并发开跑** —— 此时第一轮还没执行到 `writebackSent.set(...)`，
- * 于是两轮都认为"这个值没发过"，同一个值被推两次。
+ * 为什么需要：去抖计时器在 **await 之前**就把自己置空了。实测一轮 vec3 写回本身很快
+ * （单次 `set_parameter` 收整个数组，~50ms/2 次 MCP 调用）——真正慢的是**读**
+ * （逐分量取，3 次 MCP），但读是 fire-and-forget 的预取，不在这段 await 里。
+ * 即便这轮很快，TTL 轮询仍可能在它跑完前再调一次 `scheduleWriteback()`，
+ * `WRITEBACK_DEBOUNCE_MS` 后**第二轮并发开跑** —— 此时第一轮还没执行到
+ * `writebackSent.set(...)`，于是两轮都认为"这个值没发过"，同一个值被推两次。
  * 实测日志里就是连着两行 `transform1/t = [7,8,9]`。
  *
  * 重复写同值会刷掉用户在 Houdini 的撤销栈、让它白重算 —— 正是 `writebackSent`
@@ -1289,18 +1294,8 @@ async function runWritebackGuarded(): Promise<void> {
 
 /** 图外引用的值缓存，键 `<pid>:<逻辑名>`。 */
 const externRefCache = new Map<string, number | number[]>();
-/** 每个键上次取到值的时刻（配合 TTL 判定该不该重取）。 */
+/** 每个键上次取到值的时刻（配合 TTL 判定该不该重取，判据见 `externRefRefetchDue`）。 */
 const externRefAt = new Map<string, number>();
-/**
- * 图外引用的重取间隔（毫秒）。
- *
- * v0.1.00133 时这里是**永不重取** —— 理由是那条读要 15.2s，经不起轮询。
- * v0.1.00134 把它降到 85ms（首读 1.1s）之后那个理由就不成立了，而"永不重取"是个真 bug：
- * 用户在 Houdini 里改了被引用的参数，写回会**永远推旧值**。
- *
- * 2s 是取舍：足够跟上手动改参数，又不至于把桥打满（85ms 一次读，占空比约 4%）。
- */
-const EXTERN_REF_TTL_MS = 2000;
 
 /**
  * 去桥取「图外」引用的当前值，填进 `externRefCache`（v0.1.00133）。
@@ -1341,11 +1336,10 @@ function prefetchExternRefs(pid: string, addresses: string[]): void {
   if (addresses.length > 0) armExternRefPoll();
   for (const addr of addresses) {
     const key = `${pid}:${addr}`;
-    // 值还新鲜（TTL 内）或正在取 → 跳过。TTL 的理由见 EXTERN_REF_TTL_MS：
-    // v0.1.00133 是「永不重取」，那会让写回永远推旧值；读降到 85ms 后已无须将就。
-    const at = externRefAt.get(key);
+    // 值还新鲜或正在取 → 跳过。「新鲜」按 `externRefRefetchDue` 判——不是简单的
+    // 「满 TTL 才重取」，理由见该函数注释（心跳周期比 TTL 长，卡着整数 TTL 会丢一拍）。
     if (externRefInFlight.has(key)) continue;
-    if (at !== undefined && Date.now() - at < EXTERN_REF_TTL_MS) continue;
+    if (!externRefRefetchDue(Date.now(), externRefAt.get(key))) continue;
     externRefInFlight.add(key);
     void client
       .getMappingValue(pid, addr)

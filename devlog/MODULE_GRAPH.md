@@ -1,6 +1,6 @@
 # 模块依赖图 / MODULE GRAPH (web/src)
 
-> 机器生成（2026-08-18），由 `node scripts/gen-graph.mjs` 产出。
+> 机器生成（2026-08-21），由 `node scripts/gen-graph.mjs` 产出。
 
 - `app/address-bar.ts`
 - `app/app-config.ts`
@@ -31,6 +31,9 @@
 - `app/param.ts`
   - app/color
   - app/scrub
+  - nodes2/graph-model
+  - nodes2/param-ref
+  - nodes2/serial-capabilities
   - r,g,b
 - `app/preference.ts`
   - app/color
@@ -70,7 +73,9 @@
   - core/params
   - nodes2/graph
   - nodes2/graph-model
+  - nodes2/mapping-types
   - nodes2/network
+  - nodes2/param-ref
   - protocol/types
   - stores/workspace
   - viewport/renderer
@@ -115,7 +120,10 @@
   - core/shortcuts
   - core/timeline
   - nodes2/graph
+  - nodes2/graph-model
+  - nodes2/mapping-types
   - nodes2/network
+  - nodes2/serial-capabilities
   - protocol/compare
   - protocol/types
   - stores/workspace
@@ -130,6 +138,7 @@
   - fuse.js
   - nodes2/NodeView
   - nodes2/graph-model
+  - nodes2/serial-capabilities
   - nodes2/undo
   - rete
   - rete-area-plugin
@@ -150,10 +159,14 @@
   - rete
   - rete-area-plugin
 - `nodes2/graph.ts`
+  - nodes2/ConnectionView
   - nodes2/NodeView
   - nodes2/graph-interact
   - nodes2/graph-model
   - nodes2/graph-undo
+  - nodes2/mapping-types
+  - nodes2/ref-registry
+  - nodes2/serial-capabilities
   - nodes2/undo
   - react
   - react-dom/client
@@ -170,13 +183,23 @@
   - nodes2/groups/parser
 - `nodes2/groups/parser.ts`
   - protocol/types
+- `nodes2/mapping-types.ts`
+  - nodes2/graph-model
+  - protocol/types
+  - stores/projects
+  - stores/workspace
 - `nodes2/network.ts`
   - nodes2/chain-cache
   - nodes2/groups
   - protocol/types
   - tools/transform
+- `nodes2/param-ref.ts`
 - `nodes2/ref-registry.ts`
+- `nodes2/serial-capabilities.ts`
+  - bridge/client
+  - protocol/types
 - `nodes2/undo.ts`
+- `nodes2/waypoint-path.ts`
 - `overview.ts`
   - app/channel-value
   - bridge/client

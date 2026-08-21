@@ -256,6 +256,49 @@ export function collectExternRefAddresses(snap: NetworkSnapshot): string[] {
   return [...out];
 }
 
+/** 推一次写回的去抖间隔（毫秒）。与 `main.ts` 里 `scheduleWriteback` 的 `setTimeout`
+ *  共用同一个常量 —— 下面 `externRefRefetchDue` 的 slack 也从它派生，不能各写各的字面量。 */
+export const WRITEBACK_DEBOUNCE_MS = 120;
+
+/**
+ * 图外引用的重取间隔（毫秒）。
+ *
+ * v0.1.00133 时这里是**永不重取** —— 理由是那条读要 15.2s，经不起轮询。
+ * v0.1.00134 把它降到 85ms（首读 1.1s）之后那个理由就不成立了，而"永不重取"是个真 bug：
+ * 用户在 Houdini 里改了被引用的参数，写回会**永远推旧值**。
+ *
+ * 2s 是取舍：足够跟上手动改参数，又不至于把桥打满（85ms 一次读，占空比约 4%）。
+ * 现在与 `externRefRefetchDue` 共享：判据不再是"满 2s"，理由见那个函数的注释。
+ */
+export const EXTERN_REF_TTL_MS = 2000;
+
+/**
+ * 图外引用是否到期该重取（v0.1.00159）。
+ *
+ * 为什么不能直接判 `age >= ttlMs`：TTL 检查只在轮询心跳里发生
+ * （`armExternRefPoll` → `scheduleWriteback` → `pushWritebackOnce` → `prefetchExternRefs`），
+ * 心跳间隔是 `EXTERN_REF_TTL_MS`，但心跳本身要等上一轮写回跑完才重新 arm —— 于是
+ * 实际周期是 `TTL + 去抖`，约 2120ms。而 `externRefAt` 记的是**取到值那一刻**，
+ * 一次 vec3 读实测 ~212ms，比 120ms 去抖还长，于是第一次检查时年龄只有 ~1908ms、
+ * 差一点点没到 2000ms，被跳过 —— 白白丢掉一整个周期，等下一次心跳（+2120ms）才补上。
+ *
+ * 实测（用户真实浏览器 bridge trace）：不加 slack 时重取周期呈双峰，
+ * 低簇（n=6）均值 2.430s（模型 2.120s）、高簇（n=7）均值 4.242s（模型 4.240s）。
+ * 把门槛减去去抖时长，第一次检查就能命中，稳态周期回到 ~2.12s，且请求量不变
+ * （每个 TTL 窗口仍然只取一次）。
+ *
+ * `arrivedAt` 为 `undefined`（从未取过）→ 必到期。
+ */
+export function externRefRefetchDue(
+  now: number,
+  arrivedAt: number | undefined,
+  ttlMs: number = EXTERN_REF_TTL_MS,
+  slackMs: number = WRITEBACK_DEBOUNCE_MS,
+): boolean {
+  if (arrivedAt === undefined) return true;
+  return now - arrivedAt >= ttlMs - slackMs;
+}
+
 /**
  * 取某个 null 槽的**流入值**（v0.1.00138）：沿该槽的入线往上一层，递归解析。
  *

@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-20），由 `node scripts/gen-index.mjs` 产出。共 **1282** 个函数/类。
+> 机器生成（2026-08-21），由 `node scripts/gen-index.mjs` 产出。共 **1284** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -235,34 +235,35 @@
 | `lifespan` | 24 | def |  | 1 |
 | `create_app` | 38 | def |  | 2 |
 
-## bridge/bridge/mapping_routes.py（561 行）
+## bridge/bridge/mapping_routes.py（593 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `_check_pid` | 41 | def |  | 8 |
-| `_resolved_or_404` | 46 | def |  | 3 |
-| `_split_target` | 53 | def |  | 3 |
-| `_resolve_port_for_anchor` | 61 | def |  | 1 |
-| `_fallback_port_warned` | 106 | def |  | 2 |
-| `_port_for` | 144 | def |  | 5 |
-| `_trace` | 148 | def |  | 3 |
-| `ValuePut` | 158 | class |  | 1 |
-| `_find_port_by_pid_cached` | 187 | def |  | 2 |
-| `_find_port_by_pid` | 214 | def |  | 2 |
-| `_probe_health` | 242 | def |  | 4 |
-| `probe_anchor` | 247 | def |  | 1 |
-| `get_mapping_value` | 306 | def |  | 1 |
-| `_read_vec3_components` | 360 | def |  | 2 |
-| `get_cook_cycles` | 386 | def |  | 1 |
-| `put_mapping_value` | 403 | def |  | 1 |
-| `list_mappings` | 451 | def |  | 1 |
-| `put_mapping` | 478 | def |  | 1 |
-| `delete_mapping` | 489 | def |  | 1 |
-| `WritebackPut` | 506 | class |  | 1 |
-| `_writeback_view` | 511 | def |  | 2 |
-| `get_writeback` | 525 | def |  | 1 |
-| `put_writeback` | 534 | def |  | 1 |
-| `delete_writeback` | 555 | def |  | 1 |
+| `_check_pid` | 42 | def |  | 8 |
+| `_resolved_or_404` | 47 | def |  | 3 |
+| `_split_target` | 54 | def |  | 3 |
+| `_resolve_port_for_anchor` | 62 | def |  | 1 |
+| `_fallback_port_warned` | 107 | def |  | 2 |
+| `_port_for` | 145 | def |  | 5 |
+| `_trace` | 149 | def |  | 3 |
+| `ValuePut` | 159 | class |  | 1 |
+| `_find_port_by_pid_cached` | 188 | def |  | 2 |
+| `_find_port_by_pid` | 215 | def |  | 2 |
+| `_probe_health` | 243 | def |  | 4 |
+| `probe_anchor` | 248 | def |  | 1 |
+| `get_mapping_value` | 307 | def |  | 1 |
+| `_read_vec3_tuple` | 359 | def |  | 2 |
+| `_read_vec3_components` | 392 | def |  | 2 |
+| `get_cook_cycles` | 418 | def |  | 1 |
+| `put_mapping_value` | 435 | def |  | 1 |
+| `list_mappings` | 483 | def |  | 1 |
+| `put_mapping` | 510 | def |  | 1 |
+| `delete_mapping` | 521 | def |  | 1 |
+| `WritebackPut` | 538 | class |  | 1 |
+| `_writeback_view` | 543 | def |  | 2 |
+| `get_writeback` | 557 | def |  | 1 |
+| `put_writeback` | 566 | def |  | 1 |
+| `delete_writeback` | 587 | def |  | 1 |
 
 ## bridge/bridge/mapping.py（352 行）
 
@@ -1124,7 +1125,7 @@
 | `flushNow` | 164 | function |  | 2 |
 | `dispose` | 171 | function |  | 2 |
 
-## web/src/core/dataflow.ts（587 行）
+## web/src/core/dataflow.ts（630 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
@@ -1134,14 +1135,15 @@
 | `resolveRefInGraph` | 146 | function |  | 2 |
 | `nodesFeedingOutputs` | 209 | function |  | 2 |
 | `collectExternRefAddresses` | 223 | function | export | 1 |
-| `valueFromSlotFeeder` | 265 | function |  | 2 |
-| `resolveWritebackValue` | 285 | function | export | 2 |
-| `valueFromConnection` | 300 | function |  | 3 |
-| `createDataflow` | 355 | function | export | 1 |
-| `getDisplayNodeInfo` | 376 | function |  | 4 |
-| `refreshNodeFlags` | 398 | function |  | 5 |
-| `flush` | 504 | function |  | 5 |
-| `wireSelection` | 577 | function |  | 2 |
+| `externRefRefetchDue` | 292 | function | export | 1 |
+| `valueFromSlotFeeder` | 308 | function |  | 2 |
+| `resolveWritebackValue` | 328 | function | export | 2 |
+| `valueFromConnection` | 343 | function |  | 3 |
+| `createDataflow` | 398 | function | export | 1 |
+| `getDisplayNodeInfo` | 419 | function |  | 4 |
+| `refreshNodeFlags` | 441 | function |  | 5 |
+| `flush` | 547 | function |  | 5 |
+| `wireSelection` | 620 | function |  | 2 |
 
 ## web/src/core/gizmo.ts（162 行）
 
@@ -1201,61 +1203,61 @@
 |---|---|---|---|---|
 | `createTimelineController` | 43 | function | export | 1 |
 
-## web/src/main.ts（2224 行）
+## web/src/main.ts（2218 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `matchLogFilter` | 90 | arrow |  | 0 |
-| `renderLog` | 91 | arrow |  | 3 |
-| `isSerial` | 178 | arrow |  | 2 |
-| `isProject` | 179 | arrow |  | 2 |
-| `toggle` | 300 | arrow |  | 8 |
-| `updateLayoutMenuLabel` | 332 | function |  | 5 |
-| `getDockJson` | 335 | arrow |  | 7 |
-| `saveCurrentLayout` | 339 | arrow |  | 2 |
-| `refreshLayoutPresets` | 348 | arrow |  | 1 |
-| `writeJsonToDir` | 459 | function |  | 7 |
-| `readJsonFromDir` | 470 | function |  | 5 |
-| `saveSceneAs` | 484 | function |  | 3 |
-| `navigateToMemberPage` | 554 | function |  | 3 |
-| `openSceneFromDir` | 570 | function |  | 2 |
-| `bootIsMemberEntry` | 640 | arrow |  | 0 |
-| `applyLayoutSettings` | 976 | function |  | 4 |
-| `refreshSelectionPanels` | 1031 | function |  | 5 |
-| `sameWritebackValue` | 1237 | function |  | 3 |
-| `scheduleWriteback` | 1248 | function |  | 7 |
-| `runWritebackGuarded` | 1273 | function |  | 2 |
-| `armExternRefPoll` | 1331 | function |  | 2 |
-| `prefetchExternRefs` | 1339 | function |  | 2 |
-| `pushWritebackOnce` | 1380 | function |  | 2 |
-| `syncWritebackPointer` | 1466 | function |  | 2 |
-| `anchorNetPathOf` | 1501 | function |  | 2 |
-| `inputStatsText` | 1526 | function |  | 2 |
-| `outputStatsText` | 1535 | function |  | 2 |
-| `renderInspector` | 1544 | function |  | 2 |
-| `isProjectModeActive` | 1562 | function |  | 3 |
-| `projectAddress` | 1568 | function |  | 3 |
-| `onNetPathChanged` | 1587 | function |  | 1 |
-| `waitNetPath` | 1597 | function |  | 5 |
-| `enterableNodeNames` | 1611 | function |  | 3 |
-| `enterNodeAwaited` | 1622 | function |  | 3 |
-| `enterByName` | 1635 | function |  | 3 |
-| `exitToDepth` | 1642 | function |  | 5 |
-| `navigateByName` | 1660 | function |  | 2 |
-| `saveProjectGraph` | 1688 | function |  | 5 |
-| `enterProjectMode` | 1735 | function |  | 7 |
-| `openProjectMember` | 1852 | function |  | 2 |
-| `enterMemberWorkspace` | 1874 | function |  | 3 |
-| `commitPendingMemberScope` | 1894 | function |  | 3 |
-| `updateGraphAddress` | 1907 | function |  | 7 |
-| `scheduleNetwork` | 1935 | function |  | 1 |
-| `flushStoreView` | 1938 | function |  | 2 |
-| `loadSnapshotIntoStore` | 1966 | function |  | 3 |
-| `applyLoadedPreference` | 2011 | function |  | 3 |
-| `syncMemberInAddress` | 2053 | function |  | 2 |
-| `syncProjectInAddress` | 2073 | function |  | 2 |
-| `connectSerial` | 2086 | arrow |  | 1 |
-| `markGraphDirty` | 2217 | function |  | 2 |
+| `matchLogFilter` | 93 | arrow |  | 0 |
+| `renderLog` | 94 | arrow |  | 3 |
+| `isSerial` | 181 | arrow |  | 2 |
+| `isProject` | 182 | arrow |  | 2 |
+| `toggle` | 303 | arrow |  | 8 |
+| `updateLayoutMenuLabel` | 335 | function |  | 5 |
+| `getDockJson` | 338 | arrow |  | 7 |
+| `saveCurrentLayout` | 342 | arrow |  | 2 |
+| `refreshLayoutPresets` | 351 | arrow |  | 1 |
+| `writeJsonToDir` | 462 | function |  | 7 |
+| `readJsonFromDir` | 473 | function |  | 5 |
+| `saveSceneAs` | 487 | function |  | 3 |
+| `navigateToMemberPage` | 557 | function |  | 3 |
+| `openSceneFromDir` | 573 | function |  | 2 |
+| `bootIsMemberEntry` | 643 | arrow |  | 0 |
+| `applyLayoutSettings` | 979 | function |  | 4 |
+| `refreshSelectionPanels` | 1034 | function |  | 5 |
+| `sameWritebackValue` | 1240 | function |  | 3 |
+| `scheduleWriteback` | 1251 | function |  | 7 |
+| `runWritebackGuarded` | 1278 | function |  | 2 |
+| `armExternRefPoll` | 1326 | function |  | 2 |
+| `prefetchExternRefs` | 1334 | function |  | 2 |
+| `pushWritebackOnce` | 1374 | function |  | 2 |
+| `syncWritebackPointer` | 1460 | function |  | 2 |
+| `anchorNetPathOf` | 1495 | function |  | 2 |
+| `inputStatsText` | 1520 | function |  | 2 |
+| `outputStatsText` | 1529 | function |  | 2 |
+| `renderInspector` | 1538 | function |  | 2 |
+| `isProjectModeActive` | 1556 | function |  | 3 |
+| `projectAddress` | 1562 | function |  | 3 |
+| `onNetPathChanged` | 1581 | function |  | 1 |
+| `waitNetPath` | 1591 | function |  | 5 |
+| `enterableNodeNames` | 1605 | function |  | 3 |
+| `enterNodeAwaited` | 1616 | function |  | 3 |
+| `enterByName` | 1629 | function |  | 3 |
+| `exitToDepth` | 1636 | function |  | 5 |
+| `navigateByName` | 1654 | function |  | 2 |
+| `saveProjectGraph` | 1682 | function |  | 5 |
+| `enterProjectMode` | 1729 | function |  | 7 |
+| `openProjectMember` | 1846 | function |  | 2 |
+| `enterMemberWorkspace` | 1868 | function |  | 3 |
+| `commitPendingMemberScope` | 1888 | function |  | 3 |
+| `updateGraphAddress` | 1901 | function |  | 7 |
+| `scheduleNetwork` | 1929 | function |  | 1 |
+| `flushStoreView` | 1932 | function |  | 2 |
+| `loadSnapshotIntoStore` | 1960 | function |  | 3 |
+| `applyLoadedPreference` | 2005 | function |  | 3 |
+| `syncMemberInAddress` | 2047 | function |  | 2 |
+| `syncProjectInAddress` | 2067 | function |  | 2 |
+| `connectSerial` | 2080 | arrow |  | 1 |
+| `markGraphDirty` | 2211 | function |  | 2 |
 
 ## web/src/nodes2/chain-cache.ts（365 行）
 

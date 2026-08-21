@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { collectWritebackTargets, resolveWritebackValue } from "../src/core/dataflow";
+import {
+  collectWritebackTargets,
+  externRefRefetchDue,
+  resolveWritebackValue,
+} from "../src/core/dataflow";
 import type { NetworkSnapshot } from "../src/nodes2/network";
 
 /**
@@ -71,5 +75,35 @@ describe("resolveWritebackValue", () => {
     const nul = { id: "n", kind: "null", params: [P("ref_slot0", "")] };
     const s = snap([outNode("float", S, "transform1/tx"), nul], [{ source: "n", sourceOutput: "out0", target: "o", targetInput: "out0" }]);
     expect(resolveWritebackValue(s, target)).toBeUndefined();
+  });
+});
+
+/**
+ * `externRefRefetchDue`（v0.1.00159）：TTL 轮询的漏拍修复。
+ *
+ * 心跳周期是 `TTL + 去抖`（约 2120ms），而 `externRefAt` 记的是**取到值那一刻**——
+ * 一次 vec3 读实测 ~212ms，比 120ms 去抖还长，于是第一次检查时年龄只有 ~1908ms，
+ * 差一点没到 2000ms 就被跳过，白丢一整个周期。用固定 `ttlMs`/`slackMs`（不依赖
+ * 生产默认值）驱动，这样断言不会因为改了默认常量而失真。
+ */
+describe("externRefRefetchDue", () => {
+  const ttl = 2000;
+  const slack = 120;
+
+  it("到达 1908ms 前该到期 —— 曾经因为差 92ms 白丢一整个周期的那个案例", () => {
+    expect(externRefRefetchDue(1908, 0, ttl, slack)).toBe(true);
+  });
+
+  it("到达才 100ms 不该到期（不能刷日志/重跑）", () => {
+    expect(externRefRefetchDue(100, 0, ttl, slack)).toBe(false);
+  });
+
+  it("从未取过（arrivedAt undefined）→ 必到期", () => {
+    expect(externRefRefetchDue(0, undefined, ttl, slack)).toBe(true);
+  });
+
+  it("边界：正好 ttl - slack（1880ms）到期，差 1ms（1879ms）不到期", () => {
+    expect(externRefRefetchDue(1880, 0, ttl, slack)).toBe(true);
+    expect(externRefRefetchDue(1879, 0, ttl, slack)).toBe(false);
   });
 });

@@ -16,6 +16,7 @@ main.py 由主进程挂载本 router（本文件不改 main.py）。
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
@@ -324,37 +325,68 @@ async def get_mapping_value(pid: str, name: str) -> dict:
         port = await _port_for(resolved)
         if not port:
             return {"ok": False, "error": "houdini mcp not reachable"}
-        try:
-            envelope = await asyncio.to_thread(
-                houdini_mcp.rpc, port, "parameters.get_parameter",
-                {"node_path": node, "parm_name": parm}, 4.0,
-            )
-        except Exception as exc:  # noqa: BLE001 - 归一到 ok=False
-            return {"ok": False, "error": str(exc)[:200]}
-        failed = not isinstance(envelope, dict) or envelope.get("status") == "error"
-        data = None if failed else envelope.get("data")
-        # 值提取宽容（照 houdini_routes.get_channel_values）：dict 取 value，否则 data 本身
-        value = None if failed else (data.get("value") if isinstance(data, dict) else data)
-        # **失败也要走 vec3 兜底**：读元组参数时 get_parameter 直接报
-        # 「Parameter 't' not found」，所以判据必须是「拿不到值」而不是「返回了 None」——
-        # 先前把 fallback 放在 error 分支之后，那条 return 让它永远跑不到。
-        if value is None and (resolved.get("type") or "") == "vec3":
-            # **vec3 读要逐分量取**（v0.1.00131）。
-            #
-            # `parameters.get_parameter` 走的是 `node.parm(name)`，而 Houdini 里
-            # 元组参数的 `parm("t")` 是 **None**（实测：`parm("t")->None`，
-            # `parmTuple("t")->size 3`），于是读 `t` 会报
-            # 「Parameter 't' not found ... Did you mean: tz, ty, tx」。
-            # 写不受影响（set_parameter 收列表），所以症状是"写得进、读不出"。
-            #
-            # 那个工具属于官方 fxhoudinimcp，不改它；在**我们这侧**按分量拼：
-            # `t` → `tx`/`ty`/`tz`，与 HDA 侧 `_COMPONENT_SUFFIXES` 同一套约定。
-            value = await _read_vec3_components(port, node, parm)
-        if value is None and failed:
-            # 兜底也没拿到 → 如实报原始错误（不要把「读不到」伪装成 value=null 成功）
-            return {"ok": False, "error": str(envelope)[:200]}
+        if (resolved.get("type") or "") == "vec3":
+            # **vec3 跳过 get_parameter**（v0.1.00159，实测 212ms→~55ms）：元组参数的
+            # `parm("t")` 是 None，那条调用对 vec3 恒失败（报「Parameter 't' not found
+            # ... Did you mean: tz, ty, tx」），发出去就是纯浪费的一次往返。
+            # 一次 code.execute_python 取整个元组（实测 52ms）优先；失败才退到
+            # 逐分量兜底（_read_vec3_components，行为不变，是安全网）。
+            value = await _read_vec3_tuple(port, node, parm)
+            if value is None:
+                value = await _read_vec3_components(port, node, parm)
+            if value is None:
+                # 两条路都读不出 → 如实报错（不要把「读不到」伪装成 value=null 成功）
+                return {"ok": False, "error": f"failed to read vec3 {parm!r} on {node!r}"}
+        else:
+            try:
+                envelope = await asyncio.to_thread(
+                    houdini_mcp.rpc, port, "parameters.get_parameter",
+                    {"node_path": node, "parm_name": parm}, 4.0,
+                )
+            except Exception as exc:  # noqa: BLE001 - 归一到 ok=False
+                return {"ok": False, "error": str(exc)[:200]}
+            failed = not isinstance(envelope, dict) or envelope.get("status") == "error"
+            data = None if failed else envelope.get("data")
+            # 值提取宽容（照 houdini_routes.get_channel_values）：dict 取 value，否则 data 本身
+            value = None if failed else (data.get("value") if isinstance(data, dict) else data)
+            if value is None and failed:
+                # 如实报原始错误（不要把「读不到」伪装成 value=null 成功）
+                return {"ok": False, "error": str(envelope)[:200]}
     _trace("data-get", name, resolved, value)
     return {"ok": True, "value": value}
+
+
+async def _read_vec3_tuple(port: int, node: str, parm: str) -> list[float] | None:
+    """一次 code.execute_python 取整个元组参数（实测 52ms，对比逐分量 3 次共 ~150ms）。
+
+    为什么不用 `parameters.get_parameter`：元组参数的 `parm("t")` 是 None，那条调用
+    对 vec3 恒失败（实测报「Parameter 't' not found」），是一次纯浪费的往返。
+    为什么不并发逐分量取：实测 3 次并发(155ms) 与 3 次串行(157ms) 一样 ——
+    Houdini dispatcher 把 mcp.execute 排到主线程串行执行，并发只是让它们排队。
+    """
+    code = (
+        "import hou; "
+        f"n = hou.node({json.dumps(node)}); "
+        f"pt = n.parmTuple({json.dumps(parm)}); "
+        "result = [p.eval() for p in pt] if pt is not None else None"
+    )
+    try:
+        envelope = await asyncio.to_thread(houdini_mcp.execute_python, port, code, "result")
+    except Exception:  # noqa: BLE001 - HoudiniMcpError/解析失败一律回退逐分量
+        return None
+    if not isinstance(envelope, dict):
+        return None
+    rv = envelope.get("return_value")
+    # **绝不猜缺失分量**：形状不对（长度非 3 / 含非数字，bool 也拒）一律 None，
+    # 交给逐分量兜底 —— 拼出一个静默错误的位姿比读不到更坏。
+    if not isinstance(rv, (list, tuple)) or len(rv) != 3:
+        return None
+    out: list[float] = []
+    for v in rv:
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            return None
+        out.append(float(v))
+    return out
 
 
 async def _read_vec3_components(port: int, node: str, parm: str) -> list[float] | None:

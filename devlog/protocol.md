@@ -150,8 +150,13 @@
 - `GET    /api/projects/{pid}/mappings` -> `MappingsResponse{projectSerial, entries, anchors, resolved}`
 - `PUT    /api/projects/{pid}/mappings/{name:path}`，body = MappingEntry -> `{ok, entry, resolved}`
 - `DELETE /api/projects/{pid}/mappings/{name:path}` -> `{ok, removed}`
-- `GET    /api/projects/{pid}/mappings/{name:path}/value` -> `{ok, value}`（resolve 后按 kind 走 data adapter / `parameters.get_parameter`）
-- `PUT    /api/projects/{pid}/mappings/{name:path}/value`，body `{value}` -> `{ok, value}`（同上，写方向）
+- `GET    /api/projects/{pid}/mappings/{name:path}/value` -> `{ok, value}`（resolve 后按 kind 走 data adapter / `parameters.get_parameter`；
+  **type=vec3 例外**（v0.1.00159）：改走一次 `code.execute_python` 取整个 parmTuple，
+  失败才退到逐分量 `tx`/`ty`/`tz`。理由是元组参数的 `parm("t")` 是 None，
+  `get_parameter("t")` 对 vec3 **恒失败**，那条调用是纯浪费——实测 212ms → ~56ms。
+  响应形状不变；两条路都读不出时返回 `{ok:false,error}` 而非 `value:null`）
+- `PUT    /api/projects/{pid}/mappings/{name:path}/value`，body `{value}` -> `{ok, value}`（同上，写方向；
+  写**不受**上述影响：`set_parameter` 收列表，vec3 一次调用即可，实测 ~50ms）
 
 WS 广播：
 - `{type:"anchor-moved", serial, oldPath, newPath, names:[…]}` —— 锚点位置变化。**逻辑名不变**，web 侧不需要改地址，仅提示与刷新。
