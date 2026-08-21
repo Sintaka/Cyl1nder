@@ -1,6 +1,6 @@
 # 函数索引 / FUNCTION INDEX
 
-> 机器生成（2026-08-21），由 `node scripts/gen-index.mjs` 产出。共 **1293** 个函数/类。
+> 机器生成（2026-08-21），由 `node scripts/gen-index.mjs` 产出。共 **1295** 个函数/类。
 > 用途：agent 先 grep 函数名定位，再跳读对应文件/行号；`calls` = 文件内 `name(` 出现次数（hub 指标，越大越核心）。
 
 ## bridge/bridge/__init__.py（5 行）
@@ -850,31 +850,33 @@
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 
-## web/src/app/channel-panel.ts（441 行）
+## web/src/app/channel-panel.ts（494 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
-| `isNumericValue` | 48 | function | export | 1 |
-| `isVec3Array` | 55 | function |  | 3 |
-| `rowKindFor` | 61 | function | export | 3 |
-| `vec3Of` | 68 | function |  | 6 |
-| `assembleVec3` | 75 | function | export | 2 |
-| `commitVec3` | 92 | function | export | 2 |
-| `parseInput` | 98 | function | export | 3 |
-| `mergeValues` | 107 | function | export | 2 |
-| `mergePending` | 122 | function | export | 3 |
-| `clampFps` | 137 | function |  | 2 |
-| `initChannelPanel` | 155 | function | export | 1 |
-| `onInputChange` | 191 | function |  | 2 |
-| `onVecInputChange` | 210 | function |  | 2 |
-| `buildVecInputs` | 232 | function |  | 2 |
-| `buildRow` | 247 | function |  | 3 |
-| `replaceRow` | 279 | function |  | 2 |
-| `setRowValue` | 287 | function |  | 2 |
-| `renderList` | 303 | function |  | 4 |
-| `refresh` | 330 | function |  | 4 |
-| `applyValues` | 363 | function |  | 4 |
-| `flushPending` | 375 | function |  | 2 |
+| `isNumericValue` | 50 | function | export | 1 |
+| `isVec3Array` | 57 | function |  | 3 |
+| `rowKindFor` | 63 | function | export | 3 |
+| `vec3Of` | 70 | function |  | 6 |
+| `assembleVec3` | 77 | function | export | 2 |
+| `commitVec3` | 94 | function | export | 2 |
+| `parseInput` | 100 | function | export | 3 |
+| `mergeValues` | 109 | function | export | 2 |
+| `mergePending` | 124 | function | export | 3 |
+| `dotStateFor` | 145 | function | export | 2 |
+| `formatFailedBanner` | 164 | function | export | 2 |
+| `clampFps` | 181 | function |  | 2 |
+| `initChannelPanel` | 199 | function | export | 1 |
+| `onInputChange` | 235 | function |  | 2 |
+| `onVecInputChange` | 254 | function |  | 2 |
+| `buildVecInputs` | 276 | function |  | 2 |
+| `buildRow` | 291 | function |  | 3 |
+| `replaceRow` | 323 | function |  | 2 |
+| `setRowValue` | 331 | function |  | 2 |
+| `renderList` | 347 | function |  | 4 |
+| `refresh` | 374 | function |  | 4 |
+| `applyValues` | 407 | function |  | 4 |
+| `flushPending` | 422 | function |  | 2 |
 
 ## web/src/app/channel-value.ts（33 行）
 
@@ -1066,13 +1068,13 @@
 | `createDropdown` | 46 | function | export | 1 |
 | `createStepper` | 130 | function | export | 1 |
 
-## web/src/bridge/client.ts（700 行）
+## web/src/bridge/client.ts（717 行）
 
 | 函数 | 行号 | 类型 | 导出 | calls |
 |---|---|---|---|---|
 | `BridgeClient` | 24 | class | export | 0 |
-| `connectWs` | 657 | function | export | 1 |
-| `connect` | 662 | arrow |  | 1 |
+| `connectWs` | 674 | function | export | 1 |
+| `connect` | 679 | arrow |  | 1 |
 
 ## web/src/color/color-math.ts（147 行）
 

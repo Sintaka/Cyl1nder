@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   assembleVec3,
   commitVec3,
+  dotStateFor,
+  formatFailedBanner,
   isNumericValue,
   mergePending,
   mergeValues,
@@ -200,5 +202,54 @@ describe("commitVec3（vec3 提交判定：装配 + 逐元素比较，changed �
 
   it("装配结果与 prev 不同 → changed=true", () => {
     expect(commitVec3([1, 2, 3], 0, "9").changed).toBe(true);
+  });
+});
+
+describe("dotStateFor（PUT 结算逐行状态点判定：顺序即优先级）", () => {
+  it("throttled:true → pending，即便 ok 是 true（缺陷 C：尚未尝试写入，不能显示已同步）", () => {
+    expect(dotStateFor("/obj/geo1/tx", { ok: true, throttled: true })).toBe("pending");
+  });
+
+  it("path 在 failed 里 → error", () => {
+    const res = { ok: false, failed: { "/obj/geo1/tx": "ValueError: xxx" } };
+    expect(dotStateFor("/obj/geo1/tx", res)).toBe("error");
+  });
+
+  it("path 不在 failed 里、另一个 path 在 → ok（缺陷 B：不能连坐同批里的成功通道）", () => {
+    const res = { ok: false, failed: { "/obj/geo1/ty": "ValueError: xxx" } };
+    expect(dotStateFor("/obj/geo1/tx", res)).toBe("ok");
+  });
+
+  it("ok:false 且完全没有 failed → error（传输层/整体性失败，任意 path 都算未知失败）", () => {
+    const res = { ok: false, error: "houdini mcp not reachable" };
+    expect(dotStateFor("/obj/geo1/tx", res)).toBe("error");
+    expect(dotStateFor("/obj/geo1/ty", res)).toBe("error");
+  });
+
+  it("{ok:true} 且无 failed/throttled → ok", () => {
+    expect(dotStateFor("/obj/geo1/tx", { ok: true })).toBe("ok");
+  });
+
+  it("throttled 优先于 failed（哪怕 failed 里恰好有这个 path，也判 pending——钉住文档顺序，不留给巧合）", () => {
+    const res = { ok: true, throttled: true, failed: { "/obj/geo1/tx": "stale error" } };
+    expect(dotStateFor("/obj/geo1/tx", res)).toBe("pending");
+  });
+});
+
+describe("formatFailedBanner（失败横幅文案：长标识串中段省略，超量只报数量）", () => {
+  it("单个失败：path: error", () => {
+    expect(formatFailedBanner({ "/obj/geo1/tx": "not found" })).toBe("/obj/geo1/tx: not found");
+  });
+
+  it("多个失败用中文分号连接", () => {
+    const out = formatFailedBanner({ "/obj/geo1/tx": "a", "/obj/geo1/ty": "b" });
+    expect(out).toBe("/obj/geo1/tx: a；/obj/geo1/ty: b");
+  });
+
+  it("超过具名上限只列前几个，剩余报数量", () => {
+    const failed: Record<string, string> = {};
+    for (let i = 0; i < 8; i++) failed[`/obj/geo1/p${i}`] = "err";
+    const out = formatFailedBanner(failed);
+    expect(out).toContain("（另 3 个通道失败）");
   });
 });

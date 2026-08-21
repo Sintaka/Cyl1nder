@@ -551,11 +551,20 @@ export class BridgeClient {
 
   /** PUT /api/hda/{serial}/channel-values — 批量写 param 通道值（body {values}；
    *  bridge 侧 Sync Max FPS 节流 + latest-wins + single-flight，成功后不回显广播）。
-   *  错误语义同 getChannelValues。 */
+   *  错误语义同 getChannelValues。响应契约见 devlog/protocol.md：
+   *  - 同步路径：{ok: 全部成功, failed?: {absolutePath: 错误串}}（全成功时 failed 整个缺省）；
+   *  - 节流/飞行中路径：{ok: true, throttled: true}——表示"已接受、尚未真正尝试写入"，
+   *    不是"写入成功"，此时不可能有逐通道结果。 */
   async putChannelValues(
     serial: string,
     values: Record<string, unknown>,
-  ): Promise<{ ok: boolean; values?: Record<string, unknown>; error?: string }> {
+  ): Promise<{
+    ok: boolean;
+    values?: Record<string, unknown>;
+    error?: string;
+    failed?: Record<string, string>;
+    throttled?: boolean;
+  }> {
     try {
       const res = await fetch(`${this.base}/api/hda/${serial}/channel-values`, {
         method: "PUT",
@@ -567,6 +576,8 @@ export class BridgeClient {
         values?: Record<string, unknown>;
         error?: string;
         detail?: unknown;
+        failed?: Record<string, string>;
+        throttled?: boolean;
       } | null;
       if (!res.ok) {
         let error: string;
@@ -575,7 +586,13 @@ export class BridgeClient {
         else error = `${res.status} ${res.statusText}`;
         return { ok: false, error };
       }
-      return { ok: body?.ok ?? true, values: body?.values, error: body?.error };
+      return {
+        ok: body?.ok ?? true,
+        values: body?.values,
+        error: body?.error,
+        failed: body?.failed,
+        throttled: body?.throttled,
+      };
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }

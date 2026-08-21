@@ -6,6 +6,7 @@
 - `app/app-config.ts`
   - three/webgpu
 - `app/channel-panel.ts`
+  - app/elide
   - bridge/client
   - fast-deep-equal
   - protocol/types

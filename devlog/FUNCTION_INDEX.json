@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-21T10:05:50.961Z",
-  "totalFunctions": 1293,
+  "generatedAt": "2026-08-21T10:28:49.190Z",
+  "totalFunctions": 1295,
   "files": [
     {
       "file": "bridge/bridge/__init__.py",
@@ -4510,151 +4510,165 @@
     },
     {
       "file": "web/src/app/channel-panel.ts",
-      "lineCount": 441,
+      "lineCount": 494,
       "functions": [
         {
           "name": "isNumericValue",
-          "line": 48,
+          "line": 50,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "isVec3Array",
-          "line": 55,
+          "line": 57,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "rowKindFor",
-          "line": 61,
+          "line": 63,
           "kind": "function",
           "exported": true,
           "calls": 3
         },
         {
           "name": "vec3Of",
-          "line": 68,
+          "line": 70,
           "kind": "function",
           "exported": false,
           "calls": 6
         },
         {
           "name": "assembleVec3",
-          "line": 75,
+          "line": 77,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "commitVec3",
-          "line": 92,
+          "line": 94,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "parseInput",
-          "line": 98,
+          "line": 100,
           "kind": "function",
           "exported": true,
           "calls": 3
         },
         {
           "name": "mergeValues",
-          "line": 107,
+          "line": 109,
           "kind": "function",
           "exported": true,
           "calls": 2
         },
         {
           "name": "mergePending",
-          "line": 122,
+          "line": 124,
           "kind": "function",
           "exported": true,
           "calls": 3
         },
         {
+          "name": "dotStateFor",
+          "line": 145,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
+          "name": "formatFailedBanner",
+          "line": 164,
+          "kind": "function",
+          "exported": true,
+          "calls": 2
+        },
+        {
           "name": "clampFps",
-          "line": 137,
+          "line": 181,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "initChannelPanel",
-          "line": 155,
+          "line": 199,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "onInputChange",
-          "line": 191,
+          "line": 235,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "onVecInputChange",
-          "line": 210,
+          "line": 254,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "buildVecInputs",
-          "line": 232,
+          "line": 276,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "buildRow",
-          "line": 247,
+          "line": 291,
           "kind": "function",
           "exported": false,
           "calls": 3
         },
         {
           "name": "replaceRow",
-          "line": 279,
+          "line": 323,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "setRowValue",
-          "line": 287,
+          "line": 331,
           "kind": "function",
           "exported": false,
           "calls": 2
         },
         {
           "name": "renderList",
-          "line": 303,
+          "line": 347,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "refresh",
-          "line": 330,
+          "line": 374,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "applyValues",
-          "line": 363,
+          "line": 407,
           "kind": "function",
           "exported": false,
           "calls": 4
         },
         {
           "name": "flushPending",
-          "line": 375,
+          "line": 422,
           "kind": "function",
           "exported": false,
           "calls": 2
@@ -5556,7 +5570,7 @@
     },
     {
       "file": "web/src/bridge/client.ts",
-      "lineCount": 700,
+      "lineCount": 717,
       "functions": [
         {
           "name": "BridgeClient",
@@ -5567,14 +5581,14 @@
         },
         {
           "name": "connectWs",
-          "line": 657,
+          "line": 674,
           "kind": "function",
           "exported": true,
           "calls": 1
         },
         {
           "name": "connect",
-          "line": 662,
+          "line": 679,
           "kind": "arrow",
           "exported": false,
           "calls": 1

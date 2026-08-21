@@ -13,12 +13,14 @@
  * - serial 变化 → 重拉列表 + 清 pending；断开/无通道 → 占位文案。
  *
  * 纯逻辑（isNumericValue / rowKindFor / parseInput / assembleVec3 / mergeValues /
- * mergePending）独立导出，供 web/tests/channel-panel.test.ts 直接单测（无 DOM；
- * vitest 环境是 node 且没装 jsdom，buildRow 等 DOM 部分测不了）。
+ * mergePending / dotStateFor / formatFailedBanner）独立导出，供
+ * web/tests/channel-panel.test.ts 直接单测（无 DOM；vitest 环境是 node 且没装
+ * jsdom，buildRow 等 DOM 部分测不了）。
  */
 import "../styles/channel-panel.css";
 import equal from "fast-deep-equal";
 import { BridgeClient } from "../bridge/client";
+import { elide } from "./elide";
 import type { ChannelRef } from "../protocol/types";
 
 export interface ChannelPanelDeps {
@@ -125,6 +127,48 @@ export function mergePending(
 ): Record<string, unknown> {
   for (const k of Object.keys(values)) pending[k] = values[k];
   return pending;
+}
+
+export type ChannelDotState = "ok" | "pending" | "error";
+
+/** PUT 结算后单行状态点判定（纯函数，无 DOM）：决定某个 path 该显示什么点。
+ *  顺序即优先级（devlog/protocol.md 响应契约）：
+ *  1. throttled —— 桥把这次写节流合并进下一次 flush，尚未真正尝试写入，
+ *     绝不能显示"已同步"（这是三个缺陷里最易误判的一个：节流恰好在快速编辑时触发）；
+ *  2. failed 存在（无论是否命中该 path）——协议保证 failed 只在"逐通道结果已知"时
+ *     才出现，所以命中该 path → error，不命中 → 该通道其实成功了，必须是 ok
+ *     （这正是缺陷 B：同批里别的通道失败，不能连坐拖这行变红——failed 存在就说明
+ *     逐通道详情齐全，缺席即无罪，不能落到下面那条"整体失败"分支）；
+ *  3. failed 整个缺失且 ok:false —— 没有逐通道信息的整体性失败（传输层错误 /
+ *     houdini mcp not reachable），批次里每一行都算未知失败；
+ *  4. 否则 ok。 */
+export function dotStateFor(
+  path: string,
+  res: { ok: boolean; failed?: Record<string, string>; throttled?: boolean },
+): ChannelDotState {
+  if (res.throttled === true) return "pending";
+  if (res.failed) return Object.prototype.hasOwnProperty.call(res.failed, path) ? "error" : "ok";
+  if (res.ok === false) return "error";
+  return "ok";
+}
+
+/** 失败横幅里单个 path / error 的中段省略预算，以及最多具名列出的通道数
+ *  （超出只报数量，避免一次失败几十个通道时横幅刷屏）。 */
+const BANNER_PATH_MAX = 40;
+const BANNER_ERROR_MAX = 60;
+const BANNER_MAX_NAMED = 5;
+
+/** 把 failed（path→error）格式化成横幅文案："path: error；path2: error2（另 N 个通道失败）"。
+ *  过长的 path/error 走 elide 中段省略（devlog/development-standards.md 铁律：
+ *  长标识串保头保尾、禁止砍尾——路径的尾段参数名和错误信息的头部类型都是辨识关键）。 */
+export function formatFailedBanner(failed: Record<string, string>): string {
+  const entries = Object.entries(failed);
+  const shown = entries
+    .slice(0, BANNER_MAX_NAMED)
+    .map(([path, err]) => `${elide(path, BANNER_PATH_MAX)}: ${elide(err, BANNER_ERROR_MAX)}`);
+  const rest = entries.length - shown.length;
+  const list = shown.join("；");
+  return rest > 0 ? `${list}（另 ${rest} 个通道失败）` : list;
 }
 
 /** 面板轮询兜底间隔（ms）。 */
@@ -371,7 +415,10 @@ export function initChannelPanel(container: HTMLElement, deps: ChannelPanelDeps)
   }
 
   /** 节流 flush：pending 快照后立即清空（PUT 期间的编辑进入新 pending，latest-wins 不断流）。
-   *  结算后清 editing + 状态点；失败在面板顶部提示（轮询会带回真实值）。 */
+   *  结算后清 editing + 逐行状态点（dotStateFor，不再用整批共享的 r.ok）；
+   *  逐通道失败在面板顶部具名提示；节流响应不报错（还没尝试写，谈不上失败）。
+   *  节流时**不**把 keys 放回 pending——桥已经把这批值收进它自己下一次 flush，
+   *  客户端重新排队等于重复发送（这个坑后人很容易"修复"回来，故留此注释）。 */
   async function flushPending(serial: string): Promise<void> {
     if (flushing) return; // 单飞行：避免并发 PUT 乱序（bridge 也有 single-flight，双保险）
     const batch = pending;
@@ -379,7 +426,7 @@ export function initChannelPanel(container: HTMLElement, deps: ChannelPanelDeps)
     pending = {};
     const keys = Object.keys(batch);
     flushing = true;
-    let r: { ok: boolean; error?: string };
+    let r: { ok: boolean; error?: string; failed?: Record<string, string>; throttled?: boolean };
     try {
       r = await client.putChannelValues(serial, batch);
     } catch (e) {
@@ -390,9 +437,15 @@ export function initChannelPanel(container: HTMLElement, deps: ChannelPanelDeps)
     for (const k of keys) {
       editing.delete(k);
       const row = rows.get(k);
-      if (row) setDot(row, r.ok ? "ok" : "error");
+      if (row) setDot(row, dotStateFor(k, r));
     }
-    showError(r.ok ? "" : `通道值提交失败：${r.error ?? "unknown"}`);
+    if (r.throttled) {
+      showError(""); // 已接受、待桥后续 flush 尝试——不是失败，"pending" 点已经表达了在飞行中
+    } else if (r.failed) {
+      showError(`通道值提交失败：${formatFailedBanner(r.failed)}`);
+    } else {
+      showError(r.ok ? "" : `通道值提交失败：${r.error ?? "unknown"}`);
+    }
   }
 
   // ---- 定时器：250ms 轮询（可见性门控）+ 1000/fps flush ----
