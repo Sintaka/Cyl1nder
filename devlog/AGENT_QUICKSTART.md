@@ -2,7 +2,7 @@
 
 Cyl1nder = Houdini ⇄ 本地桥 ⇄ WebGL 前端 的中间站。目标不是 DCC。
 
-## 当前焦点（v0.1.00182，新会话先看这里）
+## 当前焦点（v0.1.00183，新会话先看这里）
 - **近期进度看 `devlog/in-progress.md`**（倒序编号，**最新是 `## -53`**，只保留最新 5 节；更早的在
   `archive/in-progress-history.md`，考古才看）。本文件只做入口，不重复维护进度 —— 两处各记一份迟早对不上。
 - **一轮对话的终点**：用户交代的任务做完 → **报告用户 → 结束**。不要自己找下一个任务；不确定就问用户。
@@ -17,7 +17,7 @@ Cyl1nder = Houdini ⇄ 本地桥 ⇄ WebGL 前端 的中间站。目标不是 DC
   其中两条**破坏性铁律**必须先看：① 绝不对 `sceneanimate` 的 `animation` Data parm 调 `revertToDefaults()`（会清空整个 APEX 场景）；② APEX 写入实验一律在一次性副本节点上做，不碰用户活动节点。
 - **就近上下文**：`devlog/timeline-sync-lag-analysis.md`（通道上限 ~19Hz 与 Sync Max FPS 节流基准）、`devlog/houdini-mcp-integration.md`（runtime 代理）、annotations-{bridge,hda,web}.md 最新版本节（改动全记录）。
 - 已有能力底线：geo 全流程 IO、fxhoudinimcp 代理（cmd/python/timeline）、快照持久化、时间轴双向同步、**吊牌 HDA 参数/数据通道注册 + 心跳捎带 + 探测**、**项目层（多 HDA 绑定 + nodeview 项目根 + 项目图）**、**轨迹页审计（/trace.html）**、**非 geo 数据源通道（apex-anim + apex-ctrl 读写器）**、**参数值双向同步（channel-values 端点 + 通道参数面板）**、**APEX 控制器世界位姿读写（apex-ctrl，含世界→局部换算与两趟父子链规则）**。
-- 测试基线（v0.1.00182，**实测**）：pytest **460** / vitest **972**（51 文件）/ tsc **0** / e2e **112 passed + 1 skipped**（2.1 分钟，全量跑完 teardown 自动扫掉合成项目，实测项目/serial/通道行三项均回到基线，零泄漏）。
+- 测试基线（v0.1.00183，**实测**）：pytest **460** / vitest **972**（51 文件）/ tsc **0** / e2e **112 passed + 1 skipped**（2.1 分钟，全量跑完 teardown 自动扫掉合成项目，实测项目/serial/通道行三项均回到基线，零泄漏）。
   基线数字每轮都会变，**发现对不上时以实际跑出来的为准**，别信这一行（它只是给你一个量级参照）。
 
 ## 文档分四类：按**什么时候读**分，不按主题分（v0.1.00182 整理）
