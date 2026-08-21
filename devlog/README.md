@@ -21,6 +21,8 @@
 | 新 agent 快速入口（先读） | [AGENT_QUICKSTART.md](AGENT_QUICKSTART.md) |
 | **进度与计划（唯一真相，先读）** | [in-progress.md](in-progress.md) |
 | 开发规范 / 分支 / 版本号 | [development-standards.md](development-standards.md) |
+| **主脑行为校准（三层分流 + 每轮 Retro）** | [agent-calibration.md](agent-calibration.md) |
+| **派活共享前言（子智能体先读这个）** | [SUBAGENT_BRIEF.md](SUBAGENT_BRIEF.md) |
 | 关键决策（含端口 grill 纠正） | [decisions.md](decisions.md) |
 | 通信协议（REST/WS/MCP） | [protocol.md](protocol.md) |
 | 函数索引（机器生成） | [FUNCTION_INDEX.md](FUNCTION_INDEX.md)（`node scripts/gen-index.mjs`） |
